@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Email Verification - ChessMate</title>
+    <script>
+        // Function to handle the verification response
+        async function handleVerification() {
+            try {
+                // Get the current URL
+                const url = window.location.href;
+                
+                // Make the API call to verify the email
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                // Redirect to the appropriate page
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    // Fallback to error page if no redirect URL
+                    window.location.href = '/email/verification_error.html';
+                }
+            } catch (error) {
+                console.error('Verification error:', error);
+                // Redirect to error page on any error
+                window.location.href = '/email/verification_error.html';
+            }
+        }
+
+        // Call the function when the page loads
+        window.onload = handleVerification;
+    </script>
+</head>
+<body>
+    <div style="text-align: center; padding: 20px; font-family: Arial, sans-serif;">
+        <h2>Verifying your email...</h2>
+        <p>Please wait while we verify your email address.</p>
+    </div>
+</body>
+</html> 

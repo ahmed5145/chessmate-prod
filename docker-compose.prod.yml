@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    restart: always
+    volumes:
+      - static_volume:/app/chess_mate/staticfiles
+      - media_volume:/app/chess_mate/media
+      - logs_volume:/app/chess_mate/logs
+    env_file:
+      - chess_mate/.env
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7
+    restart: always
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  celery:
+    build: .
+    restart: always
+    command: celery -A chess_mate worker -l info
+    volumes:
+      - logs_volume:/app/chess_mate/logs
+    env_file:
+      - chess_mate/.env
+    depends_on:
+      - web
+      - redis
+
+  nginx:
+    image: nginx:1.25
+    restart: always
+    volumes:
+      - static_volume:/app/chess_mate/staticfiles
+      - media_volume:/app/chess_mate/media
+      - ./nginx:/etc/nginx/conf.d
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - web
+
+volumes:
+  static_volume:
+  media_volume:
+  logs_volume:
+  redis_data: 

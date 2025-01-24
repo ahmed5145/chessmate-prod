@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - SERVICE_TYPE=web
+    env_file:
+      - chess_mate/.env
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  celery:
+    build: .
+    command: celery -A chess_mate worker -l info
+    volumes:
+      - .:/app
+    environment:
+      - SERVICE_TYPE=celery
+    env_file:
+      - chess_mate/.env
+    depends_on:
+      - web
+      - redis
+      - db
+
+volumes:
+  postgres_data:
+  redis_data: 
