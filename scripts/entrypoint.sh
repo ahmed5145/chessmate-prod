@@ -25,6 +25,9 @@ wait_for_redis() {
 wait_for_postgres
 wait_for_redis
 
+# Change to the correct directory
+cd /app/chess_mate
+
 # Apply database migrations
 echo "Applying database migrations..."
 python manage.py migrate

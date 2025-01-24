@@ -47,6 +47,7 @@ chess_mate/frontend/.env
 .env.development
 .env.production
 .env.test
+.env.example
 
 # Docker
 .docker/
@@ -58,11 +59,16 @@ docker-compose.override.yml
 *.crt
 *.csr
 *.cert
+*.secret
+*.token
+*.password
 
 # AWS
 .aws/
 aws.json
 aws-credentials.json
+aws.yml
+aws.yaml
 
 # Logs
 logs/
@@ -79,3 +85,11 @@ Thumbs.db
 
 # Deployment
 deploy_script.sh
+*.sock
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~

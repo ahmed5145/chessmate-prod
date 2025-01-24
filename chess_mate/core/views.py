@@ -79,7 +79,28 @@ def get_openai_client():
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 
 # Initialize feedback generator with proper error handling
-ai_feedback_generator = AIFeedbackGenerator(api_key=os.getenv("OPENAI_API_KEY"))
+try:
+    ai_feedback_generator = AIFeedbackGenerator(api_key=os.getenv("OPENAI_API_KEY"))
+except Exception as e:
+    logger.error(f"Error initializing AI feedback generator: {str(e)}")
+    ai_feedback_generator = None
+
+@api_view(['GET'])
+def debug_request(request):
+    """
+    Debug endpoint to check request details and server configuration.
+    """
+    debug_info = {
+        'request_method': request.method,
+        'headers': dict(request.headers),
+        'query_params': dict(request.GET),
+        'user': str(request.user),
+        'is_authenticated': request.user.is_authenticated,
+        'server_time': timezone.now().isoformat(),
+        'database_connection': 'OK' if connection.ensure_connection() else 'ERROR',
+        'redis_connection': 'OK' if settings.CACHES['default']['BACKEND'].endswith('RedisCache') else 'Not using Redis',
+    }
+    return Response(debug_info, status=status.HTTP_200_OK)
 
 def index(request):
     """
@@ -1620,3 +1641,10 @@ def send_password_reset_email(user, reset_url):
         html_message=html_message,
         fail_silently=False,
     )
+
+@api_view(['GET'])
+def health_check(request):
+    """
+    Health check endpoint for monitoring application status.
+    """
+    return Response({"status": "healthy"}, status=status.HTTP_200_OK)

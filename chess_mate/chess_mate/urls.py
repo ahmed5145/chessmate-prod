@@ -19,10 +19,12 @@ from django.urls import path, include, re_path
 from django.views.generic import TemplateView
 from django.conf import settings
 from django.conf.urls.static import static
+from core.views import health_check
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('core.urls')),
+    path('health/', health_check, name='health_check'),
+    path('api/', include('core.urls')),
     # This should be the last pattern - it will catch all other URLs and let React handle them
     re_path(r'^.*$', TemplateView.as_view(template_name='index.html')),
 ]

@@ -271,8 +271,9 @@ LOGGING = {
         },
         'file': {
             'class': 'logging.FileHandler',
-            'filename': LOGS_DIR / 'django.log',
+            'filename': str(LOGS_DIR / 'django.log'),
             'formatter': 'verbose',
+            'mode': 'a',  # append mode
         },
     },
     'loggers': {
@@ -287,20 +288,51 @@ LOGGING = {
             'propagate': True,
         },
     },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
+    },
 }
 
-# Cache settings
+# Cache configuration
 CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "SOCKET_CONNECT_TIMEOUT": 5,
-            "SOCKET_TIMEOUT": 5,
-            "RETRY_ON_TIMEOUT": True,
-            "MAX_CONNECTIONS": 1000,
-            "CONNECTION_POOL_KWARGS": {"max_connections": 100},
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://redis:6379/0',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+            'RETRY_ON_TIMEOUT': True,
+            'MAX_CONNECTIONS': 1000,
+            'CONNECTION_POOL_KWARGS': {'max_connections': 100},
         }
     }
+}
+
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://redis:6379/0'
+CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+# Additional Celery settings
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_SECURITY_KEY = os.getenv('CELERY_SECURITY_KEY', 'your-security-key')
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+CELERY_WORKER_SEND_TASK_EVENTS = True
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 3600
+CELERY_TASK_SOFT_TIME_LIMIT = 3300
+
+# Redis connection pool settings for Celery
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'max_connections': 20,
+    'socket_timeout': 5,
+    'socket_connect_timeout': 5,
+    'socket_keepalive': True,
+    'health_check_interval': 30,
 }
