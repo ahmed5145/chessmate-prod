@@ -21,6 +21,9 @@ TESTING: bool = os.environ.get('TESTING', 'False').lower() == 'true'
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-key-for-dev')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
+# OpenAI Settings
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
 ALLOWED_HOSTS = ['3.133.97.72', 'localhost', '127.0.0.1']
 
 # Application definition
@@ -155,6 +158,7 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'http://3.133.97.72',
 ]
 
 CORS_ALLOWED_ORIGINS = [

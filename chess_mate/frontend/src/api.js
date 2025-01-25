@@ -1,16 +1,5 @@
-import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-
-// API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
-
-// Create axios instance with default config
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  }
-});
+import api from './api/requests';
 
 // Token refresh queue to prevent race conditions
 let isRefreshing = false;
@@ -59,9 +48,7 @@ api.interceptors.response.use(
           }
           
           const { refresh } = JSON.parse(tokens);
-          const response = await axios.post(`${API_BASE_URL}/token/refresh/`, {
-            refresh: refresh
-          });
+          const response = await api.post("/token/refresh/", { refresh: refresh });
           
           const { access } = response.data;
           const newTokens = JSON.parse(tokens);
@@ -94,15 +81,6 @@ api.interceptors.response.use(
   }
 );
 
-// Helper function to add the Authorization header if the user is authenticated
-const setAuthHeader = (token) => {
-  if (token) {
-    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common["Authorization"];
-  }
-};
-
 // Helper function to check if the user is online
 const isUserOnline = () => {
   return navigator.onLine;
@@ -120,7 +98,7 @@ const removeExpiredTokens = () => {
     if (decodedAccessToken.exp < currentTime && !isUserOnline()) {
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
-      setAuthHeader(null);
+      api.defaults.headers.common["Authorization"] = null;
     }
   }
 
@@ -137,138 +115,90 @@ const removeExpiredTokens = () => {
 // Call removeExpiredTokens on script load
 removeExpiredTokens();
 
-// Helper function to get CSRF token
-const getCsrfToken = async () => {
-  try {
-    await axios.get(`${API_BASE_URL}/csrf/`, { withCredentials: true });
-    return document.cookie.split('; ')
-      .find(row => row.startsWith('csrftoken='))
-      ?.split('=')[1];
-  } catch (error) {
-    console.error('Error fetching CSRF token:', error);
-    return null;
-  }
-};
-
-// Refresh the access token
-export const refreshToken = async (refreshToken) => {
-  try {
-    const response = await api.post("/token/refresh/", { refresh: refreshToken });
-    const { access } = response.data;
-    setAuthHeader(access); // Set the new access token
-    localStorage.setItem("access_token", access); // Update the access token in local storage
-    return access;
-  } catch (error) {
-    throw new Error(error.response ? error.response.data : error.message);
-  }
-};
-
 // API functions
+export const loginUser = async (credentials) => {
+    try {
+        // Remove existing tokens before attempting to login
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("tokens");
+
+        const response = await api.post("/login/", credentials);
+        const { tokens, message } = response.data;
+
+        if (!tokens || !tokens.access || !tokens.refresh) {
+            throw new Error("Invalid response from server");
+        }
+
+        // Store tokens
+        localStorage.setItem("access_token", tokens.access);
+        localStorage.setItem("refresh_token", tokens.refresh);
+        localStorage.setItem("tokens", JSON.stringify(tokens));
+
+        // Set authorization header for future requests
+        api.defaults.headers.common['Authorization'] = `Bearer ${tokens.access}`;
+
+        return {
+            message: message || "Login successful!",
+            tokens
+        };
+    } catch (error) {
+        if (error.response) {
+            throw error.response.data;
+        }
+        throw new Error(error.message || "Login failed");
+    }
+};
 
 // Register a new user
 export const registerUser = async (userData) => {
-  try {
-    const response = await api.post("/register/", userData);
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response ? error.response.data : error.message);
-  }
-};
-
-// Login a user
-export const loginUser = async (credentials) => {
-  try {
-    // Remove existing tokens before attempting to login
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("tokens");
-    setAuthHeader(null);
-
-    const csrfToken = await getCsrfToken();
-    
-    const response = await api.post("/login/", credentials, {
-      headers: {
-        'X-CSRFToken': csrfToken,
-      },
-    });
-    
-    const { tokens, message } = response.data;
-    
-    if (!tokens || !tokens.access || !tokens.refresh) {
-      throw new Error("Invalid response from server");
+    try {
+        const response = await api.post("/register/", userData);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : error;
     }
-    
-    // Store tokens
-    localStorage.setItem("access_token", tokens.access);
-    localStorage.setItem("refresh_token", tokens.refresh);
-    localStorage.setItem("tokens", JSON.stringify(tokens));
-    
-    // Set authorization header for future requests
-    setAuthHeader(tokens.access);
-    
-    return {
-      message: message || "Login successful!",
-      tokens
-    };
-  } catch (error) {
-    if (error.response) {
-      throw new Error(error.response.data);
-    }
-    throw new Error(error.message || "Login failed");
-  }
 };
 
 // Fetch games for the authenticated user
 export const fetchUserGames = async () => {
-  try {
-    const response = await api.get("/dashboard/");
-    return response.data.games;
-  } catch (error) {
-    throw new Error(error.response ? error.response.data : error.message);
-  }
+    try {
+        const response = await api.get("/dashboard/");
+        return response.data.games;
+    } catch (error) {
+        throw new Error(error.response ? error.response.data : error.message);
+    }
 };
 
 // Fetch games from an external platform
 export const fetchExternalGames = async (platform, username, gameType) => {
-  try {
-    // Handle "all" game type by using "rapid" as default
-    const effectiveGameType = gameType === "all" ? "rapid" : gameType;
-    
-    const response = await api.post("/fetch-games/", {
-      platform,
-      username,
-      game_type: effectiveGameType
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response ? error.response.data : error.message);
-  }
+    try {
+        const effectiveGameType = gameType === "all" ? "rapid" : gameType;
+        const response = await api.post("/fetch-games/", {
+            platform,
+            username,
+            game_type: effectiveGameType
+        });
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response ? error.response.data : error.message);
+    }
 };
 
 // Analyze a specific game
 export const analyzeSpecificGame = async (gameId) => {
-  try {
-    const response = await api.post(`/game/${gameId}/analysis/`, {
-      depth: 20,
-      use_ai: true
-    });
-    return response.data;
-  } catch (error) {
-    if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      if (error.response.status === 401) {
-        throw new Error("Session expired. Please log in again.");
-      }
-      throw new Error(error.response.data);
-    } else if (error.request) {
-      // The request was made but no response was received
-      throw new Error("No response from server. Please try again.");
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      throw new Error("Failed to analyze game. Please try again.");
+    try {
+        const response = await api.post(`/game/${gameId}/analysis/`, {
+            depth: 20,
+            use_ai: true
+        });
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 401) {
+            throw new Error("Session expired. Please log in again.");
+        }
+        throw new Error(error.response?.data || "Failed to analyze game. Please try again.");
     }
-  }
 };
 
 // Analyze a batch of games
@@ -327,51 +257,43 @@ export const fetchAllGames = async () => {
   }
 };
 
-// Log out the user
+// Logout user
 export const logoutUser = async () => {
-  try {
-    const refreshToken = localStorage.getItem("refresh_token");
-    if (refreshToken) {
-      await api.post("/logout/", { refresh_token: refreshToken });
+    try {
+        const refreshToken = localStorage.getItem("refresh_token");
+        if (refreshToken) {
+            await api.post("/logout/", { refresh_token: refreshToken });
+        }
+    } catch (error) {
+        console.error("Logout error:", error);
+    } finally {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("tokens");
+        delete api.defaults.headers.common['Authorization'];
     }
-  } catch (error) {
-    console.error("Error logging out:", error);
-  } finally {
-    setAuthHeader(null);
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("tokens");
-  }
 };
 
 export const requestPasswordReset = async (email) => {
-  const response = await fetch(`${API_BASE_URL}/auth/password-reset/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email }),
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || "Failed to request password reset");
-  }
-  return data;
+    try {
+        const response = await api.post("/auth/password-reset/", { email });
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.error || "Failed to request password reset");
+    }
 };
 
 export const resetPassword = async (uid, token, newPassword) => {
-  const response = await fetch(`${API_BASE_URL}/auth/password-reset/confirm/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ uid, token, new_password: newPassword }),
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || "Failed to reset password");
-  }
-  return data;
+    try {
+        const response = await api.post("/auth/password-reset/confirm/", {
+            uid,
+            token,
+            new_password: newPassword
+        });
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.error || "Failed to reset password");
+    }
 };
 
 const getToken = () => {
@@ -383,36 +305,27 @@ const getToken = () => {
 };
 
 export const getUserProfile = async () => {
-  const response = await fetch(`${API_BASE_URL}/profile/`, {
-    headers: {
-      'Authorization': `Bearer ${getToken()}`,
-    },
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    const error = new Error(data.error || 'Failed to fetch profile');
-    error.status = response.status;
-    throw error;
-  }
-  return data;
+    try {
+        const response = await api.get("/profile/");
+        return response.data;
+    } catch (error) {
+        const errorMessage = error.response?.data?.error || 'Failed to fetch profile';
+        const customError = new Error(errorMessage);
+        customError.status = error.response?.status;
+        throw customError;
+    }
 };
 
 export const updateUserProfile = async (profileData) => {
-  const response = await fetch(`${API_BASE_URL}/profile/`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${getToken()}`,
-    },
-    body: JSON.stringify(profileData),
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    const error = new Error(data.error || 'Failed to update profile');
-    error.status = response.status;
-    throw error;
-  }
-  return data;
+    try {
+        const response = await api.patch("/profile/", profileData);
+        return response.data;
+    } catch (error) {
+        const errorMessage = error.response?.data?.error || 'Failed to update profile';
+        const customError = new Error(errorMessage);
+        customError.status = error.response?.status;
+        throw customError;
+    }
 };
+
+export { api as default };

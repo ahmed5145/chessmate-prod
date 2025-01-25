@@ -33,9 +33,14 @@ class GameAnalyzer:
 
     def analyze_move(self, board: chess.Board, move: chess.Move, depth: int = 20) -> Dict[str, Any]:
         """Analyze a single move using the Stockfish engine."""
+        # Limit depth to prevent timeouts
+        max_depth = min(depth, 15)  # Cap maximum depth
         try:
-            # Get current position evaluation
-            result = self.engine.analyse(board, chess.engine.Limit(depth=depth))
+            # Add time limit along with depth limit
+            result = self.engine.analyse(
+                board,
+                chess.engine.Limit(depth=max_depth, time=10.0)  # 10 second time limit
+            )
             score_obj = result.get("score")
             
             # Track time spent
@@ -81,7 +86,7 @@ class GameAnalyzer:
             }
             
         except Exception as e:
-            logger.error(f"Error analyzing move: {str(e)}")
+            logger.error(f"Error analyzing move: {e}")
             # Return a neutral evaluation instead of None
             return {
                 "move": move.uci(),
