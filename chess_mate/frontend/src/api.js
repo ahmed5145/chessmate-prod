@@ -274,7 +274,23 @@ export const analyzeSpecificGame = async (gameId) => {
 // Analyze a batch of games
 export const analyzeBatchGames = async (numGames) => {
   try {
-    const response = await api.post("/games/batch-analyze/", { num_games: parseInt(numGames, 10) });
+    const response = await api.post("/games/batch-analyze/", { 
+      num_games: parseInt(numGames, 10),
+      include_unanalyzed: true // Add this to analyze all games, not just unanalyzed ones
+    });
+    
+    // Check for progress in the response
+    if (response.data && response.data.progress) {
+      // Emit progress event
+      const event = new CustomEvent('analysisProgress', { 
+        detail: { 
+          current: response.data.progress.current,
+          total: response.data.progress.total
+        }
+      });
+      window.dispatchEvent(event);
+    }
+    
     return response.data;
   } catch (error) {
     throw new Error(error.response ? error.response.data : error.message);

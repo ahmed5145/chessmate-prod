@@ -625,26 +625,45 @@ def analyze_game(request, game_id):
             # Perform analysis
             analysis_results = analyzer.analyze_single_game(game, depth)
             
-            # Generate feedback
-            if use_ai and ai_feedback_generator:
+            # Initialize OpenAI client if AI feedback is enabled
+            ai_client = None
+            if use_ai:
                 try:
-                    feedback = ai_feedback_generator.generate_personalized_feedback(
-                        analysis_results,
-                        {
-                            "username": user.username,
-                            "rating": getattr(Profile.objects.get(user=user), 'rating', 1500),
-                            "total_games": getattr(Profile.objects.get(user=user), 'total_games', 0),
-                            "preferences": getattr(Profile.objects.get(user=user), 'preferences', {})
-                        }
-                    )
-                    logger.info("Generated AI feedback successfully")
+                    ai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+                    logger.info("OpenAI client initialized successfully")
                 except Exception as e:
-                    logger.error(f"Error generating AI feedback: {str(e)}")
-                    feedback = analyzer.generate_feedback(analysis_results)
+                    logger.error(f"Failed to initialize OpenAI client: {str(e)}")
+            
+            # Generate feedback
+            try:
+                if use_ai and ai_client:
+                    try:
+                        # Get player profile for personalized feedback
+                        profile = Profile.objects.get(user=user)
+                        player_profile = {
+                            "username": user.username,
+                            "rating": getattr(profile, "rating", None),
+                            "total_games": getattr(profile, "total_games", 0),
+                            "preferred_openings": getattr(profile, "preferred_openings", [])
+                        }
+                        
+                        # Generate AI feedback
+                        feedback = ai_feedback_generator.generate_personalized_feedback(
+                            analysis_results,
+                            player_profile
+                        )
+                        logger.info("Generated AI feedback successfully")
+                    except Exception as e:
+                        logger.error(f"Error generating AI feedback: {str(e)}")
+                        feedback = analyzer.generate_feedback(analysis_results, game)
+                        logger.info("Generated fallback feedback")
+                else:
+                    feedback = analyzer.generate_feedback(analysis_results, game)
                     logger.info("Generated basic feedback")
-            else:
-                feedback = analyzer.generate_feedback(analysis_results)
-                logger.info("Generated basic feedback")
+            except Exception as e:
+                logger.error(f"Error generating feedback: {str(e)}")
+                feedback = analyzer.generate_feedback(analysis_results, game)
+                logger.info("Generated basic feedback as final fallback")
             
             # Save results
             game.analysis = analysis_results
@@ -687,33 +706,52 @@ def batch_analyze(request):
     num_games = request.data.get('num_games', 5)
     depth = request.data.get('depth', 20)
     use_ai = request.data.get('use_ai', True)
+    include_unanalyzed = request.data.get('include_unanalyzed', True)
 
     try:
-        # Get unanalyzed games
-        games = Game.objects.filter(user=user, analysis__isnull=True).order_by('-date_played')[:num_games]
+        # Get games based on the include_unanalyzed parameter
+        if include_unanalyzed:
+            games = Game.objects.filter(user=user).order_by('-date_played')[:num_games]
+        else:
+            games = Game.objects.filter(user=user, analysis__isnull=True).order_by('-date_played')[:num_games]
+            
         if not games:
-            return Response({"error": "No unanalyzed games found"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "No games found to analyze"}, status=status.HTTP_400_BAD_REQUEST)
 
         analyzer = GameAnalyzer(stockfish_path=STOCKFISH_PATH)
         try:
             logger.info("Starting batch analysis for user %s with %d games.", user.id, len(games))
-            analysis_results = analyzer.analyze_games(games, depth=depth)
-
-            # Save analysis results to the database
-            for game in games:
-                if game.id in analysis_results:
-                    game.analysis = analysis_results[game.id]
+            analysis_results = {}
+            
+            # Analyze games one by one to track progress
+            for i, game in enumerate(games, 1):
+                try:
+                    # Calculate and log progress
+                    progress = (i / len(games)) * 100
+                    logger.info("Analysis progress: %.1f%% (%d/%d games)", progress, i, len(games))
+                    
+                    # Analyze the game
+                    game_analysis = analyzer.analyze_single_game(game, depth)
+                    analysis_results[game.id] = game_analysis
+                    
+                    # Save analysis results
+                    game.analysis = game_analysis
                     game.save()
 
-            # Generate comprehensive feedback for each game
+                except Exception as e:
+                    logger.error(f"Error analyzing game {game.id}: {str(e)}")
+                    continue
+
+            # Generate comprehensive feedback
             feedback_results = {}
             overall_stats = {
                 "total_games": len(games),
-                "completed": 0,
+                "completed": len(analysis_results),
                 "wins": 0,
                 "losses": 0,
                 "draws": 0,
                 "average_accuracy": 0,
+                "progress": 100.0,  # Analysis is complete at this point
                 "common_mistakes": {
                     "blunders": 0,
                     "mistakes": 0,
@@ -742,38 +780,78 @@ def batch_analyze(request):
             total_defensive_positions = 0
             total_winning_positions = 0
 
+            # Initialize OpenAI client if AI feedback is enabled
+            ai_client = None
+            if use_ai:
+                try:
+                    ai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+                    logger.info("OpenAI client initialized successfully")
+                except Exception as e:
+                    logger.error(f"Failed to initialize OpenAI client: {str(e)}")
+
             for game in games:
                 if game.id in analysis_results:
-                    # Generate feedback for this game
-                    game_feedback = analyzer.generate_feedback(analysis_results[game.id], game)
-                    feedback_results[game.id] = game_feedback
-                    overall_stats["completed"] += 1
+                    try:
+                        # Generate feedback using AI if available
+                        if use_ai and ai_client:
+                            try:
+                                # Get player profile for personalized feedback
+                                profile = Profile.objects.get(user=user)
+                                player_profile = {
+                                    "username": user.username,
+                                    "rating": getattr(profile, "rating", None),
+                                    "total_games": getattr(profile, "total_games", 0),
+                                    "preferred_openings": getattr(profile, "preferred_openings", [])
+                                }
+                                
+                                # Generate AI feedback
+                                game_feedback = ai_feedback_generator.generate_personalized_feedback(
+                                    analysis_results[game.id],
+                                    player_profile
+                                )
+                                logger.info(f"Generated AI feedback for game {game.id}")
+                            except Exception as e:
+                                logger.error(f"Error generating AI feedback for game {game.id}: {str(e)}")
+                                # Fallback to basic feedback
+                                game_feedback = analyzer.generate_feedback(analysis_results[game.id], game)
+                                logger.info(f"Generated fallback feedback for game {game.id}")
+                        else:
+                            # Use basic feedback generation
+                            game_feedback = analyzer.generate_feedback(analysis_results[game.id], game)
+                            logger.info(f"Generated basic feedback for game {game.id}")
 
-                    # Update overall stats
-                    if game.result == "win":
-                        overall_stats["wins"] += 1
-                    elif game.result == "loss":
-                        overall_stats["losses"] += 1
-                    else:
-                        overall_stats["draws"] += 1
+                        feedback_results[game.id] = game_feedback
+                        overall_stats["completed"] += 1
 
-                    # Track mistakes and patterns
-                    overall_stats["common_mistakes"]["blunders"] += game_feedback.get("tactical_analysis", {}).get("missed_wins", 0)
-                    overall_stats["common_mistakes"]["mistakes"] += game_feedback.get("tactical_analysis", {}).get("critical_mistakes", 0)
-                    overall_stats["common_mistakes"]["inaccuracies"] += len(game_feedback.get("tactical_analysis", {}).get("suggestions", []))
-                    
-                    # Track resourcefulness
-                    resourcefulness = game_feedback.get("resourcefulness", {})
-                    total_resourcefulness += resourcefulness.get("overall_score", 65.0)
-                    overall_stats["resourcefulness"]["total_saves"] += resourcefulness.get("defensive_saves", 0)
-                    
-                    # Track advantage
-                    advantage = game_feedback.get("advantage", {})
-                    total_advantage += advantage.get("conversion_rate", 65.0)
-                    overall_stats["advantage"]["total_missed_wins"] += advantage.get("missed_wins", 0)
-                    
-                    # Track accuracy
-                    total_accuracy += game_feedback.get("overall_accuracy", 65.0)
+                        # Update overall stats
+                        if game.result == "win":
+                            overall_stats["wins"] += 1
+                        elif game.result == "loss":
+                            overall_stats["losses"] += 1
+                        else:
+                            overall_stats["draws"] += 1
+
+                        # Track mistakes and patterns
+                        overall_stats["common_mistakes"]["blunders"] += game_feedback.get("tactical_analysis", {}).get("missed_wins", 0)
+                        overall_stats["common_mistakes"]["mistakes"] += game_feedback.get("tactical_analysis", {}).get("critical_mistakes", 0)
+                        overall_stats["common_mistakes"]["inaccuracies"] += len(game_feedback.get("tactical_analysis", {}).get("suggestions", []))
+                        
+                        # Track resourcefulness
+                        resourcefulness = game_feedback.get("resourcefulness", {})
+                        total_resourcefulness += resourcefulness.get("overall_score", 65.0)
+                        overall_stats["resourcefulness"]["total_saves"] += resourcefulness.get("defensive_saves", 0)
+                        
+                        # Track advantage
+                        advantage = game_feedback.get("advantage", {})
+                        total_advantage += advantage.get("conversion_rate", 65.0)
+                        overall_stats["advantage"]["total_missed_wins"] += advantage.get("missed_wins", 0)
+                        
+                        # Track accuracy
+                        total_accuracy += game_feedback.get("overall_accuracy", 65.0)
+
+                    except Exception as e:
+                        logger.error(f"Error processing feedback for game {game.id}: {str(e)}")
+                        continue
 
             # Calculate averages
             num_analyzed_games = len(games)
@@ -807,6 +885,24 @@ def batch_analyze(request):
                         "area": "Technical Precision",
                         "description": "Strong technique in converting advantages into wins."
                     })
+
+            # Generate overall AI feedback if enabled
+            if use_ai and ai_client:
+                try:
+                    overall_ai_feedback = ai_feedback_generator.generate_batch_summary(
+                        overall_stats,
+                        feedback_results,
+                        {
+                            "username": user.username,
+                            "rating": getattr(Profile.objects.get(user=user), 'rating', 1500),
+                            "total_games": num_analyzed_games
+                        },
+                        ai_client
+                    )
+                    overall_stats["ai_feedback"] = overall_ai_feedback
+                    logger.info("Generated overall AI feedback for batch analysis")
+                except Exception as e:
+                    logger.error(f"Error generating overall AI feedback: {str(e)}")
 
             return Response({
                 "message": "Batch analysis completed successfully",
