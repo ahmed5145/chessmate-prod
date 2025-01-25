@@ -147,25 +147,25 @@ const SingleGameAnalysis = () => {
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-500">Accuracy</p>
             <p className="text-2xl font-bold text-blue-600">
-              {((analysis.feedback?.accuracy || 0) * 100).toFixed(1)}%
+              {analysis.overall_accuracy?.toFixed(1) || '65.0'}%
             </p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Mistakes</p>
+            <p className="text-sm text-gray-500">Tactics Score</p>
             <p className="text-2xl font-bold text-yellow-600">
-              {analysis.feedback?.mistakes || 0}
+              {analysis.tactical_analysis?.tactics_score?.toFixed(1) || '65.0'}%
             </p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Blunders</p>
+            <p className="text-sm text-gray-500">Critical Mistakes</p>
             <p className="text-2xl font-bold text-red-600">
-              {analysis.feedback?.blunders || 0}
+              {analysis.tactical_analysis?.critical_mistakes || 0}
             </p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-500">Avg Time/Move</p>
             <p className="text-2xl font-bold text-green-600">
-              {analysis.feedback?.time_management?.avg_time_per_move?.toFixed(1) || 0}s
+              {analysis.time_management?.average_move_time?.toFixed(1) || '30.0'}s
             </p>
           </div>
         </div>
@@ -177,13 +177,13 @@ const SingleGameAnalysis = () => {
           <h3 className="text-lg font-semibold">Key Insights</h3>
         </div>
         <ul className="space-y-3">
-          {analysis.feedback?.tactical_opportunities?.map((opportunity, index) => (
+          {analysis.tactical_analysis?.suggestions?.map((suggestion, index) => (
             <li key={index} className="flex items-start">
               <Zap className="w-5 h-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span className="text-gray-700">{opportunity}</span>
+              <span className="text-gray-700">{suggestion}</span>
             </li>
           )) || (
-            <li className="text-gray-500">No tactical opportunities identified.</li>
+            <li className="text-gray-500">No tactical suggestions available.</li>
           )}
         </ul>
       </div>
@@ -211,7 +211,7 @@ const SingleGameAnalysis = () => {
               <tr key={index} className={move.is_critical ? 'bg-yellow-50' : ''}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    <span className="text-sm font-medium text-gray-900">{move.move_number}.</span>
+                    <span className="text-sm font-medium text-gray-900">{index + 1}.</span>
                     <span className="ml-2 text-sm text-gray-900">{move.move}</span>
                   </div>
                 </td>
@@ -243,11 +243,11 @@ const SingleGameAnalysis = () => {
       </div>
       <div className="space-y-4">
         <p className="text-gray-700">
-          Average time per move: {analysis.feedback?.time_management?.avg_time_per_move?.toFixed(1) || 0}s
+          Average time per move: {analysis.time_management?.average_move_time?.toFixed(1) || '30.0'}s
         </p>
         <div className="bg-gray-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600">
-            {analysis.feedback?.time_management?.suggestion || 'Focus on managing your time effectively throughout the game.'}
+            {analysis.time_management?.suggestions?.[0] || 'Focus on managing your time effectively throughout the game.'}
           </p>
         </div>
       </div>
@@ -263,16 +263,16 @@ const SingleGameAnalysis = () => {
       <div className="space-y-4">
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Blunders</p>
-            <p className="text-xl font-bold text-red-600">{analysis.feedback?.blunders || 0}</p>
+            <p className="text-sm text-gray-500">Tactics Score</p>
+            <p className="text-xl font-bold text-purple-600">{analysis.tactical_analysis?.tactics_score?.toFixed(1) || '65.0'}%</p>
           </div>
           <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Mistakes</p>
-            <p className="text-xl font-bold text-yellow-600">{analysis.feedback?.mistakes || 0}</p>
+            <p className="text-sm text-gray-500">Missed Wins</p>
+            <p className="text-xl font-bold text-yellow-600">{analysis.tactical_analysis?.missed_wins || 0}</p>
           </div>
           <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Inaccuracies</p>
-            <p className="text-xl font-bold text-orange-600">{analysis.feedback?.inaccuracies || 0}</p>
+            <p className="text-sm text-gray-500">Critical Mistakes</p>
+            <p className="text-xl font-bold text-red-600">{analysis.tactical_analysis?.critical_mistakes || 0}</p>
           </div>
         </div>
       </div>
@@ -296,7 +296,7 @@ const SingleGameAnalysis = () => {
           <div className="p-3 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-500">Accuracy</p>
             <p className="text-xl font-bold text-green-600">
-              {((analysis.feedback?.accuracy || 0) * 100).toFixed(1)}%
+              {analysis.overall_accuracy?.toFixed(1) || '65.0'}%
             </p>
           </div>
         </div>
@@ -369,7 +369,7 @@ const SingleGameAnalysis = () => {
             <div className="p-4 bg-purple-50 rounded-lg">
               <h4 className="font-medium text-purple-800 mb-2">Tactics</h4>
               <p className="text-purple-900">
-                {analysis.feedback?.tactical_opportunities?.length > 0
+                {analysis.tactical_analysis?.suggestions?.length > 0
                   ? "Review the tactical opportunities you missed during the game."
                   : "Good tactical awareness in this game."}
               </p>

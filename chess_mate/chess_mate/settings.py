@@ -149,14 +149,19 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = False  # Changed to False for security
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+]
+
 CORS_ALLOWED_ORIGINS = [
     "http://3.133.97.72",
     "http://ec2-3-133-97-72.us-east-2.compute.amazonaws.com",
     "http://localhost:3000",
 ]
-
-CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -177,13 +182,6 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
-]
-
-# CSRF settings
-CSRF_TRUSTED_ORIGINS = [
-    "http://3.133.97.72",
-    "http://ec2-3-133-97-72.us-east-2.compute.amazonaws.com",
-    "http://localhost:3000",
 ]
 
 # Stockfish configuration

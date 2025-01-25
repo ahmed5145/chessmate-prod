@@ -1,21 +1,43 @@
 import React from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import Navbar from './components/Navbar';
-import AppRoutes from './routes/AppRoutes';
+import { ThemeProvider } from './context/ThemeContext';
 import { UserProvider } from './contexts/UserContext';
+import AppRoutes from './routes/AppRoutes';
+import Navbar from './components/Navbar';
+import './App.css';
 
 function App() {
   return (
-    <UserProvider>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
-          <Navbar />
-          <AppRoutes />
-          <Toaster position="top-right" />
-        </div>
-      </Router>
-    </UserProvider>
+    <ThemeProvider>
+      <UserProvider>
+        <Router>
+          <div className="min-h-screen flex flex-col">
+            <Navbar />
+            <main className="flex-1 pt-16">
+              <AppRoutes />
+            </main>
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                success: {
+                  style: {
+                    background: 'var(--success-bg)',
+                    color: 'var(--success-color)',
+                  },
+                },
+                error: {
+                  style: {
+                    background: 'var(--error-bg)',
+                    color: 'var(--error-color)',
+                  },
+                },
+              }}
+            />
+          </div>
+        </Router>
+      </UserProvider>
+    </ThemeProvider>
   );
 }
 

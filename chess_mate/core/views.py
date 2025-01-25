@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Optional, Union
 # Django imports
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -33,6 +33,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.html import strip_tags
+from django.views.decorators.http import require_GET
 
 # Third-party imports
 import requests
@@ -352,6 +353,7 @@ def verify_email(request, uidb64, token):
             'message': 'Invalid verification link.'
         })
 
+@ensure_csrf_cookie
 @rate_limit(endpoint_type='AUTH')
 @api_view(['POST'])
 def login_view(request):
@@ -597,245 +599,102 @@ def user_games_view(request):
     return Response({"games": games_data}, status=status.HTTP_200_OK)
 
 @rate_limit(endpoint_type='ANALYSIS')
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def analyze_game(request, game_id):
-    """Analyze a specific game and provide feedback."""
+    """
+    Analyze a game and generate feedback.
+    """
     user = request.user
-    analyzer = None
-    
-    # Verify authentication token is valid and not expired
-    if not user.is_authenticated:
-        logger.error("Unauthenticated request received")
-        return Response(
-            {"error": "Authentication required", "code": "authentication_required"},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    logger.info(f"Starting analysis for game {game_id} requested by user {user.username}")
-
     try:
-        # Get the game first to avoid transaction overhead if it doesn't exist
-        try:
-            game = Game.objects.select_related('user').get(id=game_id)
-            logger.info(f"Found game {game_id}")
-        except Game.DoesNotExist:
-            logger.error(f"Game {game_id} not found")
-            return Response(
-                {"error": "Game not found", "code": "game_not_found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # Check if user has permission to analyze this game
-        if game.user != user:
-            logger.error(f"User {user.username} attempted to analyze game {game_id} belonging to {game.user.username}")
-            return Response(
-                {"error": "You don't have permission to analyze this game", "code": "permission_denied"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        # Get analysis parameters with validation
-        try:
-            depth = int(request.data.get('depth', 20))
-            if depth < 1 or depth > 30:
-                return Response(
-                    {"error": "Invalid depth parameter. Must be between 1 and 30.", "code": "invalid_depth"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        except (TypeError, ValueError):
-            return Response(
-                {"error": "Invalid depth parameter", "code": "invalid_depth"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-        use_ai = request.data.get('use_ai', True)
+        # Get the game and verify ownership
+        game = Game.objects.get(id=game_id, user=user)
+        
+        # Get analysis parameters
+        depth = int(request.data.get("depth", 20))
+        use_ai = request.data.get("use_ai", True)
+        
+        logger.info(f"Starting analysis for game {game_id} requested by user {user.username}")
         logger.info(f"Analysis parameters - depth: {depth}, use_ai: {use_ai}")
-
-        # Verify Stockfish path exists
-        stockfish_path = settings.STOCKFISH_PATH
-        if not os.path.exists(stockfish_path):
-            logger.error(f"Stockfish not found at path: {stockfish_path}")
-            return Response(
-                {"error": "Analysis engine not available", "code": "engine_unavailable"},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
-
-        # Initialize GameAnalyzer outside transaction
+        
         try:
-            analyzer = GameAnalyzer()
+            # Initialize analyzer
+            analyzer = GameAnalyzer(stockfish_path=STOCKFISH_PATH)
             logger.info("GameAnalyzer initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize GameAnalyzer: {str(e)}", exc_info=True)
-            return Response(
-                {"error": "Failed to initialize analysis engine", "code": "engine_init_failed"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-        # Start transaction for credit check and analysis
-        try:
-            with transaction.atomic():
-                # Lock the profile row with a timeout
+            
+            # Perform analysis
+            analysis_results = analyzer.analyze_single_game(game, depth)
+            
+            # Generate feedback
+            if use_ai and ai_feedback_generator:
                 try:
-                    profile = Profile.objects.select_for_update(nowait=True).get(user=user)
-                except Profile.DoesNotExist:
-                    logger.error(f"Profile not found for user {user.username}")
-                    return Response(
-                        {"error": "User profile not found", "code": "profile_not_found"},
-                        status=status.HTTP_404_NOT_FOUND
+                    feedback = ai_feedback_generator.generate_personalized_feedback(
+                        analysis_results,
+                        {
+                            "username": user.username,
+                            "rating": getattr(Profile.objects.get(user=user), 'rating', 1500),
+                            "total_games": getattr(Profile.objects.get(user=user), 'total_games', 0),
+                            "preferences": getattr(Profile.objects.get(user=user), 'preferences', {})
+                        }
                     )
-                except OperationalError:
-                    logger.warning(f"Profile locked for user {user.username}, analysis in progress")
-                    return Response(
-                        {"error": "Another analysis is in progress. Please wait.", "code": "analysis_in_progress"},
-                        status=status.HTTP_429_TOO_MANY_REQUESTS
-                    )
-
-                logger.info(f"Retrieved credits for user {user.username}: {profile.credits}")
-
-                if profile.credits < 1:
-                    logger.error(f"User {user.username} has insufficient credits: {profile.credits}")
-                    return Response(
-                        {"error": "Insufficient credits", "code": "insufficient_credits"},
-                        status=status.HTTP_402_PAYMENT_REQUIRED
-                    )
-
-                # Verify game has valid PGN
-                if not game.pgn:
-                    logger.error(f"Game {game_id} has no PGN data")
-                    return Response(
-                        {"error": "Game has no move data to analyze", "code": "no_pgn_data"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-                try:
-                    # Analyze the game
-                    analysis_results = analyzer.analyze_games([game], depth=depth)
-                    if not analysis_results or game_id not in analysis_results:
-                        raise ValueError("Analysis failed to produce results")
-
-                    # Generate feedback
-                    feedback = analyzer.generate_feedback(analysis_results[game_id])
-                    logger.info("Generated basic feedback")
-
-                    # Try AI feedback if requested
-                    if use_ai:
-                        try:
-                            ai_generator = AIFeedbackGenerator()
-                            ai_feedback = ai_generator.generate_personalized_feedback(
-                                game_analysis=analysis_results[game_id],
-                                player_profile={
-                                    "username": user.username,
-                                    "rating": profile.rating,
-                                    "total_games": profile.total_games,
-                                    "preferred_openings": profile.preferences.get('preferred_openings', [])
-                                }
-                            )
-                            feedback["ai_suggestions"] = ai_feedback
-                            logger.info("Generated AI feedback successfully")
-                        except Exception as e:
-                            logger.warning(f"AI feedback generation failed: {str(e)}")
-                            feedback["ai_suggestions"] = []
-
-                    # Save analysis results
-                    game.analysis = analysis_results[game_id]
-                    game.feedback = feedback
-                    game.save()
-
-                    # Deduct credits and create transaction record
-                    profile.credits -= 1
-                    profile.save()
-
-                    Transaction.objects.create(
-                        user=user,
-                        transaction_type='analysis',
-                        credits=1,
-                        status='completed'
-                    )
-
-                    return Response({
-                        "message": "Analysis completed successfully",
-                        "analysis": analysis_results[game_id],
-                        "feedback": feedback,
-                        "credits_remaining": profile.credits
-                    }, status=status.HTTP_200_OK)
-
-                except ValueError as e:
-                    logger.error(f"Analysis failed: {str(e)}", exc_info=True)
-                    raise
+                    logger.info("Generated AI feedback successfully")
                 except Exception as e:
-                    logger.error(f"Error during analysis: {str(e)}", exc_info=True)
-                    raise
-
+                    logger.error(f"Error generating AI feedback: {str(e)}")
+                    feedback = analyzer.generate_feedback(analysis_results)
+                    logger.info("Generated basic feedback")
+            else:
+                feedback = analyzer.generate_feedback(analysis_results)
+                logger.info("Generated basic feedback")
+            
+            # Save results
+            game.analysis = analysis_results
+            game.feedback = feedback
+            game.save()
+            
+            # Close the engine
+            analyzer.engine.quit()
+            logger.info("Closed analysis engine")
+            
+            return Response({
+                "analysis": analysis_results,
+                "feedback": feedback
+            }, status=status.HTTP_200_OK)
+            
         except Exception as e:
-            logger.error(f"Transaction error in analyze_game: {str(e)}", exc_info=True)
-            return Response(
-                {"error": "An error occurred during analysis", "code": "analysis_failed"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    except Exception as e:
-        logger.error(f"Unexpected error in analyze_game: {str(e)}", exc_info=True)
+            logger.error(f"Error during analysis: {str(e)}")
+            if 'analyzer' in locals() and hasattr(analyzer, 'engine'):
+                analyzer.engine.quit()
+            raise
+            
+    except Game.DoesNotExist:
         return Response(
-            {"error": "An error occurred during analysis", "code": "unexpected_error"},
+            {"error": "Game not found or access denied."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error analyzing game: {str(e)}")
+        return Response(
+            {"error": "An error occurred during analysis."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-    finally:
-        if analyzer:
-            try:
-                analyzer.close_engine()
-                logger.info("Closed analysis engine")
-            except Exception as e:
-                logger.error(f"Error closing engine: {str(e)}", exc_info=True)
 
 @rate_limit(endpoint_type='ANALYSIS')
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def batch_analyze(request):
-    """
-    Endpoint to analyze a batch of games.
-    """
+    """Analyze multiple games for a user."""
+    user = request.user
+    num_games = request.data.get('num_games', 5)
+    depth = request.data.get('depth', 20)
+    use_ai = request.data.get('use_ai', True)
+
     try:
-        user = request.user
-        num_games = int(request.data.get("num_games", 10))
-        use_ai = request.data.get("use_ai", True)
-        depth = request.data.get("depth", 20)
+        # Get unanalyzed games
+        games = Game.objects.filter(user=user, analysis__isnull=True).order_by('-date_played')[:num_games]
+        if not games:
+            return Response({"error": "No unanalyzed games found"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate num_games
-        try:
-            num_games = int(num_games)
-            if num_games <= 0:
-                return Response({"error": "Invalid number of games value."}, status=status.HTTP_400_BAD_REQUEST)
-        except (TypeError, ValueError):
-            return Response({"error": "Invalid number of games value."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Fetch games for the user
-        games = Game.objects.filter(user=user).order_by("-date_played")[:num_games]
-        
-        # Return empty results if no games found
-        if not games.exists():
-            return Response({
-                "message": "No games found for analysis.",
-                "results": {
-                    "individual_games": {},
-                    "overall_stats": {
-                        "total_games": 0,
-                        "wins": 0,
-                        "losses": 0,
-                        "draws": 0,
-                        "average_accuracy": 0,
-                        "common_mistakes": {
-                            "blunders": 0,
-                            "mistakes": 0,
-                            "inaccuracies": 0,
-                            "time_pressure": 0
-                        },
-                        "improvement_areas": [],
-                        "strengths": []
-                    }
-                }
-            }, status=status.HTTP_200_OK)
-
-        analyzer = GameAnalyzer()
+        analyzer = GameAnalyzer(stockfish_path=STOCKFISH_PATH)
         try:
             logger.info("Starting batch analysis for user %s with %d games.", user.id, len(games))
             analysis_results = analyzer.analyze_games(games, depth=depth)
@@ -850,6 +709,7 @@ def batch_analyze(request):
             feedback_results = {}
             overall_stats = {
                 "total_games": len(games),
+                "completed": 0,
                 "wins": 0,
                 "losses": 0,
                 "draws": 0,
@@ -860,16 +720,34 @@ def batch_analyze(request):
                     "inaccuracies": 0,
                     "time_pressure": 0
                 },
+                "resourcefulness": {
+                    "average_score": 0,
+                    "total_saves": 0,
+                    "counter_success": 0,
+                    "critical_defense_success": 0
+                },
+                "advantage": {
+                    "average_conversion": 0,
+                    "total_missed_wins": 0,
+                    "winning_position_frequency": 0,
+                    "average_duration": 0
+                },
                 "improvement_areas": [],
                 "strengths": []
             }
 
             total_accuracy = 0
+            total_resourcefulness = 0
+            total_advantage = 0
+            total_defensive_positions = 0
+            total_winning_positions = 0
+
             for game in games:
                 if game.id in analysis_results:
                     # Generate feedback for this game
-                    game_feedback = analyzer.generate_feedback(analysis_results[game.id])
+                    game_feedback = analyzer.generate_feedback(analysis_results[game.id], game)
                     feedback_results[game.id] = game_feedback
+                    overall_stats["completed"] += 1
 
                     # Update overall stats
                     if game.result == "win":
@@ -880,137 +758,75 @@ def batch_analyze(request):
                         overall_stats["draws"] += 1
 
                     # Track mistakes and patterns
-                    overall_stats["common_mistakes"]["blunders"] += game_feedback["blunders"]
-                    overall_stats["common_mistakes"]["mistakes"] += game_feedback["mistakes"]
-                    overall_stats["common_mistakes"]["inaccuracies"] += game_feedback["inaccuracies"]
+                    overall_stats["common_mistakes"]["blunders"] += game_feedback.get("tactical_analysis", {}).get("missed_wins", 0)
+                    overall_stats["common_mistakes"]["mistakes"] += game_feedback.get("tactical_analysis", {}).get("critical_mistakes", 0)
+                    overall_stats["common_mistakes"]["inaccuracies"] += len(game_feedback.get("tactical_analysis", {}).get("suggestions", []))
                     
-                    # Calculate game accuracy
-                    total_moves = len(analysis_results[game.id])
-                    if total_moves > 0:
-                        good_moves = total_moves - (
-                            game_feedback["blunders"] + 
-                            game_feedback["mistakes"] + 
-                            game_feedback["inaccuracies"]
-                        )
-                        game_accuracy = (good_moves / total_moves) * 100
-                        total_accuracy += game_accuracy
-
-                        # Track time pressure
-                        if len(game_feedback["time_management"]["time_pressure_moves"]) > 3:
-                            overall_stats["common_mistakes"]["time_pressure"] += 1
+                    # Track resourcefulness
+                    resourcefulness = game_feedback.get("resourcefulness", {})
+                    total_resourcefulness += resourcefulness.get("overall_score", 65.0)
+                    overall_stats["resourcefulness"]["total_saves"] += resourcefulness.get("defensive_saves", 0)
+                    
+                    # Track advantage
+                    advantage = game_feedback.get("advantage", {})
+                    total_advantage += advantage.get("conversion_rate", 65.0)
+                    overall_stats["advantage"]["total_missed_wins"] += advantage.get("missed_wins", 0)
+                    
+                    # Track accuracy
+                    total_accuracy += game_feedback.get("overall_accuracy", 65.0)
 
             # Calculate averages
-            num_analyzed_games = len(feedback_results)
+            num_analyzed_games = len(games)
             if num_analyzed_games > 0:
-                # Calculate average accuracy based on good moves vs total moves
-                total_good_moves = 0
-                total_moves = 0
-                for game_feedback in feedback_results.values():
-                    moves = len(game_feedback.get("opening", {}).get("played_moves", []))
-                    mistakes = (
-                        game_feedback.get("blunders", 0) * 3 +  # Blunders count triple
-                        game_feedback.get("mistakes", 0) * 2 +  # Mistakes count double
-                        game_feedback.get("inaccuracies", 0)    # Inaccuracies count once
-                    )
-                    total_moves += moves
-                    total_good_moves += max(0, moves - mistakes)
+                overall_stats["average_accuracy"] = round(total_accuracy / num_analyzed_games, 1)
+                overall_stats["resourcefulness"]["average_score"] = round(total_resourcefulness / num_analyzed_games, 1)
+                overall_stats["advantage"]["average_conversion"] = round(total_advantage / num_analyzed_games, 1)
                 
-                overall_stats["average_accuracy"] = (total_good_moves / total_moves * 100) if total_moves > 0 else 0
-                
-                # Normalize mistake counts
-                for mistake_type in overall_stats["common_mistakes"]:
-                    overall_stats["common_mistakes"][mistake_type] /= num_analyzed_games
+                # Calculate progress
+                overall_stats["progress"] = round((overall_stats["completed"] / overall_stats["total_games"]) * 100, 1)
 
-                # Generate improvement areas
-                if overall_stats["common_mistakes"]["blunders"] > 0.5:
+                # Generate improvement areas and strengths
+                if overall_stats["resourcefulness"]["average_score"] < 50:
                     overall_stats["improvement_areas"].append({
-                        "area": "Tactical Awareness",
-                        "description": "Focus on reducing tactical oversights and blunders. Consider practicing tactical puzzles daily."
+                        "area": "Defensive Technique",
+                        "description": "Work on finding defensive resources and counter-attacking opportunities in difficult positions."
                     })
-                if overall_stats["common_mistakes"]["mistakes"] > 1:
+                elif overall_stats["resourcefulness"]["average_score"] > 70:
+                    overall_stats["strengths"].append({
+                        "area": "Resourcefulness",
+                        "description": "Excellent at finding defensive resources and counter-opportunities."
+                    })
+
+                if overall_stats["advantage"]["average_conversion"] < 50:
                     overall_stats["improvement_areas"].append({
-                        "area": "Strategic Planning",
-                        "description": "Work on positional understanding and long-term planning. Study master games in your preferred openings."
+                        "area": "Advantage Conversion",
+                        "description": "Practice converting winning positions and maintaining pressure when ahead."
                     })
-                if overall_stats["common_mistakes"]["time_pressure"] > 0.3:
-                    overall_stats["improvement_areas"].append({
-                        "area": "Time Management",
-                        "description": "Improve time management, especially in critical positions. Practice playing games with increment."
+                elif overall_stats["advantage"]["average_conversion"] > 70:
+                    overall_stats["strengths"].append({
+                        "area": "Technical Precision",
+                        "description": "Strong technique in converting advantages into wins."
                     })
 
-                # Identify strengths
-                if overall_stats["average_accuracy"] > 70:
-                    overall_stats["strengths"].append({
-                        "area": "Overall Accuracy",
-                        "description": "Strong overall play with consistent move quality"
-                    })
-                if overall_stats["wins"] / num_analyzed_games > 0.5:
-                    overall_stats["strengths"].append({
-                        "area": "Competitive Performance",
-                        "description": "Good win rate showing strong competitive ability"
-                    })
-                if overall_stats["common_mistakes"]["blunders"] < 0.3:
-                    overall_stats["strengths"].append({
-                        "area": "Tactical Solidity",
-                        "description": "Strong tactical awareness with few major oversights"
-                    })
-                if overall_stats["common_mistakes"]["time_pressure"] < 0.2:
-                    overall_stats["strengths"].append({
-                        "area": "Time Management",
-                        "description": "Excellent time management across games"
-                    })
-
-            # Generate feedback (with or without AI)
-            if use_ai:
-                try:
-                    # Get or create user profile
-                    profile, created = Profile.objects.get_or_create(
-                        user=user,
-                        defaults={
-                            'rating': 1500,
-                            'total_games': 0,
-                            'preferred_openings': []
-                        }
-                    )
-                    
-                    # Generate AI feedback using the feedback generator
-                    ai_feedback = ai_feedback_generator.generate_personalized_feedback(
-                        game_analysis=analysis_results,
-                        player_profile={
-                            "username": user.username,
-                            "rating": profile.rating,
-                            "total_games": profile.total_games,
-                            "preferred_openings": profile.preferred_openings
-                        }
-                    )
-                    dynamic_feedback = ai_feedback
-                except Exception as e:
-                    logger.error("Error generating AI feedback: %s", str(e))
-                    # Fall back to non-AI feedback
-                    dynamic_feedback = generate_feedback_without_ai(analysis_results, overall_stats)
-                    overall_stats["ai_error"] = "AI feedback unavailable - using standard analysis"
-            else:
-                # Use non-AI feedback by default
-                dynamic_feedback = generate_feedback_without_ai(analysis_results, overall_stats)
-
-            response_data = {
-                "message": "Batch analysis completed!",
+            return Response({
+                "message": "Batch analysis completed successfully",
                 "results": {
                     "individual_games": feedback_results,
-                    "overall_stats": overall_stats,
-                    "dynamic_feedback": dynamic_feedback
+                    "overall_stats": overall_stats
                 }
-            }
+            })
 
-            return Response(response_data, status=200)
+        except Exception as e:
+            logger.error("Error during batch analysis: %s", str(e))
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         finally:
-            try:
+            if analyzer:
                 analyzer.close_engine()
-            except chess.engine.EngineTerminatedError:
-                logger.warning("Engine already terminated.")
+
     except Exception as e:
-        logger.error("Error in analyze_batch_games_view: %s", str(e), exc_info=True)
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.error("Error setting up batch analysis: %s", str(e))
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def generate_dynamic_feedback(results):
     feedback = {
@@ -1648,3 +1464,14 @@ def health_check(request):
     Health check endpoint for monitoring application status.
     """
     return Response({"status": "healthy"}, status=status.HTTP_200_OK)
+
+@require_GET
+@ensure_csrf_cookie
+def csrf(request):
+    """
+    Set CSRF cookie and return it in the response.
+    """
+    return JsonResponse({
+        "detail": "CSRF cookie set",
+        "csrfToken": request.META.get("CSRF_COOKIE", "")
+    })

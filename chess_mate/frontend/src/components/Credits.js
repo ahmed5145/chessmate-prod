@@ -1,50 +1,17 @@
-import React, { useState, useEffect, useCallback, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { UserContext } from '../contexts/UserContext';
+import React, { useState, useEffect, useContext } from 'react';
 import { toast } from 'react-hot-toast';
 import { CreditCard } from 'lucide-react';
+import { UserContext } from '../contexts/UserContext';
 
-
-// API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://3.133.97.72/api';
-
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 const Credits = () => {
-  const navigate = useNavigate();
-  const { credits, setCredits } = useContext(UserContext);
   const [loading, setLoading] = useState(false);
-
-  const fetchCredits = useCallback(async () => {
-    try {
-      const accessToken = localStorage.getItem('tokens') ? JSON.parse(localStorage.getItem('tokens')).access : null;
-      if (!accessToken) {
-        console.error('No access token found');
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/credits/`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch credits');
-      }
-
-      const data = await response.json();
-      setCredits(data.credits);
-    } catch (error) {
-      console.error('Error fetching credits:', error);
-      toast.error('Failed to fetch credits');
-    }
-  }, [setCredits]);
+  const [error, setError] = useState(null);
+  const { credits, fetchCredits } = useContext(UserContext);
 
   useEffect(() => {
     fetchCredits();
-    // Set up periodic refresh
-    const interval = setInterval(fetchCredits, 5000);
-    return () => clearInterval(interval);
   }, [fetchCredits]);
 
   const handlePurchase = async (packageId) => {

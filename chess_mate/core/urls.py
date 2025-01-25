@@ -7,6 +7,7 @@ from . import views
 
 urlpatterns = [
     path('', views.index, name='index'),
+    path('api/csrf/', views.csrf, name='csrf'),
     path('api/debug/', views.debug_request, name='debug'),
     # Authentication endpoints
     path("api/register/", views.register_view, name="register"),

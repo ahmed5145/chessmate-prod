@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
+import { analyzeBatchGames } from '../api';
 
 
 // API Configuration
@@ -45,44 +46,14 @@ const BatchAnalysis = () => {
       setLoading(true);
       setStartTime(Date.now());
       setProgress({ current: 0, total: parseInt(numGames) });
-      // Initial estimate: 30 seconds per game
-      setEstimatedTime(parseInt(numGames) * 30);
-
-      const response = await fetch(`${API_BASE_URL}/games/batch-analyze/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${JSON.parse(localStorage.getItem('tokens')).access}`
-        },
-        body: JSON.stringify({ num_games: parseInt(numGames) })
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to analyze games');
+      
+      const response = await analyzeBatchGames(numGames);
+      
+      if (response.results) {
+        setResults(response.results);
+        setProgress({ current: numGames, total: numGames }); // Set to complete
+        toast.success('Batch analysis completed!');
       }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        try {
-          const data = JSON.parse(chunk);
-          if (data.progress) {
-            setProgress(data.progress);
-          }
-        } catch (e) {
-          console.error('Error parsing progress update:', e);
-        }
-      }
-
-      const data = await response.json();
-      setResults(data.results);
-      toast.success('Batch analysis completed!');
     } catch (error) {
       console.error('Error during batch analysis:', error);
       toast.error(error.message || 'Failed to analyze games');
@@ -126,6 +97,7 @@ const BatchAnalysis = () => {
                 value={numGames}
                 onChange={(e) => setNumGames(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
                 className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                disabled={loading}
               />
             </div>
             <p className="mt-2 text-sm text-gray-500">Maximum 50 games can be analyzed at once.</p>
@@ -145,23 +117,25 @@ const BatchAnalysis = () => {
               'Start Analysis'
             )}
           </button>
-        </div>
 
-        {loading && (
-          <div className="mt-4 space-y-4">
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
-                style={{ width: `${(progress.current / progress.total) * 100}%` }}
-              ></div>
+          {loading && (
+            <div className="mt-4 space-y-4">
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div 
+                  className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
+                  style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Progress: {progress.current}/{progress.total} games</span>
+                <span>Elapsed Time: {formatTime(elapsedTime)}</span>
+                {progress.current > 0 && (
+                  <span>Estimated Time Remaining: {formatTime(estimatedTime)}</span>
+                )}
+              </div>
             </div>
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>Progress: {progress.current}/{progress.total} games</span>
-              <span>Elapsed Time: {formatTime(elapsedTime)}</span>
-              <span>Estimated Time Remaining: {formatTime(estimatedTime)}</span>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {results && (
           <div className="mt-8">
@@ -190,6 +164,76 @@ const BatchAnalysis = () => {
                       Wins: {results.overall_stats.wins} | 
                       Draws: {results.overall_stats.draws} | 
                       Losses: {results.overall_stats.losses}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+
+            {/* Resourcefulness Stats */}
+            <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Resourcefulness Analysis</h3>
+              </div>
+              <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
+                <dl className="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
+                  <div className="sm:col-span-1">
+                    <dt className="text-sm font-medium text-gray-500">Average Defensive Score</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {results.overall_stats.resourcefulness?.average_score?.toFixed(1) || 'N/A'}%
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-1">
+                    <dt className="text-sm font-medium text-gray-500">Total Defensive Saves</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {results.overall_stats.resourcefulness?.total_saves || 0}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-1">
+                    <dt className="text-sm font-medium text-gray-500">Counter-Attack Success Rate</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {results.overall_stats.resourcefulness?.counter_success?.toFixed(1) || 'N/A'}%
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-1">
+                    <dt className="text-sm font-medium text-gray-500">Critical Defense Success</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {results.overall_stats.resourcefulness?.critical_defense_success?.toFixed(1) || 'N/A'}%
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+
+            {/* Advantage Capitalization Stats */}
+            <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Advantage Capitalization</h3>
+              </div>
+              <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
+                <dl className="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
+                  <div className="sm:col-span-1">
+                    <dt className="text-sm font-medium text-gray-500">Average Conversion Rate</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {results.overall_stats.advantage?.average_conversion?.toFixed(1) || 'N/A'}%
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-1">
+                    <dt className="text-sm font-medium text-gray-500">Total Missed Wins</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {results.overall_stats.advantage?.total_missed_wins || 0}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-1">
+                    <dt className="text-sm font-medium text-gray-500">Winning Position Frequency</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {results.overall_stats.advantage?.winning_position_frequency?.toFixed(1) || 'N/A'}%
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-1">
+                    <dt className="text-sm font-medium text-gray-500">Average Advantage Duration</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {results.overall_stats.advantage?.average_duration?.toFixed(1) || 'N/A'} moves
                     </dd>
                   </div>
                 </dl>

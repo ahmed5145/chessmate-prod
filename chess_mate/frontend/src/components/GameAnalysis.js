@@ -1,40 +1,32 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, TrendingUp, Target, Clock, Award, Crown, Shield } from "lucide-react";
 import { analyzeSpecificGame } from "../api";
-
-const API_BASE_URL = "http://localhost:8000/api";
+import { useTheme } from "../context/ThemeContext";
+import { formatDate } from "../utils/dateUtils";
 
 const GameAnalysis = () => {
   const { gameId } = useParams();
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { isDarkMode } = useTheme();
 
   useEffect(() => {
     const fetchAnalysis = async () => {
+      if (!gameId) {
+        navigate('/games');
+        return;
+      }
+
       try {
-        setLoading(true);
         const data = await analyzeSpecificGame(gameId);
-        
-        if (!data) {
-          throw new Error("No analysis data received");
-        }
-        
         setAnalysis(data);
-        toast.success("Analysis completed successfully!");
+        toast.success('Analysis loaded successfully!');
       } catch (error) {
-        console.error("Error fetching analysis:", error);
-        if (error.message === "Session expired. Please log in again.") {
-          toast.error(error.message);
-          navigate("/login");
-        } else {
-          const errorMessage = error.error || error.message || "Failed to fetch analysis";
-          setError(errorMessage);
-          toast.error(errorMessage);
-        }
+        console.error('Error fetching analysis:', error);
+        toast.error(error.message || 'Failed to load analysis');
       } finally {
         setLoading(false);
       }
@@ -43,155 +35,189 @@ const GameAnalysis = () => {
     fetchAnalysis();
   }, [gameId, navigate]);
 
+  const renderSection = (title, content, icon = null) => (
+    <div className={`p-6 rounded-lg shadow-md mb-6 ${
+      isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+    }`}>
+      <div className="flex items-center gap-2 mb-4">
+        {icon}
+        <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          {title}
+        </h2>
+      </div>
+      {content}
+    </div>
+  );
+
+  const renderStatistic = (label, value, percentage = false, color = 'primary') => (
+    <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{label}</p>
+      <p className={`text-2xl font-semibold ${
+        percentage ? `text-${color}-500` : isDarkMode ? 'text-white' : 'text-gray-900'
+      }`}>
+        {percentage ? `${value}%` : value}
+      </p>
+    </div>
+  );
+
+  const renderProgressBar = (value, label) => (
+    <div className="mb-4">
+      <div className="flex justify-between mb-1">
+        <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{label}</span>
+        <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{value}%</span>
+      </div>
+      <div className={`w-full h-2.5 rounded-full ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+        <div 
+          className="h-2.5 rounded-full bg-primary-500"
+          style={{ width: `${value}%` }}
+        ></div>
+      </div>
+    </div>
+  );
+
+  const renderFeedback = (title, score, feedback) => (
+    <div className="mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</span>
+        <span className={`text-sm ${score >= 70 ? 'text-green-500' : score >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
+          {score}%
+        </span>
+      </div>
+      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{feedback}</p>
+    </div>
+  );
+
+  const renderGameOverview = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {renderStatistic('Overall Accuracy', analysis.overall_accuracy || 65.0, true)}
+        {renderStatistic('ELO Performance', analysis.elo_performance || 1200)}
+        {renderStatistic('Game Length', analysis.game_length || 0)}
+      </div>
+      
+      <div className="space-y-4">
+        <h3 className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          Performance Breakdown
+        </h3>
+        {renderProgressBar(analysis.performance_breakdown?.opening || 65.0, 'Opening')}
+        {renderProgressBar(analysis.performance_breakdown?.middlegame || 65.0, 'Middle Game')}
+        {renderProgressBar(analysis.performance_breakdown?.endgame || 65.0, 'End Game')}
+      </div>
+    </div>
+  );
+
+  const renderOpeningAnalysis = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {renderStatistic('Opening Accuracy', analysis.opening_analysis?.accuracy || 65.0, true)}
+        {renderStatistic('Book Moves', analysis.opening_analysis?.book_moves || 0)}
+      </div>
+      {analysis.opening_analysis?.suggestions && (
+        <div className="mt-4">
+          <h3 className={`font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Opening Assessment
+          </h3>
+          <ul className={`space-y-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            {analysis.opening_analysis.suggestions.map((suggestion, index) => (
+              <li key={index}>{suggestion}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderTacticalAnalysis = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {renderStatistic('Tactics Score', analysis.tactical_analysis?.tactics_score || 65.0, true)}
+        {renderStatistic('Missed Wins', analysis.tactical_analysis?.missed_wins || 0)}
+        {renderStatistic('Critical Mistakes', analysis.tactical_analysis?.critical_mistakes || 0)}
+      </div>
+      {analysis.tactical_analysis?.suggestions && (
+        <div className="mt-4">
+          <h3 className={`font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Tactical Assessment
+          </h3>
+          <ul className={`space-y-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            {analysis.tactical_analysis.suggestions.map((suggestion, index) => (
+              <li key={index}>{suggestion}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderResourcefulness = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {renderStatistic('Overall Score', analysis.resourcefulness?.overall_score || 65.0, true)}
+        {renderStatistic('Defensive Saves', analysis.resourcefulness?.defensive_saves || 0)}
+        {renderStatistic('Counter Attacks', analysis.resourcefulness?.counter_attacks || 0)}
+      </div>
+      {analysis.resourcefulness?.suggestions && (
+        <div className="mt-4">
+          <h3 className={`font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Resourcefulness Assessment
+          </h3>
+          <ul className={`space-y-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            {analysis.resourcefulness.suggestions.map((suggestion, index) => (
+              <li key={index}>{suggestion}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderAdvantage = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {renderStatistic('Conversion Rate', analysis.advantage?.conversion_rate || 65.0, true)}
+        {renderStatistic('Missed Wins', analysis.advantage?.missed_wins || 0)}
+        {renderStatistic('Winning Positions', analysis.advantage?.winning_positions || 0)}
+      </div>
+      {analysis.advantage?.suggestions && (
+        <div className="mt-4">
+          <h3 className={`font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Advantage Assessment
+          </h3>
+          <ul className={`space-y-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            {analysis.advantage.suggestions.map((suggestion, index) => (
+              <li key={index}>{suggestion}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-        <span className="ml-2">Loading analysis...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-red-50 border-l-4 border-red-400 p-4">
-          <div className="flex">
-            <div className="ml-3">
-              <p className="text-sm text-red-700">
-                {error}
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
       </div>
     );
   }
 
   if (!analysis) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center">
-          <p className="text-gray-500">No analysis available for this game.</p>
-        </div>
+      <div className={`p-6 text-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+        <p>Failed to load analysis. Please try again later.</p>
       </div>
     );
   }
 
-  const { feedback } = analysis;
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Game Analysis</h1>
-
-      {/* AI Feedback Section */}
-      {feedback.ai_suggestions && (
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-          <div className="px-4 py-5 sm:px-6">
-            <h2 className="text-lg font-medium text-gray-900">AI Analysis</h2>
-            <p className="mt-1 text-sm text-gray-500">Personalized feedback from our AI assistant</p>
-          </div>
-          <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
-            <div className="prose max-w-none">
-              {typeof feedback.ai_suggestions === "string" ? (
-                <p>{feedback.ai_suggestions}</p>
-              ) : (
-                Object.entries(feedback.ai_suggestions).map(([key, value]) => (
-                  <div key={key} className="mb-4">
-                    <h3 className="text-lg font-medium text-gray-900 capitalize">{key.replace(/_/g, " ")}</h3>
-                    <p className="mt-2 text-gray-600">{value}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Game Statistics */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-        <div className="px-4 py-5 sm:px-6">
-          <h2 className="text-lg font-medium text-gray-900">Game Statistics</h2>
-        </div>
-        <div className="border-t border-gray-200">
-          <dl>
-            <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-              <dt className="text-sm font-medium text-gray-500">Accuracy</dt>
-              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                {feedback.accuracy ? `${feedback.accuracy.toFixed(1)}%` : "N/A"}
-              </dd>
-            </div>
-            <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-              <dt className="text-sm font-medium text-gray-500">Mistakes</dt>
-              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                Blunders: {feedback.blunders || 0}, 
-                Mistakes: {feedback.mistakes || 0}, 
-                Inaccuracies: {feedback.inaccuracies || 0}
-              </dd>
-            </div>
-          </dl>
-        </div>
+    <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+      <div className="max-w-4xl mx-auto">
+        {renderSection('Game Overview', renderGameOverview(), <TrendingUp className="h-6 w-6 text-primary-500" />)}
+        {renderSection('Opening Analysis', renderOpeningAnalysis(), <Crown className="h-6 w-6 text-primary-500" />)}
+        {renderSection('Tactical Analysis', renderTacticalAnalysis(), <Target className="h-6 w-6 text-primary-500" />)}
+        {renderSection('Resourcefulness', renderResourcefulness(), <Shield className="h-6 w-6 text-primary-500" />)}
+        {renderSection('Advantage', renderAdvantage(), <Award className="h-6 w-6 text-primary-500" />)}
       </div>
-
-      {/* Opening Analysis */}
-      {feedback.opening && (
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-          <div className="px-4 py-5 sm:px-6">
-            <h2 className="text-lg font-medium text-gray-900">Opening Analysis</h2>
-          </div>
-          <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
-            <div className="prose max-w-none">
-              <p>{feedback.opening.evaluation}</p>
-              {feedback.opening.suggestions && (
-                <div className="mt-4">
-                  <h3 className="text-md font-medium text-gray-900">Suggestions</h3>
-                  <p>{feedback.opening.suggestions}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Middlegame Analysis */}
-      {feedback.middlegame && (
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-          <div className="px-4 py-5 sm:px-6">
-            <h2 className="text-lg font-medium text-gray-900">Middlegame Analysis</h2>
-          </div>
-          <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
-            <div className="prose max-w-none">
-              <p>{feedback.middlegame.evaluation}</p>
-              {feedback.middlegame.suggestions && (
-                <div className="mt-4">
-                  <h3 className="text-md font-medium text-gray-900">Suggestions</h3>
-                  <p>{feedback.middlegame.suggestions}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Endgame Analysis */}
-      {feedback.endgame && (
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6">
-            <h2 className="text-lg font-medium text-gray-900">Endgame Analysis</h2>
-          </div>
-          <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
-            <div className="prose max-w-none">
-              <p>{feedback.endgame.evaluation}</p>
-              {feedback.endgame.suggestions && (
-                <div className="mt-4">
-                  <h3 className="text-md font-medium text-gray-900">Suggestions</h3>
-                  <p>{feedback.endgame.suggestions}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

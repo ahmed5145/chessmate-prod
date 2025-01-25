@@ -262,7 +262,7 @@ const Games = () => {
                                 fetchGames();
 
                                 // Navigate to analysis view
-                                window.location.href = `/analysis/${game.id}`;
+                                window.location.href = `/game/${game.id}/analysis`;
                               } catch (error) {
                                 console.error('Error analyzing game:', error);
                                 toast.error(error.message || 'Failed to analyze game', { id: toastId });

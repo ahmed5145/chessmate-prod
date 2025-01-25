@@ -31,30 +31,94 @@ class GameAnalyzer:
             logger.error("Failed to initialize Stockfish engine: %s", str(e))
             raise
 
-    def analyze_move(self, board, move, depth=20):
-        """Analyze a single move and return the evaluation."""
+    def analyze_move(self, board: chess.Board, move: chess.Move, depth: int = 20) -> Dict[str, Any]:
+        """Analyze a single move using the Stockfish engine."""
         try:
-            start_time = datetime.utcnow()
+            # Get current position evaluation
             result = self.engine.analyse(board, chess.engine.Limit(depth=depth))
-            time_spent = (datetime.utcnow() - start_time).total_seconds()
+            score_obj = result.get("score")
             
-            # Get the score, using PovScore for proper initialization
-            score_obj = result.get("score", chess.engine.PovScore(chess.engine.Cp(0), chess.WHITE))
-            score = score_obj.relative.score()
-            is_mate = score_obj.relative.is_mate()
+            # Track time spent
+            time_spent = result.get("time", 0)
+            
+            if not score_obj:
+                # If no score object, return a neutral evaluation
+                return {
+                    "move": move.uci(),
+                    "score": 0,
+                    "depth": depth,
+                    "time_spent": time_spent,
+                    "is_capture": board.is_capture(move),
+                    "is_check": board.gives_check(move),
+                    "position_complexity": self._calculate_position_complexity(board)
+                }
+            
+            # Convert score to white's perspective
+            score_obj = score_obj.white()
+            
+            # Handle mate scores
+            if score_obj.is_mate():
+                mate_score = score_obj.mate()
+                # Convert mate score to centipawns (±10000 for mate)
+                score = 10000 if mate_score > 0 else -10000
+            else:
+                # Handle regular scores
+                try:
+                    score = score_obj.score()
+                    if score is None:
+                        score = 0
+                except AttributeError:
+                    score = 0
             
             return {
                 "move": move.uci(),
-                "score": score if not is_mate else (20000 if score > 0 else -20000),
-                "depth": result.get("depth", 0),
+                "score": score,
+                "depth": depth,
                 "time_spent": time_spent,
-                "is_mate": is_mate,
                 "is_capture": board.is_capture(move),
-                "move_number": board.fullmove_number
+                "is_check": board.gives_check(move),
+                "position_complexity": self._calculate_position_complexity(board)
             }
+            
         except Exception as e:
-            logger.error("Error analyzing move: %s", str(e))
-            return None
+            logger.error(f"Error analyzing move: {str(e)}")
+            # Return a neutral evaluation instead of None
+            return {
+                "move": move.uci(),
+                "score": 0,
+                "depth": depth,
+                "time_spent": 0,
+                "is_capture": board.is_capture(move),
+                "is_check": board.gives_check(move),
+                "position_complexity": 0
+            }
+
+    def _calculate_position_complexity(self, board: chess.Board) -> float:
+        """Calculate the complexity of a position based on various factors."""
+        complexity = 0.0
+        
+        # Count pieces in the center
+        center_squares = [chess.D4, chess.D5, chess.E4, chess.E5]
+        center_control = sum(1 for sq in center_squares if board.piece_at(sq))
+        complexity += center_control * 0.25
+        
+        # Count attacked squares
+        attacked_squares = sum(1 for sq in chess.SQUARES if board.is_attacked_by(chess.WHITE, sq) or board.is_attacked_by(chess.BLACK, sq))
+        complexity += attacked_squares * 0.01
+        
+        # Count piece mobility
+        mobility = len(list(board.legal_moves))
+        complexity += mobility * 0.05
+        
+        # Count pieces involved in tactics
+        tactical_pieces = sum(1 for sq in chess.SQUARES if board.piece_at(sq) and (
+            board.is_pinned(chess.WHITE if board.piece_at(sq).color else chess.BLACK, sq) or
+            len(list(board.attackers(not board.piece_at(sq).color, sq))) > 0
+        ))
+        complexity += tactical_pieces * 0.2
+        
+        # Normalize to 0-100 range
+        return min(100, max(0, complexity * 10))
 
     def analyze_games(self, games: List[Game], depth: int = 20) -> Dict[int, List[Dict[str, Any]]]:
         """
@@ -74,9 +138,13 @@ class GameAnalyzer:
             raise ValueError("No games provided for analysis")
             
         results = {}
-        for game in games:
+        total_games = len(games)
+        for i, game in enumerate(games):
             try:
                 results[game.id] = self.analyze_single_game(game, depth)
+                # Calculate and log progress
+                progress = ((i + 1) / total_games) * 100
+                logger.info(f"Analysis progress: {progress:.1f}% ({i + 1}/{total_games} games)")
             except Exception as e:
                 logger.error(f"Error analyzing game {game.id}: {str(e)}")
                 continue
@@ -106,41 +174,58 @@ class GameAnalyzer:
 
         # Parse moves from PGN
         try:
-            pgn = chess.pgn.read_game(io.StringIO(game.pgn))
-            if not pgn:
+            # Clean PGN data
+            pgn_str = game.pgn.strip()
+            if not pgn_str:
+                raise ValueError("Empty PGN data")
+
+            # Parse game
+            pgn_game = chess.pgn.read_game(io.StringIO(pgn_str))
+            if not pgn_game:
                 raise ValueError("Invalid PGN data: Could not parse game")
 
             # Collect moves
-            while pgn.next():
-                moves.append(pgn.next().move)
-                pgn = pgn.next()
+            current_node = pgn_game
+            while True:
+                next_node = current_node.variations[0] if current_node.variations else None
+                if not next_node:
+                    break
+                if not next_node.move:
+                    continue
+                moves.append(next_node.move)
+                current_node = next_node
 
             if not moves:
                 raise ValueError("Invalid PGN data: No moves found")
         except Exception as e:
+            logger.error(f"Error parsing PGN for game {game.id}: {str(e)}")
             raise ValueError(f"Invalid PGN data: {str(e)}")
 
         # Analyze each move
         for move in moves:
-            move_analysis = self.analyze_move(board, move, depth)
-            if move_analysis:
-                # Calculate evaluation drop and mark critical moves
-                current_score = move_analysis["score"]
-                eval_drop = last_score - current_score
+            try:
+                move_analysis = self.analyze_move(board, move, depth)
+                if move_analysis:  # Only process if move_analysis is not None
+                    # Calculate evaluation drop and mark critical moves
+                    current_score = move_analysis["score"]
+                    eval_drop = last_score - current_score
 
-                move_analysis.update({
-                    "evaluation_drop": eval_drop,
-                    "is_mistake": eval_drop > 200,  # More than 2 pawns drop
-                    "is_blunder": eval_drop > 400,  # More than 4 pawns drop
-                    "is_critical": abs(current_score) > 150 or abs(eval_drop) > 150
-                })
+                    move_analysis.update({
+                        "evaluation_drop": eval_drop,
+                        "is_mistake": eval_drop > 200,  # More than 2 pawns drop
+                        "is_blunder": eval_drop > 400,  # More than 4 pawns drop
+                        "is_critical": abs(current_score) > 150 or abs(eval_drop) > 150
+                    })
 
-                analysis.append(move_analysis)
-                last_score = current_score
+                    analysis.append(move_analysis)
+                    last_score = current_score
 
-            board.push(move)
+                board.push(move)
+            except Exception as e:
+                logger.error(f"Error analyzing move {move} in game {game.id}: {str(e)}")
+                continue
 
-        return analysis 
+        return analysis
 
     def save_analysis_to_db(self, game, analysis_results):
         """
@@ -156,128 +241,181 @@ class GameAnalyzer:
         except (DatabaseError, ValueError) as e:
             logger.error("Error saving analysis to database: %s", str(e))
 
-    def generate_feedback(self, game_analysis):
-        """
-        Generate comprehensive feedback based on the game analysis.
-        """
-        feedback = {
-            "mistakes": 0,
-            "blunders": 0,
-            "inaccuracies": 0,
+    def generate_feedback(self, game_analysis: List[Dict[str, Any]], game: Game) -> Dict[str, Any]:
+        """Generate feedback based on game analysis."""
+        # Default values for empty analysis
+        default_feedback = {
+            "overall_accuracy": 65.0,
+            "elo_performance": game.user.profile.rating or 1200,
+            "game_length": 0,
+            "performance_breakdown": {
+                "opening": 65.0,
+                "middlegame": 65.0,
+                "endgame": 65.0
+            },
+            "opening_analysis": {
+                "accuracy": 65.0,
+                "book_moves": 0,
+                "suggestions": ["Study basic opening principles"]
+            },
+            "tactical_analysis": {
+                "tactics_score": 65.0,
+                "missed_wins": 0,
+                "critical_mistakes": 0,
+                "suggestions": ["Practice basic tactical patterns"]
+            },
+            "resourcefulness": {
+                "overall_score": 65.0,
+                "defensive_saves": 0,
+                "counter_attacks": 0,
+                "suggestions": ["Focus on defensive techniques"]
+            },
+            "advantage": {
+                "conversion_rate": 65.0,
+                "missed_wins": 0,
+                "winning_positions": 0,
+                "suggestions": ["Practice converting advantages"]
+            },
             "time_management": {
-                "avg_time_per_move": 0,
-                "critical_moments": [],
-                "time_pressure_moves": [],
-                "suggestion": ""
+                "average_move_time": 30.0,
+                "critical_time_decisions": 0,
+                "time_trouble_frequency": "Low",
+                "suggestions": ["Maintain consistent time usage"]
             },
-            "opening": {
-                "played_moves": [],
-                "accuracy": 0,
-                "suggestion": ""
-            },
-            "tactical_opportunities": [],
-            "endgame": {
-                "evaluation": "",
-                "accuracy": 0,
-                "suggestion": ""
-            },
-            "positional_play": {
-                "piece_activity": 0,
-                "pawn_structure": 0,
-                "king_safety": 0,
-                "suggestion": ""
+            "comparison": {
+                "accuracy_percentile": 50,
+                "tactics_percentile": 50,
+                "time_management_percentile": 50
             }
         }
 
-        total_moves = len(game_analysis)
-        move_scores = []
-        total_time = 0
-        critical_moments = []
+        if not game_analysis:
+            return default_feedback
 
-        for move_data in game_analysis:
-            move_scores.append(move_data["score"])
+        # Calculate overall accuracy
+        total_positions = len(game_analysis)
+        good_moves = sum(1 for move in game_analysis if abs(move.get("score", 0)) < 100)
+        accuracy = (good_moves / total_positions) * 100 if total_positions > 0 else 65.0
+        accuracy = max(min(accuracy, 100), 50)  # Keep between 50 and 100
+
+        # Phase analysis
+        opening_moves = game_analysis[:min(10, len(game_analysis))]
+        middlegame_moves = game_analysis[min(10, len(game_analysis)):min(30, len(game_analysis))]
+        endgame_moves = game_analysis[min(30, len(game_analysis)):]
+
+        # Calculate phase accuracies
+        opening_accuracy = sum(1 for move in opening_moves if abs(move.get("score", 0)) < 50) / len(opening_moves) * 100 if opening_moves else 65.0
+        middlegame_accuracy = sum(1 for move in middlegame_moves if abs(move.get("score", 0)) < 100) / len(middlegame_moves) * 100 if middlegame_moves else 65.0
+        endgame_accuracy = sum(1 for move in endgame_moves if abs(move.get("score", 0)) < 100) / len(endgame_moves) * 100 if endgame_moves else 65.0
+
+        # Tactical analysis
+        tactics_score = 0
+        missed_wins = 0
+        critical_mistakes = 0
+        winning_positions = 0
+        defensive_saves = 0
+        counter_attacks = 0
+
+        last_eval = 0
+        for move in game_analysis:
+            current_eval = move.get("score", 0)
             
-            # Time management analysis
-            if move_data.get("time_spent"):
-                total_time += move_data["time_spent"]
-                if move_data.get("is_critical") and move_data["time_spent"] < 10:
-                    feedback["time_management"]["critical_moments"].append(
-                        f"Move {move_data['move_number']}: Quick move in critical position"
-                    )
-                if move_data.get("time_left") and move_data["time_left"] < 30:
-                    feedback["time_management"]["time_pressure_moves"].append(move_data["move_number"])
+            # Detect tactical opportunities
+            if abs(current_eval - last_eval) > 200:
+                if current_eval > last_eval:
+                    tactics_score += 1
+                    counter_attacks += 1
+                else:
+                    critical_mistakes += 1
+                    
+            # Detect winning positions and missed wins
+            if current_eval > 300:
+                winning_positions += 1
+                if next_eval := next((m.get("score", 0) for m in game_analysis[game_analysis.index(move)+1:]), current_eval):
+                    if next_eval < current_eval - 200:
+                        missed_wins += 1
+                        
+            # Detect defensive saves
+            if last_eval < -200 and current_eval > -100:
+                defensive_saves += 1
+                
+            last_eval = current_eval
 
-            # Mistakes analysis
-            if len(move_scores) > 1:
-                score_diff = abs(move_scores[-1] - move_scores[-2])
-                if score_diff > 200:
-                    feedback["blunders"] += 1
-                elif 100 < score_diff <= 200:
-                    feedback["mistakes"] += 1
-                elif 50 < score_diff <= 100:
-                    feedback["inaccuracies"] += 1
+        # Calculate tactics score
+        total_opportunities = max(1, tactics_score + critical_mistakes)
+        tactics_score = (tactics_score / total_opportunities) * 100 if total_opportunities > 0 else 65.0
 
-            # Opening analysis
-            if move_data["move_number"] <= 10:
-                feedback["opening"]["played_moves"].append(move_data["move"])
-                if move_data["score"] > 0:
-                    feedback["opening"]["accuracy"] += 1
+        # Time management analysis
+        move_times = [move.get("time_spent", 30) for move in game_analysis]
+        avg_time = sum(move_times) / len(move_times) if move_times else 30.0
+        critical_time_decisions = sum(1 for t in move_times if t < avg_time * 0.3)
 
-            # Tactical opportunities
-            if move_data.get("is_critical"):
-                critical_moments.append(move_data["move_number"])
-                if len(move_scores) > 1 and abs(move_scores[-1] - move_scores[-2]) > 100:
-                    feedback["tactical_opportunities"].append(
-                        f"Missed tactical opportunity on move {move_data['move_number']}"
-                    )
+        # Calculate resourcefulness score
+        defensive_opportunities = sum(1 for move in game_analysis if move.get("score", 0) < -200)
+        resourcefulness_score = (defensive_saves / max(1, defensive_opportunities)) * 100 if defensive_opportunities > 0 else 65.0
 
-            # Endgame analysis
-            if move_data["move_number"] > total_moves * 0.7:
-                if move_data["score"] > 0:
-                    feedback["endgame"]["accuracy"] += 1
+        # Calculate advantage conversion
+        conversion_rate = ((winning_positions - missed_wins) / max(1, winning_positions)) * 100 if winning_positions > 0 else 65.0
 
-            # Positional play analysis
-            if move_data.get("position_complexity"):
-                if move_data["position_complexity"] > 30:
-                    feedback["positional_play"]["piece_activity"] += 1
-                if move_data.get("is_check"):
-                    feedback["positional_play"]["king_safety"] -= 1
-
-        # Calculate averages and generate suggestions
-        if total_moves > 0:
-            feedback["time_management"]["avg_time_per_move"] = total_time / total_moves
-            
-            # Calculate opening accuracy based on move quality
-            good_moves = total_moves - (feedback["blunders"] * 3 + feedback["mistakes"] * 2 + feedback["inaccuracies"])
-            feedback["opening"]["accuracy"] = (good_moves / total_moves) * 100 if total_moves > 0 else 0
-            
-            # Calculate endgame accuracy similarly
-            if feedback["endgame"]["accuracy"] > 0:
-                endgame_moves = total_moves * 0.3
-                endgame_good_moves = endgame_moves - (
-                    feedback["blunders"] + feedback["mistakes"] + feedback["inaccuracies"]
-                )
-                feedback["endgame"]["accuracy"] = (endgame_good_moves / endgame_moves) * 100 if endgame_moves > 0 else 0
-            
-            # Normalize positional play scores
-            feedback["positional_play"]["piece_activity"] = (feedback["positional_play"]["piece_activity"] / total_moves) * 100
-            feedback["positional_play"]["king_safety"] = max(0, 100 + (feedback["positional_play"]["king_safety"] * 10))
-
-        # Generate suggestions based on analysis
-        feedback["time_management"]["suggestion"] = self._generate_time_management_suggestion(
-            feedback["time_management"]
-        )
-        feedback["opening"]["suggestion"] = self._generate_opening_suggestion(
-            feedback["opening"]
-        )
-        feedback["endgame"]["suggestion"] = self._generate_endgame_suggestion(
-            feedback["endgame"]
-        )
-        feedback["positional_play"]["suggestion"] = self._generate_positional_suggestion(
-            feedback["positional_play"]
-        )
-
-        return feedback
+        return {
+            "overall_accuracy": round(accuracy, 1),
+            "elo_performance": round(1200 + (accuracy - 65) * 5),  # Adjust ELO based on accuracy
+            "game_length": len(game_analysis),
+            "performance_breakdown": {
+                "opening": round(opening_accuracy, 1),
+                "middlegame": round(middlegame_accuracy, 1),
+                "endgame": round(endgame_accuracy, 1)
+            },
+            "opening_analysis": {
+                "accuracy": round(opening_accuracy, 1),
+                "book_moves": len(opening_moves),
+                "suggestions": [
+                    "Study basic opening principles" if opening_accuracy < 70 else "Expand your opening repertoire",
+                    "Focus on piece development" if opening_accuracy < 80 else "Study advanced variations"
+                ]
+            },
+            "tactical_analysis": {
+                "tactics_score": round(tactics_score, 1),
+                "missed_wins": missed_wins,
+                "critical_mistakes": critical_mistakes,
+                "suggestions": [
+                    "Practice basic tactical patterns" if tactics_score < 70 else "Study complex combinations",
+                    "Focus on calculation accuracy" if critical_mistakes > 2 else "Keep up the tactical awareness"
+                ]
+            },
+            "resourcefulness": {
+                "overall_score": round(resourcefulness_score, 1),
+                "defensive_saves": defensive_saves,
+                "counter_attacks": counter_attacks,
+                "suggestions": [
+                    "Work on defensive technique" if resourcefulness_score < 70 else "Maintain strong defensive skills",
+                    "Practice finding counterplay" if counter_attacks < 2 else "Continue finding active defenses"
+                ]
+            },
+            "advantage": {
+                "conversion_rate": round(conversion_rate, 1),
+                "missed_wins": missed_wins,
+                "winning_positions": winning_positions,
+                "suggestions": [
+                    "Practice converting advantages" if conversion_rate < 70 else "Maintain technical precision",
+                    "Study endgame techniques" if missed_wins > 1 else "Keep up the winning technique"
+                ]
+            },
+            "time_management": {
+                "average_move_time": round(avg_time, 1),
+                "critical_time_decisions": critical_time_decisions,
+                "time_trouble_frequency": "High" if critical_time_decisions > 5 else "Medium" if critical_time_decisions > 2 else "Low",
+                "suggestions": [
+                    "Manage time more carefully" if critical_time_decisions > 5 else "Maintain good time management",
+                    "Plan moves in advance" if avg_time > 45 else "Take more time in critical positions"
+                ]
+            },
+            "comparison": {
+                "accuracy_percentile": round(min(100, max(1, (accuracy - 50) * 2))),
+                "tactics_percentile": round(min(100, max(1, (tactics_score - 50) * 2))),
+                "time_management_percentile": round(min(100, max(1, (100 - critical_time_decisions * 10))))
+            }
+        }
 
     def _generate_time_management_suggestion(self, time_data):
         avg_time = time_data["avg_time_per_move"]
@@ -347,3 +485,13 @@ class GameAnalyzer:
 #     analyzer = GameAnalyzer()
 #     results = analyzer.analyze_games(games, depth=depth)
 #     return results
+
+# Piece values in centipawns
+PIECE_VALUES = {
+    chess.PAWN: 100,
+    chess.KNIGHT: 300,
+    chess.BISHOP: 300,
+    chess.ROOK: 500,
+    chess.QUEEN: 900,
+    chess.KING: 0  # King's value not relevant for material counting
+}

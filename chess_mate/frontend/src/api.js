@@ -2,15 +2,97 @@ import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 
 // API Configuration
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
-// Configure axios instance
+// Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    "Content-Type": "application/json",
-  },
+    'Content-Type': 'application/json',
+  }
 });
+
+// Token refresh queue to prevent race conditions
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+// Subscribe to token refresh
+const subscribeTokenRefresh = (cb) => refreshSubscribers.push(cb);
+
+// Execute subscribers with new token
+const onRefreshed = (token) => {
+  refreshSubscribers.map(cb => cb(token));
+  refreshSubscribers = [];
+};
+
+// Add request interceptor to add auth token
+api.interceptors.request.use(
+  (config) => {
+    const tokens = localStorage.getItem('tokens');
+    if (tokens) {
+      const { access } = JSON.parse(tokens);
+      config.headers.Authorization = `Bearer ${access}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle token refresh
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      if (!isRefreshing) {
+        isRefreshing = true;
+        
+        try {
+          const tokens = localStorage.getItem('tokens');
+          if (!tokens) {
+            throw new Error('No refresh token available');
+          }
+          
+          const { refresh } = JSON.parse(tokens);
+          const response = await axios.post(`${API_BASE_URL}/token/refresh/`, {
+            refresh: refresh
+          });
+          
+          const { access } = response.data;
+          const newTokens = JSON.parse(tokens);
+          newTokens.access = access;
+          localStorage.setItem('tokens', JSON.stringify(newTokens));
+          
+          onRefreshed(access);
+          originalRequest.headers.Authorization = `Bearer ${access}`;
+          return api(originalRequest);
+        } catch (refreshError) {
+          refreshSubscribers = [];
+          localStorage.removeItem('tokens');
+          window.location.href = '/';
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
+      }
+      
+      // If refresh is already in progress, wait for it to complete
+      return new Promise(resolve => {
+        subscribeTokenRefresh(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          resolve(api(originalRequest));
+        });
+      });
+    }
+    
+    return Promise.reject(error);
+  }
+);
 
 // Helper function to add the Authorization header if the user is authenticated
 const setAuthHeader = (token) => {
@@ -55,6 +137,19 @@ const removeExpiredTokens = () => {
 // Call removeExpiredTokens on script load
 removeExpiredTokens();
 
+// Helper function to get CSRF token
+const getCsrfToken = async () => {
+  try {
+    await axios.get(`${API_BASE_URL}/csrf/`, { withCredentials: true });
+    return document.cookie.split('; ')
+      .find(row => row.startsWith('csrftoken='))
+      ?.split('=')[1];
+  } catch (error) {
+    console.error('Error fetching CSRF token:', error);
+    return null;
+  }
+};
+
 // Refresh the access token
 export const refreshToken = async (refreshToken) => {
   try {
@@ -64,35 +159,9 @@ export const refreshToken = async (refreshToken) => {
     localStorage.setItem("access_token", access); // Update the access token in local storage
     return access;
   } catch (error) {
-    throw error.response ? error.response.data : error.message;
+    throw new Error(error.response ? error.response.data : error.message);
   }
 };
-
-// Interceptor to refresh token if it's about to expire
-api.interceptors.request.use(
-  async (config) => {
-    const accessToken = localStorage.getItem("access_token");
-    const refreshToken = localStorage.getItem("refresh_token");
-
-    if (accessToken) {
-      const decodedToken = jwtDecode(accessToken);
-      const currentTime = Date.now() / 1000;
-
-      // Check if the token is about to expire (e.g., within 5 minutes)
-      if (decodedToken.exp - currentTime < 300) {
-        const newAccessToken = await refreshToken(refreshToken);
-        config.headers["Authorization"] = `Bearer ${newAccessToken}`;
-      } else {
-        config.headers["Authorization"] = `Bearer ${accessToken}`;
-      }
-    }
-
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 // API functions
 
@@ -102,7 +171,7 @@ export const registerUser = async (userData) => {
     const response = await api.post("/register/", userData);
     return response.data;
   } catch (error) {
-    throw error.response ? error.response.data : error.message;
+    throw new Error(error.response ? error.response.data : error.message);
   }
 };
 
@@ -115,7 +184,14 @@ export const loginUser = async (credentials) => {
     localStorage.removeItem("tokens");
     setAuthHeader(null);
 
-    const response = await api.post("/login/", credentials);
+    const csrfToken = await getCsrfToken();
+    
+    const response = await api.post("/login/", credentials, {
+      headers: {
+        'X-CSRFToken': csrfToken,
+      },
+    });
+    
     const { tokens, message } = response.data;
     
     if (!tokens || !tokens.access || !tokens.refresh) {
@@ -136,9 +212,9 @@ export const loginUser = async (credentials) => {
     };
   } catch (error) {
     if (error.response) {
-      throw error.response.data;
+      throw new Error(error.response.data);
     }
-    throw { error: error.message || "Login failed" };
+    throw new Error(error.message || "Login failed");
   }
 };
 
@@ -148,7 +224,7 @@ export const fetchUserGames = async () => {
     const response = await api.get("/dashboard/");
     return response.data.games;
   } catch (error) {
-    throw error.response ? error.response.data : error.message;
+    throw new Error(error.response ? error.response.data : error.message);
   }
 };
 
@@ -165,7 +241,7 @@ export const fetchExternalGames = async (platform, username, gameType) => {
     });
     return response.data;
   } catch (error) {
-    throw error.response ? error.response.data : error.message;
+    throw new Error(error.response ? error.response.data : error.message);
   }
 };
 
@@ -184,7 +260,7 @@ export const analyzeSpecificGame = async (gameId) => {
       if (error.response.status === 401) {
         throw new Error("Session expired. Please log in again.");
       }
-      throw error.response.data;
+      throw new Error(error.response.data);
     } else if (error.request) {
       // The request was made but no response was received
       throw new Error("No response from server. Please try again.");
@@ -201,7 +277,7 @@ export const analyzeBatchGames = async (numGames) => {
     const response = await api.post("/games/batch-analyze/", { num_games: parseInt(numGames, 10) });
     return response.data;
   } catch (error) {
-    throw error.response ? error.response.data : error.message;
+    throw new Error(error.response ? error.response.data : error.message);
   }
 };
 
@@ -211,7 +287,7 @@ export const fetchGameAnalysis = async (gameId) => {
     const response = await api.get(`/game/${gameId}/analysis/`);
     return response.data.analysis;
   } catch (error) {
-    throw error.response ? error.response.data : error.message;
+    throw new Error(error.response ? error.response.data : error.message);
   }
 };
 
@@ -221,7 +297,7 @@ export const fetchGameFeedback = async (gameId) => {
     const response = await api.get(`/feedback/${gameId}/`);
     return response.data.feedback;
   } catch (error) {
-    throw error.response ? error.response.data : error.message;
+    throw new Error(error.response ? error.response.data : error.message);
   }
 };
 
@@ -231,7 +307,7 @@ export const fetchAllGames = async () => {
     const response = await api.get("/games/");
     return response.data;
   } catch (error) {
-    throw error.response ? error.response.data : error.message;
+    throw new Error(error.response ? error.response.data : error.message);
   }
 };
 

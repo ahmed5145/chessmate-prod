@@ -24,7 +24,7 @@ from core.views import health_check
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('health/', health_check, name='health_check'),
-    path('api/', include('core.urls')),
+    path('', include('core.urls')),
     # This should be the last pattern - it will catch all other URLs and let React handle them
     re_path(r'^.*$', TemplateView.as_view(template_name='index.html')),
 ]

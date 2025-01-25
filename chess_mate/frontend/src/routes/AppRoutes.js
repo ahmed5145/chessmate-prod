@@ -1,21 +1,20 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import Dashboard from '../components/Dashboard';
+import Profile from '../components/Profile';
 import Login from '../components/Login';
 import Register from '../components/Register';
 import ForgotPassword from '../components/ForgotPassword';
 import ResetPassword from '../components/ResetPassword';
 import ResetPasswordSuccess from '../components/ResetPasswordSuccess';
 import ResetPasswordFailed from '../components/ResetPasswordFailed';
-import UserProfile from '../components/UserProfile';
-import Dashboard from '../components/Dashboard';
+import Credits from '../components/Credits';
+import Games from '../components/Games';
+import GameAnalysis from '../components/GameAnalysis';
 import BatchAnalysis from '../components/BatchAnalysis';
 import FetchGames from '../components/FetchGames';
-import Credits from '../components/Credits';
 import PaymentSuccess from '../components/PaymentSuccess';
 import PaymentCancel from '../components/PaymentCancel';
-import Games from '../components/Games';
-import PrivateRoute from '../components/PrivateRoute';
-import GameAnalysis from '../components/GameAnalysis';
 import ProtectedRoute from './ProtectedRoute';
 
 const AppRoutes = () => {
@@ -23,21 +22,22 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
-      <Route path="/login" element={<Navigate to="/" replace />} />
+      {/* Public routes */}
+      <Route 
+        path="/" 
+        element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} 
+      />
+      <Route 
+        path="/login" 
+        element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} 
+      />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
       <Route path="/password-reset-success" element={<ResetPasswordSuccess />} />
       <Route path="/password-reset-failed" element={<ResetPasswordFailed />} />
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <UserProfile />
-          </ProtectedRoute>
-        }
-      />
+
+      {/* Protected routes */}
       <Route
         path="/dashboard"
         element={
@@ -47,7 +47,31 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/analysis/:gameId"
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/credits"
+        element={
+          <ProtectedRoute>
+            <Credits />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/games"
+        element={
+          <ProtectedRoute>
+            <Games />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/game/:gameId/analysis"
         element={
           <ProtectedRoute>
             <GameAnalysis />
@@ -57,51 +81,38 @@ const AppRoutes = () => {
       <Route
         path="/batch-analysis"
         element={
-          <PrivateRoute>
+          <ProtectedRoute>
             <BatchAnalysis />
-          </PrivateRoute>
+          </ProtectedRoute>
         }
       />
       <Route
         path="/fetch-games"
         element={
-          <PrivateRoute>
+          <ProtectedRoute>
             <FetchGames />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/games"
-        element={
-          <PrivateRoute>
-            <Games />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/credits"
-        element={
-          <PrivateRoute>
-            <Credits />
-          </PrivateRoute>
+          </ProtectedRoute>
         }
       />
       <Route
         path="/payment/success"
         element={
-          <PrivateRoute>
+          <ProtectedRoute>
             <PaymentSuccess />
-          </PrivateRoute>
+          </ProtectedRoute>
         }
       />
       <Route
         path="/payment/cancel"
         element={
-          <PrivateRoute>
+          <ProtectedRoute>
             <PaymentCancel />
-          </PrivateRoute>
+          </ProtectedRoute>
         }
       />
+
+      {/* Catch all route */}
+      <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} />} />
     </Routes>
   );
 };
