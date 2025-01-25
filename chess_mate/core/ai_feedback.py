@@ -174,25 +174,87 @@ Game Summary:
 - Time management issues: {len(analysis_summary.get('time_management', []))}
 
 Please provide comprehensive analysis in the following areas:
-1. Overall Performance: Score (0-100), interpretation, key strengths, and areas to improve
-2. Opening Analysis: Evaluation of opening choices and execution
-3. Middlegame Play: Assessment of positional understanding and piece coordination
-4. Tactical Awareness: Evaluation of combinations and tactical opportunities
-5. Strategic Understanding: Assessment of long-term planning and positional play
-6. Time Management: Analysis of time usage in critical positions
-7. Endgame Technique: Evaluation of technical execution
-8. Resourcefulness: Assessment of defensive skills and finding resources
-9. Advantage Conversion: Analysis of ability to convert advantages
-10. Peer Comparison: Performance relative to players of similar rating
-11. Study Plan: Specific focus areas and exercises for improvement
+
+1. Overall Performance:
+   - Score (0-100)
+   - Key strengths and weaknesses
+   - Areas for immediate improvement
+
+2. Opening Phase (moves 1-10):
+   - Opening choice evaluation
+   - Development patterns
+   - Pawn structure formation
+   - Time usage in opening
+   - Common mistakes or improvements
+   - Specific recommendations for opening study
+
+3. Middlegame Phase:
+   - Positional understanding
+   - Piece coordination
+   - Pawn structure management
+   - Strategic planning
+   - Attack/defense balance
+   - Common patterns to improve
+
+4. Endgame Phase:
+   - Technical execution
+   - King activity
+   - Pawn handling
+   - Piece coordination
+   - Time management
+   - Critical improvements needed
+
+5. Tactical Elements:
+   - Tactical pattern recognition
+   - Calculation accuracy
+   - Missed opportunities
+   - Common tactical themes
+   - Suggested tactical exercises
+
+6. Strategic Understanding:
+   - Long-term planning
+   - Piece placement
+   - Pawn structure decisions
+   - Strategic patterns to study
+
+7. Time Management:
+   - Phase-by-phase time usage
+   - Critical time decisions
+   - Time pressure handling
+   - Specific time management tips
+
+8. Resourcefulness:
+   - Defensive techniques
+   - Counter-attacking skills
+   - Finding resources in tough positions
+   - Improvement suggestions
+
+9. Advantage Conversion:
+   - Technical precision
+   - Converting winning positions
+   - Maintaining pressure
+   - Common conversion patterns
+
+10. Peer Comparison:
+    - Performance vs similar rated players
+    - Phase-by-phase comparison
+    - Tactical/strategic balance
+
+11. Detailed Study Plan:
+    - Phase-specific exercises
+    - Opening repertoire suggestions
+    - Tactical patterns to study
+    - Endgame principles to master
+    - Time management drills
 
 For each section, provide:
-- Detailed analysis of performance
-- Concrete suggestions for improvement
+- Detailed analysis with specific examples
+- Concrete, actionable suggestions
 - Numerical scores where applicable
-- Specific examples from the game
+- Common patterns and anti-patterns
+- Specific resources or exercises
 
-Focus on actionable feedback that will help the player improve.
+Focus on providing actionable feedback that addresses each phase of the game distinctly while maintaining a holistic view of improvement areas.
 """
         return prompt
 
@@ -294,51 +356,118 @@ Focus on actionable feedback that will help the player improve.
 
     def _generate_fallback_feedback(self, game_analysis: List[Dict[str, Any]]) -> FeedbackData:
         """Generate basic feedback when AI generation fails."""
+        # Calculate phase-specific metrics
+        opening_moves = game_analysis[:min(10, len(game_analysis))]
+        middlegame_moves = game_analysis[min(10, len(game_analysis)):min(30, len(game_analysis))]
+        endgame_moves = game_analysis[min(30, len(game_analysis)):]
+
+        # Calculate accuracies for each phase
+        opening_accuracy = self._calculate_phase_accuracy(opening_moves)
+        middlegame_accuracy = self._calculate_phase_accuracy(middlegame_moves)
+        endgame_accuracy = self._calculate_phase_accuracy(endgame_moves)
+
+        # Calculate tactical metrics
+        tactics_score, missed_wins = self._calculate_tactical_metrics(game_analysis)
+
         feedback: FeedbackData = {
             "overall_performance": {
                 "score": 65,
-                "interpretation": "Your overall performance shows room for improvement",
-                "key_strengths": ["Basic tactical awareness", "Time management"],
-                "areas_to_improve": ["Opening preparation", "Endgame technique"]
+                "interpretation": "Your overall performance shows both strengths and areas for improvement",
+                "key_strengths": [
+                    "Basic tactical awareness",
+                    "Time management fundamentals",
+                    "Basic positional understanding"
+                ],
+                "areas_to_improve": [
+                    "Opening preparation depth",
+                    "Endgame technique refinement",
+                    "Tactical pattern recognition"
+                ]
             },
             "opening": {
-                "analysis": "Standard opening moves with some inaccuracies",
-                "suggestions": ["Study main lines of your chosen openings", "Focus on piece development"]
+                "analysis": f"Opening play shows {opening_accuracy}% accuracy. {'Strong opening fundamentals' if opening_accuracy > 75 else 'Room for improvement in opening principles'}",
+                "suggestions": [
+                    "Study main lines of your chosen openings",
+                    "Focus on piece development coordination",
+                    "Pay attention to pawn structure formation",
+                    "Practice time management in the opening phase"
+                ]
             },
             "middlegame": {
-                "analysis": "Mixed performance in complex positions",
-                "suggestions": ["Improve piece coordination", "Study pawn structure basics"]
+                "analysis": f"Middlegame performance at {middlegame_accuracy}% accuracy. {'Good strategic understanding' if middlegame_accuracy > 75 else 'Strategic understanding needs development'}",
+                "suggestions": [
+                    "Improve piece coordination",
+                    "Study typical pawn structures",
+                    "Practice planning and evaluation",
+                    "Work on identifying critical moments"
+                ]
             },
             "tactics": {
-                "analysis": "Several tactical opportunities missed",
-                "suggestions": ["Practice daily tactical puzzles", "Review critical positions"]
+                "analysis": f"Tactical awareness at {tactics_score}%. Found {missed_wins} missed tactical opportunities",
+                "suggestions": [
+                    "Practice daily tactical puzzles",
+                    "Study common tactical patterns",
+                    "Review critical positions",
+                    "Work on calculation accuracy"
+                ]
             },
             "strategy": {
-                "analysis": "Basic strategic understanding demonstrated",
-                "suggestions": ["Study positional chess concepts", "Improve long-term planning"]
+                "analysis": "Basic strategic understanding demonstrated with room for improvement",
+                "suggestions": [
+                    "Study positional chess concepts",
+                    "Practice pawn structure analysis",
+                    "Learn typical strategic plans",
+                    "Improve long-term planning skills"
+                ]
             },
             "time_management": {
-                "analysis": "Reasonable time usage with some pressure points",
-                "suggestions": ["Practice time allocation", "Plan moves in opponent's time"]
+                "analysis": "Reasonable time usage with some pressure points noted",
+                "suggestions": [
+                    "Practice time allocation per phase",
+                    "Plan moves during opponent's time",
+                    "Improve decision-making speed",
+                    "Set phase-specific time budgets"
+                ]
             },
             "endgame": {
-                "analysis": "Technical execution needs improvement",
-                "suggestions": ["Study basic endgame principles", "Practice common endgame patterns"]
+                "analysis": f"Endgame technique shows {endgame_accuracy}% accuracy. {'Strong technical skills' if endgame_accuracy > 75 else 'Technical execution needs improvement'}",
+                "suggestions": [
+                    "Study fundamental endgame positions",
+                    "Practice king activation",
+                    "Improve pawn endgame technique",
+                    "Work on technical precision"
+                ]
             },
             "resourcefulness": {
-                "analysis": "Showed resilience in difficult positions",
-                "suggestions": ["Practice finding defensive resources", "Study similar positions"]
+                "analysis": "Demonstrated basic defensive skills and counter-attacking abilities",
+                "suggestions": [
+                    "Practice finding defensive resources",
+                    "Study prophylactic thinking",
+                    "Improve counter-attacking skills",
+                    "Learn fortress positions"
+                ]
             },
             "advantage": {
-                "analysis": "Mixed success in converting advantages",
-                "suggestions": ["Practice converting winning positions", "Study technique in better positions"]
+                "analysis": "Mixed success in converting advantageous positions",
+                "suggestions": [
+                    "Practice converting winning positions",
+                    "Study technique in better positions",
+                    "Improve prophylaxis in good positions",
+                    "Work on maintaining pressure"
+                ]
             },
             "study_plan": {
-                "focus_areas": ["Tactics", "Opening preparation", "Endgame technique"],
+                "focus_areas": [
+                    "Opening principles and development",
+                    "Tactical pattern recognition",
+                    "Endgame fundamentals",
+                    "Time management"
+                ],
                 "exercises": [
                     "Solve 10 tactical puzzles daily",
                     "Study one opening variation deeply",
-                    "Practice basic endgame positions"
+                    "Practice basic endgame positions",
+                    "Analyze games with time stamps"
                 ]
             },
             "peer_comparison": {
@@ -356,4 +485,35 @@ Focus on actionable feedback that will help the player improve.
                 }
             }
         }
-        return feedback 
+        return feedback
+
+    def _calculate_phase_accuracy(self, moves: List[Dict[str, Any]]) -> float:
+        """Calculate accuracy for a specific phase of the game."""
+        if not moves:
+            return 65.0
+        good_moves = sum(1 for move in moves if abs(move.get("score", 0)) < 100)
+        return round((good_moves / len(moves)) * 100, 1)
+
+    def _calculate_tactical_metrics(self, moves: List[Dict[str, Any]]) -> tuple[float, int]:
+        """Calculate tactical score and missed wins."""
+        if not moves:
+            return 65.0, 0
+        
+        tactical_opportunities = 0
+        successful_tactics = 0
+        missed_wins = 0
+        
+        for i, move in enumerate(moves):
+            current_eval = move.get("score", 0)
+            next_eval = moves[i + 1].get("score", 0) if i < len(moves) - 1 else current_eval
+            
+            # Detect tactical opportunities
+            if abs(next_eval - current_eval) > 200:
+                tactical_opportunities += 1
+                if next_eval > current_eval:
+                    successful_tactics += 1
+                else:
+                    missed_wins += 1
+        
+        tactics_score = (successful_tactics / max(1, tactical_opportunities)) * 100
+        return round(tactics_score, 1), missed_wins

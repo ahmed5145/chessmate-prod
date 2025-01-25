@@ -863,27 +863,72 @@ def batch_analyze(request):
                 # Calculate progress
                 overall_stats["progress"] = round((overall_stats["completed"] / overall_stats["total_games"]) * 100, 1)
 
-                # Generate improvement areas and strengths
-                if overall_stats["resourcefulness"]["average_score"] < 50:
-                    overall_stats["improvement_areas"].append({
-                        "area": "Defensive Technique",
-                        "description": "Work on finding defensive resources and counter-attacking opportunities in difficult positions."
+                # Add phase-specific stats
+                overall_stats["phase_analysis"] = {
+                    "opening": {
+                        "average_accuracy": round(sum(game_feedback.get("opening", {}).get("accuracy", 65.0) 
+                                                    for game_feedback in feedback_results.values()) / num_analyzed_games, 1),
+                        "common_patterns": [],
+                        "improvement_areas": []
+                    },
+                    "middlegame": {
+                        "average_accuracy": round(sum(game_feedback.get("middlegame", {}).get("accuracy", 65.0) 
+                                                    for game_feedback in feedback_results.values()) / num_analyzed_games, 1),
+                        "common_patterns": [],
+                        "improvement_areas": []
+                    },
+                    "endgame": {
+                        "average_accuracy": round(sum(game_feedback.get("endgame", {}).get("accuracy", 65.0) 
+                                                    for game_feedback in feedback_results.values()) / num_analyzed_games, 1),
+                        "common_patterns": [],
+                        "improvement_areas": []
+                    },
+                    "tactics": {
+                        "average_score": round(sum(game_feedback.get("tactics", {}).get("tactics_score", 65.0) 
+                                                 for game_feedback in feedback_results.values()) / num_analyzed_games, 1),
+                        "total_opportunities": sum(len(game_feedback.get("tactics", {}).get("opportunities", [])) 
+                                                 for game_feedback in feedback_results.values()),
+                        "missed_wins": sum(game_feedback.get("tactics", {}).get("missed_wins", 0) 
+                                         for game_feedback in feedback_results.values())
+                    }
+                }
+
+                # Analyze phase-specific patterns
+                for phase in ["opening", "middlegame", "endgame"]:
+                    phase_suggestions = []
+                    for game_feedback in feedback_results.values():
+                        if phase in game_feedback and "suggestions" in game_feedback[phase]:
+                            phase_suggestions.extend(game_feedback[phase]["suggestions"])
+                    
+                    # Find common suggestions
+                    from collections import Counter
+                    common_suggestions = Counter(phase_suggestions).most_common(3)
+                    overall_stats["phase_analysis"][phase]["common_patterns"] = [sugg for sugg, _ in common_suggestions]
+                    
+                    # Add phase-specific improvement areas
+                    phase_accuracy = overall_stats["phase_analysis"][phase]["average_accuracy"]
+                    if phase_accuracy < 60:
+                        overall_stats["improvement_areas"].append({
+                            "area": f"{phase.capitalize()} Play",
+                            "description": f"Focus on improving {phase} understanding and technique. Current accuracy: {phase_accuracy}%"
                     })
-                elif overall_stats["resourcefulness"]["average_score"] > 70:
-                    overall_stats["strengths"].append({
-                        "area": "Resourcefulness",
-                        "description": "Excellent at finding defensive resources and counter-opportunities."
+                    elif phase_accuracy > 80:
+                        overall_stats["strengths"].append({
+                            "area": f"{phase.capitalize()} Technique",
+                            "description": f"Strong performance in {phase} positions. Current accuracy: {phase_accuracy}%"
                     })
 
-                if overall_stats["advantage"]["average_conversion"] < 50:
+                # Add tactical analysis to improvement areas/strengths
+                tactics_score = overall_stats["phase_analysis"]["tactics"]["average_score"]
+                if tactics_score < 60:
                     overall_stats["improvement_areas"].append({
-                        "area": "Advantage Conversion",
-                        "description": "Practice converting winning positions and maintaining pressure when ahead."
+                        "area": "Tactical Awareness",
+                        "description": f"Work on tactical pattern recognition and calculation. Current score: {tactics_score}%"
                     })
-                elif overall_stats["advantage"]["average_conversion"] > 70:
+                elif tactics_score > 80:
                     overall_stats["strengths"].append({
-                        "area": "Technical Precision",
-                        "description": "Strong technique in converting advantages into wins."
+                        "area": "Tactical Strength",
+                        "description": f"Excellent tactical awareness and execution. Current score: {tactics_score}%"
                     })
 
             # Generate overall AI feedback if enabled
@@ -896,13 +941,26 @@ def batch_analyze(request):
                             "username": user.username,
                             "rating": getattr(Profile.objects.get(user=user), 'rating', 1500),
                             "total_games": num_analyzed_games
-                        },
-                        ai_client
+                        }
                     )
                     overall_stats["ai_feedback"] = overall_ai_feedback
                     logger.info("Generated overall AI feedback for batch analysis")
                 except Exception as e:
                     logger.error(f"Error generating overall AI feedback: {str(e)}")
+                    # Generate fallback summary
+                    overall_stats["ai_feedback"] = {
+                        "summary": "Analysis completed successfully. Review individual game feedback for detailed insights.",
+                        "key_findings": [
+                            f"Average accuracy across all phases: {overall_stats['average_accuracy']}%",
+                            f"Strongest phase: {max(overall_stats['phase_analysis'].items(), key=lambda x: x[1]['average_accuracy'])[0].capitalize()}",
+                            f"Phase needing most improvement: {min(overall_stats['phase_analysis'].items(), key=lambda x: x[1]['average_accuracy'])[0].capitalize()}"
+                        ],
+                        "recommendations": [
+                            "Focus on the specific improvement areas highlighted in each phase",
+                            "Practice tactical exercises regularly",
+                            "Study the common patterns identified in your games"
+                        ]
+                    }
 
             return Response({
                 "message": "Batch analysis completed successfully",
