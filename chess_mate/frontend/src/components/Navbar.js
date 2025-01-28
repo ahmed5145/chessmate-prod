@@ -13,11 +13,13 @@ import {
   User,
   LogIn,
   UserPlus,
-  BarChart
+  BarChart,
+  Coins
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
+import { logoutUser } from '../services/apiRequests';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,13 +29,21 @@ const Navbar = () => {
   const { isDarkMode, toggleDarkMode } = useTheme();
   const isLoggedIn = !!localStorage.getItem('tokens');
 
-  const handleLogout = () => {
-    localStorage.removeItem('tokens');
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    setCredits(0);
-    toast.success('Logged out successfully');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      const success = await logoutUser();
+      if (success) {
+        setCredits(0);
+        toast.success('Logged out successfully');
+      }
+      // Always navigate to login page, even if server request fails
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Error during logout');
+      // Still navigate to login page
+      navigate('/login', { replace: true });
+    }
   };
 
   const navLinks = isLoggedIn ? [
@@ -56,7 +66,7 @@ const Navbar = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link 
-              to="/" 
+              to="/dashboard" 
               className={`flex items-center space-x-2 text-xl font-bold ${
                 isDarkMode ? 'text-white hover:text-primary-300' : 'text-gray-900 hover:text-primary-600'
               } transition-colors duration-200`}
@@ -69,18 +79,23 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden sm:flex sm:items-center sm:space-x-4">
             {isLoggedIn && (
-              <div className={`px-3 py-1 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Credits: {credits}
+              <Link
+                to="/credits"
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors duration-200 cursor-pointer
+                  ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'}`}
+              >
+                <Coins size={20} className={isDarkMode ? 'text-yellow-500' : 'text-yellow-600'} />
+                <span className={`font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  {credits}
                 </span>
-              </div>
+              </Link>
             )}
             
             {navLinks.map(({ to, icon, text, highlight }) => (
               <Link
                 key={to}
                 to={to}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors duration-200
+                className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors duration-200 whitespace-nowrap
                   ${location.pathname === to
                     ? isDarkMode
                       ? 'bg-gray-800 text-white'
@@ -111,7 +126,7 @@ const Navbar = () => {
 
             <button
               onClick={toggleDarkMode}
-              className={`p-2 rounded-lg transition-colors duration-200
+              className={`inline-flex items-center justify-center p-2 rounded-lg transition-colors duration-200 h-10 w-10
                 ${isDarkMode
                   ? 'bg-gray-800 text-white hover:bg-gray-700'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -142,11 +157,17 @@ const Navbar = () => {
         <div className={`sm:hidden ${isDarkMode ? 'bg-gray-900' : 'bg-white'} border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
           <div className="px-2 pt-2 pb-3 space-y-1">
             {isLoggedIn && (
-              <div className={`px-3 py-2 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Credits: {credits}
+              <Link
+                to="/credits"
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors duration-200 cursor-pointer
+                  ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'}`}
+              >
+                <Coins size={20} className={isDarkMode ? 'text-yellow-500' : 'text-yellow-600'} />
+                <span className={`font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  {credits}
                 </span>
-              </div>
+              </Link>
             )}
 
             {navLinks.map(({ to, icon, text }) => (

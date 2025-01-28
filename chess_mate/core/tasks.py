@@ -1,167 +1,249 @@
-from celery import shared_task
-from typing import Dict, Any, List, Optional
+"""
+Celery tasks for game analysis.
+"""
+
 import logging
-from .models import Game, Profile
+from typing import List, Dict, Any, Optional, Union
+from celery import shared_task
+from django.core.cache import cache
+from django.conf import settings
+from django.utils import timezone
+from .models import Game, Profile, GameAnalysis
 from .game_analyzer import GameAnalyzer
 from .cache_manager import CacheManager
 from .ai_feedback import AIFeedbackGenerator
 from django.db import transaction
-from datetime import datetime
+from openai import OpenAI, OpenAIError
 
 logger = logging.getLogger(__name__)
 cache_manager = CacheManager()
 
-@shared_task(bind=True, max_retries=3)
-def analyze_game_task(self, game_id: int, user_id: int) -> Dict[str, Any]:
-    """Analyze a single game asynchronously."""
+@shared_task(bind=True)
+def analyze_game_task(self, game_id: int, depth: int = 20, use_ai: bool = True) -> Dict:
+    """
+    Analyze a chess game asynchronously.
+    """
     try:
-        # Check cache first
-        cached_analysis = cache_manager.get_cached_analysis(game_id)
-        if cached_analysis:
-            return cached_analysis
-
-        # Get game and profile
-        with transaction.atomic():
-            game = Game.objects.get(id=game_id)
-            profile = Profile.objects.get(user_id=user_id)
-            
-            # Verify credits
-            if profile.credits < 1:
-                raise ValueError("Insufficient credits")
-            
-            # Deduct credits
-            profile.credits -= 1
-            profile.save()
-
-        # Perform analysis
-        analyzer = GameAnalyzer()
+        # Get the game
+        game = Game.objects.get(id=game_id)
+        
+        # Initialize the analyzer with Stockfish path
+        analyzer = GameAnalyzer(stockfish_path=settings.STOCKFISH_PATH)
+        
         try:
-            analysis_results = analyzer.analyze_games([game])
-            game_analysis = analysis_results[game.id]
+            # Analyze the game first
+            analysis_results = analyzer.analyze_single_game(game, depth)
             
-            # Generate AI feedback
-            ai_feedback = AIFeedbackGenerator()
-            player_profile = {
-                'rating': profile.rating,
-                'preferred_openings': profile.preferred_openings,
-                'recent_performance': profile.recent_performance
-            }
-            feedback = ai_feedback.generate_personalized_feedback(game_analysis, player_profile)
+            # Generate feedback based on analysis
+            feedback = analyzer.generate_feedback(analysis_results, game)
+            source = 'openai_analysis' if use_ai and feedback.get('source') == 'openai_analysis' else 'statistical_analysis'
             
-            # Combine results
-            results = {
-                'analysis': game_analysis,
+            # Create or update GameAnalysis
+            analysis_data = {
                 'feedback': feedback,
-                'timestamp': datetime.now().isoformat()
+                'source': source,
+                'timestamp': timezone.now().isoformat(),
+                'depth': depth,
+                'analysis_results': analysis_results
             }
             
-            # Cache results
-            cache_manager.cache_analysis(game_id, results)
+            GameAnalysis.objects.update_or_create(
+                game=game,
+                defaults={'analysis_data': analysis_data}
+            )
             
-            return results
+            return {
+                'status': 'completed',
+                'game_id': game_id
+            }
+            
+        except OpenAIError as e:
+            logger.warning(f"OpenAI API error: {str(e)}. Falling back to statistical analysis.")
+            
+            # Analyze the game
+            analysis_results = analyzer.analyze_single_game(game, depth)
+            
+            # Generate feedback without AI
+            feedback = analyzer.generate_feedback(analysis_results, game)
+            
+            # Create or update GameAnalysis with fallback data
+            analysis_data = {
+                'feedback': feedback,
+                'source': 'statistical_analysis',
+                'timestamp': timezone.now().isoformat(),
+                'depth': depth,
+                'analysis_results': analysis_results,
+                'fallback_reason': str(e)
+            }
+            
+            GameAnalysis.objects.update_or_create(
+                game=game,
+                defaults={'analysis_data': analysis_data}
+            )
+            
+            return {
+                'status': 'completed',
+                'game_id': game_id
+            }
+            
         finally:
-            if analyzer:
-                analyzer.close_engine()
-                
-    except Exception as e:
-        logger.error(f"Error in analyze_game_task: {str(e)}")
-        self.retry(exc=e, countdown=60)  # Retry after 1 minute
-
-@shared_task(bind=True, max_retries=3)
-def analyze_batch_games_task(self, game_ids: List[int], user_id: int) -> Dict[str, Any]:
-    """Analyze multiple games asynchronously."""
-    try:
-        results = {
-            'individual_games': {},
-            'overall_stats': {
-                'total_games': len(game_ids),
-                'completed': 0,
-                'errors': 0
-            }
+            # Always close the engine
+            analyzer.close_engine()
+            
+    except Game.DoesNotExist:
+        error_msg = f"Game {game_id} not found"
+        logger.error(error_msg)
+        return {
+            'status': 'failed',
+            'error': error_msg
         }
         
-        # Get profile and verify credits
-        with transaction.atomic():
-            profile = Profile.objects.get(user_id=user_id)
-            required_credits = len(game_ids)
-            
-            if profile.credits < required_credits:
-                raise ValueError("Insufficient credits")
-            
-            # Deduct credits
-            profile.credits -= required_credits
-            profile.save()
+    except Exception as e:
+        error_msg = f"Error analyzing game {game_id}: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'status': 'failed',
+            'error': error_msg
+        }
+
+@shared_task(bind=True, max_retries=3)
+def analyze_batch_games_task(self, game_ids: List[int], depth: int = 20, use_ai: bool = True) -> Dict[str, Any]:
+    """
+    Analyze multiple games asynchronously.
+    
+    Args:
+        game_ids: List of game IDs to analyze
+        depth: Analysis depth for Stockfish
+        use_ai: Whether to use OpenAI for feedback generation
+    
+    Returns:
+        Dict containing analysis results and status for each game
+    """
+    result = {
+        "status": "failed",
+        "task_id": self.request.id,
+        "results": {},
+        "completed": 0,
+        "total": len(game_ids),
+        "error": None
+    }
+    
+    try:
+        # Initialize analyzer
+        analyzer = GameAnalyzer(stockfish_path=settings.STOCKFISH_PATH)
         
-        analyzer = GameAnalyzer()
         try:
-            # Process games in batches
-            batch_size = 5
-            for i in range(0, len(game_ids), batch_size):
-                batch = game_ids[i:i + batch_size]
-                games = Game.objects.filter(id__in=batch)
-                
+            for game_id in game_ids:
                 try:
-                    # Analyze batch
-                    batch_results = analyzer.analyze_games(games)
+                    game = Game.objects.get(id=game_id)
                     
-                    # Process each game in batch
-                    for game_id, analysis in batch_results.items():
+                    # Analyze the game
+                    analysis_results = analyzer.analyze_single_game(game, depth)
+                    
+                    # Generate feedback if requested
+                    if use_ai and analysis_results:
                         try:
-                            # Generate AI feedback
-                            ai_feedback = AIFeedbackGenerator()
+                            # Initialize AI feedback generator with API key
+                            feedback_generator = AIFeedbackGenerator(settings.OPENAI_API_KEY)
+                            
+                            # Get player profile for personalized feedback
+                            player = game.user
                             player_profile = {
-                                'rating': profile.rating,
-                                'preferred_openings': profile.preferred_openings,
-                                'recent_performance': profile.recent_performance
-                            }
-                            feedback = ai_feedback.generate_personalized_feedback(analysis, player_profile)
-                            
-                            # Store results
-                            game_results = {
-                                'analysis': analysis,
-                                'feedback': feedback,
-                                'timestamp': datetime.now().isoformat()
+                                "username": player.username,
+                                "rating": getattr(player.profile, "rating", None),
+                                "total_games": getattr(player.profile, "total_games", 0),
+                                "preferences": {
+                                    "preferred_openings": getattr(player.profile, "preferred_openings", [])
+                                }
                             }
                             
-                            results['individual_games'][game_id] = game_results
-                            results['overall_stats']['completed'] += 1
+                            # Generate AI feedback
+                            feedback = feedback_generator.generate_personalized_feedback(
+                                game_analysis=analysis_results,
+                                player_profile=player_profile
+                            )
                             
-                            # Cache individual game results
-                            cache_manager.cache_analysis(game_id, game_results)
-                            
+                            if feedback:
+                                analysis_results["feedback"] = feedback
+                                
                         except Exception as e:
-                            logger.error(f"Error processing game {game_id}: {str(e)}")
-                            results['overall_stats']['errors'] += 1
-                            
+                            logger.error(f"Error generating AI feedback for game {game_id}: {str(e)}")
+                            # Fallback to basic feedback
+                            feedback = analyzer.generate_feedback(analysis_results, game)
+                            if feedback:
+                                analysis_results["feedback"] = feedback
+                    
+                    # Save results to database
+                    analyzer.save_analysis_to_db(game, analysis_results)
+                    
+                    result["results"][game_id] = {
+                        "status": "completed",
+                        "results": analysis_results
+                    }
+                    
+                    result["completed"] += 1
+                    
+                    # Update progress in cache
+                    progress = (result["completed"] / result["total"]) * 100
+                    cache.set(
+                        f"batch_analysis_progress_{self.request.id}",
+                        {
+                            "status": "in_progress",
+                            "progress": progress,
+                            "completed": result["completed"],
+                            "total": result["total"],
+                            "current_results": result["results"]
+                        },
+                        timeout=3600
+                    )
+                    
+                except Game.DoesNotExist:
+                    logger.error(f"Game {game_id} not found")
+                    result["results"][game_id] = {
+                        "status": "failed",
+                        "error": "Game not found"
+                    }
+                    
                 except Exception as e:
-                    logger.error(f"Error processing batch: {str(e)}")
-                    results['overall_stats']['errors'] += len(batch)
+                    logger.error(f"Error analyzing game {game_id}: {str(e)}")
+                    result["results"][game_id] = {
+                        "status": "failed",
+                        "error": str(e)
+                    }
                     
         finally:
-            if analyzer:
-                analyzer.close_engine()
+            # Ensure engine is closed
+            analyzer.close_engine()
         
-        # Calculate overall statistics
-        total_mistakes = sum(
-            len(game_result['analysis'].get('mistakes', []))
-            for game_result in results['individual_games'].values()
+        # Update final status
+        result["status"] = "completed"
+        
+        # Set final results in cache
+        cache.set(
+            f"batch_analysis_results_{self.request.id}",
+            result,
+            timeout=3600
         )
-        total_blunders = sum(
-            len(game_result['analysis'].get('blunders', []))
-            for game_result in results['individual_games'].values()
-        )
-        
-        results['overall_stats'].update({
-            'average_mistakes': total_mistakes / len(game_ids) if game_ids else 0,
-            'average_blunders': total_blunders / len(game_ids) if game_ids else 0,
-            'success_rate': (results['overall_stats']['completed'] / len(game_ids)) * 100
-        })
-        
-        return results
         
     except Exception as e:
-        logger.error(f"Error in analyze_batch_games_task: {str(e)}")
-        self.retry(exc=e, countdown=60)  # Retry after 1 minute
+        error_msg = f"Error in batch analysis: {str(e)}"
+        logger.error(error_msg)
+        result["error"] = error_msg
+        self.retry(exc=e, countdown=2 ** self.request.retries)
+    
+    return result
+
+@shared_task
+def cleanup_analysis_cache() -> None:
+    """Periodic task to clean up expired analysis cache entries."""
+    try:
+        pattern = "analysis_status_*"
+        keys = [key for key in cache.iter_keys(pattern)]
+        for key in keys:
+            if not cache.get(key):
+                cache.delete(key)
+    except Exception as e:
+        logger.error(f"Error cleaning up analysis cache: {str(e)}")
 
 @shared_task
 def cleanup_expired_cache_task() -> None:

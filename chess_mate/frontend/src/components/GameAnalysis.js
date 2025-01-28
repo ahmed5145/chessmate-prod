@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { Loader2, TrendingUp, Target, Clock, Award, Crown, Shield } from "lucide-react";
-import { analyzeSpecificGame } from "../api";
+import { Loader2, TrendingUp, Target, Clock, Award, Crown, Shield, Zap, BarChart2, AlertTriangle } from "lucide-react";
+import { analyzeSpecificGame } from "../services/apiRequests";
 import { useTheme } from "../context/ThemeContext";
 import { formatDate } from "../utils/dateUtils";
+import { useUser } from '../contexts/UserContext';
+import LoadingSpinner from './LoadingSpinner';
 
 const GameAnalysis = () => {
   const { gameId } = useParams();
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [taskId, setTaskId] = useState(null);
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
+  const { updateCredits } = useUser();
 
   useEffect(() => {
     const fetchAnalysis = async () => {
@@ -49,29 +54,121 @@ const GameAnalysis = () => {
     </div>
   );
 
-  const renderStatistic = (label, value, percentage = false, color = 'primary') => (
-    <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
-      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{label}</p>
-      <p className={`text-2xl font-semibold ${
-        percentage ? `text-${color}-500` : isDarkMode ? 'text-white' : 'text-gray-900'
-      }`}>
-        {percentage ? `${value}%` : value}
-      </p>
+  const renderFeedbackSource = () => {
+    if (!analysis?.feedback?.source) return null;
+
+    const sourceColors = {
+        openai_analysis: 'text-green-600',
+        statistical_analysis: 'text-blue-600',
+        error_fallback: 'text-red-600'
+    };
+
+    const sourceLabels = {
+        openai_analysis: 'AI-Powered Analysis',
+        statistical_analysis: 'Statistical Analysis',
+        error_fallback: 'Basic Analysis (Error Recovery)'
+    };
+
+    const sourceIcons = {
+        openai_analysis: <Zap className="w-4 h-4 mr-1" />,
+        statistical_analysis: <BarChart2 className="w-4 h-4 mr-1" />,
+        error_fallback: <AlertTriangle className="w-4 h-4 mr-1" />
+    };
+
+    return (
+        <div className={`flex items-center ${sourceColors[analysis.feedback.source]} text-sm font-medium mb-4`}>
+            {sourceIcons[analysis.feedback.source]}
+            <span>{sourceLabels[analysis.feedback.source]}</span>
+            {analysis.feedback.source === 'error_fallback' && (
+                <div className="ml-2 text-xs text-gray-500">
+                    (Limited analysis available due to processing error)
+                </div>
+            )}
+        </div>
+    );
+  };
+
+  const renderGameOverview = () => (
+    <div className="space-y-6">
+        {renderFeedbackSource()}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {renderStatistic('Overall Accuracy', 
+                analysis.overall_accuracy || 65.0, 
+                true,
+                analysis.feedback?.source === 'error_fallback' ? 'gray' : 'primary'
+            )}
+            {renderStatistic('ELO Performance', 
+                analysis.elo_performance || 1200,
+                false,
+                analysis.feedback?.source === 'error_fallback' ? 'gray' : 'primary'
+            )}
+            {renderStatistic('Game Length', 
+                analysis.game_length || 0,
+                false,
+                analysis.feedback?.source === 'error_fallback' ? 'gray' : 'primary'
+            )}
+        </div>
+        
+        <div className="space-y-4">
+            <h3 className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Performance Breakdown
+            </h3>
+            {renderProgressBar(
+                analysis.performance_breakdown?.opening || 65.0, 
+                'Opening',
+                analysis.feedback?.source === 'error_fallback'
+            )}
+            {renderProgressBar(
+                analysis.performance_breakdown?.middlegame || 65.0, 
+                'Middle Game',
+                analysis.feedback?.source === 'error_fallback'
+            )}
+            {renderProgressBar(
+                analysis.performance_breakdown?.endgame || 65.0, 
+                'End Game',
+                analysis.feedback?.source === 'error_fallback'
+            )}
+        </div>
     </div>
   );
 
-  const renderProgressBar = (value, label) => (
+  const renderStatistic = (label, value, percentage = false, color = 'primary') => (
+    <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+        <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{label}</p>
+        <p className={`text-2xl font-semibold ${
+            color === 'gray' 
+                ? 'text-gray-400'
+                : percentage 
+                    ? `text-${color}-500` 
+                    : isDarkMode 
+                        ? 'text-white' 
+                        : 'text-gray-900'
+        }`}>
+            {percentage ? `${value}%` : value}
+        </p>
+    </div>
+  );
+
+  const renderProgressBar = (value, label, isErrorFallback = false) => (
     <div className="mb-4">
-      <div className="flex justify-between mb-1">
-        <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{label}</span>
-        <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{value}%</span>
-      </div>
-      <div className={`w-full h-2.5 rounded-full ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
-        <div 
-          className="h-2.5 rounded-full bg-primary-500"
-          style={{ width: `${value}%` }}
-        ></div>
-      </div>
+        <div className="flex justify-between mb-1">
+            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{label}</span>
+            <span className={`text-sm font-medium ${
+                isErrorFallback 
+                    ? 'text-gray-400'
+                    : isDarkMode 
+                        ? 'text-white' 
+                        : 'text-gray-900'
+            }`}>
+                {value}%
+            </span>
+        </div>
+        <div className={`w-full h-2.5 rounded-full ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+            <div 
+                className={`h-2.5 rounded-full ${isErrorFallback ? 'bg-gray-400' : 'bg-primary-500'}`}
+                style={{ width: `${value}%` }}
+            ></div>
+        </div>
     </div>
   );
 
@@ -84,25 +181,6 @@ const GameAnalysis = () => {
         </span>
       </div>
       <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{feedback}</p>
-    </div>
-  );
-
-  const renderGameOverview = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {renderStatistic('Overall Accuracy', analysis.overall_accuracy || 65.0, true)}
-        {renderStatistic('ELO Performance', analysis.elo_performance || 1200)}
-        {renderStatistic('Game Length', analysis.game_length || 0)}
-      </div>
-      
-      <div className="space-y-4">
-        <h3 className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-          Performance Breakdown
-        </h3>
-        {renderProgressBar(analysis.performance_breakdown?.opening || 65.0, 'Opening')}
-        {renderProgressBar(analysis.performance_breakdown?.middlegame || 65.0, 'Middle Game')}
-        {renderProgressBar(analysis.performance_breakdown?.endgame || 65.0, 'End Game')}
-      </div>
     </div>
   );
 

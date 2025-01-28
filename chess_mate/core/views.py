@@ -10,7 +10,7 @@ import logging
 import httpx
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, cast
 
 # Django imports
 from django.shortcuts import render, redirect
@@ -34,6 +34,10 @@ from django.utils import timezone
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.html import strip_tags
 from django.views.decorators.http import require_GET
+from django.core.validators import validate_email
+from django.contrib.auth.password_validation import validate_password
+from django.db.utils import IntegrityError
+from django.middleware.csrf import get_token
 
 # Third-party imports
 import requests
@@ -44,6 +48,8 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 import chess.engine
 from openai import OpenAI
+from celery.result import AsyncResult  # type: ignore
+from django.core.cache import cache
 
 # Local application imports
 from .models import Game, GameAnalysis, Profile, Transaction
@@ -54,6 +60,8 @@ from .ai_feedback import AIFeedbackGenerator
 from .decorators import rate_limit
 from .payment import PaymentProcessor, CREDIT_PACKAGES
 from .utils import generate_feedback_without_ai
+from .tasks import analyze_game_task, analyze_batch_games_task
+from .task_manager import RQTaskManager
 
 STOCKFISH_PATH = os.getenv("STOCKFISH_PATH")
 
@@ -65,10 +73,10 @@ try:
     import stripe
     stripe.api_key = settings.STRIPE_SECRET_KEY
 except ImportError:
-    stripe = None
+    stripe = None  # type: ignore
     logger.warning("Stripe package not installed. Payment features will be disabled.")
 
-def get_openai_client():
+def get_openai_client() -> Optional[OpenAI]:
     """Get OpenAI client with proper error handling."""
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -84,7 +92,10 @@ try:
     ai_feedback_generator = AIFeedbackGenerator(api_key=os.getenv("OPENAI_API_KEY"))
 except Exception as e:
     logger.error(f"Error initializing AI feedback generator: {str(e)}")
-    ai_feedback_generator = None
+    ai_feedback_generator = None  # type: ignore
+
+# Initialize task manager
+task_manager = RQTaskManager()
 
 @api_view(['GET'])
 def debug_request(request):
@@ -109,7 +120,6 @@ def index(request):
     """
     return render(request, "index.html")
 
-@csrf_exempt
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_saved_games(request):
@@ -147,53 +157,47 @@ class EmailVerificationToken:
 @rate_limit(endpoint_type='AUTH')
 @api_view(['POST'])
 def register_view(request):
-    """
-    Handle user registration with email verification.
-    """
-    logger.debug(f"Registration attempt - Request data: {request.data}")
+    """Handle user registration with email verification."""
     try:
         data = request.data
+        username = data.get("username")
         email = data.get("email")
         password = data.get("password")
-        username = data.get("username")
-
-        # Log received data (be careful not to log passwords in production)
-        logger.debug(f"Registration data - email: {email}, username: {username}")
 
         # Validate required fields
-        if not email or not password or not username:
-            logger.warning("Registration failed: Missing required fields")
+        if not all([username, email, password]):
             return Response(
-                {"error": "All fields are required.", "field": "all"},
+                {"error": "All fields are required."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Check for existing email
-        if User.objects.filter(email=email).exists():
-            logger.warning(f"Registration failed: Email already exists - {email}")
-            return Response(
-                {
-                    "error": "This email is already registered. Please use a different email or try logging in.",
-                    "field": "email"
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Check for existing username
-        if User.objects.filter(username=username).exists():
-            logger.warning(f"Registration failed: Username already taken - {username}")
-            return Response(
-                {
-                    "error": "This username is already taken. Please choose a different username.",
-                    "field": "username"
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
+        # Validate email format
         try:
-            validate_password_complexity(password)
+            validate_email(email)
         except ValidationError as e:
-            logger.warning(f"Registration failed: Password validation failed - {str(e)}")
+            return Response(
+                {"error": str(e), "field": "email"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if email already exists
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {"error": "Email already registered.", "field": "email"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if username already exists
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {"error": "Username already taken.", "field": "username"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate password
+        try:
+            validate_password(password)
+        except ValidationError as e:
             return Response(
                 {"error": str(e), "field": "password"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -201,48 +205,35 @@ def register_view(request):
 
         try:
             with transaction.atomic():
-                # First, clean up any existing profiles that might conflict
-                with connection.cursor() as cursor:
-                    cursor.execute("""
-                        DELETE FROM core_profile 
-                        WHERE user_id NOT IN (SELECT id FROM auth_user)
-                    """)
-                
-                # Create inactive user
-                user = None
-                profile = None
-                try:
-                    user = User.objects.create_user(
-                        username=username,
-                        email=email,
-                        password=password,
-                        is_active=False
-                    )
-                    logger.debug(f"Created user: {username}")
+                # Create inactive user first
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    is_active=False
+                )
+                logger.debug(f"Created user: {username}")
                     
-                    # Create new profile with starter credits
-                    profile = Profile.objects.create(
-                        user=user,
-                        email_verification_token=EmailVerificationToken.generate_token(),
-                        email_verification_sent_at=timezone.now(),
-                        credits=10  # Give starter credits
-                    )
-                    logger.debug(f"Created profile for user: {username}")
-                except Exception as e:
-                    logger.error(f"Error creating user or profile: {str(e)}", exc_info=True)
-                    if user and not profile:
-                        user.delete()
-                    raise
+                # Create profile with verification token and starter credits
+                verification_token = EmailVerificationToken.generate_token()
+                profile = Profile.objects.create(
+                    user=user,
+                    email_verification_token=verification_token,
+                    email_verification_sent_at=timezone.now(),
+                    credits=10  # Explicitly set starter credits
+                )
+                
+                logger.debug(f"Created profile for user: {username} with {profile.credits} credits")
                 
                 # Send verification email
                 try:
-                    send_verification_email(request, user, profile.email_verification_token)
+                    send_verification_email(request, user, verification_token)
                     logger.debug(f"Sent verification email to: {email}")
                 except Exception as e:
                     logger.error(f"Error sending verification email: {str(e)}", exc_info=True)
                     # Don't fail registration if email fails, but log it
                     pass
-            
+
             return Response(
                 {
                     "message": "Registration successful! Please check your email to verify your account.",
@@ -250,17 +241,24 @@ def register_view(request):
                 },
                 status=status.HTTP_201_CREATED
             )
-        except Exception as e:
-            logger.error(f"Database transaction error: {str(e)}", exc_info=True)
+
+        except IntegrityError as e:
+            logger.error(f"Database integrity error: {str(e)}", exc_info=True)
             return Response(
-                {"error": "An unexpected error occurred during registration. Please try again."},
+                {"error": "Username or email already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Database error: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "An unexpected error occurred during registration."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
             
     except Exception as e:
         logger.error(f"Unexpected registration error: {str(e)}", exc_info=True)
         return Response(
-            {"error": "An unexpected error occurred during registration. Please try again."},
+            {"error": "An unexpected error occurred during registration."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -306,7 +304,6 @@ def send_verification_email(request, user, token):
         logger.error(f"Error in send_verification_email: {str(e)}")
         return False
 
-@csrf_exempt
 @api_view(["GET"])
 def verify_email(request, uidb64, token):
     """
@@ -408,7 +405,6 @@ def login_view(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-@csrf_exempt
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def fetch_games(request):
@@ -565,7 +561,6 @@ def fetch_games(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-@csrf_exempt
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def user_games_view(request):
@@ -599,103 +594,98 @@ def user_games_view(request):
     return Response({"games": games_data}, status=status.HTTP_200_OK)
 
 @rate_limit(endpoint_type='ANALYSIS')
-@api_view(["POST"])
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def analyze_game(request, game_id):
-    """
-    Analyze a game and generate feedback.
-    """
-    user = request.user
+    """Start analysis for a specific game."""
     try:
-        # Get the game and verify ownership
-        game = Game.objects.get(id=game_id, user=user)
+        game = Game.objects.get(id=game_id)
         
-        # Get analysis parameters
-        depth = int(request.data.get("depth", 20))
-        use_ai = request.data.get("use_ai", True)
+        # Check if user has permission to analyze this game
+        if not game.user == request.user and not request.user.is_staff:
+            return Response(
+                {'error': 'You do not have permission to analyze this game'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         
-        logger.info(f"Starting analysis for game {game_id} requested by user {user.username}")
-        logger.info(f"Analysis parameters - depth: {depth}, use_ai: {use_ai}")
+        # Clear any existing analysis
+        GameAnalysis.objects.filter(game=game).delete()
         
-        try:
-            # Initialize analyzer
-            analyzer = GameAnalyzer(stockfish_path=STOCKFISH_PATH)
-            logger.info("GameAnalyzer initialized successfully")
-            
-            # Perform analysis
-            analysis_results = analyzer.analyze_single_game(game, depth)
-            
-            # Initialize OpenAI client if AI feedback is enabled
-            ai_client = None
-            if use_ai:
-                try:
-                    ai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
-                    logger.info("OpenAI client initialized successfully")
-                except Exception as e:
-                    logger.error(f"Failed to initialize OpenAI client: {str(e)}")
-            
-            # Generate feedback
-            try:
-                if use_ai and ai_client:
-                    try:
-                        # Get player profile for personalized feedback
-                        profile = Profile.objects.get(user=user)
-                        player_profile = {
-                            "username": user.username,
-                            "rating": getattr(profile, "rating", None),
-                            "total_games": getattr(profile, "total_games", 0),
-                            "preferred_openings": getattr(profile, "preferred_openings", [])
-                        }
-                        
-                        # Generate AI feedback
-                        feedback = ai_feedback_generator.generate_personalized_feedback(
-                            analysis_results,
-                            player_profile
-                        )
-                        logger.info("Generated AI feedback successfully")
-                    except Exception as e:
-                        logger.error(f"Error generating AI feedback: {str(e)}")
-                        feedback = analyzer.generate_feedback(analysis_results, game)
-                        logger.info("Generated fallback feedback")
-                else:
-                    feedback = analyzer.generate_feedback(analysis_results, game)
-                    logger.info("Generated basic feedback")
-            except Exception as e:
-                logger.error(f"Error generating feedback: {str(e)}")
-                feedback = analyzer.generate_feedback(analysis_results, game)
-                logger.info("Generated basic feedback as final fallback")
-            
-            # Save results
-            game.analysis = analysis_results
-            game.feedback = feedback
-            game.save()
-            
-            # Close the engine
-            analyzer.engine.quit()
-            logger.info("Closed analysis engine")
-            
+        # Create a new analysis job
+        depth = request.data.get('depth', 20)
+        use_ai = request.data.get('use_ai', True)
+        
+        result = task_manager.create_analysis_job(
+            game_id=game_id,
+            depth=depth,
+            use_ai=use_ai
+        )
+        
+        if result['status'] == 'created':
             return Response({
-                "analysis": analysis_results,
-                "feedback": feedback
-            }, status=status.HTTP_200_OK)
-            
-        except Exception as e:
-            logger.error(f"Error during analysis: {str(e)}")
-            if 'analyzer' in locals() and hasattr(analyzer, 'engine'):
-                analyzer.engine.quit()
-            raise
+                'status': 'started',
+                'task_id': result['task_id']
+            })
+        else:
+            return Response({
+                'error': result.get('error', 'Failed to start analysis')
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
     except Game.DoesNotExist:
         return Response(
-            {"error": "Game not found or access denied."},
+            {'error': 'Game not found'},
             status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
-        logger.error(f"Error analyzing game: {str(e)}")
         return Response(
-            {"error": "An error occurred during analysis."},
+            {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_analysis_status(request, task_id):
+    """Check the status of an analysis task."""
+    try:
+        result = task_manager.get_job_status(task_id)
+        
+        if result['status'] == 'completed':
+            return Response({
+                'status': 'completed',
+                'result': result.get('result')
+            })
+        elif result['status'] == 'failed':
+            return Response({
+                'status': 'failed',
+                'error': result.get('message', 'Analysis failed')
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            return Response({
+                'status': 'in_progress',
+                'message': result.get('message', 'Analysis in progress')
+            })
+            
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_game_analysis(request, game_id):
+    """
+    Get the analysis for a specific game by its ID.
+    """
+    user = request.user
+    try:
+        game = Game.objects.get(id=game_id, user=user)
+        analysis = GameAnalysis.objects.get(game=game)
+        return Response({"analysis": analysis.analysis_data}, status=status.HTTP_200_OK)
+    except Game.DoesNotExist:
+        return Response({"error": "Game not found or access denied."}, status=status.HTTP_404_NOT_FOUND)
+    except GameAnalysis.DoesNotExist:
+        return Response({"error": "Analysis not found for this game."}, status=status.HTTP_404_NOT_FOUND)
 
 @rate_limit(endpoint_type='ANALYSIS')
 @api_view(['POST'])
@@ -718,269 +708,99 @@ def batch_analyze(request):
         if not games:
             return Response({"error": "No games found to analyze"}, status=status.HTTP_400_BAD_REQUEST)
 
-        analyzer = GameAnalyzer(stockfish_path=STOCKFISH_PATH)
-        try:
-            logger.info("Starting batch analysis for user %s with %d games.", user.id, len(games))
-            analysis_results = {}
-            
-            # Analyze games one by one to track progress
-            for i, game in enumerate(games, 1):
-                try:
-                    # Calculate and log progress
-                    progress = (i / len(games)) * 100
-                    logger.info("Analysis progress: %.1f%% (%d/%d games)", progress, i, len(games))
-                    
-                    # Analyze the game
-                    game_analysis = analyzer.analyze_single_game(game, depth)
-                    analysis_results[game.id] = game_analysis
-                    
-                    # Save analysis results
-                    game.analysis = game_analysis
-                    game.save()
+        # Create a task group for this batch
+        game_ids = list(games.values_list('id', flat=True))
+        
+        # Start the Celery task
+        task = analyze_batch_games_task.delay(
+            game_ids=game_ids,
+            depth=depth,
+            use_ai=use_ai
+        )
 
-                except Exception as e:
-                    logger.error(f"Error analyzing game {game.id}: {str(e)}")
-                    continue
-
-            # Generate comprehensive feedback
-            feedback_results = {}
-            overall_stats = {
-                "total_games": len(games),
-                "completed": len(analysis_results),
-                "wins": 0,
-                "losses": 0,
-                "draws": 0,
-                "average_accuracy": 0,
-                "progress": 100.0,  # Analysis is complete at this point
-                "common_mistakes": {
-                    "blunders": 0,
-                    "mistakes": 0,
-                    "inaccuracies": 0,
-                    "time_pressure": 0
-                },
-                "resourcefulness": {
-                    "average_score": 0,
-                    "total_saves": 0,
-                    "counter_success": 0,
-                    "critical_defense_success": 0
-                },
-                "advantage": {
-                    "average_conversion": 0,
-                    "total_missed_wins": 0,
-                    "winning_position_frequency": 0,
-                    "average_duration": 0
-                },
-                "improvement_areas": [],
-                "strengths": []
-            }
-
-            total_accuracy = 0
-            total_resourcefulness = 0
-            total_advantage = 0
-            total_defensive_positions = 0
-            total_winning_positions = 0
-
-            # Initialize OpenAI client if AI feedback is enabled
-            ai_client = None
-            if use_ai:
-                try:
-                    ai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
-                    logger.info("OpenAI client initialized successfully")
-                except Exception as e:
-                    logger.error(f"Failed to initialize OpenAI client: {str(e)}")
-
-            for game in games:
-                if game.id in analysis_results:
-                    try:
-                        # Generate feedback using AI if available
-                        if use_ai and ai_client:
-                            try:
-                                # Get player profile for personalized feedback
-                                profile = Profile.objects.get(user=user)
-                                player_profile = {
-                                    "username": user.username,
-                                    "rating": getattr(profile, "rating", None),
-                                    "total_games": getattr(profile, "total_games", 0),
-                                    "preferred_openings": getattr(profile, "preferred_openings", [])
-                                }
-                                
-                                # Generate AI feedback
-                                game_feedback = ai_feedback_generator.generate_personalized_feedback(
-                                    analysis_results[game.id],
-                                    player_profile
-                                )
-                                logger.info(f"Generated AI feedback for game {game.id}")
-                            except Exception as e:
-                                logger.error(f"Error generating AI feedback for game {game.id}: {str(e)}")
-                                # Fallback to basic feedback
-                                game_feedback = analyzer.generate_feedback(analysis_results[game.id], game)
-                                logger.info(f"Generated fallback feedback for game {game.id}")
-                        else:
-                            # Use basic feedback generation
-                            game_feedback = analyzer.generate_feedback(analysis_results[game.id], game)
-                            logger.info(f"Generated basic feedback for game {game.id}")
-
-                        feedback_results[game.id] = game_feedback
-                        overall_stats["completed"] += 1
-
-                        # Update overall stats
-                        if game.result == "win":
-                            overall_stats["wins"] += 1
-                        elif game.result == "loss":
-                            overall_stats["losses"] += 1
-                        else:
-                            overall_stats["draws"] += 1
-
-                        # Track mistakes and patterns
-                        overall_stats["common_mistakes"]["blunders"] += game_feedback.get("tactical_analysis", {}).get("missed_wins", 0)
-                        overall_stats["common_mistakes"]["mistakes"] += game_feedback.get("tactical_analysis", {}).get("critical_mistakes", 0)
-                        overall_stats["common_mistakes"]["inaccuracies"] += len(game_feedback.get("tactical_analysis", {}).get("suggestions", []))
-                        
-                        # Track resourcefulness
-                        resourcefulness = game_feedback.get("resourcefulness", {})
-                        total_resourcefulness += resourcefulness.get("overall_score", 65.0)
-                        overall_stats["resourcefulness"]["total_saves"] += resourcefulness.get("defensive_saves", 0)
-                        
-                        # Track advantage
-                        advantage = game_feedback.get("advantage", {})
-                        total_advantage += advantage.get("conversion_rate", 65.0)
-                        overall_stats["advantage"]["total_missed_wins"] += advantage.get("missed_wins", 0)
-                        
-                        # Track accuracy
-                        total_accuracy += game_feedback.get("overall_accuracy", 65.0)
-
-                    except Exception as e:
-                        logger.error(f"Error processing feedback for game {game.id}: {str(e)}")
-                        continue
-
-            # Calculate averages
-            num_analyzed_games = len(games)
-            if num_analyzed_games > 0:
-                overall_stats["average_accuracy"] = round(total_accuracy / num_analyzed_games, 1)
-                overall_stats["resourcefulness"]["average_score"] = round(total_resourcefulness / num_analyzed_games, 1)
-                overall_stats["advantage"]["average_conversion"] = round(total_advantage / num_analyzed_games, 1)
-                
-                # Calculate progress
-                overall_stats["progress"] = round((overall_stats["completed"] / overall_stats["total_games"]) * 100, 1)
-
-                # Add phase-specific stats
-                overall_stats["phase_analysis"] = {
-                    "opening": {
-                        "average_accuracy": round(sum(game_feedback.get("opening", {}).get("accuracy", 65.0) 
-                                                    for game_feedback in feedback_results.values()) / num_analyzed_games, 1),
-                        "common_patterns": [],
-                        "improvement_areas": []
-                    },
-                    "middlegame": {
-                        "average_accuracy": round(sum(game_feedback.get("middlegame", {}).get("accuracy", 65.0) 
-                                                    for game_feedback in feedback_results.values()) / num_analyzed_games, 1),
-                        "common_patterns": [],
-                        "improvement_areas": []
-                    },
-                    "endgame": {
-                        "average_accuracy": round(sum(game_feedback.get("endgame", {}).get("accuracy", 65.0) 
-                                                    for game_feedback in feedback_results.values()) / num_analyzed_games, 1),
-                        "common_patterns": [],
-                        "improvement_areas": []
-                    },
-                    "tactics": {
-                        "average_score": round(sum(game_feedback.get("tactics", {}).get("tactics_score", 65.0) 
-                                                 for game_feedback in feedback_results.values()) / num_analyzed_games, 1),
-                        "total_opportunities": sum(len(game_feedback.get("tactics", {}).get("opportunities", [])) 
-                                                 for game_feedback in feedback_results.values()),
-                        "missed_wins": sum(game_feedback.get("tactics", {}).get("missed_wins", 0) 
-                                         for game_feedback in feedback_results.values())
-                    }
-                }
-
-                # Analyze phase-specific patterns
-                for phase in ["opening", "middlegame", "endgame"]:
-                    phase_suggestions = []
-                    for game_feedback in feedback_results.values():
-                        if phase in game_feedback and "suggestions" in game_feedback[phase]:
-                            phase_suggestions.extend(game_feedback[phase]["suggestions"])
-                    
-                    # Find common suggestions
-                    from collections import Counter
-                    common_suggestions = Counter(phase_suggestions).most_common(3)
-                    overall_stats["phase_analysis"][phase]["common_patterns"] = [sugg for sugg, _ in common_suggestions]
-                    
-                    # Add phase-specific improvement areas
-                    phase_accuracy = overall_stats["phase_analysis"][phase]["average_accuracy"]
-                    if phase_accuracy < 60:
-                        overall_stats["improvement_areas"].append({
-                            "area": f"{phase.capitalize()} Play",
-                            "description": f"Focus on improving {phase} understanding and technique. Current accuracy: {phase_accuracy}%"
-                    })
-                    elif phase_accuracy > 80:
-                        overall_stats["strengths"].append({
-                            "area": f"{phase.capitalize()} Technique",
-                            "description": f"Strong performance in {phase} positions. Current accuracy: {phase_accuracy}%"
-                    })
-
-                # Add tactical analysis to improvement areas/strengths
-                tactics_score = overall_stats["phase_analysis"]["tactics"]["average_score"]
-                if tactics_score < 60:
-                    overall_stats["improvement_areas"].append({
-                        "area": "Tactical Awareness",
-                        "description": f"Work on tactical pattern recognition and calculation. Current score: {tactics_score}%"
-                    })
-                elif tactics_score > 80:
-                    overall_stats["strengths"].append({
-                        "area": "Tactical Strength",
-                        "description": f"Excellent tactical awareness and execution. Current score: {tactics_score}%"
-                    })
-
-            # Generate overall AI feedback if enabled
-            if use_ai and ai_client:
-                try:
-                    overall_ai_feedback = ai_feedback_generator.generate_batch_summary(
-                        overall_stats,
-                        feedback_results,
-                        {
-                            "username": user.username,
-                            "rating": getattr(Profile.objects.get(user=user), 'rating', 1500),
-                            "total_games": num_analyzed_games
-                        }
-                    )
-                    overall_stats["ai_feedback"] = overall_ai_feedback
-                    logger.info("Generated overall AI feedback for batch analysis")
-                except Exception as e:
-                    logger.error(f"Error generating overall AI feedback: {str(e)}")
-                    # Generate fallback summary
-                    overall_stats["ai_feedback"] = {
-                        "summary": "Analysis completed successfully. Review individual game feedback for detailed insights.",
-                        "key_findings": [
-                            f"Average accuracy across all phases: {overall_stats['average_accuracy']}%",
-                            f"Strongest phase: {max(overall_stats['phase_analysis'].items(), key=lambda x: x[1]['average_accuracy'])[0].capitalize()}",
-                            f"Phase needing most improvement: {min(overall_stats['phase_analysis'].items(), key=lambda x: x[1]['average_accuracy'])[0].capitalize()}"
-                        ],
-                        "recommendations": [
-                            "Focus on the specific improvement areas highlighted in each phase",
-                            "Practice tactical exercises regularly",
-                            "Study the common patterns identified in your games"
-                        ]
-                    }
-
-            return Response({
-                "message": "Batch analysis completed successfully",
-                "results": {
-                    "individual_games": feedback_results,
-                    "overall_stats": overall_stats
-                }
-            })
-
-        except Exception as e:
-            logger.error("Error during batch analysis: %s", str(e))
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        finally:
-            if analyzer:
-                analyzer.close_engine()
+        # Return task ID for status checking
+        return Response({
+            "message": "Batch analysis started",
+            "task_id": task.id,
+            "total_games": len(game_ids),
+            "estimated_time": len(game_ids) * 2  # Rough estimate: 2 minutes per game
+        })
 
     except Exception as e:
         logger.error("Error setting up batch analysis: %s", str(e))
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_batch_analysis_status(request, task_id):
+    """Check the status of a batch analysis task."""
+    try:
+        task = AsyncResult(task_id)
+        
+        if task.ready():
+            if task.successful():
+                result = task.get()
+                
+                # Add feedback source information to the response
+                if isinstance(result, dict) and 'results' in result:
+                    for game_id, game_result in result['results'].items():
+                        if isinstance(game_result, dict) and 'results' in game_result:
+                            analysis_result = game_result['results']
+                            if 'feedback' not in analysis_result:
+                                analysis_result['feedback'] = {
+                                    'source': 'error_fallback',
+                                    'error': 'Failed to generate feedback'
+                                }
+                            elif 'source' not in analysis_result['feedback']:
+                                analysis_result['feedback']['source'] = (
+                                    'openai_analysis' if 'ai_suggestions' in analysis_result['feedback']
+                                    else 'statistical_analysis'
+                                )
+                
+                return Response({
+                    "status": "completed",
+                    "results": result
+                })
+            else:
+                error = str(task.result)
+                return Response({
+                    "status": "failed",
+                    "error": error
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            # Get progress from cache
+            progress = cache.get(f"batch_analysis_progress_{task_id}")
+            if progress:
+                # Add feedback source to in-progress results
+                if isinstance(progress, dict) and 'current_results' in progress:
+                    for game_id, game_result in progress['current_results'].items():
+                        if isinstance(game_result, dict) and 'results' in game_result:
+                            analysis_result = game_result['results']
+                            if 'feedback' in analysis_result and 'source' not in analysis_result['feedback']:
+                                analysis_result['feedback']['source'] = (
+                                    'openai_analysis' if 'ai_suggestions' in analysis_result['feedback']
+                                    else 'statistical_analysis'
+                                )
+                
+                return Response({
+                    "status": "in_progress",
+                    "progress": progress
+                })
+            else:
+                return Response({
+                    "status": "in_progress",
+                    "progress": {
+                        "current": 0,
+                        "total": 0
+                    }
+                })
+            
+    except Exception as e:
+        logger.error(f"Error checking batch analysis status: {str(e)}")
+        return Response({
+            "status": "error",
+            "error": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def generate_dynamic_feedback(results):
     feedback = {
@@ -1034,7 +854,6 @@ def extract_suggestion(feedback_text, section):
     except ValueError:
         return "No suggestion available."
 
-@csrf_exempt
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def game_feedback_view(request, game_id):
@@ -1053,7 +872,6 @@ def game_feedback_view(request, game_id):
     feedback = generate_dynamic_feedback({game.id: game_analysis})
     return JsonResponse({"feedback": feedback}, status=200)
 
-@csrf_exempt
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def batch_feedback_view(request):
@@ -1112,7 +930,6 @@ def get_tokens_for_user(user):
         "access": str(refresh.access_token),
     }
 
-@csrf_exempt
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
@@ -1147,7 +964,6 @@ def game_analysis_view(request, game_id):
     return JsonResponse({"game_id": game_id, "analysis": analysis})
 
 #================================== Dashboard ==================================
-@csrf_exempt
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_view(request):
@@ -1195,7 +1011,6 @@ def dashboard_view(request):
     
     return Response(response_data, status=status.HTTP_200_OK)
 
-@csrf_exempt
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def all_games_view(request):
@@ -1463,7 +1278,6 @@ def request_password_reset(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-@csrf_exempt
 @api_view(["POST"])
 def reset_password(request):
     """
@@ -1526,8 +1340,7 @@ def reset_password(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-@csrf_exempt
-@api_view(["GET", "PATCH"])
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def user_profile(request):
     """
@@ -1619,7 +1432,7 @@ def health_check(request):
     """
     return Response({"status": "healthy"}, status=status.HTTP_200_OK)
 
-@require_GET
+@api_view(['GET'])
 @ensure_csrf_cookie
 def csrf(request):
     """
@@ -1627,5 +1440,5 @@ def csrf(request):
     """
     return JsonResponse({
         "detail": "CSRF cookie set",
-        "csrfToken": request.META.get("CSRF_COOKIE", "")
+        "csrfToken": get_token(request)
     })

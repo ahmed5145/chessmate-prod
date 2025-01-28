@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Filter, Search } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { analyzeSpecificGame, checkAnalysisStatus, fetchGameAnalysis, fetchUserGames } from '../services/apiRequests';
+import { useTheme } from '../context/ThemeContext';
 
 // API Configuration
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://3.133.97.72/api';
@@ -9,49 +11,124 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://3.133.97.72/api';
 const Games = () => {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, analyzed, unanalyzed
-  const [sort, setSort] = useState('date'); // date, result
+  const [error, setError] = useState(null);
+  const [analysisStatus, setAnalysisStatus] = useState({});
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+  const [filters, setFilters] = useState({
+    result: 'all',
+    timeRange: 'all',
+    analyzed: 'all'
+  });
+  const { isDarkMode } = useTheme();
+
+  // Polling interval for analysis status (5 seconds)
+  const POLLING_INTERVAL = 5000;
 
   useEffect(() => {
-    fetchGames();
+    fetchGamesData();
   }, []);
 
-  const fetchGames = async () => {
+  useEffect(() => {
+    // Set up polling for games with pending analysis
+    const pollingIntervals = {};
+
+    games.forEach(game => {
+      if (game.analysis_status === 'pending' && !pollingIntervals[game.id]) {
+        pollingIntervals[game.id] = setInterval(async () => {
+          try {
+            const status = await checkAnalysisStatus(game.id);
+            
+            setAnalysisStatus(prev => ({
+              ...prev,
+              [game.id]: status
+            }));
+
+            if (status === 'completed') {
+              // Clear the polling interval
+              clearInterval(pollingIntervals[game.id]);
+              delete pollingIntervals[game.id];
+
+              // Fetch the analysis results
+              const analysis = await fetchGameAnalysis(game.id);
+              setGames(prev => prev.map(g => 
+                g.id === game.id ? { ...g, analysis } : g
+              ));
+
+              toast.success('Analysis completed!');
+            } else if (status === 'failed') {
+              // Clear the polling interval
+              clearInterval(pollingIntervals[game.id]);
+              delete pollingIntervals[game.id];
+
+              toast.error('Analysis failed. Please try again.');
+            }
+          } catch (error) {
+            console.error(`Error checking analysis status for game ${game.id}:`, error);
+            // Don't clear the interval on network errors, let it retry
+            if (error.response?.status === 404 || error.response?.status === 400) {
+              clearInterval(pollingIntervals[game.id]);
+              delete pollingIntervals[game.id];
+              toast.error('Analysis failed. Please try again.');
+            }
+          }
+        }, POLLING_INTERVAL);
+      }
+    });
+
+    // Cleanup intervals
+    return () => {
+      Object.values(pollingIntervals).forEach(interval => clearInterval(interval));
+    };
+  }, [games]);
+
+  const fetchGamesData = async () => {
     try {
-      const accessToken = localStorage.getItem('tokens') ? JSON.parse(localStorage.getItem('tokens')).access : null;
-      if (!accessToken) {
-        toast.error('Please log in to view your games');
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/games/`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch games');
-      }
-
-      const data = await response.json();
-      // Clean up opponent names by removing "vs " prefix if present
-      const cleanedGames = data.map(game => ({
+      const gamesData = await fetchUserGames();
+      const cleanedGames = gamesData.map(game => ({
         ...game,
         opponent: game.opponent.replace(/^vs\s+/, '')
       }));
-      console.log('Fetched games:', cleanedGames);
       setGames(cleanedGames);
     } catch (error) {
       console.error('Error fetching games:', error);
-      toast.error('Failed to load games. Please try again.');
+      toast.error(error.message || 'Failed to load games. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredGames = games
+  const handleAnalyzeGame = async (gameId) => {
+    try {
+      setAnalysisStatus(prev => ({
+        ...prev,
+        [gameId]: 'pending'
+      }));
+
+      const toastId = `analysis-${gameId}`;
+      toast.loading('Starting analysis...', { id: toastId });
+
+      await analyzeSpecificGame(gameId);
+      
+      toast.success('Analysis started!', { id: toastId });
+
+      // The polling effect will handle the status updates
+    } catch (error) {
+      console.error('Error starting analysis:', error);
+      
+      setAnalysisStatus(prev => ({
+        ...prev,
+        [gameId]: 'failed'
+      }));
+
+      toast.error(error.message || 'Failed to start analysis');
+    }
+  };
+
+  // Filter and sort games
+  const filteredAndSortedGames = games
     .filter(game => {
       // First apply search filter
       if (searchTerm) {
@@ -63,41 +140,46 @@ const Games = () => {
         );
       }
       // Then apply analysis filter
-      if (filter === 'analyzed') return game.analysis;
-      if (filter === 'unanalyzed') return !game.analysis;
+      if (filters.analyzed === 'analyzed') return game.analysis;
+      if (filters.analyzed === 'unanalyzed') return !game.analysis;
       return true;
     })
     .sort((a, b) => {
-      if (sort === 'date') {
+      if (sortConfig.key === 'date') {
         return new Date(b.played_at) - new Date(a.played_at);
       }
-      if (sort === 'result') {
+      if (sortConfig.key === 'result') {
         const resultOrder = { win: 0, draw: 1, loss: 2 };
         return resultOrder[a.result.toLowerCase()] - resultOrder[b.result.toLowerCase()];
       }
       return 0;
     });
 
-  const getResultBadgeColor = (result) => {
+  const getResultBadgeColor = (result, isDarkMode) => {
     const lowerResult = result.toLowerCase();
     switch (lowerResult) {
       case 'win':
-        return 'bg-green-100 text-green-800';
+        return isDarkMode ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800';
       case 'loss':
-        return 'bg-red-100 text-red-800';
+        return isDarkMode ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800';
       case 'draw':
-        return 'bg-yellow-100 text-yellow-800';
+        return isDarkMode ? 'bg-yellow-900 text-yellow-200' : 'bg-yellow-100 text-yellow-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800';
     }
   };
 
+  const formatDate = (played_at) => {
+    const date = new Date(played_at);
+    return date.toLocaleDateString();
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-3xl font-bold text-gray-900">My Games</h1>
-          <p className="mt-2 text-sm text-gray-700">
+          <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>My Games</h1>
+          <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>
             A list of all your chess games, including their results and analysis status.
             {games.length > 0 && ` Total games: ${games.length}`}
           </p>
@@ -105,7 +187,10 @@ const Games = () => {
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
           <Link
             to="/fetch-games"
-            className="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
+            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white
+              ${isDarkMode 
+                ? 'bg-indigo-600 hover:bg-indigo-700' 
+                : 'bg-indigo-600 hover:bg-indigo-700'}`}
           >
             Import Games
           </Link>
@@ -113,34 +198,43 @@ const Games = () => {
       </div>
 
       {/* Search and Filters */}
-      <div className="mt-8 flex flex-col sm:flex-row gap-4">
+      <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -mt-2 h-4 w-4 text-gray-400" />
+          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search games..."
-            className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            className={`pl-10 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm h-10
+              ${isDarkMode 
+                ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400' 
+                : 'border-gray-300 text-gray-900 placeholder-gray-500'}`}
           />
         </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -mt-2 h-4 w-4 text-gray-400" />
+        <div className="relative w-full sm:w-48">
+          <Filter className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
           <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="pl-10 block w-full rounded-md border-gray-300 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+            value={filters.analyzed}
+            onChange={(e) => setFilters({ ...filters, analyzed: e.target.value })}
+            className={`pl-10 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm h-10
+              ${isDarkMode 
+                ? 'bg-gray-800 border-gray-700 text-white' 
+                : 'border-gray-300 text-gray-900'}`}
           >
             <option value="all">All Games</option>
             <option value="analyzed">Analyzed Games</option>
             <option value="unanalyzed">Unanalyzed Games</option>
           </select>
         </div>
-        <div className="relative">
+        <div className="relative w-full sm:w-48">
           <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="block w-full rounded-md border-gray-300 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+            value={sortConfig.key}
+            onChange={(e) => setSortConfig({ ...sortConfig, key: e.target.value })}
+            className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm h-10
+              ${isDarkMode
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'border-gray-300 text-gray-900'}`}
           >
             <option value="date">Sort by Date</option>
             <option value="result">Sort by Result</option>
@@ -154,26 +248,27 @@ const Games = () => {
             {loading ? (
               <div className="text-center py-12">
                 <div className="spinner"></div>
-                <p className="mt-4 text-gray-500">Loading games...</p>
+                <p className={`mt-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading games...</p>
               </div>
-            ) : filteredGames.length > 0 ? (
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+            ) : filteredAndSortedGames.length > 0 ? (
+              <div className={`overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg
+                ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
                 <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
+                  <thead className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
                     <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                      <th scope="col" className={`py-3.5 pl-4 pr-3 text-left text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'} sm:pl-6`}>
                         Opponent
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className={`px-3 py-3.5 text-left text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
                         Opening
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className={`px-3 py-3.5 text-left text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
                         Date
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className={`px-3 py-3.5 text-left text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
                         Result
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className={`px-3 py-3.5 text-left text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
                         Status
                       </th>
                       <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
@@ -181,30 +276,32 @@ const Games = () => {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {filteredGames.map((game) => (
-                      <tr key={`${game.id}-${game.played_at}`}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                  <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700 bg-gray-800' : 'divide-gray-200 bg-white'}`}>
+                    {filteredAndSortedGames.map((game) => (
+                      <tr key={`${game.id}-${game.played_at}`} className={isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}>
+                        <td className={`whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'} sm:pl-6`}>
                           {game.opponent}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td className={`whitespace-nowrap px-3 py-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
                           {game.opening_name || 'Unknown Opening'}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {new Date(game.played_at).toLocaleDateString()}
+                        <td className={`whitespace-nowrap px-3 py-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
+                          {formatDate(game.played_at)}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm">
-                          <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getResultBadgeColor(game.result)}`}>
+                          <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getResultBadgeColor(game.result, isDarkMode)}`}>
                             {game.result}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-3 py-4 text-sm">
                           {game.analysis ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                              ${isDarkMode ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800'}`}>
                               Analyzed
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                              ${isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'}`}>
                               Not Analyzed
                             </span>
                           )}
@@ -212,62 +309,7 @@ const Games = () => {
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                           <Link
                             to={`/analysis/${game.id}`}
-                            className="text-indigo-600 hover:text-indigo-900"
-                            onClick={async (e) => {
-                              e.preventDefault();
-                              const toastId = `analysis-${game.id}`;
-                              
-                              try {
-                                const accessToken = localStorage.getItem('tokens') ? JSON.parse(localStorage.getItem('tokens')).access : null;
-                                if (!accessToken) {
-                                  toast.error('Please log in to analyze games');
-                                  return;
-                                }
-
-                                // Show analysis in progress
-                                toast.loading('Analyzing game...', { id: toastId });
-
-                                const response = await fetch(`${API_BASE_URL}/game/${game.id}/analysis/`, {
-                                  method: 'POST',
-                                  headers: {
-                                    'Authorization': `Bearer ${accessToken}`,
-                                    'Content-Type': 'application/json'
-                                  },
-                                  body: JSON.stringify({
-                                    depth: 20,
-                                    use_ai: true
-                                  })
-                                });
-
-                                const data = await response.json();
-
-                                if (!response.ok) {
-                                  toast.error(data.error || 'Failed to analyze game', { id: toastId });
-                                  throw new Error(data.error || 'Failed to analyze game');
-                                }
-
-                                // Update the game in the local state
-                                setGames(prevGames => 
-                                  prevGames.map(g => 
-                                    g.id === game.id 
-                                      ? { ...g, analysis: data.analysis }
-                                      : g
-                                  )
-                                );
-
-                                // Show success message
-                                toast.success(data.message || 'Analysis completed!', { id: toastId });
-
-                                // Refresh the games list
-                                fetchGames();
-
-                                // Navigate to analysis view
-                                window.location.href = `/game/${game.id}/analysis`;
-                              } catch (error) {
-                                console.error('Error analyzing game:', error);
-                                toast.error(error.message || 'Failed to analyze game', { id: toastId });
-                              }
-                            }}
+                            className={`text-indigo-600 hover:text-indigo-900 ${isDarkMode ? 'text-indigo-400 hover:text-indigo-300' : ''}`}
                           >
                             View Analysis
                             <span className="sr-only">, game {game.id}</span>
@@ -280,10 +322,15 @@ const Games = () => {
               </div>
             ) : (
               <div className="text-center py-12">
-                <p className="text-sm text-gray-500">No games found. Try adjusting your filters or import some games.</p>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  No games found. Try adjusting your filters or import some games.
+                </p>
                 <Link
                   to="/fetch-games"
-                  className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+                  className={`mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white
+                    ${isDarkMode 
+                      ? 'bg-indigo-600 hover:bg-indigo-700' 
+                      : 'bg-indigo-600 hover:bg-indigo-700'}`}
                 >
                   Import Games
                 </Link>

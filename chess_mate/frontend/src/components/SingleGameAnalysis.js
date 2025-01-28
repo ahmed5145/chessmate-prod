@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { analyzeSpecificGame } from '../api';
+import { analyzeSpecificGame, checkAnalysisStatus } from '../services/apiRequests';
+import GameFeedback from './GameFeedback';
+import LoadingSpinner from './LoadingSpinner'; 
 import {
   TrendingUp,
   Clock,
@@ -42,37 +44,92 @@ const SingleGameAnalysis = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [taskId, setTaskId] = useState(null);
+  const [pollingInterval, setPollingInterval] = useState(null);
+  const [analysisStatus, setAnalysisStatus] = useState('pending'); // 'pending', 'processing', 'completed', 'failed'
+  
+  const startPolling = useCallback((taskId) => {
+    // Clear any existing interval
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+    }
+
+    // Start new polling
+    const interval = setInterval(async () => {
+        try {
+            const response = await checkAnalysisStatus(taskId);
+            console.log('Polling response:', response); // Debug log
+            setAnalysisStatus(response.status);
+            
+            if (response.status === 'completed' && response.result?.results) {
+                // Analysis is complete
+                clearInterval(interval);
+                setPollingInterval(null);
+                setAnalysis(response.result.results);
+                setLoading(false);
+            } else if (response.status === 'failed') {
+                // Analysis failed
+                clearInterval(interval);
+                setPollingInterval(null);
+                setError(response.error || 'Analysis failed');
+                setLoading(false);
+            }
+            // If still processing, continue polling
+            
+        } catch (err) {
+            clearInterval(interval);
+            setPollingInterval(null);
+            setError(err.message || 'Error checking analysis status');
+            setLoading(false);
+        }
+    }, 2000); // Poll every 2 seconds
+
+    setPollingInterval(interval);
+}, [pollingInterval]);
+
+const startAnalysis = useCallback(async () => {
+  try {
+      setLoading(true);
+      setError(null);
+      setAnalysis(null);
+      setAnalysisStatus('pending');
+
+      const response = await analyzeSpecificGame(gameId);
+      console.log('Analysis response:', response); // Debug log
+      
+      if (response.task_id) {
+          setTaskId(response.task_id);
+          setAnalysisStatus('processing');
+          startPolling(response.task_id);
+      } else if (response.analysis) {
+          // Recent analysis exists
+          setAnalysis(response.analysis);
+          setAnalysisStatus('completed');
+          setLoading(false);
+      } else {
+          throw new Error('Invalid response from server');
+      }
+  } catch (err) {
+      console.error('Analysis error:', err); // Debug log
+      setError(err.message || 'Failed to start analysis');
+      setAnalysisStatus('failed');
+      setLoading(false);
+  }
+}, [gameId, startPolling]);
 
   useEffect(() => {
-    const fetchAnalysis = async () => {
-      try {
-        setLoading(true);
-        const data = await analyzeSpecificGame(gameId);
-        if (!data || !data.analysis) {
-          throw new Error('Invalid analysis data received');
-        }
-        setAnalysis(data);
-      } catch (err) {
-        setError('Failed to analyze game. Please try again.');
-        console.error('Analysis error:', err);
-      } finally {
-        setLoading(false);
+    startAnalysis();
+
+    // Cleanup polling on unmount
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
       }
     };
+  }, [startAnalysis]);
 
-    fetchAnalysis();
-  }, [gameId]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <Loader className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-700">Analyzing Game...</h2>
-          <p className="text-gray-500 mt-2">This may take a few moments</p>
-        </div>
-      </div>
-    );
+  if (loading || analysisStatus === 'pending' || analysisStatus === 'processing') {
+    return <LoadingSpinner message="Analyzing game..." />
   }
 
   if (error) {
@@ -86,7 +143,7 @@ const SingleGameAnalysis = () => {
     );
   }
 
-  if (!analysis || !analysis.analysis || !Array.isArray(analysis.analysis)) {
+  if (!analysis?.analysis) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center text-gray-600">
@@ -136,6 +193,40 @@ const SingleGameAnalysis = () => {
     },
   };
 
+  const renderFeedbackSource = () => {
+    if (!analysis?.feedback?.source) return null;
+
+    const sourceColors = {
+      openai_analysis: 'text-green-600',
+      statistical_analysis: 'text-blue-600',
+      error_fallback: 'text-red-600'
+    };
+
+    const sourceLabels = {
+      openai_analysis: 'AI-Powered Analysis',
+      statistical_analysis: 'Statistical Analysis',
+      error_fallback: 'Basic Analysis (Error Recovery)'
+    };
+
+    const sourceIcons = {
+      openai_analysis: <Zap className="w-4 h-4 mr-1" />,
+      statistical_analysis: <BarChart2 className="w-4 h-4 mr-1" />,
+      error_fallback: <AlertTriangle className="w-4 h-4 mr-1" />
+    };
+
+    return (
+      <div className={`flex items-center ${sourceColors[analysis.feedback.source]} text-sm font-medium mb-4`}>
+        {sourceIcons[analysis.feedback.source]}
+        <span>{sourceLabels[analysis.feedback.source]}</span>
+        {analysis.feedback.source === 'error_fallback' && (
+          <div className="ml-2 text-xs text-gray-500">
+            (Limited analysis available due to processing error)
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderOverview = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
       <div className="bg-white p-6 rounded-xl shadow-sm">
@@ -143,29 +234,46 @@ const SingleGameAnalysis = () => {
           <Award className="w-6 h-6 text-blue-500 mr-2" />
           <h3 className="text-lg font-semibold">Game Statistics</h3>
         </div>
+        {renderFeedbackSource()}
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-500">Accuracy</p>
-            <p className="text-2xl font-bold text-blue-600">
-              {analysis.overall_accuracy?.toFixed(1) || '65.0'}%
+            <p className={`text-2xl font-bold ${
+              analysis.feedback?.source === 'error_fallback' ? 'text-gray-400' : 'text-blue-600'
+            }`}>
+              {analysis.feedback?.summary?.accuracy ? 
+                `${analysis.feedback.summary.accuracy.toFixed(1)}%` : 
+                'N/A'}
             </p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-500">Tactics Score</p>
-            <p className="text-2xl font-bold text-yellow-600">
-              {analysis.tactical_analysis?.tactics_score?.toFixed(1) || '65.0'}%
+            <p className={`text-2xl font-bold ${
+              analysis.feedback?.source === 'error_fallback' ? 'text-gray-400' : 'text-yellow-600'
+            }`}>
+              {analysis.tactical_analysis?.tactics_score ? 
+                `${analysis.tactical_analysis.tactics_score.toFixed(1)}%` : 
+                'N/A'}
             </p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-500">Critical Mistakes</p>
-            <p className="text-2xl font-bold text-red-600">
-              {analysis.tactical_analysis?.critical_mistakes || 0}
+            <p className={`text-2xl font-bold ${
+              analysis.feedback?.source === 'error_fallback' ? 'text-gray-400' : 'text-red-600'
+            }`}>
+              {analysis.feedback?.summary?.mistakes !== undefined ? 
+                analysis.feedback.summary.mistakes + analysis.feedback.summary.blunders : 
+                'N/A'}
             </p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-500">Avg Time/Move</p>
-            <p className="text-2xl font-bold text-green-600">
-              {analysis.time_management?.average_move_time?.toFixed(1) || '30.0'}s
+            <p className={`text-2xl font-bold ${
+              analysis.feedback?.source === 'error_fallback' ? 'text-gray-400' : 'text-green-600'
+            }`}>
+              {analysis.feedback?.time_management?.avg_time_per_move ? 
+                `${analysis.feedback.time_management.avg_time_per_move.toFixed(1)}s` : 
+                'N/A'}
             </p>
           </div>
         </div>
@@ -177,13 +285,17 @@ const SingleGameAnalysis = () => {
           <h3 className="text-lg font-semibold">Key Insights</h3>
         </div>
         <ul className="space-y-3">
-          {analysis.tactical_analysis?.suggestions?.map((suggestion, index) => (
-            <li key={index} className="flex items-start">
-              <Zap className="w-5 h-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span className="text-gray-700">{suggestion}</span>
-            </li>
-          )) || (
-            <li className="text-gray-500">No tactical suggestions available.</li>
+          {analysis.feedback?.tactical_opportunities?.length > 0 ? (
+            analysis.feedback.tactical_opportunities.map((opportunity, index) => (
+              <li key={index} className="flex items-start">
+                <Zap className="w-5 h-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+                <span className="text-gray-700">
+                  {`${opportunity.type === 'blunder' ? 'Blunder' : 'Mistake'} on move ${opportunity.move_number}: ${opportunity.move}`}
+                </span>
+              </li>
+            ))
+          ) : (
+            <li className="text-gray-500">No tactical opportunities identified.</li>
           )}
         </ul>
       </div>
@@ -243,13 +355,30 @@ const SingleGameAnalysis = () => {
       </div>
       <div className="space-y-4">
         <p className="text-gray-700">
-          Average time per move: {analysis.time_management?.average_move_time?.toFixed(1) || '30.0'}s
+          Average time per move: {
+            analysis.feedback?.time_management?.avg_time_per_move ? 
+            `${analysis.feedback.time_management.avg_time_per_move.toFixed(1)}s` : 
+            'N/A'
+          }
         </p>
         <div className="bg-gray-50 p-4 rounded-lg">
           <p className="text-sm text-gray-600">
-            {analysis.time_management?.suggestions?.[0] || 'Focus on managing your time effectively throughout the game.'}
+            {analysis.feedback?.time_management?.suggestion || 'No time management analysis available.'}
           </p>
         </div>
+        {analysis.feedback?.time_management?.critical_moments?.length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Critical Moments</h4>
+            <div className="space-y-2">
+              {analysis.feedback.time_management.critical_moments.map((moment, index) => (
+                <div key={index} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Move {moment.move_number}: {moment.move}</span>
+                  <span className="text-gray-500">{moment.time_spent.toFixed(1)}s</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

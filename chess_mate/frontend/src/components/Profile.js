@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { formatDate } from '../utils/dateUtils';
-import { getUserProfile } from '../api';
+import { getUserProfile } from '../services/apiRequests';
 import toast from 'react-hot-toast';
 
 const Profile = () => {

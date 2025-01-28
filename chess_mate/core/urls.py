@@ -26,8 +26,11 @@ urlpatterns = [
     path("api/games/", views.get_saved_games, name="get_saved_games"),
 
     # Analysis endpoints
-    path("api/game/<int:game_id>/analysis/", views.analyze_game, name="analyze_game"),
-    path("api/games/batch-analyze/", views.batch_analyze, name="batch_analyze_games"),
+    path("api/game/<int:game_id>/analyze/", views.analyze_game, name="analyze_game"),
+    path('api/game/analysis/status/<str:task_id>/', views.check_analysis_status, name='check_analysis_status'),
+    path('api/game/<int:game_id>/analysis/', views.get_game_analysis, name='get_game_analysis'),
+    path("api/games/batch-analyze/", views.batch_analyze, name="batch_analyze"),
+    path("api/games/batch-analyze/status/<str:task_id>/", views.check_batch_analysis_status, name="check_batch_analysis_status"),
 
     # Feedback endpoints
     path('api/feedback/<int:game_id>/', views.game_feedback_view, name='game_feedback'),
@@ -41,5 +44,4 @@ urlpatterns = [
 
     # Email verification endpoint
     path('api/verify-email/<str:uidb64>/<str:token>/', views.verify_email, name='verify_email'),
-
 ]

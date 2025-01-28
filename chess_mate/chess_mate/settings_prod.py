@@ -36,18 +36,20 @@ DEFAULT_FILE_STORAGE = 'chess_mate.storage_backends.MediaStorage'
 from .aws import *  # noqa
 
 # Redis Settings
+REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'SOCKET_TIMEOUT': 5,
-            'RETRY_ON_TIMEOUT': True,
-            'MAX_CONNECTIONS': 1000,
-            'CONNECTION_POOL_KWARGS': {'max_connections': 100},
-        }
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "SOCKET_CONNECT_TIMEOUT": 5,
+            "SOCKET_TIMEOUT": 5,
+            "RETRY_ON_TIMEOUT": True,
+            "MAX_CONNECTIONS": 1000,
+            "IGNORE_EXCEPTIONS": True,
+        },
+        "KEY_PREFIX": "chessmate_prod"
     }
 }
 
@@ -84,26 +86,33 @@ LOGGING = {
         },
     },
     'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': '/app/logs/django.log',
             'formatter': 'verbose',
         },
-        'file': {
-            'class': 'logging.FileHandler',
-            'filename': '/var/log/chessmate/django.log',
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
-            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
             'propagate': True,
         },
-        'chess_mate': {
-            'handlers': ['console', 'file'],
+        'core': {
+            'handlers': ['file', 'console'],
             'level': 'INFO',
             'propagate': True,
         },
     },
-} 
+}
+
+# Worker settings
+WORKER_CONCURRENCY = int(os.getenv('WORKER_CONCURRENCY', '2'))
+WORKER_TIMEOUT = int(os.getenv('WORKER_TIMEOUT', '600'))  # 10 minutes
+WORKER_MAX_TASKS = int(os.getenv('WORKER_MAX_TASKS', '1000')) 

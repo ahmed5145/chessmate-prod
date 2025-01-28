@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
-import { analyzeBatchGames } from '../api';
+import { analyzeBatchGames, checkBatchAnalysisStatus, fetchUserGames } from '../services/apiRequests';
+import { useTheme } from '../context/ThemeContext';
+import { UserContext } from '../contexts/UserContext';
 
 const BatchAnalysis = () => {
   const [numGames, setNumGames] = useState(10);
@@ -11,17 +13,61 @@ const BatchAnalysis = () => {
   const [estimatedTime, setEstimatedTime] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [startTime, setStartTime] = useState(null);
+  const [taskId, setTaskId] = useState(null);
+  const [availableGames, setAvailableGames] = useState(0);
+  const { isDarkMode } = useTheme();
+  const { credits } = useContext(UserContext);
 
-  // Listen for progress updates
+  // Fetch available games count when component mounts
   useEffect(() => {
-    const handleProgress = (event) => {
-      const { current, total } = event.detail;
-      setProgress({ current, total });
+    const fetchAvailableGames = async () => {
+      try {
+        const games = await fetchUserGames();
+        setAvailableGames(games.length);
+      } catch (error) {
+        console.error('Error fetching games count:', error);
+        toast.error('Failed to fetch available games count');
+      }
     };
-
-    window.addEventListener('analysisProgress', handleProgress);
-    return () => window.removeEventListener('analysisProgress', handleProgress);
+    fetchAvailableGames();
   }, []);
+
+  // Poll for status updates when we have a task
+  useEffect(() => {
+    let pollInterval;
+    
+    const checkStatus = async () => {
+      if (!taskId) return;
+      
+      try {
+        const statusResponse = await checkBatchAnalysisStatus(taskId);
+        
+        if (statusResponse.status === 'completed') {
+          setLoading(false);
+          setResults(statusResponse.results);
+          setTaskId(null);
+          toast.success('Batch analysis completed!');
+        } else if (statusResponse.status === 'failed') {
+          setLoading(false);
+          setTaskId(null);
+          toast.error(statusResponse.error || 'Analysis failed');
+        } else if (statusResponse.status === 'in_progress') {
+          setProgress(statusResponse.progress);
+        }
+      } catch (error) {
+        console.error('Error checking status:', error);
+        // Don't stop polling on temporary errors
+      }
+    };
+    
+    if (taskId && loading) {
+      pollInterval = setInterval(checkStatus, 5000); // Poll every 5 seconds
+    }
+    
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [taskId, loading]);
 
   useEffect(() => {
     let timer;
@@ -55,14 +101,15 @@ const BatchAnalysis = () => {
       
       const response = await analyzeBatchGames(numGames);
       
-      if (response?.results) {
-        setResults(response.results);
-        toast.success('Batch analysis completed!');
+      if (response?.task_id) {
+        setTaskId(response.task_id);
+        toast.success('Analysis started! This may take a few minutes.');
+      } else {
+        throw new Error('No task ID received');
       }
     } catch (error) {
       console.error('Error during batch analysis:', error);
-      toast.error(error.message || 'Failed to analyze games');
-    } finally {
+      toast.error(error.message || 'Failed to start analysis');
       setLoading(false);
       setStartTime(null);
       setEstimatedTime(0);
@@ -76,42 +123,52 @@ const BatchAnalysis = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-3xl font-bold text-gray-900">Batch Analysis</h1>
-          <p className="mt-2 text-sm text-gray-700">
+          <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Batch Analysis
+          </h1>
+          <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
             Analyze multiple games at once to get insights into your playing patterns.
           </p>
         </div>
       </div>
 
-      <div className="mt-8 max-w-xl">
+      <div className={`mt-8 max-w-xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'} p-6 rounded-lg shadow-sm`}>
         <div className="space-y-6">
           <div>
-            <label htmlFor="numGames" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="numGames" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
               Number of Games to Analyze
             </label>
-            <div className="mt-1">
+            <div className="mt-2">
               <input
                 type="number"
                 name="numGames"
                 id="numGames"
                 min="1"
-                max="50"
+                max={availableGames}
+                className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
+                  isDarkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'border-gray-300 text-gray-900'
+                }`}
                 value={numGames}
-                onChange={(e) => setNumGames(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                disabled={loading}
+                onChange={(e) => setNumGames(parseInt(e.target.value) || '')}
               />
             </div>
-            <p className="mt-2 text-sm text-gray-500">Maximum 50 games can be analyzed at once.</p>
           </div>
 
           <button
             onClick={handleAnalysis}
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white 
+              ${loading 
+                ? 'opacity-50 cursor-not-allowed' 
+                : isDarkMode 
+                  ? 'bg-indigo-600 hover:bg-indigo-700' 
+                  : 'bg-indigo-600 hover:bg-indigo-700'} 
+              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
           >
             {loading ? (
               <>
@@ -124,284 +181,39 @@ const BatchAnalysis = () => {
           </button>
 
           {loading && (
-            <div className="mt-4 space-y-4">
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div 
-                  className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
-                  style={{ width: `${(progress.current / progress.total) * 100}%` }}
-                ></div>
+            <div className={`mt-4 p-4 rounded-md ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                    Progress: {progress.current} / {progress.total} games
+                  </p>
+                  <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Time elapsed: {formatTime(elapsedTime)}
+                  </p>
+                  {estimatedTime > 0 && (
+                    <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Estimated time remaining: {formatTime(estimatedTime)}
+                    </p>
+                  )}
+                </div>
+                <Loader2 className={`animate-spin h-5 w-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
               </div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Progress: {progress.current}/{progress.total} games</span>
-                <span>Elapsed Time: {formatTime(elapsedTime)}</span>
-                {progress.current > 0 && (
-                  <span>Estimated Time Remaining: {formatTime(estimatedTime)}</span>
-                )}
+            </div>
+          )}
+
+          {results && (
+            <div className={`mt-4 p-4 rounded-md ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+              <h3 className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Analysis Complete
+              </h3>
+              <div className="mt-2">
+                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Successfully analyzed {results.total_games} games.
+                </p>
               </div>
             </div>
           )}
         </div>
-
-        {results?.overall_stats && (
-          <div className="mt-8 space-y-8">
-            <h2 className="text-2xl font-bold text-gray-900">Analysis Results</h2>
-            
-            {/* Overall Stats */}
-            <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-              <div className="px-6 py-4 bg-indigo-50">
-                <h3 className="text-xl font-semibold text-indigo-900">Overall Statistics</h3>
-              </div>
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">Games Summary</h4>
-                  <dl className="space-y-2">
-                    <div className="flex justify-between">
-                      <dt className="text-gray-600">Games Analyzed</dt>
-                      <dd className="font-medium text-gray-900">{results.overall_stats.total_games}</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-gray-600">Average Accuracy</dt>
-                      <dd className="font-medium text-gray-900">{results.overall_stats.average_accuracy?.toFixed(1) || 'N/A'}%</dd>
-                    </div>
-                  </dl>
-                </div>
-                <div>
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">Results Distribution</h4>
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div className="bg-green-50 rounded-lg p-3">
-                      <div className="text-green-700 font-medium">Wins</div>
-                      <div className="text-2xl font-bold text-green-800">{results.overall_stats.wins || 0}</div>
-                    </div>
-                    <div className="bg-yellow-50 rounded-lg p-3">
-                      <div className="text-yellow-700 font-medium">Draws</div>
-                      <div className="text-2xl font-bold text-yellow-800">{results.overall_stats.draws || 0}</div>
-                    </div>
-                    <div className="bg-red-50 rounded-lg p-3">
-                      <div className="text-red-700 font-medium">Losses</div>
-                      <div className="text-2xl font-bold text-red-800">{results.overall_stats.losses || 0}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Resourcefulness Stats */}
-            {results.overall_stats.resourcefulness && (
-              <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-                <div className="px-6 py-4 bg-blue-50">
-                  <h3 className="text-xl font-semibold text-blue-900">Resourcefulness Analysis</h3>
-                </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-600">Average Defensive Score</span>
-                        <span className="text-lg font-medium text-gray-900">
-                          {results.overall_stats.resourcefulness?.average_score?.toFixed(1) || 'N/A'}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${results.overall_stats.resourcefulness?.average_score || 0}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-600">Counter-Attack Success Rate</span>
-                        <span className="text-lg font-medium text-gray-900">
-                          {results.overall_stats.resourcefulness?.counter_success?.toFixed(1) || 'N/A'}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${results.overall_stats.resourcefulness?.counter_success || 0}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-600">Critical Defense Success</span>
-                        <span className="text-lg font-medium text-gray-900">
-                          {results.overall_stats.resourcefulness?.critical_defense_success?.toFixed(1) || 'N/A'}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${results.overall_stats.resourcefulness?.critical_defense_success || 0}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    <div className="bg-blue-50 rounded-lg p-4">
-                      <h4 className="font-medium text-blue-900 mb-2">Total Defensive Saves</h4>
-                      <div className="text-3xl font-bold text-blue-700">
-                        {results.overall_stats.resourcefulness?.total_saves || 0}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Advantage Capitalization Stats */}
-            {results.overall_stats.advantage && (
-              <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-                <div className="px-6 py-4 bg-green-50">
-                  <h3 className="text-xl font-semibold text-green-900">Advantage Capitalization</h3>
-                </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-600">Average Conversion Rate</span>
-                        <span className="text-lg font-medium text-gray-900">
-                          {results.overall_stats.advantage?.average_conversion?.toFixed(1) || 'N/A'}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-green-600 h-2 rounded-full"
-                          style={{ width: `${results.overall_stats.advantage?.average_conversion || 0}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-600">Winning Position Frequency</span>
-                        <span className="text-lg font-medium text-gray-900">
-                          {results.overall_stats.advantage?.winning_position_frequency?.toFixed(1) || 'N/A'}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-green-600 h-2 rounded-full"
-                          style={{ width: `${results.overall_stats.advantage?.winning_position_frequency || 0}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="bg-red-50 rounded-lg p-4">
-                      <h4 className="font-medium text-red-900 mb-2">Total Missed Wins</h4>
-                      <div className="text-3xl font-bold text-red-700">
-                        {results.overall_stats.advantage?.total_missed_wins || 0}
-                      </div>
-                    </div>
-                    <div className="bg-green-50 rounded-lg p-4">
-                      <h4 className="font-medium text-green-900 mb-2">Average Advantage Duration</h4>
-                      <div className="text-3xl font-bold text-green-700">
-                        {results.overall_stats.advantage?.average_duration?.toFixed(1) || 'N/A'} moves
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Phase Analysis */}
-            {results.overall_stats.phase_analysis && (
-              <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-                <div className="px-6 py-4 bg-purple-50">
-                  <h3 className="text-xl font-semibold text-purple-900">Game Phase Analysis</h3>
-                </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {['opening', 'middlegame', 'endgame'].map((phase) => (
-                    <div key={phase} className="space-y-4">
-                      <h4 className="text-lg font-medium text-gray-900 capitalize">{phase}</h4>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Accuracy</span>
-                        <span className="text-lg font-medium text-gray-900">
-                          {results.overall_stats.phase_analysis[phase]?.average_accuracy?.toFixed(1) || 'N/A'}%
-                        </span>
-                      </div>
-                      <div className="space-y-2">
-                        <h5 className="text-sm font-medium text-gray-700">Common Patterns</h5>
-                        <ul className="text-sm text-gray-600 list-disc pl-4">
-                          {results.overall_stats.phase_analysis[phase]?.common_patterns?.map((pattern, idx) => (
-                            <li key={idx}>{pattern}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* AI Feedback Section */}
-            {results.overall_stats.ai_feedback && (
-              <div className="bg-white shadow-lg rounded-lg overflow-hidden mt-8">
-                <div className="px-6 py-4 bg-purple-50">
-                  <h3 className="text-xl font-semibold text-purple-900">AI Analysis Insights</h3>
-                </div>
-                <div className="p-6">
-                  <div className="prose prose-indigo">
-                    <p className="text-gray-800 whitespace-pre-line">
-                      {results.overall_stats.ai_feedback}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Improvement Areas */}
-            {results.overall_stats.improvement_areas?.length > 0 && (
-              <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-                <div className="px-6 py-4 bg-amber-50">
-                  <h3 className="text-xl font-semibold text-amber-900">Areas for Improvement</h3>
-                </div>
-                <div className="p-6">
-                  <ul className="space-y-4">
-                    {results.overall_stats.improvement_areas.map((area, idx) => (
-                      <li key={idx} className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-amber-100 text-amber-800">
-                            {idx + 1}
-                          </span>
-                        </div>
-                        <div className="ml-4">
-                          <h4 className="text-lg font-medium text-gray-900">{area.area}</h4>
-                          <p className="mt-1 text-gray-600">{area.description}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {/* Strengths */}
-            {results.overall_stats.strengths?.length > 0 && (
-              <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-                <div className="px-6 py-4 bg-emerald-50">
-                  <h3 className="text-xl font-semibold text-emerald-900">Your Strengths</h3>
-                </div>
-                <div className="p-6">
-                  <ul className="space-y-4">
-                    {results.overall_stats.strengths.map((strength, idx) => (
-                      <li key={idx} className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-emerald-100 text-emerald-800">
-                            {idx + 1}
-                          </span>
-                        </div>
-                        <div className="ml-4">
-                          <h4 className="text-lg font-medium text-gray-900">{strength.area}</h4>
-                          <p className="mt-1 text-gray-600">{strength.description}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

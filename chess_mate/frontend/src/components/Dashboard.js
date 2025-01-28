@@ -5,7 +5,7 @@ import { ChevronRight, PieChart, Clock, Target, Award } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 import { formatDate, getRelativeTime } from '../utils/dateUtils';
-import { fetchUserGames } from '../api';
+import { fetchDashboardData } from '../services/apiRequests';
 
 
 // API Configuration
@@ -13,42 +13,37 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://3.133.97.72/api';
 
 
 const Dashboard = () => {
-  const [dashboardData, setDashboardData] = useState(null);
+  const [dashboardData, setDashboardData] = useState({
+    recent_games: [],
+    total_games: 0,
+    statistics: { win_rate: 0, average_accuracy: 0 }
+  });
   const [loading, setLoading] = useState(true);
-  const { credits } = useContext(UserContext);
   const { isDarkMode } = useTheme();
 
   useEffect(() => {
-    fetchDashboardData();
+    const loadDashboardData = async () => {
+      try {
+        const dashData = await fetchDashboardData();
+        
+        setDashboardData({
+          recent_games: dashData.recent_games || [],
+          total_games: dashData.total_games || 0,
+          statistics: {
+            win_rate: dashData.statistics?.win_rate || 0,
+            average_accuracy: dashData.statistics?.average_accuracy || 0
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast.error(error.message || 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
   }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      const accessToken = localStorage.getItem('tokens') ? JSON.parse(localStorage.getItem('tokens')).access : null;
-      if (!accessToken) {
-        toast.error('Please log in to view your dashboard');
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/dashboard/`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch dashboard data');
-      }
-
-      const data = await response.json();
-      setDashboardData(data);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -60,9 +55,11 @@ const Dashboard = () => {
 
   return (
     <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
-      <h1 className={`text-3xl font-bold mb-8 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-        Dashboard
-      </h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          Dashboard
+        </h1>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className={`p-6 rounded-lg shadow-md ${
@@ -71,7 +68,7 @@ const Dashboard = () => {
           <h2 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Recent Games
           </h2>
-          {dashboardData?.recent_games?.length === 0 ? (
+          {!dashboardData.recent_games?.length ? (
             <p className={`text-center py-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               No games analyzed yet
             </p>
@@ -93,15 +90,24 @@ const Dashboard = () => {
                         Game #{game.id}
                       </h3>
                       <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Analyzed {getRelativeTime(game.played_at)}
+                        {game.played_at ? (
+                          <>
+                            Played: {formatDate(game.played_at)}
+                            <br />
+                            {game.analyzed_at && `Analyzed: ${getRelativeTime(game.analyzed_at)}`}
+                          </>
+                        ) : (
+                          'Date not available'
+                        )}
                       </p>
                     </div>
                     <div className={`text-right ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       <p className="text-sm">
-                        Accuracy: {game.accuracy ? `${game.accuracy}%` : 'N/A'}
+                        Accuracy: {typeof game.accuracy === 'number' ? `${game.accuracy.toFixed(1)}%` : 'N/A'}
                       </p>
                       <p className="text-sm">
-                        {game.mistakes} mistakes, {game.blunders} blunders
+                        {typeof game.mistakes === 'number' ? `${game.mistakes} mistake${game.mistakes !== 1 ? 's' : ''}` : '0 mistakes'}
+                        {typeof game.blunders === 'number' ? `, ${game.blunders} blunder${game.blunders !== 1 ? 's' : ''}` : ', 0 blunders'}
                       </p>
                     </div>
                   </div>
@@ -125,7 +131,7 @@ const Dashboard = () => {
                 Total Games Analyzed
               </p>
               <p className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {dashboardData?.total_games || 0}
+                {dashboardData.total_games || 0}
               </p>
             </div>
             <div className={`p-4 rounded-lg ${
@@ -135,7 +141,21 @@ const Dashboard = () => {
                 Average Accuracy
               </p>
               <p className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {dashboardData?.statistics?.win_rate ? `${dashboardData.statistics.win_rate}%` : 'N/A'}
+                {typeof dashboardData.statistics?.average_accuracy === 'number' 
+                  ? `${dashboardData.statistics.average_accuracy.toFixed(1)}%` 
+                  : 'N/A'}
+              </p>
+            </div>
+            <div className={`p-4 rounded-lg ${
+              isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+            }`}>
+              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Win Rate
+              </p>
+              <p className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {typeof dashboardData.statistics?.win_rate === 'number' 
+                  ? `${dashboardData.statistics.win_rate.toFixed(1)}%` 
+                  : 'N/A'}
               </p>
             </div>
           </div>
@@ -152,6 +172,7 @@ const Dashboard = () => {
           }`}
         >
           View All Games
+          <ChevronRight className="ml-2 h-5 w-5" />
         </Link>
       </div>
     </div>

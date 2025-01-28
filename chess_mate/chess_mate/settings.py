@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Union
 from dotenv import load_dotenv
 import logging
+import platform
 
 # Load environment variables first
 load_dotenv()
@@ -34,17 +35,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'core',
     'corsheaders',
-    "rest_framework",
+    'rest_framework',
+    'core',
     "rest_framework_simplejwt",
     'rest_framework_simplejwt.token_blacklist',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # Must be before CommonMiddleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -152,19 +153,23 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://3.133.97.72',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000'
 ]
 
 CORS_ALLOWED_ORIGINS = [
     "http://3.133.97.72",
     "http://ec2-3-133-97-72.us-east-2.compute.amazonaws.com",
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000"
 ]
 
 CORS_ALLOW_METHODS = [
@@ -186,7 +191,13 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'x-request-id',
+    'access-control-allow-credentials',
+    'access-control-allow-origin'
 ]
+
+if DEBUG:
+    CORS_ORIGIN_ALLOW_ALL = True
 
 # Stockfish configuration
 STOCKFISH_PATH = os.getenv('STOCKFISH_PATH', 'stockfish')
@@ -224,6 +235,42 @@ PAYMENT_CANCEL_URL = os.getenv('PAYMENT_CANCEL_URL', 'http://localhost:3000/paym
 
 # Redis Configuration
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+
+# Cache Configuration
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "SOCKET_CONNECT_TIMEOUT": 5,
+            "SOCKET_TIMEOUT": 5,
+            "RETRY_ON_TIMEOUT": True,
+            "MAX_CONNECTIONS": 1000,
+            "IGNORE_EXCEPTIONS": True,
+        },
+        "KEY_PREFIX": "chessmate"
+    }
+}
+
+# Cache time to live is 15 minutes
+CACHE_TTL = 60 * 15
+
+# Celery Configuration
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', REDIS_URL)
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', REDIS_URL)
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_WORKER_CONCURRENCY = 1 if platform.system().lower() == 'windows' else None
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_ALWAYS_EAGER = False
+CELERY_TASK_STORE_ERRORS_EVEN_IF_IGNORED = True
+CELERY_TASK_IGNORE_RESULT = False
+CELERY_BROKER_POOL_LIMIT = None if platform.system().lower() == 'windows' else 10
 
 # Rate Limiting Settings
 RATE_LIMIT = {
@@ -296,45 +343,6 @@ LOGGING = {
     },
 }
 
-# Cache configuration
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://redis:6379/0',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'SOCKET_TIMEOUT': 5,
-            'RETRY_ON_TIMEOUT': True,
-            'MAX_CONNECTIONS': 1000,
-            'CONNECTION_POOL_KWARGS': {'max_connections': 100},
-        }
-    }
-}
-
-# Celery Configuration
-CELERY_BROKER_URL = 'redis://redis:6379/0'
-CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
-CELERY_ACCEPT_CONTENT = ['application/json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
-
-# Additional Celery settings
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-CELERY_SECURITY_KEY = os.getenv('CELERY_SECURITY_KEY', 'your-security-key')
-CELERY_WORKER_HIJACK_ROOT_LOGGER = False
-CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
-CELERY_WORKER_SEND_TASK_EVENTS = True
-CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 3600
-CELERY_TASK_SOFT_TIME_LIMIT = 3300
-
-# Redis connection pool settings for Celery
-CELERY_BROKER_TRANSPORT_OPTIONS = {
-    'max_connections': 20,
-    'socket_timeout': 5,
-    'socket_connect_timeout': 5,
-    'socket_keepalive': True,
-    'health_check_interval': 30,
-}
+# Session Configuration
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'

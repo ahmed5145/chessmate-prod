@@ -25,13 +25,16 @@ const AppRoutes = () => {
       {/* Public routes */}
       <Route 
         path="/" 
-        element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} 
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} 
       />
       <Route 
         path="/login" 
-        element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} 
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} 
       />
-      <Route path="/register" element={<Register />} />
+      <Route 
+        path="/register" 
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />} 
+      />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
       <Route path="/password-reset-success" element={<ResetPasswordSuccess />} />
@@ -112,7 +115,7 @@ const AppRoutes = () => {
       />
 
       {/* Catch all route */}
-      <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
     </Routes>
   );
 };

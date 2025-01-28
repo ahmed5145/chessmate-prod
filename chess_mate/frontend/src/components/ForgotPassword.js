@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { toast } from "react-hot-toast";
-import { requestPasswordReset } from "../api";
+import { requestPasswordReset } from "../services/apiRequests";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");

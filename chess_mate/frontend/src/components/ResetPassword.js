@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { resetPassword } from "../api";
+import { resetPassword } from "../services/apiRequests";
 
 const validatePassword = (password) => {
   const errors = [];

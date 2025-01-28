@@ -1,89 +1,184 @@
-import axios from 'axios';
+import api from './index';
 
-// Get the API URL from environment variables, with a production fallback
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://3.133.97.72/api';
-
-console.log('API_BASE_URL:', API_BASE_URL); // Debug log
-
-// Create axios instance with default config
-const api = axios.create({
-    baseURL: API_BASE_URL,
-    withCredentials: true,
-    headers: {
-        'Content-Type': 'application/json',
-    }
-});
-
-// Helper function to get CSRF token
-const getCsrfToken = async () => {
+// API functions
+export const loginUser = async (credentials) => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/csrf/`, { 
-            withCredentials: true,
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-            }
-        });
-        const token = document.cookie.split('; ')
-            .find(row => row.startsWith('csrftoken='))
-            ?.split('=')[1];
+        localStorage.removeItem('tokens');
         
-        console.log('CSRF Token:', token); // Debug log
-        return token;
+        const response = await api.post('/api/login/', credentials);
+        const { tokens, message } = response.data;
+        
+        if (!tokens?.access || !tokens?.refresh) {
+            throw new Error('Invalid response from server');
+        }
+        
+        localStorage.setItem('tokens', JSON.stringify(tokens));
+        api.defaults.headers.common['Authorization'] = `Bearer ${tokens.access}`;
+        
+        return { message: message || 'Login successful!', tokens };
     } catch (error) {
-        console.error('Error fetching CSRF token:', error);
-        return null;
+        throw error.response?.data || new Error("Login failed");
     }
 };
 
-// Add request interceptor to include CSRF token
-api.interceptors.request.use(async (config) => {
-    console.log('Request URL:', config.url); // Debug log
-    
-    if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
-        const csrfToken = await getCsrfToken();
-        if (csrfToken) {
-            config.headers['X-CSRFToken'] = csrfToken;
+export const logoutUser = async () => {
+    try {
+        const tokens = localStorage.getItem('tokens');
+        if (tokens) {
+            const parsedTokens = JSON.parse(tokens);
+            await api.post('/api/logout/', { refresh_token: parsedTokens.refresh });
         }
+    } catch (error) {
+        console.error('Logout error:', error);
+    } finally {
+        localStorage.removeItem('tokens');
+        delete api.defaults.headers.common['Authorization'];
     }
-    return config;
-}, (error) => {
-    return Promise.reject(error);
-});
+};
 
-// Add response interceptor to handle errors
-api.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-        console.error('API Error:', error.response || error); // Debug log
-        
-        const originalRequest = error.config;
-        
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
-            
-            try {
-                const refreshToken = localStorage.getItem('refresh_token');
-                if (refreshToken) {
-                    const response = await api.post('/token/refresh/', { refresh: refreshToken });
-                    const { access } = response.data;
-                    
-                    localStorage.setItem('access_token', access);
-                    api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-                    originalRequest.headers['Authorization'] = `Bearer ${access}`;
-                    
-                    return api(originalRequest);
-                }
-            } catch (refreshError) {
-                console.error('Error refreshing token:', refreshError);
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                window.location.href = '/login';
-            }
+export const registerUser = async (userData) => {
+    try {
+        const response = await api.post("/api/register/", userData);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
+
+export const fetchUserGames = async () => {
+    try {
+        const response = await api.get("/api/dashboard/");
+        return response.data.games;
+    } catch (error) {
+        throw error.response?.data || new Error("Failed to fetch games");
+    }
+};
+
+export const fetchExternalGames = async (platform, username, gameType) => {
+    try {
+        const effectiveGameType = gameType === "all" ? "rapid" : gameType;
+        const response = await api.post("/api/fetch-games/", {
+            platform,
+            username,
+            game_type: effectiveGameType
+        });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error("Failed to fetch external games");
+    }
+};
+
+export const analyzeGame = async (gameId) => {
+    try {
+        const response = await api.post(`/api/game/${gameId}/analysis/`, {
+            depth: 20,
+            use_ai: true
+        });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error("Failed to start analysis");
+    }
+};
+
+export const analyzeBatchGames = async (numGames) => {
+    try {
+        const response = await api.post("/api/games/batch-analyze/", {
+            num_games: parseInt(numGames, 10),
+            include_unanalyzed: true
+        });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error("Failed to start batch analysis");
+    }
+};
+
+export const checkAnalysisStatus = async (gameId) => {
+    try {
+        const response = await api.get(`/api/game/${gameId}/analysis/status/`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error("Failed to check analysis status");
+    }
+};
+
+export const checkBatchAnalysisStatus = async (taskId) => {
+    try {
+        const response = await api.get(`/api/games/batch-analyze/status/${taskId}/`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error("Failed to check batch analysis status");
+    }
+};
+
+export const fetchGameAnalysis = async (gameId) => {
+    try {
+        const response = await api.get(`/api/game/${gameId}/analysis/`);
+        return response.data.analysis;
+    } catch (error) {
+        throw error.response?.data || new Error("Failed to fetch analysis");
+    }
+};
+
+export const fetchGameFeedback = async (gameId) => {
+    try {
+        const response = await api.get(`/api/feedback/${gameId}/`);
+        return response.data.feedback;
+    } catch (error) {
+        throw error.response?.data || new Error("Failed to fetch feedback");
+    }
+};
+
+export const getUserProfile = async () => {
+    try {
+        const response = await api.get("/api/profile/");
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error("Failed to fetch profile");
+    }
+};
+
+export const updateUserProfile = async (profileData) => {
+    try {
+        const response = await api.patch("/api/profile/", profileData);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error("Failed to update profile");
+    }
+};
+
+export const requestPasswordReset = async (email) => {
+    try {
+        const response = await api.post("/api/auth/password-reset/", { email });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error("Failed to request password reset");
+    }
+};
+
+export const resetPassword = async (uid, token, newPassword) => {
+    try {
+        const response = await api.post("/api/auth/password-reset/confirm/", {
+            uid,
+            token,
+            new_password: newPassword
+        });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error("Failed to reset password");
+    }
+};
+
+export const analyzeSpecificGame = async (gameId) => {
+    try {
+        const response = await api.post(`/api/game/${gameId}/analysis/`, {
+            depth: 20,
+            use_ai: true
+        });
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 401) {
+            throw new Error("Session expired. Please log in again.");
         }
-        
-        return Promise.reject(error);
+        throw new Error(error.response?.data || "Failed to analyze game. Please try again.");
     }
-);
-
-export default api; 
+}; 

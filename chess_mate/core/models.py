@@ -28,7 +28,7 @@ class Profile(models.Model):
     """User profile model."""
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     rating = models.IntegerField(default=1200)
-    credits = models.IntegerField(default=0)
+    credits = models.IntegerField(default=10)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     email_verified = models.BooleanField(default=False)

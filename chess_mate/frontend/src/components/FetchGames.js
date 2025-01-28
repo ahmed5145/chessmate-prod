@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { UserContext } from '../contexts/UserContext';
 import { toast } from 'react-hot-toast';
 
@@ -72,8 +72,29 @@ const FetchGames = () => {
             <h3 className="text-lg font-medium leading-6 text-gray-900">Import Chess Games</h3>
             <div className="mt-2 max-w-xl text-sm text-gray-500">
               <p>Enter your chess platform username to import your games for analysis.</p>
-              <p className="mt-1">You have {credits} credits available.</p>
-              <p className="mt-1">Cost: 1 credit per game</p>
+              <div className={`mt-4 p-4 rounded-lg ${credits < 5 ? 'bg-yellow-50 border border-yellow-200' : ''}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`font-medium ${credits < 5 ? 'text-yellow-800' : 'text-gray-900'}`}>
+                      Available Credits: {credits}
+                    </p>
+                    <p className="mt-1 text-sm text-gray-500">Cost: 1 credit per game</p>
+                  </div>
+                  {credits < 5 && (
+                    <Link
+                      to="/credits"
+                      className="ml-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                    >
+                      Buy Credits
+                    </Link>
+                  )}
+                </div>
+                {credits < 5 && (
+                  <p className="mt-2 text-sm text-yellow-700">
+                    Your credits are running low. Consider purchasing more credits to continue analyzing games.
+                  </p>
+                )}
+              </div>
             </div>
             <form onSubmit={handleSubmit} className="mt-5">
               <div className="space-y-4">
