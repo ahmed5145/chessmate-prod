@@ -72,18 +72,22 @@ class Profile(models.Model):
         self.save()
 
 @receiver(post_save, sender=User)
-def create_user_profile(sender: Any, instance: User, created: bool, **kwargs: Any) -> None:
-    """Create a Profile instance when a new User is created."""
+def create_or_save_user_profile(sender: Any, instance: User, created: bool, **kwargs: Any) -> None:
+    """Create or save a Profile instance when a User is created or saved."""
     if created:
-        Profile.objects.create(user=instance)
+        Profile.objects.get_or_create(user=instance)
+    else:
+        try:
+            instance.profile.save()
+        except Profile.DoesNotExist:
+            Profile.objects.get_or_create(user=instance)
 
-@receiver(post_save, sender=User)
-def save_user_profile(sender: Any, instance: User, **kwargs: Any) -> None:
-    """Save the Profile instance when the User is saved."""
+    # Remove the old signal handlers
     try:
-        instance.profile.save()
-    except Profile.DoesNotExist:
-        Profile.objects.create(user=instance)
+        post_save.disconnect(create_user_profile, sender=User)
+        post_save.disconnect(save_user_profile, sender=User)
+    except Exception:
+        pass
 
 def get_default_user():
     """Get or create a default user for legacy data."""

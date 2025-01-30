@@ -2,15 +2,16 @@
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from .settings import *  # noqa
+from .logging import LOGGING  # Import logging configuration
 
 # Debug should be False in production
 DEBUG = False
 
 # Security Settings
-SECURE_SSL_REDIRECT = True
+SECURE_SSL_REDIRECT = False  # Change to True when you add SSL
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = False  # Change to True when you add SSL
+CSRF_COOKIE_SECURE = False  # Change to True when you add SSL
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
@@ -18,22 +19,28 @@ SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
+ALLOWED_HOSTS = ['3.133.97.72', 'ec2-3-133-97-72.us-east-2.compute.amazonaws.com']
+
 # CORS Settings
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
-    os.getenv('SITE_URL', 'https://chessmate.com'),
+    "http://3.133.97.72",
+    "http://ec2-3-133-97-72.us-east-2.compute.amazonaws.com"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    os.getenv('SITE_URL', 'https://chessmate.com'),
+    "http://3.133.97.72",
+    "http://ec2-3-133-97-72.us-east-2.compute.amazonaws.com"
 ]
 
 # Static and Media Files
-STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-DEFAULT_FILE_STORAGE = 'chess_mate.storage_backends.MediaStorage'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Import AWS settings
-from .aws import *  # noqa
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # Redis Settings
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
@@ -86,28 +93,25 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': '/app/logs/django.log',
-            'formatter': 'verbose',
-        },
         'console': {
-            'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
     },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
     'loggers': {
         'django': {
-            'handlers': ['file', 'console'],
+            'handlers': ['console'],
             'level': 'INFO',
-            'propagate': True,
+            'propagate': False,
         },
         'core': {
-            'handlers': ['file', 'console'],
+            'handlers': ['console'],
             'level': 'INFO',
-            'propagate': True,
+            'propagate': False,
         },
     },
 }
@@ -115,4 +119,30 @@ LOGGING = {
 # Worker settings
 WORKER_CONCURRENCY = int(os.getenv('WORKER_CONCURRENCY', '2'))
 WORKER_TIMEOUT = int(os.getenv('WORKER_TIMEOUT', '600'))  # 10 minutes
-WORKER_MAX_TASKS = int(os.getenv('WORKER_MAX_TASKS', '1000')) 
+WORKER_MAX_TASKS = int(os.getenv('WORKER_MAX_TASKS', '1000'))
+
+# Telemetry Configuration
+TELEMETRY_CONFIG = {
+    'ENABLED': True,
+    'SAMPLE_RATE': 1.0,  # Sample 100% of requests
+    'SLOW_REQUEST_THRESHOLD': 1.0,  # seconds
+    'EXCLUDED_PATHS': [
+        '/health/',
+        '/metrics/',
+        '/static/',
+        '/media/',
+        '/favicon.ico'
+    ],
+    'EXPORTERS': ['prometheus', 'json', 'log']
+}
+
+# Add TelemetryMiddleware to MIDDLEWARE
+MIDDLEWARE = [
+    'chess_mate.telemetry.middleware.TelemetryMiddleware',
+    # ... existing middleware ...
+]
+
+# Prometheus metrics endpoint
+if TELEMETRY_CONFIG['ENABLED']:
+    PROMETHEUS_METRICS_EXPORT_PORT = 8000
+    PROMETHEUS_METRICS_EXPORT_ADDRESS = ''  # Listen on all addresses 

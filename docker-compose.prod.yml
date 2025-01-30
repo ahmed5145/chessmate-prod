@@ -4,14 +4,18 @@ services:
   web:
     build: .
     restart: always
+    command: gunicorn --chdir chess_mate chess_mate.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120
     volumes:
-      - static_volume:/app/chess_mate/staticfiles
+      - ./chess_mate:/app/chess_mate
+      - static_volume:/app/staticfiles
       - media_volume:/app/chess_mate/media
       - logs_volume:/app/chess_mate/logs
     env_file:
       - chess_mate/.env
     depends_on:
       - redis
+    ports:
+      - "8000:8000"
 
   redis:
     image: redis:7
@@ -39,14 +43,80 @@ services:
       - static_volume:/app/chess_mate/staticfiles
       - media_volume:/app/chess_mate/media
       - ./nginx:/etc/nginx/conf.d
+      - ./chess_mate/frontend/build:/app/chess_mate/frontend/build
     ports:
       - "80:80"
       - "443:443"
     depends_on:
       - web
 
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    restart: always
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=chessmate_admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://ec2-3-133-97-72.us-east-2.compute.amazonaws.com/grafana
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+    restart: always
+
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    restart: always
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8080:8080"
+    restart: always
+
 volumes:
   static_volume:
   media_volume:
   logs_volume:
-  redis_data: 
+  redis_data:
+  prometheus_data:
+  grafana_data:

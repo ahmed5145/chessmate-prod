@@ -214,14 +214,21 @@ def register_view(request):
                 )
                 logger.debug(f"Created user: {username}")
                     
-                # Create profile with verification token and starter credits
+                # Get or create profile with verification token and starter credits
                 verification_token = EmailVerificationToken.generate_token()
-                profile = Profile.objects.create(
-                    user=user,
-                    email_verification_token=verification_token,
-                    email_verification_sent_at=timezone.now(),
-                    credits=10  # Explicitly set starter credits
+                profile, created = Profile.objects.get_or_create(
+                        user=user,
+                    defaults={
+                        'email_verification_token': verification_token,
+                        'email_verification_sent_at': timezone.now(),
+                        'credits': 10
+                    }
                 )
+                
+                if not created:
+                    profile.email_verification_token = verification_token
+                    profile.email_verification_sent_at = timezone.now()
+                    profile.save()
                 
                 logger.debug(f"Created profile for user: {username} with {profile.credits} credits")
                 
@@ -233,7 +240,7 @@ def register_view(request):
                     logger.error(f"Error sending verification email: {str(e)}", exc_info=True)
                     # Don't fail registration if email fails, but log it
                     pass
-
+            
             return Response(
                 {
                     "message": "Registration successful! Please check your email to verify your account.",
@@ -600,14 +607,14 @@ def analyze_game(request, game_id):
     """Start analysis for a specific game."""
     try:
         game = Game.objects.get(id=game_id)
-        
+
         # Check if user has permission to analyze this game
         if not game.user == request.user and not request.user.is_staff:
             return Response(
                 {'error': 'You do not have permission to analyze this game'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Clear any existing analysis
         GameAnalysis.objects.filter(game=game).delete()
         
@@ -803,6 +810,7 @@ def check_batch_analysis_status(request, task_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def generate_dynamic_feedback(results):
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     feedback = {
         "timeManagement": {"avgTimePerMove": 0, "suggestion": ""},
         "opening": {"playedMoves": [], "suggestion": ""},
