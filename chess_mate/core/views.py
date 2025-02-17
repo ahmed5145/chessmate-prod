@@ -17,7 +17,7 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, login, logout
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.mail import send_mail
 from django.db import connection, transaction, OperationalError
@@ -60,8 +60,10 @@ from .ai_feedback import AIFeedbackGenerator
 from .decorators import rate_limit
 from .payment import PaymentProcessor, CREDIT_PACKAGES
 from .utils import generate_feedback_without_ai
-from .tasks import analyze_game_task, analyze_batch_games_task
-from .task_manager import RQTaskManager
+from .tasks import analyze_game_task, analyze_batch_games_task, update_user_stats_task, update_ratings_for_linked_account
+from .task_manager import TaskManager
+from .cache_manager import CacheManager
+from .constants import MAX_BATCH_SIZE
 
 STOCKFISH_PATH = os.getenv("STOCKFISH_PATH")
 
@@ -95,7 +97,7 @@ except Exception as e:
     ai_feedback_generator = None  # type: ignore
 
 # Initialize task manager
-task_manager = RQTaskManager()
+task_manager = TaskManager()
 
 @api_view(['GET'])
 def debug_request(request):
@@ -156,6 +158,7 @@ class EmailVerificationToken:
 
 @rate_limit(endpoint_type='AUTH')
 @api_view(['POST'])
+@csrf_exempt  # Exempt registration from CSRF
 def register_view(request):
     """Handle user registration with email verification."""
     try:
@@ -241,13 +244,28 @@ def register_view(request):
                     # Don't fail registration if email fails, but log it
                     pass
             
-            return Response(
+            # Create response with success message
+            response = Response(
                 {
                     "message": "Registration successful! Please check your email to verify your account.",
                     "email": email
                 },
                 status=status.HTTP_201_CREATED
             )
+            
+            # Set CSRF cookie
+            token = get_token(request)
+            response.set_cookie(
+                'csrftoken',
+                token,
+                max_age=None,  # Session length
+                path='/',
+                secure=False,  # Set to True in production with HTTPS
+                samesite='None',  # Required for cross-origin requests
+                httponly=False  # Allow JavaScript access
+            )
+            
+            return response
 
         except IntegrityError as e:
             logger.error(f"Database integrity error: {str(e)}", exc_info=True)
@@ -261,7 +279,6 @@ def register_view(request):
                 {"error": "An unexpected error occurred during registration."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-            
     except Exception as e:
         logger.error(f"Unexpected registration error: {str(e)}", exc_info=True)
         return Response(
@@ -357,9 +374,9 @@ def verify_email(request, uidb64, token):
             'message': 'Invalid verification link.'
         })
 
-@ensure_csrf_cookie
 @rate_limit(endpoint_type='AUTH')
 @api_view(['POST'])
+@csrf_exempt  # Exempt login from CSRF
 def login_view(request):
     """
     Handle user login with email verification check.
@@ -397,7 +414,9 @@ def login_view(request):
             )
 
         tokens = get_tokens_for_user(user)
-        return Response({
+        
+        # Create response with tokens
+        response = Response({
             "message": "Login successful!",
             "tokens": tokens,
             "user": {
@@ -405,6 +424,20 @@ def login_view(request):
                 "email": user.email
             }
         }, status=status.HTTP_200_OK)
+        
+        # Set CSRF cookie
+        token = get_token(request)
+        response.set_cookie(
+            'csrftoken',
+            token,
+            max_age=None,  # Session length
+            path='/',
+            secure=False,  # Set to True in production with HTTPS
+            samesite='None',  # Required for cross-origin requests
+            httponly=False  # Allow JavaScript access
+        )
+        
+        return response
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
         return Response(
@@ -415,156 +448,90 @@ def login_view(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def fetch_games(request):
-    """
-    Fetch games from Chess.com or Lichess APIs based on the username and platform provided.
-    """
-    user = request.user
-    data = request.data
-    platform = data.get("platform")
-    username = data.get("username")
-    game_mode = data.get("game_mode", "all")
-    num_games = int(data.get("num_games", 10))
-
-    if not platform or not username:
-        return Response(
-            {"error": "Platform and username are required."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    allowed_game_modes = ["all", "bullet", "blitz", "rapid", "classical"]
-    if game_mode not in allowed_game_modes:
-        return Response(
-            {"error": "Invalid game mode. Allowed modes: all, bullet, blitz, rapid, classical."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
+    """Fetch games from chess platforms."""
     try:
-        with transaction.atomic():
-            profile = Profile.objects.select_for_update().get(user=user)
-            required_credits = num_games
-            
-            if profile.credits < required_credits:
-                return Response(
-                    {"error": f"Not enough credits. Required: {required_credits}, Available: {profile.credits}"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+        username = request.data.get('username')
+        platform = request.data.get('platform', 'chess.com')
+        game_type = request.data.get('game_type', 'rapid')  # Default to rapid instead of all
+        num_games = int(request.data.get('num_games', 10))
 
-            try:
-                if platform == "chess.com":
-                    games = ChessComService.fetch_games(username, game_mode, limit=num_games)
-                elif platform == "lichess":
-                    games = LichessService.fetch_games(username, game_mode, limit=num_games)
-                else:
+        # Validate game type
+        valid_game_types = ['blitz', 'rapid', 'bullet', 'daily', 'classical']
+        if game_type not in valid_game_types:
+            return Response(
+                {"error": f"Invalid game type. Must be one of: {', '.join(valid_game_types)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not username:
+            return Response(
+                {"error": "Username is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with transaction.atomic():
+                profile = Profile.objects.select_for_update().get(user=request.user)
+                required_credits = num_games
+                
+                if profile.credits < required_credits:
                     return Response(
-                        {"error": "Invalid platform. Use 'chess.com' or 'lichess'."},
+                        {"error": f"Insufficient credits. Need {required_credits} credits."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
-                if not games:
+                # Initialize service based on platform
+                if platform == 'chess.com':
+                    service = ChessComService()
+                elif platform == 'lichess':
+                    service = LichessService()
+                else:
                     return Response(
-                        {"message": "No games found for the given username and criteria."},
-                        status=status.HTTP_200_OK
+                        {"error": "Invalid platform"},
+                        status=status.HTTP_400_BAD_REQUEST
                     )
-                
-                logger.info(f"Fetched {len(games)} games from {platform} for user {username}")
-            except Exception as e:
-                logger.error(f"Error fetching games from {platform}: {str(e)}")
-                return Response(
-                    {"error": f"Failed to fetch games from {platform}. Please try again later."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+
+                # Fetch and save games
+                result = service.fetch_games(
+                    username=username,
+                    user=request.user,
+                    game_type=game_type,
+                    limit=num_games
                 )
 
-            saved_games = []
-            saved_count = 0
-            for game_data in games:
-                try:
-                    # Ensure game_id exists and is unique
-                    game_id = game_data.get("game_id")
-                    if not game_id:
-                        logger.warning(f"Skipping game without game_id: {game_data}")
-                        continue
-                        
-                    # Check if game already exists
-                    if Game.objects.filter(user=user, platform=platform, game_id=game_id).exists():
-                        logger.info(f"Game {game_id} already exists for user {user.username}")
-                        continue
+                saved_count = result.get('saved', 0)
+                skipped_count = result.get('skipped', 0)
 
-                    game = Game.objects.create(
-                        user=user,
-                        platform=platform,
-                        game_id=game_id,
-                        pgn=game_data.get("pgn", ""),
-                        result=game_data.get("result", "unknown"),
-                        white=game_data.get("white", ""),
-                        black=game_data.get("black", ""),
-                        opponent=game_data.get("opponent", "Unknown"),
-                        opening_name=game_data.get("opening_name", "Unknown Opening"),
-                        date_played=game_data.get("played_at") or datetime.now()
-                    )
-                    saved_count += 1
-                    saved_games.append({
-                        "id": game.id,
-                        "platform": game.platform,
-                        "white": game.white,
-                        "black": game.black,
-                        "opponent": game.opponent,
-                        "result": game.result,
-                        "date_played": game.date_played,
-                        "opening_name": game.opening_name,
-                        "game_id": game.game_id
-                    })
+                # Deduct credits based on saved games
+                if saved_count > 0:
+                    profile.credits -= saved_count
+                    profile.save()
                     
-                    if saved_count >= num_games:
-                        break
-                except Exception as e:
-                    logger.error(f"Error saving game: {str(e)}")
-                    continue
+                    Transaction.objects.create(
+                        user=request.user,
+                        transaction_type='usage',
+                        credits=saved_count,
+                        status='completed'
+                    )
 
-            if saved_count > 0:
-                profile.credits -= saved_count
-                profile.save()
+                return Response({
+                    'success': True,
+                    'games_saved': saved_count,
+                    'games_skipped': skipped_count,
+                    'credits_remaining': profile.credits
+                })
 
-                Transaction.objects.create(
-                    user=user,
-                    transaction_type='usage',
-                    credits=saved_count,
-                    status='completed'
-                )
+        except Profile.DoesNotExist:
+            logger.error(f"Profile not found for user {request.user.username}")
+            return Response(
+                {"error": "User profile not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-                logger.info(f"Successfully saved {saved_count} games for user {user.username}")
-                return Response(
-                    {
-                        "message": f"Successfully fetched and saved {saved_count} games!",
-                        "games_saved": saved_count,
-                        "credits_deducted": saved_count,
-                        "credits_remaining": profile.credits,
-                        "games": saved_games
-                    },
-                    status=status.HTTP_201_CREATED
-                )
-            else:
-                logger.warning(f"No new games were saved for user {user.username}")
-                return Response(
-                    {
-                        "message": "No new games were saved. They might already exist in your account.",
-                        "games_saved": 0,
-                        "credits_deducted": 0,
-                        "credits_remaining": profile.credits,
-                        "games": []
-                    },
-                    status=status.HTTP_200_OK
-                )
-
-    except Profile.DoesNotExist:
-        logger.error(f"Profile not found for user {user.username}")
-        return Response(
-            {"error": "User profile not found."},
-            status=status.HTTP_404_NOT_FOUND
-        )
     except Exception as e:
-        logger.error(f"Error in fetch_games: {str(e)}")
+        logger.error(f"Error fetching games: {str(e)}")
         return Response(
-            {"error": "Failed to fetch games. Please try again later."},
+            {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -584,98 +551,145 @@ def user_games_view(request):
     if platform != 'all':
         games = games.filter(platform=platform)
     
-    games = games.order_by("-date_played")
-    
-    games_data = [
-        {
+    # Get all required fields and convert datetime to string
+    games_data = []
+    for game in games.order_by("-date_played"):
+        # Determine opponent based on user's color
+        opponent = game.opponent
+        if not opponent or opponent == "Unknown":
+            opponent = game.black if game.white.lower() == user.username.lower() else game.white
+
+        game_data = {
             "id": game.id,
+            "platform": game.platform,
             "white": game.white,
             "black": game.black,
+            "opponent": opponent,
             "result": game.result,
-            "date_played": game.date_played,
-            "platform": game.platform,
-            "analysis": game.analysis
+            "date_played": game.date_played.isoformat() if game.date_played else None,
+            "opening_name": game.opening_name or "Unknown Opening",
+            "analysis": game.analysis,
+            "status": game.status,  # Send the actual status from the database
+            "white_elo": game.white_elo,
+            "black_elo": game.black_elo,
+            "time_control": game.time_control
         }
-        for game in games
-    ]
-    return Response({"games": games_data}, status=status.HTTP_200_OK)
+        games_data.append(game_data)
+    
+    return Response(games_data, status=status.HTTP_200_OK)
 
 @rate_limit(endpoint_type='ANALYSIS')
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def analyze_game(request, game_id):
-    """Start analysis for a specific game."""
+    """Analyze a specific game."""
     try:
-        game = Game.objects.get(id=game_id)
+        task_manager = TaskManager()
+        
+        with transaction.atomic():
+            # Get game and verify status
+            game = Game.objects.select_for_update().get(id=game_id)
+            
+            # Check if game is already analyzed
+            if game.status == 'analyzed':
+                return Response({
+                    'status': 'completed',
+                    'message': 'Game is already analyzed',
+                    'task_id': None
+                })
 
-        # Check if user has permission to analyze this game
-        if not game.user == request.user and not request.user.is_staff:
-            return Response(
-                {'error': 'You do not have permission to analyze this game'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            # Get or create task
+            existing_task = task_manager.get_existing_task(game_id)
+            if existing_task:
+                return Response({
+                    'status': existing_task.get('status', 'unknown'),
+                    'message': 'Task already exists',
+                    'task_id': existing_task.get('task_id')
+                })
 
-        # Clear any existing analysis
-        GameAnalysis.objects.filter(game=game).delete()
-        
-        # Create a new analysis job
-        depth = request.data.get('depth', 20)
-        use_ai = request.data.get('use_ai', True)
-        
-        result = task_manager.create_analysis_job(
-            game_id=game_id,
-            depth=depth,
-            use_ai=use_ai
-        )
-        
-        if result['status'] == 'created':
+            # Create new task
+            depth = int(request.data.get('depth', 20))
+            use_ai = bool(request.data.get('use_ai', True))
+            
+            # Update game status to analyzing
+            game.status = 'analyzing'
+            game.save(update_fields=['status'])
+            
+            # Create task
+            task = analyze_game_task.delay(game_id, depth, use_ai)
+            task_manager.create_task(game_id, task.id)
+            
             return Response({
                 'status': 'started',
-                'task_id': result['task_id']
+                'message': 'Analysis task created',
+                'task_id': task.id
             })
-        else:
-            return Response({
-                'error': result.get('error', 'Failed to start analysis')
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
+
     except Game.DoesNotExist:
-        return Response(
-            {'error': 'Game not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({
+            'status': 'error',
+            'message': 'Game not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+        
     except Exception as e:
-        return Response(
-            {'error': str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        logger.error(f"Error creating analysis task: {str(e)}", exc_info=True)
+        return Response({
+            'status': 'error',
+            'message': f'Failed to create analysis task: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def check_analysis_status(request, task_id):
-    """Check the status of an analysis task."""
+    """Check the status of a game analysis task."""
     try:
-        result = task_manager.get_job_status(task_id)
+        task_manager = TaskManager()
+        task = AsyncResult(task_id)
         
-        if result['status'] == 'completed':
-            return Response({
-                'status': 'completed',
-                'result': result.get('result')
-            })
-        elif result['status'] == 'failed':
-            return Response({
-                'status': 'failed',
-                'error': result.get('message', 'Analysis failed')
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if task.ready():
+            if task.successful():
+                result = task.get()
+                if isinstance(result, dict):
+                    # Normalize status to 'completed' if successful
+                    if result.get('status') in ['SUCCESS', 'COMPLETED', 'completed']:
+                        result['status'] = 'completed'
+                    
+                    # Ensure game_id is included in the response
+                    if 'game_id' not in result and 'status' in result:
+                        task_data = task_manager.get_task_by_id(task_id)
+                        if task_data and 'game_id' in task_data:
+                            result['game_id'] = task_data['game_id']
+                    return Response(result)
+                return Response({
+                    "status": "completed",
+                    "result": result
+                })
+            else:
+                error = str(task.result)
+                return Response({
+                    "status": "failed",
+                    "error": error
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
+            # Get progress info if available
+            progress = task.info
+            if progress and isinstance(progress, dict):
+                return Response({
+                    "status": "in_progress",
+                    "progress": progress.get('progress', 0),
+                    "message": progress.get('message', 'Analysis in progress')
+                })
+            # Task is still running but no progress info
             return Response({
-                'status': 'in_progress',
-                'message': result.get('message', 'Analysis in progress')
+                "status": "in_progress",
+                "message": "Analysis in progress"
             })
             
     except Exception as e:
+        logger.error(f"Error checking analysis status: {str(e)}")
         return Response({
-            'status': 'error',
-            'error': str(e)
+            "status": "failed",
+            "error": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(["GET"])
@@ -687,126 +701,213 @@ def get_game_analysis(request, game_id):
     user = request.user
     try:
         game = Game.objects.get(id=game_id, user=user)
-        analysis = GameAnalysis.objects.get(game=game)
-        return Response({"analysis": analysis.analysis_data}, status=status.HTTP_200_OK)
+        
+        # First try to get analysis from GameAnalysis model
+        try:
+            analysis = GameAnalysis.objects.get(game=game)
+            return Response({"analysis": analysis.analysis_data}, status=status.HTTP_200_OK)
+        except GameAnalysis.DoesNotExist:
+            # If not found in GameAnalysis, check Game model
+            if game.analysis:
+                return Response({"analysis": game.analysis}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Analysis not found for this game."}, status=status.HTTP_404_NOT_FOUND)
+                
     except Game.DoesNotExist:
         return Response({"error": "Game not found or access denied."}, status=status.HTTP_404_NOT_FOUND)
-    except GameAnalysis.DoesNotExist:
-        return Response({"error": "Analysis not found for this game."}, status=status.HTTP_404_NOT_FOUND)
 
 @rate_limit(endpoint_type='ANALYSIS')
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def batch_analyze(request):
-    """Analyze multiple games for a user."""
-    user = request.user
-    num_games = request.data.get('num_games', 5)
-    depth = request.data.get('depth', 20)
-    use_ai = request.data.get('use_ai', True)
-    include_unanalyzed = request.data.get('include_unanalyzed', True)
-
+    """Start batch analysis of games."""
     try:
-        # Get games based on the include_unanalyzed parameter
-        if include_unanalyzed:
-            games = Game.objects.filter(user=user).order_by('-date_played')[:num_games]
-        else:
-            games = Game.objects.filter(user=user, analysis__isnull=True).order_by('-date_played')[:num_games]
+        user = request.user
+        num_games = int(request.data.get('num_games', 10))
+        time_control = request.data.get('time_control', 'all')
+        include_analyzed = request.data.get('include_analyzed', False)
+        depth = int(request.data.get('depth', 20))
+        use_ai = request.data.get('use_ai', True)
+        
+        logger.info(f"Batch analysis request - User: {user.username}, Games: {num_games}, "
+                   f"Time Control: {time_control}, Include analyzed: {include_analyzed}, "
+                   f"Depth: {depth}, Use AI: {use_ai}")
+
+        # Validate input
+        if num_games <= 0 or num_games > MAX_BATCH_SIZE:
+            return Response(
+                {"error": f"Number of games must be between 1 and {MAX_BATCH_SIZE}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get games based on criteria
+        games_query = Game.objects.filter(user=user)
+        
+        # Apply time control filter if specified
+        if time_control != 'all':
+            games_query = games_query.filter(time_control=time_control)
+        
+        # Convert include_analyzed to boolean if it's a string
+        if isinstance(include_analyzed, str):
+            include_analyzed = include_analyzed.lower() == 'true'
+            
+        # Filter out analyzed games if specified
+        if not include_analyzed:
+            games_query = games_query.filter(
+                models.Q(analysis__isnull=True) | 
+                models.Q(analysis={})
+            )
+        
+        # Get total count for logging
+        total_games = games_query.count()
+        logger.info(f"Found {total_games} games matching criteria")
+            
+        # Order by most recent first and limit to requested number
+        games = list(games_query.order_by('-date_played')[:num_games])
             
         if not games:
-            return Response({"error": "No games found to analyze"}, status=status.HTTP_400_BAD_REQUEST)
+            logger.warning(f"No games found for user {user.username} with criteria: "
+                         f"time_control={time_control}, include_analyzed={include_analyzed}")
+            return Response(
+                {"error": "No games found matching the criteria. Please check if you have uploaded any games or try including analyzed games."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Create a task group for this batch
-        game_ids = list(games.values_list('id', flat=True))
-        
-        # Start the Celery task
-        task = analyze_batch_games_task.delay(
+        # Create batch analysis task
+        task_manager = TaskManager()
+        game_ids = [game.id for game in games]
+        task_result = task_manager.create_batch_analysis_job(
             game_ids=game_ids,
             depth=depth,
             use_ai=use_ai
         )
-
-        # Return task ID for status checking
+        
+        if task_result.get('status') == 'error' or not task_result.get('task_id'):
+            logger.error(f"Failed to create batch analysis task: {task_result.get('message', 'Unknown error')}")
+            return Response(
+                {"error": task_result.get('message', 'Failed to create batch analysis task')},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+        # Update game statuses to analyzing
+        Game.objects.filter(id__in=game_ids).update(status='analyzing')
+        
+        # Calculate estimated time
+        estimated_time = num_games * 2  # Rough estimate: 2 minutes per game
+        
         return Response({
-            "message": "Batch analysis started",
-            "task_id": task.id,
-            "total_games": len(game_ids),
-            "estimated_time": len(game_ids) * 2  # Rough estimate: 2 minutes per game
+            'task_id': task_result['task_id'],
+            'total_games': len(game_ids),
+            'status': 'PROGRESS',
+            'estimated_time': estimated_time,
+            'message': f'Starting analysis of {len(game_ids)} games'
         })
-
+        
     except Exception as e:
-        logger.error("Error setting up batch analysis: %s", str(e))
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.error(f"Error in batch_analyze view: {str(e)}", exc_info=True)
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def check_batch_analysis_status(request, task_id):
     """Check the status of a batch analysis task."""
     try:
-        task = AsyncResult(task_id)
+        task_manager = TaskManager()
+        task_result = task_manager.get_job_status(task_id)
         
-        if task.ready():
-            if task.successful():
-                result = task.get()
-                
-                # Add feedback source information to the response
-                if isinstance(result, dict) and 'results' in result:
-                    for game_id, game_result in result['results'].items():
-                        if isinstance(game_result, dict) and 'results' in game_result:
-                            analysis_result = game_result['results']
-                            if 'feedback' not in analysis_result:
-                                analysis_result['feedback'] = {
-                                    'source': 'error_fallback',
-                                    'error': 'Failed to generate feedback'
-                                }
-                            elif 'source' not in analysis_result['feedback']:
-                                analysis_result['feedback']['source'] = (
-                                    'openai_analysis' if 'ai_suggestions' in analysis_result['feedback']
-                                    else 'statistical_analysis'
-                                )
-                
-                return Response({
-                    "status": "completed",
-                    "results": result
-                })
-            else:
-                error = str(task.result)
-                return Response({
-                    "status": "failed",
-                    "error": error
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        else:
-            # Get progress from cache
-            progress = cache.get(f"batch_analysis_progress_{task_id}")
-            if progress:
-                # Add feedback source to in-progress results
-                if isinstance(progress, dict) and 'current_results' in progress:
-                    for game_id, game_result in progress['current_results'].items():
-                        if isinstance(game_result, dict) and 'results' in game_result:
-                            analysis_result = game_result['results']
-                            if 'feedback' in analysis_result and 'source' not in analysis_result['feedback']:
-                                analysis_result['feedback']['source'] = (
-                                    'openai_analysis' if 'ai_suggestions' in analysis_result['feedback']
-                                    else 'statistical_analysis'
-                                )
-                
-                return Response({
-                    "status": "in_progress",
-                    "progress": progress
-                })
-            else:
-                return Response({
-                    "status": "in_progress",
-                    "progress": {
-                        "current": 0,
-                        "total": 0
-                    }
-                })
+        if not task_result:
+            return Response({
+                'state': 'FAILURE',
+                'meta': {
+                    'error': 'Task not found',
+                    'current': 0,
+                    'total': 0,
+                    'message': 'Task not found',
+                    'progress': 0
+                }
+            }, status=status.HTTP_404_NOT_FOUND)
+            
+        task_state = task_result.get('status', 'PENDING')
+        task_info = task_result.get('info', {})
+        
+        # Handle different task states
+        if task_state == 'SUCCESS':
+            completed_games = task_info.get('completed_games', [])
+            failed_games = task_info.get('failed_games', [])
+            aggregate_metrics = task_info.get('aggregate_metrics', {})
+            
+            # Fetch completed games data
+            completed_game_data = []
+            if completed_games:
+                completed_game_data = list(Game.objects.filter(
+                    id__in=completed_games
+                ).values('id', 'date_played', 'time_control', 'analysis'))
+            
+            return Response({
+                'state': 'SUCCESS',
+                'meta': {
+                    'current': len(completed_games),
+                    'total': task_info.get('total_games', 0),
+                    'message': task_info.get('message', 'Analysis complete'),
+                    'progress': 100
+                },
+                'completed_games': completed_game_data,
+                'failed_games': failed_games,
+                'aggregate_metrics': aggregate_metrics
+            })
+            
+        elif task_state in ['STARTED', 'PROGRESS']:
+            current = task_info.get('current', 0)
+            total = task_info.get('total', 0)
+            progress = int((current / total * 100) if total > 0 else 0)
+            
+            return Response({
+                'state': 'PROGRESS',
+                'meta': {
+                    'current': current,
+                    'total': total,
+                    'message': task_info.get('message', 'Analysis in progress...'),
+                    'progress': progress
+                }
+            })
+            
+        elif task_state == 'PENDING':
+            return Response({
+                'state': 'PENDING',
+                'meta': {
+                    'current': 0,
+                    'total': task_info.get('total_games', 0),
+                    'message': 'Task pending...',
+                    'progress': 0
+                }
+            })
+            
+        else:  # FAILURE or other states
+            return Response({
+                'state': 'FAILURE',
+                'meta': {
+                    'error': task_info.get('error', 'Task failed'),
+                    'current': 0,
+                    'total': task_info.get('total_games', 0),
+                    'message': task_info.get('message', 'Analysis failed'),
+                    'progress': 0
+                }
+            })
             
     except Exception as e:
-        logger.error(f"Error checking batch analysis status: {str(e)}")
+        logger.error(f"Error checking batch analysis status: {str(e)}", exc_info=True)
         return Response({
-            "status": "error",
-            "error": str(e)
+            'state': 'FAILURE',
+            'meta': {
+                'error': str(e),
+                'current': 0,
+                'total': 0,
+                'message': f'Error checking status: {str(e)}',
+                'progress': 0
+            }
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def generate_dynamic_feedback(results):
@@ -975,49 +1076,46 @@ def game_analysis_view(request, game_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_view(request):
-    """
-    Return user-specific games and statistics for the dashboard.
-    """
+    """Get user dashboard data."""
     user = request.user
     games = Game.objects.filter(user=user)
     
-    # Calculate statistics
-    total_games = games.count()
-    analyzed_games = games.exclude(analysis__isnull=True).count()
-    unanalyzed_games = total_games - analyzed_games
+    # Get the user's profile for rating
+    profile = Profile.objects.get(user=user)
     
-    # Calculate win/loss/draw statistics
-    wins = games.filter(result__iexact='win').count()
-    losses = games.filter(result__iexact='loss').count()
-    draws = games.filter(result__iexact='draw').count()
+    # Calculate basic statistics
+    total_games = games.count()
+    
+    # Calculate win rate
+    win_rate = 0
+    if total_games > 0:
+        wins = games.filter(result='win').count()
+        win_rate = round((wins / total_games) * 100, 2)
+    
+    # Calculate average accuracy from analyzed games
+    analyzed_games = games.filter(analysis__isnull=False)
+    avg_accuracy = 0
+    if analyzed_games.exists():
+        accuracies = [
+            game.analysis.get('average_accuracy', 0) 
+            for game in analyzed_games 
+            if isinstance(game.analysis, dict)
+        ]
+        if accuracies:
+            avg_accuracy = round(sum(accuracies) / len(accuracies), 2)
     
     # Get recent games
     recent_games = games.order_by('-date_played')[:5].values(
-        'id',
-        'platform',
-        'white',
-        'black',
-        'opponent',
-        'result',
-        'date_played',
-        'opening_name',
-        'analysis'
+        'id', 'white', 'black', 'result', 'opening_name', 'date_played', 'opponent', 'analysis'
     )
     
-    response_data = {
+    return Response({
         'total_games': total_games,
-        'analyzed_games': analyzed_games,
-        'unanalyzed_games': unanalyzed_games,
-        'statistics': {
-            'wins': wins,
-            'losses': losses,
-            'draws': draws,
-            'win_rate': round((wins / total_games * 100) if total_games > 0 else 0, 2)
-        },
-        'recent_games': list(recent_games)
-    }
-    
-    return Response(response_data, status=status.HTTP_200_OK)
+        'win_rate': win_rate,
+        'average_accuracy': avg_accuracy,
+        'credits': profile.credits,
+        'recent_games': list(recent_games)  # Convert to list to ensure serialization
+    })
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -1131,8 +1229,8 @@ def purchase_credits(request):
             })
         except Exception as e:
             logger.error(f"Error in PaymentProcessor: {str(e)}")
-            return Response({
-                'error': 'Error creating checkout session',
+            return Response(
+                {'error': 'Error creating checkout session',
                 'details': str(e)
             }, status=500)
             
@@ -1234,12 +1332,11 @@ def token_refresh_view(request):
     except Exception as e:
         return Response({'error': str(e)}, status=400)
 
+@csrf_exempt  # Exempt from CSRF as user isn't logged in
 @rate_limit(endpoint_type='AUTH')
 @api_view(['POST'])
 def request_password_reset(request):
-    """
-    Handle password reset request.
-    """
+    """Handle password reset request."""
     try:
         email = request.data.get("email")
         if not email:
@@ -1446,7 +1543,576 @@ def csrf(request):
     """
     Set CSRF cookie and return it in the response.
     """
-    return JsonResponse({
+    token = get_token(request)
+    response = JsonResponse({
         "detail": "CSRF cookie set",
-        "csrfToken": get_token(request)
+        "csrfToken": token
     })
+    response.set_cookie(
+        'csrftoken',
+        token,
+        max_age=None,  # Session length
+        path='/',
+        secure=False,  # Set to True in production with HTTPS
+        samesite='None',  # Required for cross-origin requests
+        httponly=False  # Allow JavaScript access
+    )
+    return response
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_ai_feedback(request, game_id):
+    """Generate AI feedback for an analyzed game."""
+    try:
+        game = Game.objects.get(id=game_id, user=request.user)
+        
+        if not game.analysis or not game.analysis.get('analysis_complete'):
+            return Response(
+                {"error": "Game must be analyzed first"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Check if user has enough credits
+        profile = Profile.objects.get(user=request.user)
+        if profile.credits < 1:
+            return Response(
+                {"error": "Insufficient credits"},
+                status=status.HTTP_402_PAYMENT_REQUIRED
+            )
+            
+        try:
+            analyzer = GameAnalyzer()
+            feedback = analyzer.generate_ai_feedback(game.analysis['moves'], game)
+            
+            # Update game with feedback
+            game.analysis['ai_feedback'] = feedback
+            game.analysis['ai_feedback_status'] = 'completed'
+            game.save()
+            
+            # Deduct credits
+            profile.credits -= 1
+            profile.save()
+            
+            return Response({
+                'status': 'success',
+                'feedback': feedback
+            })
+            
+        except OpenAIError as e:
+            logger.error(f"OpenAI API error: {str(e)}")
+            game.analysis['ai_feedback_status'] = 'failed'
+            game.save()
+            return Response({
+                'status': 'error',
+                'error': 'AI feedback temporarily unavailable',
+                'detail': str(e)
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            
+    except Game.DoesNotExist:
+        return Response(
+            {"error": "Game not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error generating AI feedback: {str(e)}", exc_info=True)
+        return Response(
+            {"error": "Internal server error"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_profile(request):
+    """
+    Retrieve profile data for the logged-in user.
+    """
+    try:
+        profile = Profile.objects.get(user=request.user)
+        games = Game.objects.filter(user=request.user)
+        
+        # Calculate total games and win rate
+        total_games = games.count()
+        wins = games.filter(result='win').count()
+        win_rate = round((wins / total_games) * 100, 2) if total_games > 0 else 0
+        
+        # Calculate average accuracy from analyzed games
+        analyzed_games = games.filter(analysis__isnull=False).count()
+        avg_accuracy = 0
+        if analyzed_games > 0:
+            accuracies = [
+                game.analysis.get('average_accuracy', 0) 
+                for game in games.filter(analysis__isnull=False) 
+                if isinstance(game.analysis, dict)
+            ]
+            if accuracies:
+                avg_accuracy = round(sum(accuracies) / len(accuracies), 2)
+        
+        # Get achievements
+        achievements = calculate_achievements(profile, games)
+        
+        # Calculate performance statistics for each time control
+        performance_stats = profile.get_performance_stats()
+        
+        # Calculate time control distribution
+        time_control_distribution = {
+            'bullet': 0,
+            'blitz': 0,
+            'rapid': 0,
+            'classical': 0
+        }
+        
+        # First count games in each category
+        valid_games = 0
+        for game in games:
+            time_category = game.get_time_control_category()
+            if time_category:
+                time_control_distribution[time_category] += 1
+                valid_games += 1
+        
+        # Then calculate percentages based on valid games count
+        if valid_games > 0:
+            for category in time_control_distribution:
+                time_control_distribution[category] = round(
+                    (time_control_distribution[category] / valid_games) * 100, 2
+                )
+        
+        # Get rating history
+        rating_history = profile.get_rating_history()
+        
+        profile_data = {
+            'username': request.user.username,
+            'email': request.user.email,
+            'credits': profile.credits,
+            'chesscom_username': profile.chesscom_username,
+            'lichess_username': profile.lichess_username,
+            'current_ratings': {
+                'bullet': profile.bullet_rating,
+                'blitz': profile.blitz_rating,
+                'rapid': profile.rapid_rating,
+                'classical': profile.classical_rating
+            },
+            'rating_history': rating_history,
+            'performance_stats': performance_stats,
+            'total_games': total_games,
+            'win_rate': win_rate,
+            'average_accuracy': avg_accuracy,
+            'achievements': achievements,
+            'time_control_distribution': time_control_distribution
+        }
+        
+        return Response(profile_data)
+        
+    except Profile.DoesNotExist:
+        return Response(
+            {"error": "Profile not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error in get_profile: {str(e)}", exc_info=True)
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+def calculate_time_control_stats(games):
+    """Calculate statistics for different time controls."""
+    stats = {
+        'bullet': {'count': 0, 'wins': 0},
+        'blitz': {'count': 0, 'wins': 0},
+        'rapid': {'count': 0, 'wins': 0},
+        'classical': {'count': 0, 'wins': 0}
+    }
+    
+    for game in games:
+        category = game.get_time_control_category()
+        if category:
+            stats[category]['count'] += 1
+            if game.result == 'win':
+                stats[category]['wins'] += 1
+    
+    return stats
+
+def calculate_opening_stats(games):
+    """Calculate statistics for openings."""
+    openings = {}
+    for game in games:
+        opening = game.opening_name
+        if opening not in openings:
+            openings[opening] = {'count': 0, 'wins': 0}
+        openings[opening]['count'] += 1
+        if game.result == 'win':
+            openings[opening]['wins'] += 1
+    
+    # Sort by frequency and get top 5
+    sorted_openings = dict(sorted(openings.items(), key=lambda x: x[1]['count'], reverse=True)[:5])
+    return sorted_openings
+
+def calculate_color_performance(games):
+    """Calculate performance statistics for white and black pieces."""
+    stats = {
+        'white': {'games': 0, 'wins': 0},
+        'black': {'games': 0, 'wins': 0}
+    }
+    
+    for game in games:
+        if game.white.lower() == game.user.username.lower():
+            stats['white']['games'] += 1
+            if game.result == 'win':
+                stats['white']['wins'] += 1
+        else:
+            stats['black']['games'] += 1
+            if game.result == 'win':
+                stats['black']['wins'] += 1
+    
+    return stats
+
+def calculate_achievements(profile, games):
+    """Calculate user achievements."""
+    achievements = []
+    
+    # Games played achievements
+    games_count = games.count()
+    achievements.extend([
+        {
+            'name': 'Novice Player',
+            'description': 'Play your first game',
+            'icon': 'award',
+            'completed': games_count >= 1,
+            'progress': min(games_count, 1),
+            'target': 1
+        },
+        {
+            'name': 'Dedicated Player',
+            'description': 'Play 50 games',
+            'icon': 'award',
+            'completed': games_count >= 50,
+            'progress': min(games_count, 50),
+            'target': 50
+        },
+        {
+            'name': 'Century Player',
+            'description': 'Play 100 games',
+            'icon': 'trophy',
+            'completed': games_count >= 100,
+            'progress': min(games_count, 100),
+            'target': 100
+        },
+        {
+            'name': 'Chess Veteran',
+            'description': 'Play 500 games',
+            'icon': 'trophy',
+            'completed': games_count >= 500,
+            'progress': min(games_count, 500),
+            'target': 500
+        }
+    ])
+    
+    # Rating achievements
+    max_rating = max(
+        profile.bullet_rating,
+        profile.blitz_rating,
+        profile.rapid_rating,
+        profile.classical_rating
+    )
+    achievements.extend([
+        {
+            'name': 'Rising Star',
+            'description': 'Reach 1400 rating',
+            'icon': 'trending-up',
+            'completed': max_rating >= 1400,
+            'progress': min(max_rating, 1400),
+            'target': 1400
+        },
+        {
+            'name': 'Intermediate',
+            'description': 'Reach 1600 rating',
+            'icon': 'trending-up',
+            'completed': max_rating >= 1600,
+            'progress': min(max_rating, 1600),
+            'target': 1600
+        },
+        {
+            'name': 'Advanced',
+            'description': 'Reach 1800 rating',
+            'icon': 'trending-up',
+            'completed': max_rating >= 1800,
+            'progress': min(max_rating, 1800),
+            'target': 1800
+        },
+        {
+            'name': 'Expert',
+            'description': 'Reach 2000 rating',
+            'icon': 'star',
+            'completed': max_rating >= 2000,
+            'progress': min(max_rating, 2000),
+            'target': 2000
+        },
+        {
+            'name': 'Master',
+            'description': 'Reach 2200 rating',
+            'icon': 'crown',
+            'completed': max_rating >= 2200,
+            'progress': min(max_rating, 2200),
+            'target': 2200
+        }
+    ])
+    
+    # Win streak achievements
+    win_streak = 0
+    max_win_streak = 0
+    for game in games.order_by('date_played'):
+        if game.result == 'win':
+            win_streak += 1
+            max_win_streak = max(max_win_streak, win_streak)
+        else:
+            win_streak = 0
+    
+    achievements.extend([
+        {
+            'name': 'Winning Streak',
+            'description': 'Win 3 games in a row',
+            'icon': 'zap',
+            'completed': max_win_streak >= 3,
+            'progress': min(max_win_streak, 3),
+            'target': 3
+        },
+        {
+            'name': 'Hot Streak',
+            'description': 'Win 5 games in a row',
+            'icon': 'flame',
+            'completed': max_win_streak >= 5,
+            'progress': min(max_win_streak, 5),
+            'target': 5
+        },
+        {
+            'name': 'Unstoppable',
+            'description': 'Win 10 games in a row',
+            'icon': 'fire',
+            'completed': max_win_streak >= 10,
+            'progress': min(max_win_streak, 10),
+            'target': 10
+        }
+    ])
+    
+    # Analysis achievements
+    analyzed_games = games.filter(analysis__isnull=False).count()
+    achievements.extend([
+        {
+            'name': 'Analyst',
+            'description': 'Analyze your first game',
+            'icon': 'search',
+            'completed': analyzed_games >= 1,
+            'progress': min(analyzed_games, 1),
+            'target': 1
+        },
+        {
+            'name': 'Deep Thinker',
+            'description': 'Analyze 10 games',
+            'icon': 'brain',
+            'completed': analyzed_games >= 10,
+            'progress': min(analyzed_games, 10),
+            'target': 10
+        },
+        {
+            'name': 'Chess Student',
+            'description': 'Analyze 50 games',
+            'icon': 'book',
+            'completed': analyzed_games >= 50,
+            'progress': min(analyzed_games, 50),
+            'target': 50
+        }
+    ])
+    
+    # Platform achievements
+    has_chesscom = bool(profile.chesscom_username)
+    has_lichess = bool(profile.lichess_username)
+    achievements.extend([
+        {
+            'name': 'Chess.com Player',
+            'description': 'Link your Chess.com account',
+            'icon': 'link',
+            'completed': has_chesscom,
+            'progress': 1 if has_chesscom else 0,
+            'target': 1
+        },
+        {
+            'name': 'Lichess Player',
+            'description': 'Link your Lichess account',
+            'icon': 'link',
+            'completed': has_lichess,
+            'progress': 1 if has_lichess else 0,
+            'target': 1
+        },
+        {
+            'name': 'Chess Master',
+            'description': 'Link both Chess.com and Lichess accounts',
+            'icon': 'award',
+            'completed': has_chesscom and has_lichess,
+            'progress': (1 if has_chesscom else 0) + (1 if has_lichess else 0),
+            'target': 2
+        }
+    ])
+    
+    return achievements
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def link_account(request):
+    """Link a chess platform account to the user's profile."""
+    try:
+        platform = request.data.get('platform')
+        username = request.data.get('username')
+
+        if not platform or not username:
+            return Response(
+                {"error": "Platform and username are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if platform not in ['chess.com', 'lichess']:
+            return Response(
+                {"error": "Invalid platform"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Update the profile
+        profile = Profile.objects.get(user=request.user)
+        
+        # Update username based on platform
+        if platform == 'chess.com':
+            profile.chesscom_username = username
+        else:
+            profile.lichess_username = username
+
+        # Get the latest game for this platform and username
+        latest_game = Game.objects.filter(
+            user=request.user,
+            platform=platform
+        ).filter(
+            models.Q(white__iexact=username) |
+            models.Q(black__iexact=username)
+        ).order_by('-date_played').first()
+
+        # Update ratings from the latest game if available
+        if latest_game:
+            time_category = latest_game.get_time_control_category()
+            if time_category:
+                is_white = (
+                    (platform == 'chess.com' and latest_game.white.lower() == username.lower()) or
+                    (platform == 'lichess' and latest_game.white.lower() == username.lower())
+                )
+                rating = latest_game.white_elo if is_white else latest_game.black_elo
+                if rating:
+                    if time_category == 'bullet':
+                        profile.bullet_rating = rating
+                    elif time_category == 'blitz':
+                        profile.blitz_rating = rating
+                    elif time_category == 'rapid':
+                        profile.rapid_rating = rating
+                    elif time_category == 'classical':
+                        profile.classical_rating = rating
+
+        profile.save()
+
+        return Response({
+            "message": f"Successfully linked {platform} account",
+            "username": username
+        })
+    except Profile.DoesNotExist:
+        return Response(
+            {"error": "Profile not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error linking account: {str(e)}")
+        return Response(
+            {"error": "An error occurred while linking the account"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def unlink_account(request):
+    """Unlink a chess platform account."""
+    try:
+        platform = request.data.get('platform')
+        if not platform:
+            return Response(
+                {"error": "Platform is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        profile = request.user.profile
+        
+        # Get the latest game before unlinking
+        latest_game = None
+        if platform == 'chess.com' and profile.chesscom_username:
+            latest_game = (
+                Game.objects.filter(
+                    user=request.user,
+                    platform='chess.com'
+                ).filter(
+                    models.Q(white__iexact=profile.chesscom_username) |
+                    models.Q(black__iexact=profile.chesscom_username)
+                ).order_by('-date_played').first()
+            )
+            profile.chesscom_username = None
+        elif platform == 'lichess' and profile.lichess_username:
+            latest_game = (
+                Game.objects.filter(
+                    user=request.user,
+                    platform='lichess'
+                ).filter(
+                    models.Q(white__iexact=profile.lichess_username) |
+                    models.Q(black__iexact=profile.lichess_username)
+                ).order_by('-date_played').first()
+            )
+            profile.lichess_username = None
+        else:
+            return Response(
+                {"error": "No account to unlink"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Save profile first to update username
+        profile.save()
+
+        # If no accounts are linked, reset ratings and history
+        if not profile.chesscom_username and not profile.lichess_username:
+            profile.bullet_rating = 1200
+            profile.blitz_rating = 1200
+            profile.rapid_rating = 1200
+            profile.classical_rating = 1200
+            profile.rating_history = {}
+            profile.save()
+            
+            # Clear any stored rating changes
+            if profile.preferences:
+                keys_to_remove = [key for key in profile.preferences.keys() if key.startswith('last_rating_change_')]
+                for key in keys_to_remove:
+                    del profile.preferences[key]
+                profile.save()
+        else:
+            # Update ratings based on remaining linked account
+            profile.update_ratings_for_existing_games()
+
+        return Response({
+            "message": f"{platform} account unlinked successfully",
+            "ratings": {
+                "bullet": profile.bullet_rating,
+                "blitz": profile.blitz_rating,
+                "rapid": profile.rapid_rating,
+                "classical": profile.classical_rating
+            }
+        })
+    except Profile.DoesNotExist:
+        return Response(
+            {"error": "Profile not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error unlinking account: {str(e)}")
+        return Response(
+            {"error": "An error occurred while unlinking the account"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

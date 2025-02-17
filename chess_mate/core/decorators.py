@@ -4,6 +4,9 @@ from django.http import JsonResponse
 from django.core.exceptions import ImproperlyConfigured
 from .rate_limiter import RateLimiter
 import logging
+from django.views.decorators.csrf import csrf_exempt
+from django.middleware.csrf import rotate_token
+from django.http import HttpResponse
 
 logger = logging.getLogger(__name__)
 
@@ -71,3 +74,29 @@ def rate_limit(endpoint_type: str = 'DEFAULT') -> Callable:
                 
         return _wrapped_view
     return decorator 
+
+def auth_csrf_exempt(view_func):
+    """
+    Decorator that exempts auth views from CSRF protection but ensures
+    CSRF token is rotated after successful authentication.
+    """
+    @wraps(view_func)
+    @csrf_exempt
+    def wrapped_view(request, *args, **kwargs):
+        response = view_func(request, *args, **kwargs)
+        
+        # Only rotate token for successful auth (status code 2xx)
+        if 200 <= response.status_code < 300:
+            rotate_token(request)
+            
+            # If the response is JSON, we need to ensure it's converted to HttpResponse
+            if not isinstance(response, HttpResponse):
+                response = HttpResponse(
+                    response.content,
+                    content_type=response.get('Content-Type', 'application/json'),
+                    status=response.status_code
+                )
+        
+        return response
+    
+    return wrapped_view 

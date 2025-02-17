@@ -47,10 +47,22 @@ export const registerUser = async (userData) => {
 
 export const fetchUserGames = async () => {
     try {
-        const response = await api.get("/api/dashboard/");
-        return response.data.games;
+        console.log('Fetching user games...');
+        const response = await api.get("/api/games/");
+        console.log('Games response:', response.data);
+        
+        if (!Array.isArray(response.data)) {
+            console.error('Invalid response format:', response.data);
+            return [];
+        }
+        
+        return response.data;
     } catch (error) {
-        throw error.response?.data || new Error("Failed to fetch games");
+        console.error('Error fetching games:', error);
+        if (error.response?.status === 401) {
+            throw new Error("Please log in to view your games");
+        }
+        throw new Error(error.response?.data?.message || "Failed to fetch games");
     }
 };
 
@@ -58,13 +70,27 @@ export const fetchExternalGames = async (platform, username, gameType) => {
     try {
         const effectiveGameType = gameType === "all" ? "rapid" : gameType;
         const response = await api.post("/api/fetch-games/", {
-            platform,
-            username,
-            game_type: effectiveGameType
+            platform: platform.toLowerCase(),
+            username: username.trim(),
+            game_type: effectiveGameType,
+            num_games: 10
         });
+        
+        if (response.data.error) {
+            throw new Error(response.data.error);
+        }
+        
+        console.log('Fetch games response:', response.data);
         return response.data;
     } catch (error) {
-        throw error.response?.data || new Error("Failed to fetch external games");
+        console.error('Fetch games error:', error);
+        if (error.response?.status === 401) {
+            throw new Error("Please log in to fetch games");
+        }
+        if (error.response?.status === 402) {
+            throw new Error("Insufficient credits. Please purchase more credits to fetch games.");
+        }
+        throw new Error(error.response?.data?.error || error.message || "Failed to fetch external games");
     }
 };
 
@@ -92,12 +118,18 @@ export const analyzeBatchGames = async (numGames) => {
     }
 };
 
-export const checkAnalysisStatus = async (gameId) => {
+export const checkAnalysisStatus = async (taskId) => {
     try {
-        const response = await api.get(`/api/game/${gameId}/analysis/status/`);
+        const response = await api.get(`/api/game/analysis/status/${taskId}/`);
         return response.data;
     } catch (error) {
-        throw error.response?.data || new Error("Failed to check analysis status");
+        if (error.response?.status === 401) {
+            throw new Error("Session expired. Please log in again.");
+        }
+        if (error.response?.status === 404) {
+            throw new Error("Analysis task not found.");
+        }
+        throw new Error(error.response?.data?.error || "Failed to check analysis status.");
     }
 };
 
@@ -170,7 +202,7 @@ export const resetPassword = async (uid, token, newPassword) => {
 
 export const analyzeSpecificGame = async (gameId) => {
     try {
-        const response = await api.post(`/api/game/${gameId}/analysis/`, {
+        const response = await api.post(`/api/game/${gameId}/analyze/`, {
             depth: 20,
             use_ai: true
         });
@@ -179,6 +211,9 @@ export const analyzeSpecificGame = async (gameId) => {
         if (error.response?.status === 401) {
             throw new Error("Session expired. Please log in again.");
         }
-        throw new Error(error.response?.data || "Failed to analyze game. Please try again.");
+        if (error.response?.status === 402) {
+            throw new Error("Insufficient credits. Please purchase more credits to analyze games.");
+        }
+        throw new Error(error.response?.data?.error || "Failed to analyze game. Please try again.");
     }
 }; 

@@ -39,6 +39,8 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+.env.prod
+
 *.env
 */.env
 */frontend/.env
@@ -86,10 +88,10 @@ Thumbs.db
 # Deployment
 deploy_script.sh
 *.sock
-
 # Temporary files
 *.tmp
 *.temp
 *.bak
 *.swp
 *~
+

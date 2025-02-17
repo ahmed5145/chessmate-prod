@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { User, Mail, Settings } from "lucide-react";
-import { getUserProfile, updateUserProfile } from "../api";
+import { getUserProfile, updateUserProfile } from "../services/apiRequests";
 
 const UserProfile = () => {
   const [profile, setProfile] = useState(null);

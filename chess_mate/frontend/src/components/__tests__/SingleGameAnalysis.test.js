@@ -3,10 +3,10 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import SingleGameAnalysis from '../SingleGameAnalysis';
-import { analyzeSpecificGame } from '../../api';
+import { analyzeSpecificGame } from '../../services/apiRequests';
 
 // Mock the API call
-jest.mock('../../api', () => ({
+jest.mock('../../services/apiRequests', () => ({
   analyzeSpecificGame: jest.fn(),
 }));
 

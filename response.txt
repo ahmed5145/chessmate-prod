@@ -1,0 +1,827 @@
+{
+    "analysis": {
+        "depth": 20,
+        "source": "openai_analysis",
+        "feedback": {
+            "depth": 20,
+            "source": "stockfish",
+            "timestamp": "2025-02-15T17:50:13.266600",
+            "analysis_results": {
+                "summary": {
+                    "phases": {},
+                    "overall": {
+                        "accuracy": 0.0,
+                        "blunders": 0,
+                        "mistakes": 0
+                    },
+                    "tactics": {},
+                    "advantage": {},
+                    "positional": {},
+                    "resourcefulness": null,
+                    "time_management": {}
+                },
+                "strengths": [],
+                "weaknesses": [],
+                "critical_moments": [],
+                "improvement_areas": "Analysis failed"
+            },
+            "analysis_complete": true
+        },
+        "timestamp": "2025-02-15T17:50:13.266600",
+        "analysis_results": [
+            {
+                "move": "d2d4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.6
+            },
+            {
+                "move": "d7d5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.7
+            },
+            {
+                "move": "c1f4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "b8c6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8500000000000001
+            },
+            {
+                "move": "e2e3",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9000000000000001
+            },
+            {
+                "move": "f7f6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9000000000000001
+            },
+            {
+                "move": "g1f3",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9000000000000001
+            },
+            {
+                "move": "g7g5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9000000000000001
+            },
+            {
+                "move": "f3g5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 1.0
+            },
+            {
+                "move": "f6g5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 1.0
+            },
+            {
+                "move": "d1h5",
+                "depth": 20,
+                "score": 0,
+                "is_check": true,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9500000000000002
+            },
+            {
+                "move": "e8d7",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.6749999999999999
+            },
+            {
+                "move": "f4g5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 1.0
+            },
+            {
+                "move": "g8f6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9500000000000002
+            },
+            {
+                "move": "g5f6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.9500000000000002
+            },
+            {
+                "move": "e7f6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.9500000000000002
+            },
+            {
+                "move": "h5d5",
+                "depth": 20,
+                "score": 0,
+                "is_check": true,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.9000000000000001
+            },
+            {
+                "move": "d7e8",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.625
+            },
+            {
+                "move": "f1b5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9500000000000002
+            },
+            {
+                "move": "c8d7",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9500000000000002
+            },
+            {
+                "move": "d5h5",
+                "depth": 20,
+                "score": 0,
+                "is_check": true,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9500000000000002
+            },
+            {
+                "move": "e8e7",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.5249999999999999
+            },
+            {
+                "move": "b5c4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8500000000000001
+            },
+            {
+                "move": "d8e8",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "h5e8",
+                "depth": 20,
+                "score": 0,
+                "is_check": true,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.8500000000000001
+            },
+            {
+                "move": "a8e8",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.6
+            },
+            {
+                "move": "e1g1",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.75
+            },
+            {
+                "move": "e7d8",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.75
+            },
+            {
+                "move": "b1c3",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "a7a6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "c3d5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8500000000000001
+            },
+            {
+                "move": "f8e7",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 1.0
+            },
+            {
+                "move": "a2a3",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 1.0
+            },
+            {
+                "move": "d7e6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 1.0
+            },
+            {
+                "move": "d5e7",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 1.0
+            },
+            {
+                "move": "e8e7",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.8500000000000001
+            },
+            {
+                "move": "c4e6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.8500000000000001
+            },
+            {
+                "move": "e7e6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.75
+            },
+            {
+                "move": "b2b4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "e6d6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8500000000000001
+            },
+            {
+                "move": "c2c4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "b7b5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "c4c5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8500000000000001
+            },
+            {
+                "move": "d6d7",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8500000000000001
+            },
+            {
+                "move": "f1d1",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "d8c8",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "a1c1",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "h8d8",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "f2f3",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "f6f5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "d4d5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "d7d5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "d1d5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.9000000000000001
+            },
+            {
+                "move": "d8d5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "e3e4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "f5e4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 1.0
+            },
+            {
+                "move": "f3e4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.9500000000000002
+            },
+            {
+                "move": "d5e5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9000000000000001
+            },
+            {
+                "move": "c1f1",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9000000000000001
+            },
+            {
+                "move": "a6a5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9000000000000001
+            },
+            {
+                "move": "f1f6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9500000000000002
+            },
+            {
+                "move": "c8b7",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.9500000000000002
+            },
+            {
+                "move": "b4a5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 1.0
+            },
+            {
+                "move": "c6a5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.8500000000000001
+            },
+            {
+                "move": "f6f7",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.8
+            },
+            {
+                "move": "e5e4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.8500000000000001
+            },
+            {
+                "move": "f7h7",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.75
+            },
+            {
+                "move": "e4a4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.75
+            },
+            {
+                "move": "h7h3",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.65
+            },
+            {
+                "move": "a5c4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.65
+            },
+            {
+                "move": "h3b3",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.65
+            },
+            {
+                "move": "c7c6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.65
+            },
+            {
+                "move": "h2h4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.7
+            },
+            {
+                "move": "a4a3",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.7
+            },
+            {
+                "move": "b3a3",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.7
+            },
+            {
+                "move": "c4a3",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": true,
+                "time_spent": 0.0,
+                "position_complexity": 0.5
+            },
+            {
+                "move": "h4h5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.375
+            },
+            {
+                "move": "a3c4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.44999999999999996
+            },
+            {
+                "move": "h5h6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.375
+            },
+            {
+                "move": "c4e5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.575
+            },
+            {
+                "move": "g2g4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.475
+            },
+            {
+                "move": "b5b4",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.6499999999999999
+            },
+            {
+                "move": "g4g5",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.475
+            },
+            {
+                "move": "b4b3",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.6499999999999999
+            },
+            {
+                "move": "h6h7",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.475
+            },
+            {
+                "move": "e5g6",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.6499999999999999
+            },
+            {
+                "move": "g1f2",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.42500000000000004
+            },
+            {
+                "move": "b3b2",
+                "depth": 20,
+                "score": 0,
+                "is_check": false,
+                "is_capture": false,
+                "time_spent": 0.0,
+                "position_complexity": 0.525
+            }
+        ],
+        "analysis_complete": true
+    }
+}

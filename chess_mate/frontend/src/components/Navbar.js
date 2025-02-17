@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LogOut, 
@@ -19,15 +19,22 @@ import {
 import { toast } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
-import { logoutUser } from '../services/apiRequests';
+import { logoutUser, fetchProfileData } from '../services/apiRequests';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { credits, setCredits } = useUser();
+  const { credits, setCredits, refreshUserData } = useUser();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const isLoggedIn = !!localStorage.getItem('tokens');
+
+  // Refresh user data on mount and when location changes
+  useEffect(() => {
+    if (isLoggedIn) {
+      refreshUserData();
+    }
+  }, [isLoggedIn, location.pathname]);
 
   const handleLogout = async () => {
     try {
@@ -66,7 +73,7 @@ const Navbar = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link 
-              to="/dashboard" 
+              to={isLoggedIn ? "/dashboard" : "/"} 
               className={`flex items-center space-x-2 text-xl font-bold ${
                 isDarkMode ? 'text-white hover:text-primary-300' : 'text-gray-900 hover:text-primary-600'
               } transition-colors duration-200`}

@@ -1,5 +1,4 @@
 import React from 'react';
-import { BrowserRouter as Router } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { ThemeProvider } from './context/ThemeContext';
 import { UserProvider } from './contexts/UserContext';
@@ -11,31 +10,29 @@ function App() {
   return (
     <ThemeProvider>
       <UserProvider>
-        <Router>
-          <div className="min-h-screen flex flex-col">
-            <Navbar />
-            <main className="flex-1 pt-16">
-              <AppRoutes />
-            </main>
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                success: {
-                  style: {
-                    background: 'var(--success-bg)',
-                    color: 'var(--success-color)',
-                  },
+        <div className="min-h-screen flex flex-col">
+          <Navbar />
+          <main className="flex-1 pt-16">
+            <AppRoutes />
+          </main>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              success: {
+                style: {
+                  background: 'var(--success-bg)',
+                  color: 'var(--success-color)',
                 },
-                error: {
-                  style: {
-                    background: 'var(--error-bg)',
-                    color: 'var(--error-color)',
-                  },
+              },
+              error: {
+                style: {
+                  background: 'var(--error-bg)',
+                  color: 'var(--error-color)',
                 },
-              }}
-            />
-          </div>
-        </Router>
+              },
+            }}
+          />
+        </div>
       </UserProvider>
     </ThemeProvider>
   );

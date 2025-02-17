@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { getUserProfile } from '../services/apiRequests';
+import api from '../services/api';
 
 const UserContext = createContext();
 
@@ -8,7 +9,7 @@ export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchCredits = useCallback(async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       const tokens = localStorage.getItem('tokens');
       if (!tokens) {
@@ -16,22 +17,51 @@ export const UserProvider = ({ children }) => {
         return;
       }
 
+      // Set authorization header
+      const { access } = JSON.parse(tokens);
+      api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+
+      // Fetch profile data
       const profileData = await getUserProfile();
-      if (profileData && typeof profileData.credits === 'number') {
-        setCredits(profileData.credits);
+      if (profileData) {
         setUser(profileData);
+        setCredits(profileData.credits);
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error fetching user data:', error);
+      // If unauthorized, clear tokens
+      if (error.response?.status === 401) {
+        localStorage.removeItem('tokens');
+        delete api.defaults.headers.common['Authorization'];
+      }
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Fetch credits when the component mounts and when tokens change
+  // Refresh user data function
+  const refreshUserData = useCallback(async () => {
+    try {
+      const tokens = localStorage.getItem('tokens');
+      if (!tokens) return;
+
+      const { access } = JSON.parse(tokens);
+      api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+
+      const profileData = await getUserProfile();
+      if (profileData) {
+        setUser(profileData);
+        setCredits(profileData.credits);
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  }, []);
+
+  // Fetch user data when the component mounts and when tokens change
   useEffect(() => {
-    fetchCredits();
-  }, [fetchCredits]);
+    fetchUserData();
+  }, [fetchUserData]);
 
   const value = {
     credits,
@@ -39,7 +69,8 @@ export const UserProvider = ({ children }) => {
     user,
     setUser,
     isLoading,
-    fetchCredits
+    fetchUserData,
+    refreshUserData
   };
 
   return (

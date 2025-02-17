@@ -6,7 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Union
 from dotenv import load_dotenv
-import logging
+from .logging_config import LOGGING
 import platform
 
 # Load environment variables first
@@ -24,8 +24,26 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 # OpenAI Settings
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_MODEL = 'gpt-3.5-turbo'
+OPENAI_MAX_TOKENS = 500
+OPENAI_TEMPERATURE = 0.7
+OPENAI_RATE_LIMIT = {
+    'max_requests': 100 if os.getenv('TEST_MODE', 'False').lower() == 'true' else 50,
+    'window_seconds': 60 if os.getenv('TEST_MODE', 'False').lower() == 'true' else 3600,
+    'min_interval': 0.1 if os.getenv('TEST_MODE', 'False').lower() == 'true' else 0.5,
+}
+OPENAI_CACHE_KEY = 'openai_rate_limit'
+OPENAI_CACHE_TIMEOUT = 3600
 
-ALLOWED_HOSTS = ['3.133.97.72', 'localhost', '127.0.0.1']
+
+ALLOWED_HOSTS = [
+    '3.133.97.72',
+    'localhost',
+    '127.0.0.1',
+    'web',
+    'ec2-3-133-97-72.us-east-2.compute.amazonaws.com'
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -50,8 +68,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'chess_mate.telemetry.middleware.TelemetryMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware'
 ]
 
 ROOT_URLCONF = 'chess_mate.urls'
@@ -153,25 +170,93 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Redis settings
+REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+REDIS_DB = int(os.getenv('REDIS_DB', 0))
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+
+# Cache settings
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+    },
+    'local': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+    }
+}
+
+# Analysis Cache TTL (24 hours)
+ANALYSIS_CACHE_TTL = 86400
+
+# Cache time to live is 15 minutes
+CACHE_TTL = 60 * 15
+
+# Rate Limiting Settings
+RATE_LIMIT = {
+    'DEFAULT': {
+        'MAX_REQUESTS': 100,
+        'TIME_WINDOW': 60,
+        'BACKEND': 'local',  # Use the local Redis cache for rate limiting
+    },
+    'AUTH': {
+        'MAX_REQUESTS': 5,
+        'TIME_WINDOW': 60,
+        'BACKEND': 'local',  # Use the local Redis cache for rate limiting
+    },
+    'ANALYSIS': {
+        'MAX_REQUESTS': 3,
+        'TIME_WINDOW': 60,
+    },
+    'CREDITS': {
+        'MAX_REQUESTS': 5,
+        'TIME_WINDOW': 60,
+    },
+    'GAMES': {
+        'MAX_REQUESTS': 10,
+        'TIME_WINDOW': 60,
+    },
+}
+
+RATE_LIMIT_BACKEND = "local"  # Use local memory cache for rate limiting
+
+# Logging Configuration
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
+
+# Session settings
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+
+# JWT settings
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+}
+
 # CORS settings
 CORS_ALLOW_CREDENTIALS = True
-
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://3.133.97.72',
-    'http://localhost:8000',
-    'http://127.0.0.1:8000'
-]
-
 CORS_ALLOWED_ORIGINS = [
-    "http://3.133.97.72",
-    "http://ec2-3-133-97-72.us-east-2.compute.amazonaws.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000"
 ]
+
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -192,31 +277,40 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
-    'x-request-id',
-    'access-control-allow-credentials',
-    'access-control-allow-origin'
+    'baggage',
+    'sentry-trace',
 ]
 
-if DEBUG:
-    CORS_ORIGIN_ALLOW_ALL = True
+# CSRF settings
+CSRF_COOKIE_SAMESITE = 'Lax'  # Changed from 'None' for better security in development
+CSRF_COOKIE_SECURE = False  # Set to True when using HTTPS
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access
+CSRF_USE_SESSIONS = False  # Use cookie-based CSRF
+CSRF_COOKIE_NAME = 'csrftoken'
+CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 
 # Stockfish configuration
-STOCKFISH_PATH = os.getenv('STOCKFISH_PATH', 'stockfish')
+STOCKFISH_PATH = os.getenv('STOCKFISH_PATH', 'C:/Users/PCAdmin/Downloads/stockfish-windows-x86-64-avx2/stockfish/stockfish-windows-x86-64-avx2.exe')
+STOCKFISH_DEPTH = int(os.getenv('STOCKFISH_DEPTH', '20'))
+STOCKFISH_THREADS = int(os.getenv('STOCKFISH_THREADS', '2'))
+STOCKFISH_HASH_SIZE = int(os.getenv('STOCKFISH_HASH_SIZE', '128'))
+STOCKFISH_CONTEMPT = int(os.getenv('STOCKFISH_CONTEMPT', '0'))
+STOCKFISH_MIN_THINK_TIME = int(os.getenv('STOCKFISH_MIN_THINK_TIME', '20'))
+STOCKFISH_SKILL_LEVEL = int(os.getenv('STOCKFISH_SKILL_LEVEL', '20'))
 
+# Analysis Settings
+MAX_ANALYSIS_TIME = int(os.getenv('MAX_ANALYSIS_TIME', '300'))  # seconds
+MAX_BATCH_SIZE = int(os.getenv('MAX_BATCH_SIZE', '10'))  # games
+ANALYSIS_CACHE_TTL = int(os.getenv('ANALYSIS_CACHE_TTL', '86400'))  # 24 hours 
 # REST Framework settings
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-}
-
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'BLACKLIST_AFTER_ROTATION': True,
-    'ROTATE_REFRESH_TOKENS': True,
-    'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
 
 # Email Configuration
@@ -234,116 +328,14 @@ STRIPE_PUBLIC_KEY = os.getenv('STRIPE_PUBLIC_KEY')
 PAYMENT_SUCCESS_URL = os.getenv('PAYMENT_SUCCESS_URL', 'http://localhost:3000/payment/success')
 PAYMENT_CANCEL_URL = os.getenv('PAYMENT_CANCEL_URL', 'http://localhost:3000/payment/cancel')
 
-# Redis Configuration
-REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
-
-# Cache Configuration
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "SOCKET_CONNECT_TIMEOUT": 5,
-            "SOCKET_TIMEOUT": 5,
-            "RETRY_ON_TIMEOUT": True,
-            "MAX_CONNECTIONS": 1000,
-            "IGNORE_EXCEPTIONS": True,
-        },
-        "KEY_PREFIX": "chessmate"
-    }
-}
-
-# Cache time to live is 15 minutes
-CACHE_TTL = 60 * 15
-
 # Celery Configuration
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', REDIS_URL)
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', REDIS_URL)
+CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = TIME_ZONE
+CELERY_TIMEZONE = 'UTC'
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60
-CELERY_WORKER_CONCURRENCY = 1 if platform.system().lower() == 'windows' else None
+CELERY_TASK_TIME_LIMIT = 3600
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-CELERY_TASK_ALWAYS_EAGER = False
-CELERY_TASK_STORE_ERRORS_EVEN_IF_IGNORED = True
-CELERY_TASK_IGNORE_RESULT = False
-CELERY_BROKER_POOL_LIMIT = None if platform.system().lower() == 'windows' else 10
-
-# Rate Limiting Settings
-RATE_LIMIT = {
-    'DEFAULT': {
-        'MAX_REQUESTS': 100,
-        'TIME_WINDOW': 60,
-    },
-    'AUTH': {
-        'MAX_REQUESTS': 5,
-        'TIME_WINDOW': 60,
-    },
-    'ANALYSIS': {
-        'MAX_REQUESTS': 3,
-        'TIME_WINDOW': 60,
-    },
-    'CREDITS': {
-        'MAX_REQUESTS': 5,
-        'TIME_WINDOW': 60,
-    },
-    'GAMES': {
-        'MAX_REQUESTS': 10,
-        'TIME_WINDOW': 60,
-    },
-}
-
-# Logging Configuration
-LOGS_DIR = BASE_DIR / 'logs'
-LOGS_DIR.mkdir(exist_ok=True)
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-        'file': {
-            'class': 'logging.FileHandler',
-            'filename': str(LOGS_DIR / 'django.log'),
-            'formatter': 'verbose',
-            'mode': 'a',  # append mode
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console', 'file'],
-            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
-            'propagate': True,
-        },
-        'core': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-    },
-    'root': {
-        'handlers': ['console', 'file'],
-        'level': 'INFO',
-    },
-}
-
-# Session Configuration
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'

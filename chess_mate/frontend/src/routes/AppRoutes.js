@@ -12,9 +12,11 @@ import Credits from '../components/Credits';
 import Games from '../components/Games';
 import GameAnalysis from '../components/GameAnalysis';
 import BatchAnalysis from '../components/BatchAnalysis';
+import BatchAnalysisResults from '../components/BatchAnalysisResults';
 import FetchGames from '../components/FetchGames';
 import PaymentSuccess from '../components/PaymentSuccess';
 import PaymentCancel from '../components/PaymentCancel';
+import LandingPage from '../components/LandingPage';
 import ProtectedRoute from './ProtectedRoute';
 
 const AppRoutes = () => {
@@ -25,7 +27,7 @@ const AppRoutes = () => {
       {/* Public routes */}
       <Route 
         path="/" 
-        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} 
+        element={<LandingPage />} 
       />
       <Route 
         path="/login" 
@@ -82,10 +84,26 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/game/:gameId/analysis/results"
+        element={
+          <ProtectedRoute>
+            <GameAnalysis />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/batch-analysis"
         element={
           <ProtectedRoute>
             <BatchAnalysis />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/batch-analysis/results/:taskId"
+        element={
+          <ProtectedRoute>
+            <BatchAnalysisResults />
           </ProtectedRoute>
         }
       />
@@ -115,7 +133,7 @@ const AppRoutes = () => {
       />
 
       {/* Catch all route */}
-      <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />} />
     </Routes>
   );
 };

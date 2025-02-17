@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { analyzeSpecificGame, checkAnalysisStatus } from '../services/apiRequests';
+import { analyzeSpecificGame, checkAnalysisStatus, fetchGameAnalysis } from '../services/gameAnalysisService';
 import GameFeedback from './GameFeedback';
-import LoadingSpinner from './LoadingSpinner'; 
+import LoadingSpinner from './LoadingSpinner';
+import { debounce } from 'lodash';
 import {
   TrendingUp,
   Clock,
@@ -14,6 +15,15 @@ import {
   Zap,
   BarChart2,
   Loader,
+  Cpu,
+  Crosshair,
+  AlertCircle,
+  AlertOctagon,
+  BookOpen,
+  Swords,
+  Flag,
+  FileText,
+  BarChart,
 } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
 import {
@@ -27,6 +37,7 @@ import {
   Legend,
 } from 'chart.js';
 import './SingleGameAnalysis.css';
+import { toast } from 'react-hot-toast';
 
 ChartJS.register(
   CategoryScale,
@@ -41,473 +52,301 @@ ChartJS.register(
 const SingleGameAnalysis = () => {
   const { gameId } = useParams();
   const [analysis, setAnalysis] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
   const [taskId, setTaskId] = useState(null);
+  const [progress, setProgress] = useState(null);
   const [pollingInterval, setPollingInterval] = useState(null);
-  const [analysisStatus, setAnalysisStatus] = useState('pending'); // 'pending', 'processing', 'completed', 'failed'
-  
-  const startPolling = useCallback((taskId) => {
-    // Clear any existing interval
-    if (pollingInterval) {
-        clearInterval(pollingInterval);
-    }
 
-    // Start new polling
-    const interval = setInterval(async () => {
-        try {
-            const response = await checkAnalysisStatus(taskId);
-            console.log('Polling response:', response); // Debug log
-            setAnalysisStatus(response.status);
-            
-            if (response.status === 'completed' && response.result?.results) {
-                // Analysis is complete
-                clearInterval(interval);
-                setPollingInterval(null);
-                setAnalysis(response.result.results);
-                setLoading(false);
-            } else if (response.status === 'failed') {
-                // Analysis failed
-                clearInterval(interval);
-                setPollingInterval(null);
-                setError(response.error || 'Analysis failed');
-                setLoading(false);
-            }
-            // If still processing, continue polling
-            
-        } catch (err) {
-            clearInterval(interval);
+  const checkStatus = async () => {
+    try {
+      console.log('Checking status for task:', taskId);
+      const statusResponse = await checkAnalysisStatus(taskId);
+      console.log('Status check response:', statusResponse);
+
+      const status = statusResponse.status?.toUpperCase();
+      
+      if (status === 'COMPLETED') {
+        if (statusResponse.analysis) {
+          setAnalysis(statusResponse.analysis);
+          setLoading(false);
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
             setPollingInterval(null);
-            setError(err.message || 'Error checking analysis status');
-            setLoading(false);
+          }
+        } else {
+          console.error('Analysis completed but no analysis data received');
+          setError('Analysis completed but results are missing');
+          setLoading(false);
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            setPollingInterval(null);
+          }
         }
-    }, 2000); // Poll every 2 seconds
+      } else if (status === 'FAILED' || status === 'FAILURE') {
+        setError(statusResponse.message || 'Analysis failed');
+        setLoading(false);
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          setPollingInterval(null);
+        }
+      } else if (status === 'IN_PROGRESS' || status === 'PENDING') {
+        // Update progress if available
+        if (statusResponse.progress) {
+          setProgress(statusResponse.progress);
+        }
+      } else {
+        console.error('Unknown status received:', status);
+        setError('Unknown analysis status');
+        setLoading(false);
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          setPollingInterval(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking analysis status:', error);
+      setError(error.message || 'Failed to check analysis status');
+      setLoading(false);
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+      }
+    }
+  };
 
-    setPollingInterval(interval);
-}, [pollingInterval]);
-
-const startAnalysis = useCallback(async () => {
-  try {
+  const startAnalysis = async () => {
+    try {
       setLoading(true);
       setError(null);
       setAnalysis(null);
-      setAnalysisStatus('pending');
-
+      setProgress(null);
+      
       const response = await analyzeSpecificGame(gameId);
-      console.log('Analysis response:', response); // Debug log
       
       if (response.task_id) {
-          setTaskId(response.task_id);
-          setAnalysisStatus('processing');
-          startPolling(response.task_id);
+        setTaskId(response.task_id);
       } else if (response.analysis) {
-          // Recent analysis exists
-          setAnalysis(response.analysis);
-          setAnalysisStatus('completed');
-          setLoading(false);
+        setAnalysis(response.analysis);
+        setLoading(false);
       } else {
-          throw new Error('Invalid response from server');
+        throw new Error('Invalid response from analysis request');
       }
-  } catch (err) {
-      console.error('Analysis error:', err); // Debug log
-      setError(err.message || 'Failed to start analysis');
-      setAnalysisStatus('failed');
+    } catch (error) {
+      console.error('Error starting analysis:', error);
+      setError(error.message || 'Failed to start analysis');
       setLoading(false);
-  }
-}, [gameId, startPolling]);
+    }
+  };
 
   useEffect(() => {
-    startAnalysis();
+    if (taskId) {
+      const interval = setInterval(checkStatus, 5000);
+      setPollingInterval(interval);
+      return () => {
+        if (interval) {
+          clearInterval(interval);
+        }
+      };
+    }
+  }, [taskId]);
 
-    // Cleanup polling on unmount
-    return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-      }
-    };
-  }, [startAnalysis]);
-
-  if (loading || analysisStatus === 'pending' || analysisStatus === 'processing') {
-    return <LoadingSpinner message="Analyzing game..." />
+  if (loading) {
+    return <LoadingSpinner />;
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center text-red-600">
-          <AlertTriangle className="w-12 h-12 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold">{error}</h2>
-        </div>
+      <div className="text-red-600 dark:text-red-400 p-4">
+        {error}
       </div>
     );
   }
 
-  if (!analysis?.analysis) {
+  if (!analysis) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center text-gray-600">
-          <AlertTriangle className="w-12 h-12 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold">No analysis data available</h2>
-        </div>
+      <div className="text-gray-600 dark:text-gray-400 p-4">
+        No analysis results available
       </div>
     );
   }
 
-  const chartData = {
-    labels: analysis.analysis.map(move => `Move ${move.move_number}`),
-    datasets: [
-      {
-        label: 'Position Evaluation',
-        data: analysis.analysis.map(move => move.score / 100), // Convert centipawns to pawns
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.5)',
-        tension: 0.4,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top',
-      },
-      title: {
-        display: true,
-        text: 'Game Evaluation Over Time',
-      },
-      tooltip: {
-        callbacks: {
-          label: (context) => `Evaluation: ${context.raw.toFixed(2)} pawns`,
-        },
-      },
-    },
-    scales: {
-      y: {
-        title: {
-          display: true,
-          text: 'Evaluation (pawns)',
-        },
-      },
-    },
-  };
-
-  const renderFeedbackSource = () => {
-    if (!analysis?.feedback?.source) return null;
-
-    const sourceColors = {
-      openai_analysis: 'text-green-600',
-      statistical_analysis: 'text-blue-600',
-      error_fallback: 'text-red-600'
-    };
-
-    const sourceLabels = {
-      openai_analysis: 'AI-Powered Analysis',
-      statistical_analysis: 'Statistical Analysis',
-      error_fallback: 'Basic Analysis (Error Recovery)'
-    };
-
-    const sourceIcons = {
-      openai_analysis: <Zap className="w-4 h-4 mr-1" />,
-      statistical_analysis: <BarChart2 className="w-4 h-4 mr-1" />,
-      error_fallback: <AlertTriangle className="w-4 h-4 mr-1" />
-    };
+  const renderMetricCard = (title, value, description = '', icon = null) => {
+    if (value === undefined || value === null) return null;
 
     return (
-      <div className={`flex items-center ${sourceColors[analysis.feedback.source]} text-sm font-medium mb-4`}>
-        {sourceIcons[analysis.feedback.source]}
-        <span>{sourceLabels[analysis.feedback.source]}</span>
-        {analysis.feedback.source === 'error_fallback' && (
-          <div className="ml-2 text-xs text-gray-500">
-            (Limited analysis available due to processing error)
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderOverview = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <div className="flex items-center mb-4">
-          <Award className="w-6 h-6 text-blue-500 mr-2" />
-          <h3 className="text-lg font-semibold">Game Statistics</h3>
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            {title}
+          </h3>
+          {icon && <span className="text-gray-500">{icon}</span>}
         </div>
-        {renderFeedbackSource()}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Accuracy</p>
-            <p className={`text-2xl font-bold ${
-              analysis.feedback?.source === 'error_fallback' ? 'text-gray-400' : 'text-blue-600'
-            }`}>
-              {analysis.feedback?.summary?.accuracy ? 
-                `${analysis.feedback.summary.accuracy.toFixed(1)}%` : 
-                'N/A'}
-            </p>
+        <div className="mt-2">
+          <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            {typeof value === 'number' ? value.toFixed(1) : value}
           </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Tactics Score</p>
-            <p className={`text-2xl font-bold ${
-              analysis.feedback?.source === 'error_fallback' ? 'text-gray-400' : 'text-yellow-600'
-            }`}>
-              {analysis.tactical_analysis?.tactics_score ? 
-                `${analysis.tactical_analysis.tactics_score.toFixed(1)}%` : 
-                'N/A'}
+          {description && (
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {description}
             </p>
-          </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Critical Mistakes</p>
-            <p className={`text-2xl font-bold ${
-              analysis.feedback?.source === 'error_fallback' ? 'text-gray-400' : 'text-red-600'
-            }`}>
-              {analysis.feedback?.summary?.mistakes !== undefined ? 
-                analysis.feedback.summary.mistakes + analysis.feedback.summary.blunders : 
-                'N/A'}
-            </p>
-          </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Avg Time/Move</p>
-            <p className={`text-2xl font-bold ${
-              analysis.feedback?.source === 'error_fallback' ? 'text-gray-400' : 'text-green-600'
-            }`}>
-              {analysis.feedback?.time_management?.avg_time_per_move ? 
-                `${analysis.feedback.time_management.avg_time_per_move.toFixed(1)}s` : 
-                'N/A'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <div className="flex items-center mb-4">
-          <TrendingUp className="w-6 h-6 text-purple-500 mr-2" />
-          <h3 className="text-lg font-semibold">Key Insights</h3>
-        </div>
-        <ul className="space-y-3">
-          {analysis.feedback?.tactical_opportunities?.length > 0 ? (
-            analysis.feedback.tactical_opportunities.map((opportunity, index) => (
-              <li key={index} className="flex items-start">
-                <Zap className="w-5 h-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
-                <span className="text-gray-700">
-                  {`${opportunity.type === 'blunder' ? 'Blunder' : 'Mistake'} on move ${opportunity.move_number}: ${opportunity.move}`}
-                </span>
-              </li>
-            ))
-          ) : (
-            <li className="text-gray-500">No tactical opportunities identified.</li>
           )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderFeedbackSection = (title, items) => {
+    if (!items || items.length === 0) return null;
+
+    return (
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+          {title}
+        </h3>
+        <ul className="space-y-2">
+          {items.map((item, index) => (
+            <li
+              key={index}
+              className="flex items-start text-gray-600 dark:text-gray-300"
+            >
+              <span className="mr-2">•</span>
+              <span>{item}</span>
+            </li>
+          ))}
         </ul>
       </div>
+    );
+  };
 
-      {renderTimeManagement()}
-      {renderTacticalAnalysis()}
-      {renderStatistics()}
-    </div>
-  );
+  const renderSourceBadge = (source) => {
+    const sourceConfig = {
+      ai: {
+        label: 'AI Analysis',
+        color: 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100',
+        icon: <Cpu className="w-4 h-4 mr-1" />
+      },
+      statistical: {
+        label: 'Statistical',
+        color: 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100',
+        icon: <BarChart className="w-4 h-4 mr-1" />
+      },
+      default: {
+        label: 'Basic',
+        color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100',
+        icon: <FileText className="w-4 h-4 mr-1" />
+      }
+    };
 
-  const renderMoveList = () => (
-    <div className="bg-white rounded-xl shadow-sm p-6">
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Move</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Evaluation</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {analysis.analysis.map((move, index) => (
-              <tr key={index} className={move.is_critical ? 'bg-yellow-50' : ''}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <span className="text-sm font-medium text-gray-900">{index + 1}.</span>
-                    <span className="ml-2 text-sm text-gray-900">{move.move}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`text-sm ${move.score > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {(move.score / 100).toFixed(2)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {move.time_spent ? `${move.time_spent.toFixed(1)}s` : '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {move.is_critical && <span className="text-yellow-600">Critical position</span>}
-                  {move.is_check && <span className="text-red-600 ml-2">Check</span>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+    const config = sourceConfig[source] || sourceConfig.default;
 
-  const renderTimeManagement = () => (
-    <div className="bg-white p-6 rounded-xl shadow-sm">
-      <div className="flex items-center mb-4">
-        <Clock className="w-6 h-6 text-green-500 mr-2" />
-        <h3 className="text-lg font-semibold">Time Management</h3>
-      </div>
-      <div className="space-y-4">
-        <p className="text-gray-700">
-          Average time per move: {
-            analysis.feedback?.time_management?.avg_time_per_move ? 
-            `${analysis.feedback.time_management.avg_time_per_move.toFixed(1)}s` : 
-            'N/A'
-          }
-        </p>
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <p className="text-sm text-gray-600">
-            {analysis.feedback?.time_management?.suggestion || 'No time management analysis available.'}
-          </p>
-        </div>
-        {analysis.feedback?.time_management?.critical_moments?.length > 0 && (
-          <div className="mt-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Critical Moments</h4>
-            <div className="space-y-2">
-              {analysis.feedback.time_management.critical_moments.map((moment, index) => (
-                <div key={index} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Move {moment.move_number}: {moment.move}</span>
-                  <span className="text-gray-500">{moment.time_spent.toFixed(1)}s</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderTacticalAnalysis = () => (
-    <div className="bg-white p-6 rounded-xl shadow-sm">
-      <div className="flex items-center mb-4">
-        <Target className="w-6 h-6 text-purple-500 mr-2" />
-        <h3 className="text-lg font-semibold">Tactical Analysis</h3>
-      </div>
-      <div className="space-y-4">
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Tactics Score</p>
-            <p className="text-xl font-bold text-purple-600">{analysis.tactical_analysis?.tactics_score?.toFixed(1) || '65.0'}%</p>
-          </div>
-          <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Missed Wins</p>
-            <p className="text-xl font-bold text-yellow-600">{analysis.tactical_analysis?.missed_wins || 0}</p>
-          </div>
-          <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Critical Mistakes</p>
-            <p className="text-xl font-bold text-red-600">{analysis.tactical_analysis?.critical_mistakes || 0}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderStatistics = () => (
-    <div className="bg-white p-6 rounded-xl shadow-sm">
-      <div className="flex items-center mb-4">
-        <BarChart2 className="w-6 h-6 text-blue-500 mr-2" />
-        <h3 className="text-lg font-semibold">Statistics</h3>
-      </div>
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Critical Positions</p>
-            <p className="text-xl font-bold text-indigo-600">
-              {analysis.analysis.filter(move => move.is_critical).length}
-            </p>
-          </div>
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-500">Accuracy</p>
-            <p className="text-xl font-bold text-green-600">
-              {analysis.overall_accuracy?.toFixed(1) || '65.0'}%
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+        {config.icon}
+        {config.label}
+      </span>
+    );
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-          <Sword className="w-8 h-8 mr-3 text-blue-500" />
-          Game Analysis
-        </h1>
-        <p className="mt-2 text-gray-600">
-          Analyzed on {new Date(analysis.game_info?.played_at).toLocaleDateString()}
-        </p>
-      </div>
-
-      <div className="mb-8">
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <Line data={chartData} options={chartOptions} />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              Game Analysis
+            </h1>
+            <p className="mt-2 text-gray-600 dark:text-gray-300">
+              {analysis.summary}
+            </p>
+          </div>
+          <div className="flex space-x-2">
+            {analysis.source && renderSourceBadge(analysis.source)}
+          </div>
         </div>
-      </div>
 
-      <div className="mb-6">
-        <nav className="flex space-x-4">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-lg font-medium ${
-              activeTab === 'overview'
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('moves')}
-            className={`px-4 py-2 rounded-lg font-medium ${
-              activeTab === 'moves'
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            Move List
-          </button>
-        </nav>
-      </div>
+        {/* Overall Performance */}
+        <section>
+          <h2 className="text-2xl font-bold mb-4">Overall Performance</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {renderMetricCard(
+              'Accuracy',
+              analysis.metrics?.accuracy,
+              'Overall playing accuracy',
+              <Target className="w-6 h-6" />
+            )}
+            {renderMetricCard(
+              'Critical Moves',
+              analysis.metrics?.critical_moves,
+              'Key decision points',
+              <Crosshair className="w-6 h-6" />
+            )}
+            {renderMetricCard(
+              'Time Management',
+              analysis.metrics?.time_score,
+              'Time usage efficiency',
+              <Clock className="w-6 h-6" />
+            )}
+          </div>
+        </section>
 
-      {activeTab === 'overview' ? renderOverview() : renderMoveList()}
+        {/* Mistakes Analysis */}
+        <section>
+          <h2 className="text-2xl font-bold mb-4">Mistakes Analysis</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {renderMetricCard(
+              'Blunders',
+              analysis.metrics?.blunders,
+              'Serious mistakes',
+              <AlertTriangle className="w-6 h-6" />
+            )}
+            {renderMetricCard(
+              'Mistakes',
+              analysis.metrics?.mistakes,
+              'Regular mistakes',
+              <AlertCircle className="w-6 h-6" />
+            )}
+            {renderMetricCard(
+              'Inaccuracies',
+              analysis.metrics?.inaccuracies,
+              'Minor imprecisions',
+              <AlertOctagon className="w-6 h-6" />
+            )}
+          </div>
+        </section>
 
-      <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
-        <div className="flex items-center mb-4">
-          <Crown className="w-6 h-6 text-yellow-500 mr-2" />
-          <h3 className="text-lg font-semibold">Improvement Suggestions</h3>
-        </div>
+        {/* Game Phases */}
+        <section>
+          <h2 className="text-2xl font-bold mb-4">Game Phases</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {renderMetricCard(
+              'Opening',
+              analysis.phases?.opening?.accuracy,
+              analysis.phases?.opening?.evaluation,
+              <BookOpen className="w-6 h-6" />
+            )}
+            {renderMetricCard(
+              'Middlegame',
+              analysis.phases?.middlegame?.accuracy,
+              analysis.phases?.middlegame?.evaluation,
+              <Swords className="w-6 h-6" />
+            )}
+            {renderMetricCard(
+              'Endgame',
+              analysis.phases?.endgame?.accuracy,
+              analysis.phases?.endgame?.evaluation,
+              <Flag className="w-6 h-6" />
+            )}
+          </div>
+        </section>
+
+        {/* Feedback Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-800 mb-2">Opening</h4>
-              <p className="text-blue-900">{analysis.feedback?.opening?.suggestion || 'No opening suggestions available.'}</p>
-            </div>
-            <div className="p-4 bg-green-50 rounded-lg">
-              <h4 className="font-medium text-green-800 mb-2">Time Management</h4>
-              <p className="text-green-900">{analysis.feedback?.time_management?.suggestion || 'No time management suggestions available.'}</p>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <h4 className="font-medium text-purple-800 mb-2">Tactics</h4>
-              <p className="text-purple-900">
-                {analysis.tactical_analysis?.suggestions?.length > 0
-                  ? "Review the tactical opportunities you missed during the game."
-                  : "Good tactical awareness in this game."}
-              </p>
-            </div>
-            <div className="p-4 bg-yellow-50 rounded-lg">
-              <h4 className="font-medium text-yellow-800 mb-2">Endgame</h4>
-              <p className="text-yellow-900">{analysis.feedback?.endgame?.suggestion || 'No endgame suggestions available.'}</p>
-            </div>
-          </div>
+          {renderFeedbackSection('Tactical Analysis', analysis.tactical_feedback)}
+          {renderFeedbackSection('Positional Analysis', analysis.positional_feedback)}
+          {renderFeedbackSection('Time Management', analysis.time_management_feedback)}
+          {renderFeedbackSection('Improvement Areas', analysis.improvement_areas)}
         </div>
       </div>
     </div>

@@ -1,0 +1,74 @@
+# Version control
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv
+.env
+.env.*
+!.env.example
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.docker
+
+# Certbot
+certbot/
+
+# Development
+.vscode
+.idea
+*.log
+*.sqlite3
+
+# Node
+node_modules
+npm-debug.log
+**/node_modules
+**/dist
+**/build
+
+# Project specific
+media/
+staticfiles/
+prometheus/
+grafana/
+nginx/
+k8s/
+
+# Temporary files
+*.swp
+*.swo
+*.tmp
+*.temp
+*.bak
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+.coverage
+htmlcov/
+coverage/
+
+# Cache
+.cache/
+.pytest_cache/
+.mypy_cache/
+
+# Exclude socket files
+*.sock
+
+# Exclude logs and data directories
+logs/
+data/
+
+# Exclude node_modules
+node_modules/ 

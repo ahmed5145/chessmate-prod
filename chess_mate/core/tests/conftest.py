@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from openai.types.chat.chat_completion import Choice
+import json
 
 # Add the project root directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -37,8 +38,68 @@ def pytest_configure():
 # Create a mock OpenAI response
 @pytest.fixture
 def mock_openai_response():
+    valid_json_content = {
+        "feedback": {
+            "summary": {
+                "accuracy": "85.5",
+                "evaluation": "Strong game with minor inaccuracies",
+                "comment": "Good tactical awareness with solid time management"
+            },
+            "phases": {
+                "opening": {
+                    "analysis": "Solid opening play with good development",
+                    "suggestions": ["Control center earlier", "Develop minor pieces faster"]
+                },
+                "middlegame": {
+                    "analysis": "Active piece play with good tactical awareness",
+                    "suggestions": ["Look for combinations", "Improve piece coordination"]
+                },
+                "endgame": {
+                    "analysis": "Technical conversion needs improvement",
+                    "suggestions": ["Practice basic endgames", "Activate king earlier"]
+                }
+            },
+            "tactics": {
+                "analysis": "Good tactical awareness",
+                "opportunities": 5,
+                "successful": 3,
+                "success_rate": 60.0,
+                "suggestions": ["Practice tactical patterns", "Calculate variations deeper"]
+            },
+            "time_management": {
+                "score": 85,
+                "avg_time_per_move": 15.5,
+                "time_pressure_moves": 3,
+                "time_pressure_percentage": 10.0,
+                "suggestion": "Good time management overall"
+            },
+            "key_moments": [
+                "Strong tactical shot on move 15",
+                "Good defensive resource on move 23",
+                "Missed opportunity in time pressure on move 35"
+            ],
+            "improvement_areas": [
+                "Opening preparation",
+                "Endgame technique",
+                "Time management in critical positions"
+            ],
+            "study_plan": {
+                "focus_areas": [
+                    "Tactical pattern recognition",
+                    "Endgame fundamentals",
+                    "Opening principles"
+                ],
+                "exercises": [
+                    "Solve tactical puzzles daily",
+                    "Study basic endgame positions",
+                    "Review master games in your openings"
+                ]
+            }
+        }
+    }
+    
     message = ChatCompletionMessage(
-        content="Test feedback content",
+        content=json.dumps(valid_json_content),
         role="assistant",
         function_call=None,
         tool_calls=None

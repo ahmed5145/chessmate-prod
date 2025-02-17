@@ -1,0 +1,12 @@
+2025-02-16 16:01:04.396 CST [13924] LOG:  redirecting log output to logging collector process
+2025-02-16 16:01:04.396 CST [13924] HINT:  Future log output will appear in directory "log".
+2025-02-16 16:07:22.715 CST [7032] LOG:  redirecting log output to logging collector process
+2025-02-16 16:07:22.715 CST [7032] HINT:  Future log output will appear in directory "log".
+2025-02-16 16:09:17.024 CST [13140] LOG:  redirecting log output to logging collector process
+2025-02-16 16:09:17.024 CST [13140] HINT:  Future log output will appear in directory "log".
+2025-02-16 16:23:25.389 CST [22760] LOG:  redirecting log output to logging collector process
+2025-02-16 16:23:25.389 CST [22760] HINT:  Future log output will appear in directory "log".
+2025-02-16 16:41:19.785 CST [8540] LOG:  redirecting log output to logging collector process
+2025-02-16 16:41:19.785 CST [8540] HINT:  Future log output will appear in directory "log".
+2025-02-16 16:41:57.821 CST [7604] LOG:  redirecting log output to logging collector process
+2025-02-16 16:41:57.821 CST [7604] HINT:  Future log output will appear in directory "log".

@@ -9,6 +9,7 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('api/csrf/', views.csrf, name='csrf'),
     path('api/debug/', views.debug_request, name='debug'),
+    
     # Authentication endpoints
     path("api/register/", views.register_view, name="register"),
     path("api/login/", views.login_view, name="login"),
@@ -18,19 +19,24 @@ urlpatterns = [
     path('api/auth/password-reset/confirm/', views.reset_password, name='password_reset_confirm'),
 
     # Profile endpoints
-    path('api/profile/', views.user_profile, name='user_profile'),
+    path('api/profile/', views.get_profile, name='profile'),
+    path('api/profile/link-account/', views.link_account, name='link_account'),
+    path('api/profile/unlink-account/', views.unlink_account, name='unlink_account'),
 
     # Game management endpoints
-    path('api/fetch-games/', views.fetch_games, name='fetch_games'),
-    path("api/dashboard/", views.dashboard_view, name="dashboard"),
-    path("api/games/", views.get_saved_games, name="get_saved_games"),
-
-    # Analysis endpoints
-    path("api/game/<int:game_id>/analyze/", views.analyze_game, name="analyze_game"),
-    path('api/game/analysis/status/<str:task_id>/', views.check_analysis_status, name='check_analysis_status'),
+    path('api/games/', views.user_games_view, name='user_games'),
+    path('api/games/fetch/', views.fetch_games, name='fetch_games'),
+    path('api/game/<int:game_id>/analyze/', views.analyze_game, name='analyze_game'),
     path('api/game/<int:game_id>/analysis/', views.get_game_analysis, name='get_game_analysis'),
+    path('api/game/analysis/status/<str:task_id>/', views.check_analysis_status, name='check_analysis_status'),
+    path('api/game/<int:game_id>/ai-feedback/', views.generate_ai_feedback, name='generate_ai_feedback'),
+    
+    # Batch analysis endpoints
     path("api/games/batch-analyze/", views.batch_analyze, name="batch_analyze"),
     path("api/games/batch-analyze/status/<str:task_id>/", views.check_batch_analysis_status, name="check_batch_analysis_status"),
+
+    # Dashboard endpoint
+    path("api/dashboard/", views.dashboard_view, name="dashboard"),
 
     # Feedback endpoints
     path('api/feedback/<int:game_id>/', views.game_feedback_view, name='game_feedback'),

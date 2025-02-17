@@ -3,44 +3,32 @@
 # Exit on error
 set -e
 
-# Function to wait for PostgreSQL
-wait_for_postgres() {
-    echo "Waiting for PostgreSQL..."
-    while ! nc -z -w1 ${DB_HOST} ${DB_PORT}; do
-        sleep 1
-    done
-    echo "PostgreSQL started"
-}
+# Wait for PostgreSQL
+while ! nc -z $DB_HOST $DB_PORT; do
+    echo "PostgreSQL is unavailable - sleeping"
+    sleep 1
+done
+echo "PostgreSQL is up - executing command"
 
-# Function to wait for Redis
-wait_for_redis() {
-    echo "Waiting for Redis..."
-    while ! nc -z -w1 redis 6379; do
-        sleep 1
-    done
-    echo "Redis started"
-}
+# Wait for Redis
+while ! nc -z redis 6379; do
+    echo "Redis is unavailable - sleeping"
+    sleep 1
+done
+echo "Redis is up - executing command"
 
-# Wait for services
-wait_for_postgres
-wait_for_redis
-
-# Change to the correct directory
-cd /app/chess_mate
-
-# Apply database migrations
-echo "Applying database migrations..."
-python manage.py migrate
+# Create necessary directories if they don't exist
+mkdir -p /app/chess_mate/staticfiles
+mkdir -p /app/chess_mate/media
+mkdir -p /app/chess_mate/logs
 
 # Collect static files
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-# Start the appropriate service
-if [ "$SERVICE_TYPE" = "celery" ]; then
-    echo "Starting Celery worker..."
-    celery -A chess_mate worker -l info
-else
-    echo "Starting Django server..."
-    python manage.py runserver 0.0.0.0:8000
-fi 
+# Apply database migrations
+echo "Running migrations..."
+python manage.py migrate --noinput
+
+# Execute the passed command
+exec "$@" 

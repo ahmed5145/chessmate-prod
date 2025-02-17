@@ -3,18 +3,17 @@ import { toast } from 'react-hot-toast';
 import { CreditCard } from 'lucide-react';
 import { UserContext } from '../contexts/UserContext';
 import { useTheme } from '../context/ThemeContext';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+import api from '../services/api';
 
 const Credits = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { credits, fetchCredits } = useContext(UserContext);
+  const { credits, fetchUserData } = useContext(UserContext);
   const { isDarkMode } = useTheme();
 
   useEffect(() => {
-    fetchCredits();
-  }, [fetchCredits]);
+    fetchUserData();
+  }, [fetchUserData]);
 
   const handlePurchase = async (packageId) => {
     setLoading(true);
@@ -25,28 +24,19 @@ const Credits = () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/purchase-credits/`, {
-        method: 'POST',
+      const response = await api.post('/api/purchase-credits/', {
+        package_id: packageId
+      }, {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          package_id: packageId
-        })
+        }
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-
-      if (!data.checkout_url) {
+      if (!response.data.checkout_url) {
         throw new Error('No checkout URL received');
       }
 
-      window.location.href = data.checkout_url;
+      window.location.href = response.data.checkout_url;
     } catch (error) {
       console.error('Error processing request:', error);
       toast.error(error.message || 'Failed to process request');

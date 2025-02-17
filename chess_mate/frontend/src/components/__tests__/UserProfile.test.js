@@ -3,11 +3,11 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import UserProfile from "../UserProfile";
-import { getUserProfile, updateUserProfile } from "../../api";
+import { getUserProfile, updateUserProfile } from "../../services/apiRequests";
 
 // Mock the modules
 jest.mock("react-hot-toast");
-jest.mock("../../api");
+jest.mock("../../services/apiRequests");
 
 const mockNavigate = jest.fn();
 jest.mock("react-router-dom", () => ({
