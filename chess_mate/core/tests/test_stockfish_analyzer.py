@@ -196,9 +196,9 @@ class TestStockfishAnalyzer(TransactionTestCase):
         """Test move analysis with various scenarios."""
         try:
             # Create mock engine
-            mock_engine = MagicMock()
-            mock_popen.return_value = mock_engine
-            
+        mock_engine = MagicMock()
+        mock_popen.return_value = mock_engine
+        
             # Set up mock configuration
             mock_engine.configure.return_value = None
             mock_engine.quit.return_value = None
@@ -274,7 +274,7 @@ class TestStockfishAnalyzer(TransactionTestCase):
                     )
                     
                     # Mock engine responses
-                    mock_engine.analyse.side_effect = [
+        mock_engine.analyse.side_effect = [
                         {
                             'score': MockPovScore(mock_score_before, chess.WHITE),
                             'depth': 20,
@@ -293,20 +293,20 @@ class TestStockfishAnalyzer(TransactionTestCase):
                     
                     # Analyze move
                     result = self.analyzer.analyze_move(board, move)
-                    
-                    # Verify result structure
-                    self.assertIn('move', result)
+        
+        # Verify result structure
+        self.assertIn('move', result)
                     self.assertEqual(result['move'], move.uci())
-                    self.assertIn('eval_before', result)
-                    self.assertIn('eval_after', result)
-                    self.assertIn('evaluation_improvement', result)
-                    self.assertIn('is_tactical', result)
+        self.assertIn('eval_before', result)
+        self.assertIn('eval_after', result)
+        self.assertIn('evaluation_improvement', result)
+        self.assertIn('is_tactical', result)
                     self.assertEqual(result['is_tactical'], case['expected_tactical'], 
                                   f"Failed tactical detection for {case['name']}")
-                    self.assertIn('is_critical', result)
+        self.assertIn('is_critical', result)
                     self.assertEqual(result['is_critical'], case['expected_critical'])
-                    self.assertIn('position_metrics', result)
-                    self.assertIn('time_metrics', result)
+        self.assertIn('position_metrics', result)
+        self.assertIn('time_metrics', result)
 
         except Exception as e:
             logger.error(f"Test failed with error: {str(e)}")
@@ -396,11 +396,11 @@ class TestStockfishAnalyzer(TransactionTestCase):
                 }
                 
                 is_tactical = self.analyzer._is_tactical_move(
-                    board,
-                    move,
+            board,
+            move,
                     case['eval_improvement'],  # Use the case-specific eval improvement
                     position_metrics
-                )
+        )
                 self.assertEqual(is_tactical, case['expected_tactical'], 
                     f"Failed tactical detection for {case['name']}")
 
@@ -437,14 +437,14 @@ class TestStockfishAnalyzer(TransactionTestCase):
                 # Initialize analyzer with mock engine
                 self.analyzer._engine = mock_engine
                 self.analyzer._initialized = True
-                
-                # Analyze position
-                result = self.analyzer.analyze_position(self.test_board)
-                
+        
+        # Analyze position
+        result = self.analyzer.analyze_position(self.test_board)
+        
                 # Verify error handling
-                self.assertEqual(result['score'], 0.0)
-                self.assertEqual(result['depth'], 0)
-                self.assertIn('position_metrics', result)
+        self.assertEqual(result['score'], 0.0)
+        self.assertEqual(result['depth'], 0)
+        self.assertIn('position_metrics', result)
                 self.assertIn('error', result)
                 self.assertEqual(str(result['error']), case['expected_error'])
 
@@ -599,7 +599,7 @@ class TestStockfishAnalyzer(TransactionTestCase):
         """Clean up test environment after each test."""
         try:
             if hasattr(self, 'analyzer'):
-                self.analyzer.cleanup()
+            self.analyzer.cleanup()
         except Exception as e:
             logger.error(f"Error during test cleanup: {str(e)}")
         finally:

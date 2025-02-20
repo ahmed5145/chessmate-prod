@@ -64,13 +64,13 @@ const GameFeedback = ({ gameId }) => {
   }, [gameId]);
 
   useEffect(() => {
-    if (feedback?.moves) {
+    if (feedback?.analysis_results?.moves) {
       const data = {
-        labels: feedback.moves.map((_, index) => `Move ${index + 1}`),
+        labels: feedback.analysis_results.moves.map((_, index) => `Move ${index + 1}`),
         datasets: [
           {
             label: 'Position Evaluation',
-            data: feedback.moves.map(move => move.score / 100), // Convert centipawns to pawns
+            data: feedback.analysis_results.moves.map(move => move.score),
             borderColor: isDarkMode ? 'rgb(96, 165, 250)' : 'rgb(59, 130, 246)',
             backgroundColor: isDarkMode ? 'rgba(96, 165, 250, 0.5)' : 'rgba(59, 130, 246, 0.5)',
             tension: 0.4,
@@ -112,6 +112,85 @@ const GameFeedback = ({ gameId }) => {
                 {config.label}
             </div>
         </div>
+    );
+  };
+
+  const renderMetrics = () => {
+    if (!feedback?.analysis_results?.summary) return null;
+    
+    const { overall, phases, tactics, time_management } = feedback.analysis_results.summary;
+    
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h4 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Overall Performance</h4>
+          <div className="space-y-2">
+            <p>Accuracy: {overall.accuracy.toFixed(1)}%</p>
+            <p>Mistakes: {overall.mistakes}</p>
+            <p>Blunders: {overall.blunders}</p>
+          </div>
+        </div>
+        
+        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h4 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Tactics</h4>
+          <div className="space-y-2">
+            <p>Success Rate: {tactics.success_rate.toFixed(1)}%</p>
+            <p>Opportunities: {tactics.opportunities}</p>
+            <p>Missed: {tactics.missed}</p>
+          </div>
+        </div>
+        
+        <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h4 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Time Management</h4>
+          <div className="space-y-2">
+            <p>Average Time: {time_management.average_time.toFixed(1)}s</p>
+            <p>Time Pressure: {time_management.time_pressure_moves} moves</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderFeedback = () => {
+    if (!feedback?.analysis_results?.feedback) return null;
+    
+    const { strengths, weaknesses, critical_moments } = feedback.analysis_results.feedback;
+    
+    return (
+      <div className="space-y-6">
+        {strengths?.length > 0 && (
+          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <h4 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Strengths</h4>
+            <ul className={`list-disc pl-5 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              {strengths.map((strength, index) => (
+                <li key={index}>{strength}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {weaknesses?.length > 0 && (
+          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <h4 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Areas for Improvement</h4>
+            <ul className={`list-disc pl-5 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              {weaknesses.map((weakness, index) => (
+                <li key={index}>{weakness}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {critical_moments?.length > 0 && (
+          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <h4 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Critical Moments</h4>
+            <ul className={`list-disc pl-5 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              {critical_moments.map((moment, index) => (
+                <li key={index}>{moment.description} (Move {moment.move_number})</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -329,12 +408,8 @@ const GameFeedback = ({ gameId }) => {
       icon: Zap,
       content: (
         <div className={`space-y-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-          {feedback.feedback?.sections?.map((section, index) => (
-            <div key={index} className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{section.title}</h3>
-              <p>{section.content}</p>
-            </div>
-          ))}
+          {renderMetrics()}
+          {renderFeedback()}
         </div>
       ),
     },

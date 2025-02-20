@@ -37,10 +37,11 @@ class TaskManager:
         'PENDING': STATUS_PENDING,
         'STARTED': STATUS_IN_PROGRESS,
         'PROGRESS': STATUS_IN_PROGRESS,
-        'SUCCESS': 'completed',
-        'COMPLETED': 'completed',
-        'completed': 'completed',
+        'SUCCESS': STATUS_SUCCESS,
+        'COMPLETED': STATUS_SUCCESS,
+        'completed': STATUS_SUCCESS,
         'FAILURE': STATUS_FAILURE,
+        'failed': STATUS_FAILURE,
         'REVOKED': STATUS_FAILURE,
         'RETRY': STATUS_IN_PROGRESS
     }
@@ -144,36 +145,68 @@ class TaskManager:
 
     def cleanup_task(self, game_id: int) -> None:
         """Clean up task data and locks."""
-        task_key = f"{CACHE_TASK_PREFIX}{game_id}"
-        lock_key = f"{CACHE_LOCK_PREFIX}{game_id}"
-        
-        cache.delete(task_key)
-        cache.delete(lock_key)
-        
-        logger.info(f"Cleaned up task data for game {game_id}")
+        try:
+            # Get existing task data first
+            task_key = f"{CACHE_TASK_PREFIX}{game_id}"
+            lock_key = f"{CACHE_LOCK_PREFIX}{game_id}"
+            existing_task = cache.get(task_key)
+            
+            # If there's an existing task, revoke it
+            if existing_task and existing_task.get('task_id'):
+                logger.info(f"Revoking existing task {existing_task['task_id']} for game {game_id}")
+                from celery.task.control import revoke
+                revoke(existing_task['task_id'], terminate=True)
+            
+            # Clear cache entries
+            cache.delete(task_key)
+            cache.delete(lock_key)
+            
+            # Update game status if needed
+            try:
+                game = Game.objects.get(id=game_id)
+                if game.status == 'analyzing':
+                    game.status = 'pending'
+                    game.save(update_fields=['status'])
+                    logger.info(f"Reset game {game_id} status to pending")
+            except Game.DoesNotExist:
+                pass
+            
+            logger.info(f"Cleaned up task data for game {game_id}")
+        except Exception as e:
+            logger.error(f"Error during task cleanup for game {game_id}: {str(e)}", exc_info=True)
 
     def create_analysis_job(self, game_id: int, depth: int = 20, use_ai: bool = True) -> Dict[str, Any]:
         """Create a new analysis job with proper concurrency control."""
         try:
+            logger.info(f"Creating analysis job for game {game_id}")
             # Check if game exists and is not already analyzed
+            logger.info(f"Checking game {game_id} status")
             game = Game.objects.get(id=game_id)
             if game.status == 'analyzed':
+                logger.info(f"Game {game_id} is already analyzed")
                 return {'status': 'completed', 'game_id': game_id, 'message': 'Game already analyzed'}
 
             # Clean up any stale tasks first
+            logger.info(f"Cleaning up stale tasks for game {game_id}")
             self.cleanup_task(game_id)
 
             # Check for existing task after cleanup
+            logger.info(f"Checking for existing tasks for game {game_id}")
             existing_task = self.get_existing_task(game_id)
             if existing_task and not self._is_lock_expired(game_id):
+                logger.info(f"Found existing active task for game {game_id}")
                 return {'status': 'in_progress', 'game_id': game_id, 'message': 'Game is already being analyzed'}
 
             # Try to acquire lock
+            logger.info(f"Attempting to acquire lock for game {game_id}")
             if not self._acquire_lock(game_id):
+                logger.warning(f"Failed to acquire lock for game {game_id}")
                 return {'status': 'in_progress', 'game_id': game_id, 'message': 'Game is locked for analysis'}
 
             # Create new task
+            logger.info(f"Creating Celery task for game {game_id}")
             task = self._create_celery_task('analyze_game_task', [game_id, depth, use_ai], QUEUE_ANALYSIS)
+            logger.info(f"Successfully created Celery task {task.id} for game {game_id}")
 
             # Store task information
             task_data = {
@@ -186,16 +219,18 @@ class TaskManager:
             }
             
             task_key = f"{CACHE_TASK_PREFIX}{game_id}"
+            logger.info(f"Storing task data in cache for game {game_id}")
             cache.set(task_key, task_data, self._CACHE_TTL)
             
             log_job_event(task.id, "Analysis job created", {'game_id': game_id})
+            logger.info(f"Successfully created analysis job for game {game_id}")
             return task_data
 
         except Game.DoesNotExist:
-            self.logger.error(f"Game {game_id} not found")
+            logger.error(f"Game {game_id} not found")
             return {'status': 'error', 'game_id': game_id, 'message': 'Game not found'}
         except Exception as e:
-            self.logger.error(f"Error creating analysis job for game {game_id}: {str(e)}")
+            logger.error(f"Error creating analysis job for game {game_id}: {str(e)}", exc_info=True)
             self._release_lock(game_id)
             return {'status': 'error', 'game_id': game_id, 'message': str(e)}
 

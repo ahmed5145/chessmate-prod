@@ -1,5 +1,4 @@
 import api from './api';
-import axios from 'axios';
 
 // Authentication functions
 export const loginUser = async (credentials) => {
@@ -142,90 +141,38 @@ export const fetchExternalGames = async (platform, username, gameType, numGames 
 
 // Game analysis functions
 export const analyzeSpecificGame = async (gameId) => {
-    console.log('=== Starting Game Analysis ===');
-    console.log('Parameters:', { gameId });
-    
     try {
-        console.log('Making analysis request for game:', gameId);
-        const requestData = {
-            depth: 20,
-            use_ai: true
-        };
-        console.log('Request data:', requestData);
+        const response = await api.post(`/api/game/${gameId}/analyze/`);
         
-        const response = await api.post(`/api/game/${gameId}/analyze/`, requestData);
-        console.log('Raw analysis response:', response);
-        console.log('Analysis response data:', response.data);
-
-        // Validate response structure
-        if (!response.data) {
-            console.error('Invalid response - missing data:', response);
-            throw new Error("Invalid response from server");
+        // Check if analysis is already complete
+        if (response.data.analysis_complete || response.data.status === 'COMPLETED') {
+            return {
+                status: 'COMPLETED',
+                analysis: response.data.analysis || response.data,
+                message: 'Analysis completed'
+            };
         }
 
-        // Handle Redis connection limit error
-        if (response.data.error === 'max number of clients reached' || 
-            response.data.error?.includes('max number of clients reached')) {
-            console.warn('Redis connection limit reached:', response.data);
-            throw new Error('Redis connection limit reached. Please try again in a few moments.');
-        }
-
-        // If the game is already analyzed, fetch and return the analysis immediately
-        if (response.data.status === 'completed' && response.data.message?.includes('already analyzed')) {
-            console.log('Game is already analyzed, fetching analysis data');
-            try {
-                const analysisResponse = await fetchGameAnalysis(gameId);
-                return {
-                    analysis: analysisResponse,
-                    status: 'completed'
-                };
-            } catch (error) {
-                console.error('Error fetching analysis for already analyzed game:', error);
-                throw new Error('Game is marked as analyzed but failed to fetch analysis data');
-            }
-        }
-
-        // If we have a task ID, return it
-        if (response.data.task_id) {
-            console.log('Analysis task created:', {
+        // Check if task already exists and handle it consistently
+        if (response.data.message?.toLowerCase().includes('already exists')) {
+            return {
+                status: 'PENDING',
                 taskId: response.data.task_id,
-                status: response.data.status || 'pending'
-            });
-            return {
-                task_id: response.data.task_id,
-                status: response.data.status || 'pending'
+                isExistingTask: true,
+                message: response.data.message
             };
         }
-
-        // If we have analysis data, validate and return it
-        if (response.data.analysis) {
-            console.log('Immediate analysis result received');
-            return {
-                analysis: response.data.analysis,
-                status: 'completed'
-            };
-        }
-
-        console.error('Invalid response format:', response.data);
-        throw new Error("Invalid response format: missing analysis or task_id");
+        
+        // Return consistent response format for new tasks
+        return {
+            status: response.data.status || 'PENDING',
+            taskId: response.data.task_id,
+            isExistingTask: false,
+            message: response.data.message || 'Analysis started'
+        };
     } catch (error) {
-        console.error('Analysis error:', {
-            error,
-            message: error.message,
-            response: error.response?.data,
-            status: error.response?.status
-        });
-
-        if (error.response?.status === 404) {
-            throw new Error("Game not found");
-        }
-        if (error.response?.status === 401) {
-            throw new Error("Please log in to analyze games");
-        }
-        if (error.response?.status === 402) {
-            throw new Error("Insufficient credits. Please purchase more credits to analyze games.");
-        }
-        throw error.response?.data?.error || error.message || "Failed to analyze game";
+        console.error('Analysis error:', error);
+        throw new Error(error.response?.data?.error || error.message || 'Failed to start analysis');
     }
 };
 
@@ -243,45 +190,58 @@ const VALID_STATUSES = Object.values(ANALYSIS_STATUS);
 export const checkAnalysisStatus = async (taskId) => {
     try {
         const response = await api.get(`/api/analysis/status/${taskId}/`);
+        console.log('Raw status response:', response.data);
         
-        // Normalize status to uppercase for consistency
-        const normalizedStatus = response.data.status?.toUpperCase();
+        // Normalize status to uppercase and handle both response formats
+        const status = (response.data.status || '').toUpperCase();
+        console.log('Status normalized to:', status);
         
-        // Return a consistent response format
-        const result = {
-            status: normalizedStatus,
-            message: response.data.message,
-            game_id: response.data.game_id,
-            progress: response.data.progress,
-            error: response.data.error
-        };
-        
-        // If status is completed or success, fetch the analysis data
-        if (normalizedStatus === 'COMPLETED' || normalizedStatus === 'SUCCESS') {
-            if (!response.data.game_id) {
-                throw new Error('Game ID missing from completed analysis response');
-            }
+        // If analysis is complete, fetch and return the analysis data
+        if (status === 'COMPLETED' || status === 'SUCCESS') {
+            console.log('Analysis completed, fetching results');
+            // Handle both response formats (info.game_id and direct game_id)
+            const gameId = response.data.game_id || 
+                          response.data.info?.game_id || 
+                          response.data.info?.gameId;
+            console.log('Game ID from response:', gameId);
             
+            if (!gameId) {
+                console.error('No game ID in completed response:', response.data);
+                throw new Error('Game ID missing from completed analysis');
+            }
+
             try {
-                console.log('Fetching analysis for completed game:', response.data.game_id);
-                const analysisResponse = await fetchGameAnalysis(response.data.game_id);
+                console.log('Fetching analysis data for game:', gameId);
+                const analysisData = await fetchGameAnalysis(gameId);
+                console.log('Fetched analysis data:', analysisData);
+                
+                if (!analysisData) {
+                    throw new Error('No analysis data received');
+                }
+                
                 return {
-                    ...result,
                     status: 'COMPLETED',
-                    analysis: analysisResponse
+                    analysis: analysisData,
+                    gameId,
+                    progress: 100
                 };
             } catch (analysisError) {
-                console.error('Error fetching completed analysis:', analysisError);
+                console.error('Error fetching analysis data:', analysisError);
                 throw new Error('Failed to fetch analysis results');
             }
         }
         
-        // For other statuses, just return the result
-        return result;
-
+        // For in-progress status, return normalized response
+        return {
+            status,
+            progress: response.data.progress || 0,
+            message: response.data.message || 'Analysis in progress',
+            isExistingTask: response.data.isExistingTask || false,
+            gameId: response.data.game_id || response.data.info?.game_id
+        };
     } catch (error) {
         console.error('Error checking analysis status:', error);
-        throw error.response?.data?.error || error.message || 'Failed to check analysis status';
+        throw new Error(error.response?.data?.message || 'Failed to check analysis status');
     }
 };
 
@@ -291,64 +251,22 @@ export const fetchGameAnalysis = async (gameId) => {
         const response = await api.get(`/api/game/${gameId}/analysis/`);
         console.log('Analysis response:', response.data);
 
-        if (!response.data) {
-            throw new Error("Invalid response from server");
+        // Check if response has analysis data
+        if (!response.data || !response.data.analysis) {
+            throw new Error('No analysis data found');
         }
 
-        // Extract analysis data from response
+        // The analysis data is valid if it contains the required fields
         const analysisData = response.data.analysis;
-        if (!analysisData) {
-            console.error('No analysis data in response:', response.data);
-            throw new Error('No analysis data found in response');
+        if (!analysisData.moves || !analysisData.overall || !analysisData.phases) {
+            console.error('Missing required analysis fields:', analysisData);
+            throw new Error('Invalid analysis data structure');
         }
 
-        // If analysis data contains analysis_results, return the full analysis object
-        if (analysisData.analysis_results) {
-            return {
-                moves: analysisData.analysis_results,
-                feedback: analysisData.feedback || {},
-                depth: analysisData.depth,
-                timestamp: analysisData.timestamp,
-                source: analysisData.source,
-                summary: {
-                    accuracy: analysisData.feedback?.accuracy || 0,
-                    mistakes: analysisData.feedback?.summary?.mistakes || 0,
-                    blunders: analysisData.feedback?.summary?.blunders || 0,
-                    inaccuracies: analysisData.feedback?.summary?.inaccuracies || 0,
-                    avgTimePerMove: analysisData.feedback?.time_management?.avg_time_per_move || 0,
-                    criticalMistakes: analysisData.feedback?.tactical_opportunities?.length || 0
-                }
-            };
-        }
-
-        // If analysis data is an array (direct analysis data), wrap it
-        if (Array.isArray(analysisData)) {
-            return {
-                moves: analysisData,
-                feedback: {},
-                summary: {
-                    accuracy: 0,
-                    mistakes: 0,
-                    blunders: 0,
-                    inaccuracies: 0,
-                    avgTimePerMove: 0,
-                    criticalMistakes: 0
-                }
-            };
-        }
-
-        // If we get here, we don't recognize the format
-        console.error('Unrecognized analysis format:', analysisData);
-        throw new Error("Invalid analysis data format");
+        return response.data;
     } catch (error) {
         console.error('Error fetching analysis:', error);
-        if (error.response?.status === 404) {
-            throw new Error("Analysis not found - the game may still be processing");
-        }
-        if (error.response?.status === 403) {
-            throw new Error("Access denied. Please try again.");
-        }
-        throw error.response?.data?.error || error.message || "Failed to fetch analysis";
+        throw new Error('Failed to fetch analysis results');
     }
 };
 
@@ -556,4 +474,69 @@ export const fetchProfileData = async () => {
         console.error('Error fetching profile data:', error);
         throw error;
     }
+};
+
+export const fetchGameFeedback = async (gameId) => {
+  try {
+    const response = await api.get(`/api/game/${gameId}/analysis/`);
+    
+    if (!response.data) {
+      throw new Error('Invalid analysis data structure');
+    }
+
+    // Extract analysis data, handling both nested and flat structures
+    const analysisData = response.data.analysis || response.data;
+    
+    // Return the properly structured response
+    return {
+      status: 'COMPLETED',
+      game_id: gameId,
+      analysis: {
+        overall: {
+          accuracy: analysisData.overall?.accuracy || 0,
+          blunders: analysisData.overall?.blunders || 0,
+          mistakes: analysisData.overall?.mistakes || 0,
+          inaccuracies: analysisData.overall?.inaccuracies || 0,
+          position_quality: analysisData.overall?.position_quality || 0
+        },
+        phases: analysisData.phases || {
+          opening: {},
+          middlegame: {},
+          endgame: {}
+        },
+        tactics: analysisData.tactics || {
+          opportunities: 0,
+          successful: 0,
+          missed: 0,
+          success_rate: 0
+        },
+        time_management: analysisData.time_management || {
+          average_time: 0,
+          time_variance: 0,
+          time_pressure_moves: 0,
+          time_pressure_percentage: 0
+        },
+        positional: analysisData.positional || {},
+        advantage: analysisData.advantage || {
+          winning_positions: 0,
+          conversion_rate: 0,
+          average_advantage: 0
+        },
+        resourcefulness: analysisData.resourcefulness || {
+          recovery_rate: 0,
+          defensive_score: 0,
+          critical_defense: 0,
+          best_move_finding: 0
+        },
+        strengths: analysisData.strengths || [],
+        weaknesses: analysisData.weaknesses || [],
+        critical_moments: analysisData.critical_moments || [],
+        improvement_areas: analysisData.improvement_areas || []
+      },
+      analysis_complete: true
+    };
+  } catch (error) {
+    console.error('Error fetching game feedback:', error);
+    throw error;
+  }
 };

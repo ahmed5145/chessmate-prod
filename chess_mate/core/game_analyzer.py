@@ -15,7 +15,7 @@ from django.db import DatabaseError, transaction, models
 from django.core.cache import cache
 from django.conf import settings
 from .models import Game
-from datetime import datetime
+from django.utils import timezone
 from tenacity import retry, stop_after_attempt, wait_exponential
 import random
 from openai import OpenAI
@@ -24,6 +24,7 @@ import json
 import re
 from .analysis.metrics_calculator import MetricsCalculator
 import time
+from datetime import datetime
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -69,66 +70,83 @@ class GameAnalyzer:
         except Exception as e:
             logger.error("Error closing Stockfish engine: %s", str(e))
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def analyze_move(self, board: chess.Board, move: chess.Move, time_spent: float = 0, total_time: float = 900, increment: float = 0) -> Dict[str, Any]:
-        """
-        Analyze a single move with enhanced tactical and time management analysis.
-        
-        Args:
-            board: Current board position
-            move: The move to analyze
-            time_spent: Time spent on the move in seconds
-            total_time: Total time allocated for the game in seconds
-            increment: Time increment per move in seconds
-            
-        Returns:
-            Dictionary containing move analysis details
-        """
+    def analyze_move(self, board: chess.Board, move: chess.Move, depth: int = 20, is_white: bool = True) -> Dict[str, Any]:
+        """Analyze a single move and return evaluation data."""
         try:
-            # Get evaluation before move
-            evaluation_before = self.engine.evaluate_position(board)
+            # Validate move is legal before proceeding
+            if move not in board.legal_moves:
+                logger.error(f"Illegal move encountered: {move.uci()} in position {board.fen()}")
+                return self._create_neutral_evaluation(board, move, depth, 0.0)
+            
+            # Create a copy of the board for analysis
+            board_copy = board.copy()
+            
+            # Get position evaluation before the move
+            eval_before = self.engine.analyse(board_copy, chess.engine.Limit(depth=depth))
+            score_before = self._convert_score(eval_before.get('score', 0), is_white) if eval_before else 0.0
             
             # Make the move and get evaluation after
-            board.push(move)
-            evaluation_after = self.engine.evaluate_position(board)
+            board_copy.push(move)
+            eval_after = self.engine.analyse(board_copy, chess.engine.Limit(depth=depth))
+            score_after = self._convert_score(eval_after.get('score', 0), is_white) if eval_after else 0.0
             
-            # Validate time metrics
-            time_metrics = self._validate_time_metrics([time_spent], total_time, increment)
-            
-            # Get tactical analysis
-            tactical_analysis = self._is_tactical_move(board, move, evaluation_before, evaluation_after)
+            # Calculate evaluation change
+            eval_change = score_after - score_before
             
             # Determine move phase
-            phase = self._determine_game_phase(board)
+            total_pieces = len(board_copy.piece_map())
+            phase = 'opening' if board_copy.fullmove_number <= 10 else ('endgame' if total_pieces <= 12 else 'middlegame')
             
-            # Calculate move accuracy
-            accuracy = self._calculate_move_accuracy(evaluation_before, evaluation_after)
+            # Check if move is tactical
+            is_tactical = self._is_tactical_move(board_copy, move, eval_change, eval_after)
             
-            # Determine if it's a critical move
-            is_critical = self._is_critical_move(board, evaluation_before, evaluation_after)
+            # Check if move is critical
+            is_critical = abs(eval_change) >= 2.0  # Consider moves with 2+ pawn swing as critical
+            
+            # Calculate move accuracy (scale of 0-100)
+            if abs(score_before) > 5.0:  # Already winning/losing position
+                accuracy = 100.0 if eval_change >= -0.5 else max(0.0, 100.0 + (eval_change * 10))
+            else:
+                max_loss = -3.0  # Maximum expected evaluation loss
+                accuracy = max(0.0, 100.0 * (1.0 + eval_change / max_loss))
             
             return {
                 'move': move.uci(),
                 'phase': phase,
-                'evaluation_before': round(evaluation_before, 2),
-                'evaluation_after': round(evaluation_after, 2),
+                'score': score_after,
+                'score_before': score_before,
+                'score_after': score_after,
                 'accuracy': round(accuracy, 2),
-                'is_tactical': tactical_analysis['is_tactical'],
-                'tactical_features': tactical_analysis['features'],
-                'tactical_score': tactical_analysis['score'],
-                'position_complexity': tactical_analysis['complexity'],
+                'is_tactical': is_tactical,
                 'is_critical': is_critical,
-                'time_spent': time_metrics['normalized_times'][0] if time_metrics['normalized_times'] else 0,
-                'time_pressure': time_metrics['time_pressure_moves'] > 0,
-                'time_management_score': time_metrics['time_management_score']
+                'eval_change': eval_change,
+                'depth': depth,
+                'pv': [m.uci() for m in eval_after.get('pv', [])] if eval_after else [],
+                'nodes': eval_after.get('nodes', 0) if eval_after else 0,
+                'time': eval_after.get('time', 0.0) if eval_after else 0.0
             }
             
         except Exception as e:
             logger.error(f"Error analyzing move: {str(e)}")
-            return {
-                'move': move.uci() if move else '',
-                'error': str(e)
-            }
+            return self._create_neutral_evaluation(board, move, depth, 0.0)
+
+    def _is_tactical_position(self, board: chess.Board) -> bool:
+        """Determine if the current position is tactical."""
+        try:
+            # Count attacked pieces
+            attacked_pieces = 0
+            for square in chess.SQUARES:
+                piece = board.piece_at(square)
+                if piece:
+                    if board.is_attacked_by(not piece.color, square):
+                        attacked_pieces += 1
+            
+            # Position is tactical if there are multiple pieces under attack
+            return attacked_pieces >= 2
+            
+        except Exception as e:
+            logger.error(f"Error checking tactical position: {str(e)}")
+            return False
 
     def _create_neutral_evaluation(self, board: chess.Board, move: chess.Move, depth: int, time_spent: float) -> Dict[str, Any]:
         """Create a neutral evaluation when analysis fails."""
@@ -143,25 +161,36 @@ class GameAnalyzer:
         }
 
     def _convert_score(self, score: Union[chess.engine.Score, chess.engine.PovScore, int, float, None], is_white: bool = True) -> float:
-        """Convert a chess engine score to a float value from player's perspective."""
+        """Convert chess.engine.Score to a float value."""
         try:
             if score is None:
                 return 0.0
             
-            # Convert to float first
-            if isinstance(score, (int, float)):
-                raw_score = float(score)
-            elif isinstance(score, chess.engine.Cp):
-                raw_score = float(score.score()) / 100.0
-            elif isinstance(score, chess.engine.Mate):
-                mate_score = score.score()
-                if mate_score is None:
-                    return 0.0
-                raw_score = 10000.0 if mate_score > 0 else -10000.0
-            else:
-                return 0.0
+            raw_score = 0.0  # Initialize raw_score with a default value
             
-            # Adjust for player perspective
+            # Handle PovScore objects
+            if isinstance(score, chess.engine.PovScore):
+                score_value = score.relative.score()
+                if score_value is None:
+                    return 0.0
+                # PovScore is already from white's perspective
+                raw_score = float(score_value) / 100.0 if isinstance(score.relative, chess.engine.Cp) else (
+                    10000.0 if score_value > 0 else -10000.0
+                )
+            
+            # Handle Score objects
+            elif isinstance(score, chess.engine.Score):
+                score_value = score.score()
+                if score_value is None:
+                return 0.0
+                raw_score = float(score_value) / 100.0 if isinstance(score, chess.engine.Cp) else (
+                    10000.0 if score_value > 0 else -10000.0
+                )
+            
+            # Handle numeric values
+            elif isinstance(score, (int, float)):
+                raw_score = float(score)
+            
             return raw_score if is_white else -raw_score
             
         except Exception as e:
@@ -169,101 +198,132 @@ class GameAnalyzer:
             return 0.0
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def analyze_single_game(self, game: Game, depth: int = 20) -> List[Dict[str, Any]]:
-        """Analyze a single game with retry logic."""
-        if not game.pgn:
-            raise ValueError("No PGN data provided for analysis")
-
+    def analyze_single_game(self, game: Game, depth: int = 20) -> Dict[str, Any]:
+        """Analyze a single game and return comprehensive results."""
         try:
-            # Parse PGN and determine player color
-            pgn_io = io.StringIO(game.pgn)
-            game_node: Optional[chess.pgn.Game] = chess.pgn.read_game(pgn_io)
-            if not game_node:
-                raise ValueError("Invalid PGN data: Could not parse game")
+            # Parse moves from PGN
+            moves = self._parse_pgn(game)
+            if not moves:
+                raise ValueError("No moves found in game")
+
+            # Analyze moves
+            analysis_results = self._analyze_moves(moves, depth, game.white == game.user.username)
+            if not analysis_results:
+                raise ValueError("Move analysis failed")
+
+            # Calculate metrics
+            metrics = self._calculate_metrics({'moves': analysis_results, 'is_white': game.white == game.user.username})
             
-            # Determine if the user is playing as white
-            is_white = game.white == game.user.username
-            
-            # Get moves from PGN
-            moves: List[chess.Move] = []
-            board = chess.Board()
-            node: chess.pgn.GameNode = game_node
-            while node.variations:
-                next_node: chess.pgn.ChildNode = node.variations[0]
-                if next_node.move:
-                    moves.append(next_node.move)
-                node = next_node
-            
-            # Analyze moves with proper color perspective
-            analysis = self._analyze_moves(moves, depth, is_white)
-            
-            # Cache the analysis results
-            if hasattr(game, 'id'):
-                cache_key = f"game_analysis_{game.id}"
-                cache.set(cache_key, analysis, timeout=3600)  # Cache for 1 hour
-            
-            return analysis
+            # Generate feedback
+            feedback_source = 'openai' if settings.USE_OPENAI else 'statistical'
+            try:
+                feedback = self.generate_feedback({'moves': analysis_results, 'metrics': metrics}, game)
+                if not feedback:
+                    feedback_source = 'basic'
+                    feedback = self._get_default_feedback()
+            except Exception as e:
+                logger.error(f"Error generating feedback: {str(e)}")
+                feedback_source = 'basic'
+                feedback = self._get_default_feedback()
+
+            # Structure the response to match frontend expectations
+            response = {
+                'analysis_complete': True,
+                'analysis_results': {
+                    'summary': {
+                        'overall': metrics.get('overall', {}),
+                        'phases': metrics.get('phases', {}),
+                        'tactics': metrics.get('tactics', {}),
+                        'time_management': metrics.get('time_management', {}),
+                        'positional': metrics.get('positional', {}),
+                        'advantage': metrics.get('advantage', {}),
+                        'resourcefulness': metrics.get('resourcefulness', {})
+                    },
+                    'moves': analysis_results
+                },
+                'feedback': feedback
+            }
+
+            return response
             
         except Exception as e:
-            if hasattr(game, 'id'):
-                logger.error(f"Error analyzing game {game.id}: {str(e)}")
-            else:
-                logger.error(f"Error analyzing game: {str(e)}")
-            raise
+            logger.error(f"Error during game analysis: {str(e)}", exc_info=True)
+            return {
+                'analysis_complete': False,
+                'error': str(e),
+                'message': 'Analysis failed: Analysis incomplete or invalid'
+            }
 
     def _parse_pgn(self, game: Game) -> List[chess.Move]:
-        """Parse PGN data into a list of moves."""
-        if not game.pgn:
-            raise ValueError("Empty PGN data")
-            
+        """Parse PGN and return list of moves."""
         try:
-            pgn_str = game.pgn.strip()
-        except (AttributeError, TypeError):
-            raise ValueError("Invalid PGN data format")
-
+            pgn_str = game.pgn
         if not pgn_str:
             raise ValueError("Empty PGN data")
 
-        pgn_game: Optional[chess.pgn.Game] = chess.pgn.read_game(io.StringIO(pgn_str))
-        if not pgn_game:
+            # Create a StringIO object for the python-chess PGN parser
+            pgn_io = io.StringIO(pgn_str)
+            chess_game = chess.pgn.read_game(pgn_io)
+            
+            if not chess_game:
             raise ValueError("Invalid PGN data: Could not parse game")
 
-        moves: List[chess.Move] = []
-        board = chess.Board()
-        current_node: chess.pgn.GameNode = pgn_game
-
-        while current_node and current_node.variations:
-            next_node: chess.pgn.ChildNode = current_node.variations[0]
-            if next_node.move:
-                moves.append(next_node.move)
-            current_node = next_node
-
-        if not moves:
-            raise ValueError("Invalid PGN data: No moves found")
+            # Get the mainline moves
+            moves = []
+            board = chess_game.board()
+            for move in chess_game.mainline_moves():
+                moves.append(move)
+                board.push(move)
 
         return moves
 
+        except Exception as e:
+            logger.error(f"Error parsing PGN: {str(e)}")
+            raise ValueError(f"Failed to parse PGN: {str(e)}")
+
     def _analyze_moves(self, moves: List[chess.Move], depth: int, is_white: bool = True) -> List[Dict[str, Any]]:
         """Analyze a list of moves."""
-        board = chess.Board()
         analysis = []
-        last_score = 0
         move_number = 1
-        current_is_white = True  # Track whose move it is
+        current_is_white = True
+        last_score: float = 0.0  # Initialize as float
+        
+        board = chess.Board()
 
         for move in moves:
             try:
-                # Analyze move from current player's perspective
-                move_analysis = self.analyze_move(board, move, depth, is_white)
-                current_score = move_analysis["score"]
+                # Validate move is legal before analyzing
+                if not isinstance(move, chess.Move):
+                    logger.error(f"Invalid move object: {move}")
+                    continue
+                    
+                if move not in board.legal_moves:
+                    logger.error(f"Illegal move encountered: {move.uci()} in position {board.fen()}")
+                    continue
+
+                # Create a copy of the board for analysis
+                board_copy = board.copy()
+                
+                # Analyze the move
+                move_analysis = self.analyze_move(board_copy, move, depth, is_white)
+                
+                if not move_analysis or 'score' not in move_analysis:
+                    logger.error(f"Error analyzing move: Invalid analysis result")
+                    continue
+
+                # Now make the move on the main board
+                board.push(move)
+                current_score = float(str(move_analysis["score"]))
                 
                 # Calculate evaluation drop from player's perspective
                 eval_drop = (last_score - current_score) if current_is_white == is_white else (current_score - last_score)
                 eval_improvement = max(0, -eval_drop)  # Positive when position improves
 
-                # Determine game phase
-                total_pieces = len(board.piece_map())
-                phase = 'opening' if move_number <= 10 else ('endgame' if total_pieces <= 12 else 'middlegame')
+                # Calculate material count
+                material_count = self._calculate_material_count(board)
+
+                # Calculate position complexity
+                position_complexity = self._calculate_position_complexity(board)
 
                 # Add additional analysis data
                 move_analysis.update({
@@ -272,28 +332,52 @@ class GameAnalyzer:
                     "evaluation_improvement": eval_improvement,
                     "is_mistake": eval_drop > 200,
                     "is_blunder": eval_drop > 400,
+                    "is_inaccuracy": 100 < eval_drop <= 200,
                     "is_critical": abs(current_score) > 150 or abs(eval_drop) > 150,
-                    "is_tactical": board.is_capture(move) or board.gives_check(move) or abs(eval_drop) > 150,
-                    "phase": phase,
-                    "is_white": current_is_white == is_white  # Add player color information
+                    "is_tactical": self._is_tactical_move(board, move, eval_drop, move_analysis),
+                    "phase": 'opening' if move_number <= 10 else ('endgame' if len(board.piece_map()) <= 12 else 'middlegame'),
+                    "is_white": current_is_white == is_white,
+                    "material_count": material_count,
+                    "position_complexity": position_complexity,
+                    "time_spent": move_analysis.get('time', 0.0),
+                    "eval_before": last_score,
+                    "eval_after": current_score
                 })
 
                 analysis.append(move_analysis)
-                last_score = current_score
+                last_score = float(current_score)  # Convert to float explicitly
                 move_number += 1
-                
-                # Make the move on the board
-                board.push(move)
-                current_is_white = not current_is_white  # Toggle player color
+                current_is_white = not current_is_white
             
             except Exception as e:
                 logger.error(f"Error analyzing move: {str(e)}")
-                # Create neutral evaluation on error
-                analysis.append(self._create_neutral_evaluation(board, move, depth, 0.0))
-                board.push(move)
-                current_is_white = not current_is_white
+                continue
+            
+        return analysis if analysis else []
 
-        return analysis
+    def _validate_time_metrics(self, time_spent: float, total_time: float, increment: float) -> Dict[str, Any]:
+        """Validate and normalize time metrics."""
+        try:
+            time_spent = max(0.0, float(time_spent))
+            total_time = max(1.0, float(total_time))
+            increment = max(0.0, float(increment))
+            
+            return {
+                'time_pressure': False,
+                'critical_time': False,
+                'time_ratio': time_spent / total_time,
+                'remaining_time': total_time - time_spent + increment,
+                'normalized_time': min(1.0, time_spent / total_time)
+            }
+        except Exception as e:
+            logger.error(f"Error validating time metrics: {str(e)}")
+            return {
+                'time_pressure': False,
+                'critical_time': False,
+                'time_ratio': 0.0,
+                'remaining_time': total_time,
+                'normalized_time': 0.0
+            }
 
     @transaction.atomic
     def save_analysis_to_db(self, game: Game, analysis_results: Dict[str, Any]) -> None:
@@ -307,7 +391,7 @@ class GameAnalyzer:
                 'moves': analysis_results.get('moves', []),
                 'feedback': feedback,
                 'analysis_complete': True,
-                'timestamp': datetime.now().isoformat()
+                'timestamp': timezone.now().isoformat()
             }
             
             # Save to database
@@ -346,93 +430,104 @@ class GameAnalyzer:
         
         return round(total_accuracy / num_moves if num_moves > 0 else 0.0, 2)
 
-    def generate_feedback(self, analysis_results: Dict[str, Any], game: Any) -> Dict[str, Any]:
-        """Generate structured feedback from analysis results."""
+    def generate_feedback(self, analysis_data: Dict[str, Any], game: Game) -> Dict[str, Any]:
+        """Generate comprehensive feedback from analysis data."""
         try:
-            # Extract moves from the structured results
-            moves = analysis_results.get('moves', [])
-            if not moves:
-                raise ValueError("No moves found in analysis results")
+            moves = analysis_data.get('moves', [])
+            metrics = analysis_data.get('metrics', {})
             
-            # Calculate metrics
-            metrics = self._calculate_metrics({'moves': moves})
+            # Split moves into phases
+            opening_moves = moves[:min(10, len(moves))]
+            middlegame_moves = moves[min(10, len(moves)):min(30, len(moves))]
+            endgame_moves = moves[min(30, len(moves)):]
             
-            # Convert GameMetrics to Dict for the feedback generators
-            metrics_dict: Dict[str, Any] = {
-                'overall': metrics['overall'],
-                'phases': metrics['phases'],
-                'tactics': metrics['tactics'],
-                'time_management': metrics['time_management'],
-                'positional': metrics['positional'],
-                'advantage': metrics['advantage'],
-                'resourcefulness': metrics['resourcefulness']
-            }
-            
-            # Generate structured feedback
+            # Generate feedback
             feedback = {
-                'analysis_complete': True,
-                'analysis_results': {
-                    'summary': metrics_dict,
-                    'strengths': self._identify_strengths(metrics_dict),
-                    'weaknesses': self._identify_weaknesses(metrics_dict),
+                'source': 'statistical',
+                'strengths': self._identify_strengths(metrics),
+                'weaknesses': self._identify_weaknesses(metrics),
                     'critical_moments': self._identify_critical_moments(moves),
-                    'improvement_areas': self._generate_overall_assessment(metrics_dict)
+                'improvement_areas': self._generate_overall_assessment(metrics),
+                'opening': {
+                    'analysis': self._analyze_phase(opening_moves, 'opening'),
+                    'suggestion': self._generate_opening_suggestion(opening_moves)
                 },
-                'depth': analysis_results.get('depth', 20),
-                'source': 'stockfish',
-                'timestamp': datetime.now().isoformat()
+                'middlegame': {
+                    'analysis': self._analyze_phase(middlegame_moves, 'middlegame'),
+                    'suggestion': self._generate_middlegame_suggestion(middlegame_moves)
+                },
+                'endgame': {
+                    'analysis': self._analyze_phase(endgame_moves, 'endgame'),
+                    'suggestion': self._generate_endgame_suggestion(endgame_moves)
+                },
+                'tactics': {
+                    'analysis': metrics.get('tactics', {}).get('analysis', ''),
+                    'opportunities': metrics.get('tactics', {}).get('opportunities', 0),
+                    'successful': metrics.get('tactics', {}).get('successful', 0),
+                    'success_rate': metrics.get('tactics', {}).get('success_rate', 0)
+                },
+                'time_management': {
+                    'analysis': metrics.get('time_management', {}).get('analysis', ''),
+                    'avg_time_per_move': metrics.get('time_management', {}).get('average_time', 0),
+                    'time_pressure_moves': metrics.get('time_management', {}).get('time_pressure_moves', 0),
+                    'time_pressure_percentage': metrics.get('time_management', {}).get('time_pressure_percentage', 0)
+                },
+                'advantage': {
+                    'analysis': metrics.get('advantage', {}).get('analysis', ''),
+                    'max_advantage': metrics.get('advantage', {}).get('max_advantage', 0),
+                    'min_advantage': metrics.get('advantage', {}).get('min_advantage', 0),
+                    'average_advantage': metrics.get('advantage', {}).get('average_advantage', 0),
+                    'winning_positions': metrics.get('advantage', {}).get('winning_positions', 0),
+                    'advantage_retention': metrics.get('advantage', {}).get('advantage_retention', 0)
+                },
+                'resourcefulness': {
+                    'analysis': metrics.get('resourcefulness', {}).get('analysis', ''),
+                    'recovery_rate': metrics.get('resourcefulness', {}).get('recovery_rate', 0),
+                    'defensive_score': metrics.get('resourcefulness', {}).get('defensive_score', 0),
+                    'critical_defense': metrics.get('resourcefulness', {}).get('critical_defense', 0),
+                    'position_recovery': metrics.get('resourcefulness', {}).get('position_recovery', 0)
+                }
             }
             
             return feedback
 
         except Exception as e:
             logger.error(f"Error generating feedback: {str(e)}")
-            return {
-                'analysis_complete': True,
-                'analysis_results': {
-                    'summary': {
-                        'overall': {'accuracy': 0.0, 'mistakes': 0, 'blunders': 0},
-            'phases': {},
-            'tactics': {},
-            'time_management': {},
-                        'positional': {},
-                        'advantage': {},
-                        'resourcefulness': None
-                    },
-                    'strengths': [],
-                    'weaknesses': [],
-                    'critical_moments': [],
-                    'improvement_areas': "Analysis failed"
-                },
-                'depth': 20,
-                'source': 'stockfish',
-                'timestamp': datetime.now().isoformat()
-            }
+            return self._get_default_feedback()
 
-    def _generate_overall_assessment(self, metrics: Dict[str, Any]) -> str:
-        """Generate an overall assessment based on metrics."""
-        accuracy = metrics['overall']['accuracy']
-        if accuracy >= 90:
-            return "Excellent performance with very few mistakes"
-        elif accuracy >= 80:
-            return "Strong play with some minor inaccuracies"
-        elif accuracy >= 70:
-            return "Solid performance with room for improvement"
-        elif accuracy >= 60:
-            return "Several mistakes affected the game outcome"
-        else:
-            return "Significant improvements needed in key areas"
-
-    def _calculate_phase_accuracy(self, moves: List[Dict]) -> float:
+    def _analyze_phase(self, moves: List[Dict[str, Any]], phase: str) -> str:
+        """Analyze a specific game phase."""
         if not moves:
-            return 0.0
-        mistakes = len([m for m in moves if m.get("is_mistake", False)])
-        blunders = len([m for m in moves if m.get("is_blunder", False)])
-        inaccuracies = len([m for m in moves if m.get("is_inaccuracy", False)])
-        
-        base = 100
-        penalty = (mistakes * 2) + (blunders * 4) + (inaccuracies * 1)
-        return max(0, min(100, base - penalty))
+            return f"No {phase} moves to analyze."
+
+        mistakes = sum(1 for m in moves if m.get('is_mistake', False))
+        blunders = sum(1 for m in moves if m.get('is_blunder', False))
+        accuracy = self._calculate_phase_accuracy(moves)
+
+        if accuracy >= 80:
+            quality = "excellent"
+        elif accuracy >= 70:
+            quality = "good"
+        elif accuracy >= 60:
+            quality = "reasonable"
+        else:
+            quality = "needs improvement"
+
+        return f"{phase.title()} play was {quality} with {mistakes} mistakes and {blunders} blunders."
+
+    def _generate_middlegame_suggestion(self, middlegame_moves: List[Dict[str, Any]]) -> str:
+        """Generate middlegame suggestions."""
+        if not middlegame_moves:
+            return "No middlegame moves to analyze."
+
+        mistakes = [m for m in middlegame_moves if m.get('is_mistake', False) or m.get('is_blunder', False)]
+        tactical_moves = [m for m in middlegame_moves if m.get('is_tactical', False)]
+
+        if mistakes:
+            return "Focus on positional understanding and tactical awareness in complex positions."
+        elif len(tactical_moves) < len(middlegame_moves) / 4:
+            return "Look for more tactical opportunities in the middlegame."
+        return "Good middlegame play. Continue working on piece coordination and strategic planning."
 
     def _generate_opening_suggestion(self, opening_moves: List[Dict]) -> str:
         if not opening_moves:
@@ -777,24 +872,20 @@ class GameAnalyzer:
         return strengths[:3]  # Return top 3 strengths
 
     def _identify_weaknesses(self, metrics: Dict[str, Any]) -> List[str]:
-        """Identify areas for improvement based on analysis metrics."""
+        """Identify player's weaknesses based on analysis metrics."""
         weaknesses = []
         
         # Check accuracy thresholds
         if metrics['overall']['accuracy'] < 60:
-            weaknesses.append("Overall accuracy needs improvement")
-        
-        # Check mistakes and blunders
-        if metrics['overall']['blunders'] > 2:
-            weaknesses.append("Critical mistakes in key positions")
+            weaknesses.append("Low overall accuracy")
         
         # Check tactical performance
         if metrics['tactics']['success_rate'] < 50:
             weaknesses.append("Missed tactical opportunities")
         
         # Check time management
-        if metrics['time_management']['time_pressure_moves'] > 10:
-            weaknesses.append("Time management under pressure")
+        if metrics['time_management']['time_pressure_percentage'] > 30:
+            weaknesses.append("Poor time management")
         
         # Check phase performance
         if metrics['phases']['opening']['accuracy'] < 60:
@@ -834,8 +925,57 @@ class GameAnalyzer:
             return "Missed opportunity to gain advantage"
         return "Position significantly worsened after this move"
 
+    def _generate_overall_assessment(self, metrics: Dict[str, Any]) -> List[str]:
+        """Generate overall assessment and improvement areas."""
+        assessment = []
+        
+        # Check accuracy thresholds
+        if metrics['overall']['accuracy'] < 60:
+            assessment.append("Focus on reducing major mistakes and blunders")
+        
+        # Check tactical performance
+        if metrics['tactics']['success_rate'] < 50:
+            assessment.append("Practice tactical pattern recognition")
+        
+        # Check time management
+        if metrics['time_management']['time_pressure_percentage'] > 30:
+            assessment.append("Improve time management in critical positions")
+        
+        # Check phase performance
+        if metrics['phases']['opening']['accuracy'] < 60:
+            assessment.append("Study opening principles and common patterns")
+        if metrics['phases']['middlegame']['accuracy'] < 60:
+            assessment.append("Work on positional understanding and planning")
+        if metrics['phases']['endgame']['accuracy'] < 60:
+            assessment.append("Practice basic endgame techniques")
+            
+        return assessment[:3] if assessment else ["Focus on general chess principles"]
+
+    def _calculate_phase_accuracy(self, moves: List[Dict[str, Any]]) -> float:
+        """Calculate accuracy for a specific phase."""
+        if not moves:
+            return 0.0
+            
+        total_accuracy = 0.0
+        num_moves = 0
+        
+        for move in moves:
+            if 'accuracy' in move:
+                total_accuracy += move['accuracy']
+                num_moves += 1
+                
+        return round(total_accuracy / max(1, num_moves), 2)
+
     def _calculate_resourcefulness(self, moves: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate resourcefulness metrics."""
+        if not moves:
+            return {
+                'defensive_moves': 0,
+                'winning_conversions': 0,
+                'resourcefulness_score': 0.0,
+                'analysis': 'No moves to analyze'
+            }
+            
         total_positions = len(moves)
         defensive_moves = 0
         winning_conversions = 0
@@ -852,149 +992,46 @@ class GameAnalyzer:
             if eval_before > 1.5 and eval_after > 2.0:
                 winning_conversions += 1
             
+        # Calculate resourcefulness score
+        resourcefulness_score = round((defensive_moves + winning_conversions) / total_positions * 100 if total_positions > 0 else 0, 2)
+        
+        # Generate analysis text
+        if resourcefulness_score >= 80:
+            analysis = "Excellent resourcefulness in critical positions"
+        elif resourcefulness_score >= 60:
+            analysis = "Good defensive skills and advantage conversion"
+        elif resourcefulness_score >= 40:
+            analysis = "Moderate ability to handle critical positions"
+        else:
+            analysis = "Room for improvement in defensive play and advantage conversion"
+            
             return {
             'defensive_moves': defensive_moves,
             'winning_conversions': winning_conversions,
-            'resourcefulness_score': round((defensive_moves + winning_conversions) / total_positions * 100 if total_positions > 0 else 0, 2)
-        }
-
-    def _calculate_advantage_metrics(self, moves: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Calculate metrics related to advantage handling."""
-        winning_positions = 0
-        converted_advantages = 0
-        
-        for move in moves:
-            eval_before = self._convert_score(move.get('eval_before', 0))
-            eval_after = self._convert_score(move.get('eval_after', 0))
-            
-            # Count positions where player had significant advantage
-            if eval_before > 1.5:
-                winning_positions += 1
-                if eval_after > eval_before:
-                    converted_advantages += 1
-        
-        return {
-            'winning_positions': winning_positions,
-            'converted_advantages': converted_advantages,
-            'conversion_rate': round(converted_advantages / winning_positions * 100 if winning_positions > 0 else 0, 2)
-        }
-
-    def _analyze_position_quality(self, moves: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Analyze the quality of positions throughout the game."""
-        if not moves:
-            return {
-                'winning_positions': 0,
-                'losing_positions': 0,
-                'critical_positions': 0,
-                'average_position_score': 0.0
-            }
-        
-        winning_positions = 0
-        losing_positions = 0
-        critical_positions = 0
-        total_score = 0.0
-        
-        for move in moves:
-            eval_after = self._convert_score(move.get('eval_after', 0))
-            total_score += eval_after
-            
-            if eval_after > 1.5:
-                winning_positions += 1
-            elif eval_after < -1.5:
-                losing_positions += 1
-            
-            if abs(eval_after) > 2.0:
-                critical_positions += 1
-        
-        return {
-            'winning_positions': winning_positions,
-            'losing_positions': losing_positions,
-            'critical_positions': critical_positions,
-            'average_position_score': round(total_score / len(moves), 2)
+            'resourcefulness_score': resourcefulness_score,
+            'analysis': analysis
         }
 
     def _calculate_metrics(self, analysis_data: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate comprehensive metrics with proper frontend integration."""
         try:
+            # Ensure moves exist and are in the correct format
             moves = analysis_data.get('moves', [])
+            if not isinstance(moves, list):
+                logger.error("Invalid moves data format")
+                return self._get_default_metrics()
+                
             is_white = analysis_data.get('is_white', True)
             
             # Calculate base metrics using enhanced calculator
+            try:
             metrics = MetricsCalculator.calculate_game_metrics(moves, is_white)
+            except Exception as e:
+                logger.error(f"Error in MetricsCalculator: {str(e)}")
+                metrics = self._get_default_metrics()
             
-            # Enhance the response structure for frontend
-            enhanced_metrics = {
-                'overall': {
-                    'accuracy': metrics['overall']['accuracy'],
-                    'consistency': metrics['overall']['consistency_score'],
-                    'mistakes': metrics['overall']['mistakes'],
-                    'blunders': metrics['overall']['blunders'],
-                    'inaccuracies': metrics['overall']['inaccuracies'],
-                    'quality_moves': metrics['overall']['quality_moves'],
-                    'critical_positions': metrics['overall']['critical_positions'],
-                    'position_quality': metrics['overall']['position_quality']
-                },
-                'phases': {
-                    'opening': {
-                        'accuracy': metrics['phases']['opening']['accuracy'],
-                        'moves': len(metrics['phases']['opening']['moves']),
-                        'mistakes': metrics['phases']['opening']['mistakes'],
-                        'blunders': metrics['phases']['opening']['blunders'],
-                        'critical_moves': metrics['phases']['opening']['critical_moves'],
-                        'average_complexity': metrics['phases']['opening']['average_complexity'],
-                        'time_management': metrics['phases']['opening']['time_management']
-                    },
-                    'middlegame': {
-                        'accuracy': metrics['phases']['middlegame']['accuracy'],
-                        'moves': len(metrics['phases']['middlegame']['moves']),
-                        'mistakes': metrics['phases']['middlegame']['mistakes'],
-                        'blunders': metrics['phases']['middlegame']['blunders'],
-                        'critical_moves': metrics['phases']['middlegame']['critical_moves'],
-                        'average_complexity': metrics['phases']['middlegame']['average_complexity'],
-                        'time_management': metrics['phases']['middlegame']['time_management']
-                    },
-                    'endgame': {
-                        'accuracy': metrics['phases']['endgame']['accuracy'],
-                        'moves': len(metrics['phases']['endgame']['moves']),
-                        'mistakes': metrics['phases']['endgame']['mistakes'],
-                        'blunders': metrics['phases']['endgame']['blunders'],
-                        'critical_moves': metrics['phases']['endgame']['critical_moves'],
-                        'average_complexity': metrics['phases']['endgame']['average_complexity'],
-                        'time_management': metrics['phases']['endgame']['time_management']
-                    }
-                },
-                'tactics': {
-                    'opportunities': metrics['tactics']['opportunities'],
-                    'successful': metrics['tactics']['successful'],
-                    'missed': metrics['tactics']['missed'],
-                    'success_rate': metrics['tactics']['success_rate'],
-                    'tactical_score': metrics['tactics']['tactical_score']
-                },
-                'time_management': {
-                    'average_time': metrics['time_management']['average_time'],
-                    'time_pressure_moves': metrics['time_management']['time_pressure_moves'],
-                    'time_pressure_percentage': metrics['time_management']['time_pressure_percentage'],
-                    'time_variance': metrics['time_management']['time_variance'],
-                    'critical_time_average': metrics['time_management']['critical_time_average'],
-                    'total_time': metrics['time_management']['total_time']
-                },
-                'advantage': {
-                    'winning_positions': metrics['advantage']['winning_positions'],
-                    'conversion_rate': metrics['advantage']['conversion_rate'],
-                    'average_advantage': metrics['advantage']['average_advantage'],
-                    'max_advantage': metrics['advantage']['max_advantage'],
-                    'advantage_retention': metrics['advantage']['advantage_retention']
-                },
-                'resourcefulness': {
-                    'defensive_score': metrics['resourcefulness']['defensive_score'],
-                    'counter_play': metrics['resourcefulness']['counter_play'],
-                    'recovery_rate': metrics['resourcefulness']['recovery_rate'],
-                    'critical_defense': metrics['resourcefulness']['critical_defense'],
-                    'best_move_finding': metrics['resourcefulness']['best_move_finding']
-                }
-            }
-
-            return enhanced_metrics
+            # Return the metrics
+            return metrics
 
         except Exception as e:
             logger.error(f"Error calculating metrics: {str(e)}")
@@ -1002,6 +1039,15 @@ class GameAnalyzer:
 
     def _get_default_metrics(self) -> Dict[str, Any]:
         """Return default metrics structure matching frontend requirements."""
+        default_time_management = {
+            'average_time': 0.0,
+            'time_variance': 0.0,
+            'time_consistency': 0.0,
+            'time_pressure_moves': 0,
+            'time_management_score': 0.0,
+            'time_pressure_percentage': 0.0
+        }
+
         return {
             'overall': {
                 'accuracy': 0.0,
@@ -1014,38 +1060,61 @@ class GameAnalyzer:
                 'position_quality': 0.0
             },
             'phases': {
-                'opening': self._get_default_phase_metrics(),
-                'middlegame': self._get_default_phase_metrics(),
-                'endgame': self._get_default_phase_metrics()
+                'opening': {
+                    'accuracy': 0.0,
+                    'moves': 0,
+                    'mistakes': 0,
+                    'blunders': 0,
+                    'critical_moves': 0,
+                    'time_management': default_time_management.copy()
+                },
+                'middlegame': {
+                    'accuracy': 0.0,
+                    'moves': 0,
+                    'mistakes': 0,
+                    'blunders': 0,
+                    'critical_moves': 0,
+                    'time_management': default_time_management.copy()
+                },
+                'endgame': {
+                    'accuracy': 0.0,
+                    'moves': 0,
+                    'mistakes': 0,
+                    'blunders': 0,
+                    'critical_moves': 0,
+                    'time_management': default_time_management.copy()
+                }
             },
             'tactics': {
                 'opportunities': 0,
                 'successful': 0,
                 'missed': 0,
                 'success_rate': 0.0,
-                'tactical_score': 0.0
+                'tactical_score': 0.0,
+                'pattern_recognition': 0.0
             },
-            'time_management': {
-                'average_time': 0.0,
-                'time_pressure_moves': 0,
-                'time_pressure_percentage': 0.0,
-                'time_variance': 0.0,
-                'critical_time_average': 0.0,
-                'total_time': 0.0
-            },
+            'time_management': default_time_management.copy(),
             'advantage': {
-                'winning_positions': 0,
-                'conversion_rate': 0.0,
-                'average_advantage': 0.0,
                 'max_advantage': 0.0,
-                'advantage_retention': 0.0
+                'min_advantage': 0.0,
+                'average_advantage': 0.0,
+                'advantage_conversion': 0.0,
+                'pressure_handling': 0.0,
+                'advantage_duration': 0,
+                'winning_positions': 0,
+                'advantage_retention': 0.0,
+                'advantage_trend': 0.0
             },
             'resourcefulness': {
-                'defensive_score': 0.0,
-                'counter_play': 0.0,
                 'recovery_rate': 0.0,
+                'defensive_score': 0.0,
                 'critical_defense': 0.0,
-                'best_move_finding': 0.0
+                'tactical_defense': 0.0,
+                'best_move_finding': 0.0,
+                'position_recovery': 0.0,
+                'comeback_potential': 0.0,
+                'critical_defense_score': 0.0,
+                'defensive_resourcefulness': 0.0
             }
         }
 
@@ -1057,14 +1126,13 @@ class GameAnalyzer:
             'mistakes': 0,
             'blunders': 0,
             'critical_moves': 0,
-            'average_complexity': 0.0,
             'time_management': {
                 'average_time': 0.0,
-                'time_pressure_moves': 0,
-                'time_pressure_percentage': 0.0,
                 'time_variance': 0.0,
-                'critical_time_average': 0.0,
-                'total_time': 0.0
+                'time_consistency': 0.0,
+                'time_pressure_moves': 0,
+                'time_management_score': 0.0,
+                'time_pressure_percentage': 0.0
             }
         }
 
@@ -1163,96 +1231,92 @@ class GameAnalyzer:
             logger.error(f"Error checking development move: {str(e)}")
             return False
 
-    def _is_tactical_move(self, board: chess.Board, move: chess.Move, evaluation_before: float, evaluation_after: float) -> Dict[str, Any]:
-        """
-        Enhanced tactical move classification with detailed analysis.
-        
-        Args:
-            board: Current board position
-            move: The move to analyze
-            evaluation_before: Position evaluation before the move
-            evaluation_after: Position evaluation after the move
-        
-        Returns:
-            Dictionary containing tactical analysis details
-        """
-        is_tactical = False
-        tactical_features = []
-        tactical_score = 0.0
-        
-        # Get move details
-        moving_piece = board.piece_at(move.from_square)
-        captured_piece = board.piece_at(move.to_square)
-        
-        if not moving_piece:
-            return {
-                'is_tactical': False,
-                'features': [],
-                'score': 0.0,
-                'complexity': 0.0
-            }
-        
-        # 1. Material gain analysis
-        if captured_piece:
-            piece_values = {
-                chess.PAWN: 1,
-                chess.KNIGHT: 3,
-                chess.BISHOP: 3,
-                chess.ROOK: 5,
-                chess.QUEEN: 9
-            }
+    def _safe_score_compare(self, score: Optional[int], threshold: int) -> bool:
+        """Safely compare a score with a threshold, handling None values."""
+        if score is None:
+            return False
+        return score > threshold
+
+    def _is_tactical_move(self, board: chess.Board, move: chess.Move, eval_change: float, analysis: Optional[Union[Dict[str, Any], chess.engine.InfoDict]]) -> bool:
+        """Determine if a move is tactical."""
+        try:
+            # First check basic tactical features
+            if board.is_capture(move) or board.gives_check(move):
+                return True
             
-            attacker_value = piece_values.get(moving_piece.piece_type, 0)
-            captured_value = piece_values.get(captured_piece.piece_type, 0)
+            if analysis is None:
+                return False
             
-            if captured_value > attacker_value:
-                is_tactical = True
-                tactical_features.append('winning_capture')
-                tactical_score += min(1.0, (captured_value - attacker_value) / 4)
-            elif captured_value == attacker_value:
-                tactical_features.append('equal_capture')
-                tactical_score += 0.3
-        
-        # 2. Check analysis
-        if board.is_check():
-            is_tactical = True
-            tactical_features.append('check')
-            tactical_score += 0.4
+            # Get score from analysis
+            score = analysis.get('score')
+            if score is None:
+                return False
             
-            # Check if it's checkmate
-            if board.is_checkmate():
-                tactical_features.append('checkmate')
-                tactical_score = 1.0
-        
-        # 3. Position improvement analysis
-        eval_improvement = evaluation_after - evaluation_before
-        if abs(eval_improvement) >= 1.5:  # Significant improvement
-            is_tactical = True
-            tactical_features.append('major_improvement')
-            tactical_score += min(1.0, abs(eval_improvement) / 3)
-        elif abs(eval_improvement) >= 0.8:  # Moderate improvement
-            is_tactical = True
-            tactical_features.append('moderate_improvement')
-            tactical_score += min(0.7, abs(eval_improvement) / 3)
-        
-        # 4. Piece activity analysis
-        to_square_attacks = len(board.attackers(moving_piece.color, move.to_square))
-        if to_square_attacks >= 2:
-            tactical_features.append('multiple_attacks')
-            tactical_score += 0.3
-            is_tactical = True
-        
-        # 5. Calculate position complexity
-        complexity = self._calculate_position_complexity(board)
-        
-        # Normalize tactical score
-        tactical_score = min(1.0, tactical_score)
+            # Convert score to centipawns if it's an engine score object
+            if isinstance(score, (chess.engine.Score, chess.engine.PovScore)):
+                score_value = self._convert_score(score)
+            else:
+                try:
+                    score_value = float(score)
+                except (TypeError, ValueError):
+                    return False
             
+            return (
+                abs(eval_change) > 1.0 or
+                abs(score_value) > 2.0  # Consider positions with score > 2 pawns as tactical
+            )
+            
+        except Exception as e:
+            logger.error(f"Error checking tactical move: {str(e)}")
+            return board.is_capture(move) or board.gives_check(move)
+
+    def _get_default_feedback(self) -> Dict[str, Any]:
+        """Return default feedback structure."""
         return {
-            'is_tactical': is_tactical,
-            'features': tactical_features,
-            'score': round(tactical_score, 3),
-            'complexity': round(complexity, 3)
+            'source': 'basic',
+            'strengths': [],
+            'weaknesses': [],
+            'critical_moments': [],
+            'improvement_areas': [],
+            'opening': {
+                'analysis': 'No opening analysis available',
+                'suggestion': 'Focus on basic opening principles'
+            },
+            'middlegame': {
+                'analysis': 'No middlegame analysis available',
+                'suggestion': 'Practice tactical awareness'
+            },
+            'endgame': {
+                'analysis': 'No endgame analysis available',
+                'suggestion': 'Study basic endgame principles'
+            },
+            'tactics': {
+                'analysis': 'No tactical analysis available',
+                'opportunities': 0,
+                'successful': 0,
+                'success_rate': 0
+            },
+            'time_management': {
+                'analysis': 'No time management analysis available',
+                'avg_time_per_move': 0,
+                'time_pressure_moves': 0,
+                'time_pressure_percentage': 0
+            },
+            'advantage': {
+                'analysis': 'No advantage analysis available',
+                'max_advantage': 0,
+                'min_advantage': 0,
+                'average_advantage': 0,
+                'winning_positions': 0,
+                'advantage_retention': 0
+            },
+            'resourcefulness': {
+                'analysis': 'No resourcefulness analysis available',
+                'recovery_rate': 0,
+                'defensive_score': 0,
+                'critical_defense': 0,
+                'position_recovery': 0
+            }
         }
 
 # Placeholder for future enhancement to support asynchronous analysis using Celery

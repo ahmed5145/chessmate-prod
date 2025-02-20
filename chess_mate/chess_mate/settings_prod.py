@@ -246,6 +246,7 @@ TEST_MODE = os.getenv('TEST_MODE', 'False').lower() == 'true'
 
 # OpenAI Settings
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+USE_OPENAI = bool(OPENAI_API_KEY)  # Enable OpenAI if API key is present
 OPENAI_MODEL = 'gpt-3.5-turbo'
 OPENAI_MAX_TOKENS = 500
 OPENAI_TEMPERATURE = 0.7

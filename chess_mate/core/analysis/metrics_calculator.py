@@ -30,47 +30,79 @@ class MetricsCalculator:
 
     @staticmethod
     def calculate_game_metrics(moves: List[Dict[str, Any]], is_white: bool = True) -> Dict[str, Any]:
-        """Calculate comprehensive game metrics with validation."""
+        """Calculate comprehensive game metrics."""
         try:
-            # Validate input data
             if not moves:
                 return MetricsCalculator._get_default_metrics()
 
-            # Detect game phases
+            # Calculate phase transitions
             phases = MetricsCalculator._detect_phase_transitions(moves)
-            opening_moves = moves[:phases['opening_end']]
-            middlegame_moves = moves[phases['opening_end']:phases['endgame_start']]
-            endgame_moves = moves[phases['endgame_start']:]
+            
+            # Calculate overall metrics
+            try:
+                overall_metrics = {
+                    'accuracy': MetricsCalculator._calculate_accuracy(moves),
+                    'consistency': MetricsCalculator._calculate_consistency(moves),
+                    'mistakes': sum(1 for m in moves if m.get('is_mistake', False)),
+                    'blunders': sum(1 for m in moves if m.get('is_blunder', False)),
+                    'inaccuracies': sum(1 for m in moves if m.get('is_inaccuracy', False)),
+                    'quality_moves': sum(1 for m in moves if m.get('is_best', False)),
+                    'critical_positions': sum(1 for m in moves if m.get('is_critical', False)),
+                    'position_quality': sum(m.get('position_quality', 0) for m in moves) / len(moves) if moves else 0
+                }
+            except Exception as e:
+                logger.error(f"Error calculating overall metrics: {str(e)}")
+                overall_metrics = MetricsCalculator._get_default_metrics()['overall']
 
             # Calculate phase-specific metrics
-            phase_metrics = {
-                'opening': MetricsCalculator._calculate_phase_metrics(opening_moves, is_white),
-                'middlegame': MetricsCalculator._calculate_phase_metrics(middlegame_moves, is_white),
-                'endgame': MetricsCalculator._calculate_phase_metrics(endgame_moves, is_white)
-            }
+            try:
+                phase_metrics = {
+                    'opening': MetricsCalculator._calculate_phase_metrics(moves[:phases['opening']], is_white),
+                    'middlegame': MetricsCalculator._calculate_phase_metrics(moves[phases['opening']:phases['middlegame']], is_white),
+                    'endgame': MetricsCalculator._calculate_phase_metrics(moves[phases['middlegame']:], is_white)
+                }
+            except Exception as e:
+                logger.error(f"Error calculating phase metrics: {str(e)}")
+                phase_metrics = MetricsCalculator._get_default_metrics()['phases']
 
             # Calculate tactical metrics
-            tactical_metrics = MetricsCalculator._calculate_tactical_metrics(moves, is_white)
+            try:
+                tactical_metrics = MetricsCalculator._calculate_tactical_metrics(moves, is_white)
+            except Exception as e:
+                logger.error(f"Error calculating tactical metrics: {str(e)}")
+                tactical_metrics = MetricsCalculator._get_default_metrics()['tactics']
 
             # Calculate time management metrics
-            time_metrics = MetricsCalculator._calculate_time_metrics(moves)
+            try:
+                time_metrics = MetricsCalculator._calculate_time_metrics(moves)
+            except Exception as e:
+                logger.error(f"Error calculating time metrics: {str(e)}")
+                time_metrics = MetricsCalculator._get_default_metrics()['time_management']
 
             # Calculate advantage metrics
-            advantage_metrics = MetricsCalculator._calculate_advantage_metrics(moves, is_white)
+            try:
+                advantage_metrics = MetricsCalculator._calculate_advantage_metrics(moves, is_white)
+            except Exception as e:
+                logger.error(f"Error calculating advantage metrics: {str(e)}")
+                advantage_metrics = MetricsCalculator._get_default_metrics()['advantage']
 
-            # Calculate overall metrics
-            overall_metrics = MetricsCalculator._calculate_overall_metrics(moves, is_white)
+            # Calculate resourcefulness metrics
+            try:
+                resourcefulness_metrics = MetricsCalculator._calculate_resourcefulness_metrics(moves, is_white)
+            except Exception as e:
+                logger.error(f"Error calculating resourcefulness metrics: {str(e)}")
+                resourcefulness_metrics = MetricsCalculator._get_default_metrics()['resourcefulness']
 
-            # Validate all metrics
+            # Validate and return all metrics
             metrics = {
                 'overall': overall_metrics,
                 'phases': phase_metrics,
                 'tactics': tactical_metrics,
                 'time_management': time_metrics,
                 'advantage': advantage_metrics,
-                'resourcefulness': MetricsCalculator._calculate_resourcefulness_metrics(moves, is_white)
+                'resourcefulness': resourcefulness_metrics
             }
-
+            
             return MetricsCalculator._validate_metrics(metrics)
 
         except Exception as e:
@@ -82,37 +114,47 @@ class MetricsCalculator:
         """Enhanced phase detection using multiple indicators."""
         try:
             total_moves = len(moves)
-            material_counts = [m.get('material_count', 32) for m in moves]
-            piece_activities = [m.get('piece_activity', 0) for m in moves]
-            center_controls = [m.get('center_control', 0) for m in moves]
-            
+            if total_moves == 0:
+                return {'opening': 0, 'middlegame': 0}
+
             # Initialize phase transition points
-            opening_end = total_moves // 3  # Default split
+            opening_end = min(10, total_moves)  # Default opening length
+            middlegame_start = opening_end
             endgame_start = total_moves * 2 // 3
 
-            # Detect opening end
-            for i in range(min(20, total_moves)):
-                if (material_counts[i] < 30 or  # Material loss
-                    center_controls[i] > 0.7 or  # Strong center control
-                    piece_activities[i] > 0.8):  # High piece activity
-                    opening_end = i
-                    break
+            # Track material count
+            material_count = 32  # Starting position
+            for i, move in enumerate(moves):
+                # Update material count if available
+                if 'material_count' in move:
+                    material_count = float(str(move['material_count']))
+                
+                # Detect opening end based on multiple factors
+                if i < total_moves // 3:
+                    if (material_count < 28 or  # Significant material exchange
+                        bool(move.get('is_tactical', False)) or  # Tactical play started
+                        i >= 10):  # Hard limit on opening
+                        opening_end = i
+                        middlegame_start = i
+                        break
 
-            # Detect endgame start
-            for i in range(total_moves - 1, max(opening_end, total_moves // 2), -1):
-                if material_counts[i] < 20:  # Significant material reduction
-                    endgame_start = i
-                    break
+                # Detect endgame start
+                if i > total_moves // 2:
+                    if material_count < 20:  # Clear endgame material situation
+                        endgame_start = i
+                        break
 
             return {
-                'opening_end': opening_end,
-                'endgame_start': endgame_start
+                'opening': opening_end,
+                'middlegame': endgame_start
             }
         except Exception as e:
             logger.error(f"Error detecting phase transitions: {str(e)}")
+            # Fallback to simple division
+            third = total_moves // 3
             return {
-                'opening_end': total_moves // 3,
-                'endgame_start': total_moves * 2 // 3
+                'opening': third,
+                'middlegame': third * 2
             }
 
     @staticmethod
@@ -246,79 +288,64 @@ class MetricsCalculator:
     def _calculate_time_metrics(moves: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate comprehensive time management metrics."""
         if not moves:
-            return MetricsCalculator._get_default_time_metrics()
+            return {
+                'average_time': 0.0,
+                'time_variance': 0.0,
+                'time_consistency': 0.0,
+                'time_pressure_moves': 0,
+                'time_management_score': 0.0,
+                'time_pressure_percentage': 0.0
+            }
 
         try:
-            # Extract and validate time data
+            # Extract time data
             time_spent = []
-            remaining_time = 0.0
             total_time = 0.0
-            increment = 0.0
             
             for move in moves:
-                spent = move.get('time_spent')
-                if spent is not None and spent >= 0:
+                spent = move.get('time_spent', 0)
+                if isinstance(spent, (int, float)) and spent >= 0:
                     time_spent.append(float(spent))
                     total_time += float(spent)
-                    
-                # Track remaining time if available
-                if move.get('remaining_time') is not None:
-                    remaining_time = float(move.get('remaining_time'))
-                if move.get('increment') is not None:
-                    increment = float(move.get('increment'))
             
             if not time_spent:
                 return MetricsCalculator._get_default_time_metrics()
             
             # Calculate basic metrics
-            avg_time = statistics.mean(time_spent) if time_spent else 0.0
+            avg_time = statistics.mean(time_spent)
             time_variance = statistics.variance(time_spent) if len(time_spent) > 1 else 0.0
             
             # Calculate time pressure metrics
-            expected_time_per_move = max(1.0, total_time / len(moves))  # Avoid division by zero
-            pressure_threshold = expected_time_per_move * 0.3
-            time_pressure_moves = int(sum(1 for t in time_spent if t < pressure_threshold))
+            expected_time = total_time / len(moves)
+            pressure_threshold = expected_time * 0.3
+            time_pressure_moves = sum(1 for t in time_spent if t <= pressure_threshold)
+            time_pressure_percentage = (time_pressure_moves / len(moves) * 100) if moves else 0
             
             # Calculate time consistency
-            time_variations = [abs(t - avg_time) / max(1.0, avg_time) for t in time_spent]  # Avoid division by zero
+            time_variations = [abs(t - avg_time) / max(1.0, avg_time) for t in time_spent]
             time_consistency = 100.0 * (1.0 - min(1.0, sum(time_variations) / len(moves)))
             
-            # Calculate critical time decisions
-            critical_moves = [m for m in moves if m.get('is_critical', False)]
-            critical_times = [float(m.get('time_spent', 0)) for m in critical_moves]
-            critical_time_avg = statistics.mean(critical_times) if critical_times else 0.0
-            
-            # Calculate phase-specific time metrics
-            phases = MetricsCalculator._detect_phase_transitions(moves)
-            opening_moves = moves[:phases['opening_end']]
-            middlegame_moves = moves[phases['opening_end']:phases['endgame_start']]
-            endgame_moves = moves[phases['endgame_start']:]
-            
-            phase_times = {
-                'opening': MetricsCalculator._calculate_phase_time_metrics(opening_moves),
-                'middlegame': MetricsCalculator._calculate_phase_time_metrics(middlegame_moves),
-                'endgame': MetricsCalculator._calculate_phase_time_metrics(endgame_moves)
-            }
-            
             # Calculate time management score
-            time_score = MetricsCalculator._calculate_time_management_score(
-                time_spent=time_spent,
-                time_pressure_percentage=(time_pressure_moves / len(moves) * 100.0),
-                time_consistency=time_consistency,
-                critical_time_ratio=(critical_time_avg / max(1.0, avg_time)),  # Avoid division by zero
-                phase_times=phase_times
-            )
+            base_score = 100.0
+            
+            # Deduct for time pressure
+            pressure_penalty = (time_pressure_percentage / 100) * 30  # Up to 30 points
+            
+            # Deduct for inconsistency
+            consistency_penalty = (1 - (time_consistency / 100)) * 40  # Up to 40 points
+            
+            # Deduct for extreme variance
+            variance_penalty = min(30, (time_variance / (avg_time ** 2)) * 30)  # Up to 30 points
+            
+            time_management_score = max(0, min(100, base_score - pressure_penalty - consistency_penalty - variance_penalty))
             
             return {
-                'average_time': round(avg_time, 2),
-                'time_pressure_moves': time_pressure_moves,
-                'time_pressure_percentage': round((time_pressure_moves / len(moves) * 100.0), 1),
-                'time_variance': round(time_variance, 2),
+                'average_time': round(avg_time, 1),
+                'time_variance': round(time_variance, 1),
                 'time_consistency': round(time_consistency, 1),
-                'critical_time_average': round(critical_time_avg, 2),
-                'total_time': round(total_time, 2),
-                'time_management_score': round(time_score, 1),
-                'phase_times': phase_times
+                'time_pressure_moves': time_pressure_moves,
+                'time_management_score': round(time_management_score, 1),
+                'time_pressure_percentage': round(time_pressure_percentage, 1)
             }
             
         except Exception as e:
@@ -823,63 +850,69 @@ class MetricsCalculator:
 
         try:
             # Track advantage throughout the game
-            advantages = []
+            advantages: List[float] = []
             winning_positions = 0
             advantage_retention = 0
             
             for i, move in enumerate(moves):
-                eval_after = float(move.get('eval_after', 0))
+                try:
+                    eval_after = float(str(move.get('eval_after', '0.0')))
+                except (ValueError, TypeError):
+                    eval_after = 0.0
                 # Adjust evaluation based on color
                 eval_after = eval_after if is_white else -eval_after
                 advantages.append(eval_after)
                 
                 # Track winning positions (advantage > 2 pawns)
-                if eval_after > 200:
+                if eval_after > 200.0:
                     winning_positions += 1
                     # Check if advantage is maintained
                     if i < len(moves) - 1:
-                        next_eval = float(moves[i + 1].get('eval_after', 0))
-                        next_eval = next_eval if is_white else -next_eval
-                        if next_eval > 150:  # Still maintaining significant advantage
-                            advantage_retention += 1
+                        try:
+                            next_eval = float(str(moves[i + 1].get('eval_after', '0.0')))
+                            next_eval = next_eval if is_white else -next_eval
+                            if next_eval > 150.0:  # Still maintaining significant advantage
+                                advantage_retention += 1
+                        except (ValueError, TypeError):
+                            continue
             
             # Calculate advantage metrics with proper validation
-            max_advantage = max(advantages) if advantages else 0
-            min_advantage = min(advantages) if advantages else 0
-            avg_advantage = statistics.mean(advantages) if advantages else 0
+            max_advantage = max(advantages) if advantages else 0.0
+            min_advantage = min(advantages) if advantages else 0.0
+            avg_advantage = statistics.mean(advantages) if advantages else 0.0
             
             # Calculate advantage conversion with validation
-            advantage_positions = sum(1 for a in advantages if a > 200)
+            advantage_positions = sum(1 for a in advantages if a > 200.0)
             converted_positions = sum(1 for i in range(len(advantages) - 1)
-                                   if advantages[i] > 200 and advantages[i + 1] >= advantages[i])
+                                   if advantages[i] > 200.0 and advantages[i + 1] >= advantages[i])
             
-            conversion_rate = (converted_positions / max(1, advantage_positions) * 100)
-            retention_rate = (advantage_retention / max(1, winning_positions) * 100)
+            conversion_rate = (converted_positions / max(1, advantage_positions) * 100.0)
+            retention_rate = (advantage_retention / max(1, winning_positions) * 100.0)
             
             # Calculate pressure handling with validation
-            pressure_positions = sum(1 for a in advantages if a < -150)
+            pressure_positions = sum(1 for a in advantages if a < -150.0)
             good_defenses = sum(1 for i in range(len(advantages) - 1)
-                              if advantages[i] < -150 and advantages[i + 1] > advantages[i])
+                              if advantages[i] < -150.0 and advantages[i + 1] > advantages[i])
             
-            pressure_score = (good_defenses / max(1, pressure_positions) * 100)
+            pressure_score = (good_defenses / max(1, pressure_positions) * 100.0)
             
             # Calculate advantage trend with validation
-            advantage_trend = 0
+            advantage_trend: float = 0.0
             if len(advantages) > 5:
                 early_avg = statistics.mean(advantages[:len(advantages)//3])
                 late_avg = statistics.mean(advantages[-len(advantages)//3:])
                 advantage_trend = late_avg - early_avg
             
             return {
-                'max_advantage': round(max_advantage / 100, 2),  # Convert to pawn units
-                'min_advantage': round(min_advantage / 100, 2),
-                'average_advantage': round(avg_advantage / 100, 2),
+                'max_advantage': round(max_advantage / 100.0, 2),  # Convert to pawn units
+                'min_advantage': round(min_advantage / 100.0, 2),
+                'average_advantage': round(avg_advantage / 100.0, 2),
                 'advantage_conversion': round(conversion_rate, 1),
                 'pressure_handling': round(pressure_score, 1),
                 'advantage_duration': advantage_positions,
                 'winning_positions': winning_positions,
                 'advantage_retention': round(retention_rate, 1),
-                'advantage_trend': round(advantage_trend / 100, 2)
+                'advantage_trend': round(advantage_trend / 100.0, 2)
             }
             
         except Exception as e:
@@ -901,27 +934,28 @@ class MetricsCalculator:
         """Calculate metrics related to resourcefulness and finding best moves under pressure."""
         if not moves:
             return {
-                'critical_defense_score': 0.0,
-                'comeback_potential': 0.0,
+                'recovery_rate': 0.0,
+                'defensive_score': 0.0,
+                'critical_defense': 0.0,
+                'tactical_defense': 0.0,
                 'best_move_finding': 0.0,
-                'defensive_resourcefulness': 0.0,
-                'counter_play': 0.0,
                 'position_recovery': 0.0,
-                'tactical_defense': 0.0
+                'comeback_potential': 0.0,
+                'critical_defense_score': 0.0,
+                'defensive_resourcefulness': 0.0
             }
 
         try:
             # Track critical positions and responses
-            critical_positions = []
-            defensive_scores = []
-            counter_play_scores = []
-            recovery_scores = []
-            tactical_defense_scores = []
+            critical_positions: List[Dict[str, Any]] = []
+            defensive_scores: List[float] = []
+            recovery_positions: List[float] = []
+            tactical_defenses: List[float] = []
             
             for i, move in enumerate(moves):
                 try:
-                    eval_before = float(str(move.get('eval_before', 0)))
-                    eval_after = float(str(move.get('eval_after', 0)))
+                    eval_before = float(str(move.get('eval_before', '0.0')))
+                    eval_after = float(str(move.get('eval_after', '0.0')))
                 except (ValueError, TypeError):
                     eval_before = 0.0
                     eval_after = 0.0
@@ -932,10 +966,10 @@ class MetricsCalculator:
                 
                 # Identify critical positions
                 is_critical = (
-                    move.get('is_critical', False) or
-                    eval_before < -150 or  # Bad position
-                    move.get('in_check', False) or  # Under check
-                    move.get('under_attack', False)  # Piece under attack
+                    bool(move.get('is_critical', False)) or
+                    eval_before < -150.0 or  # Bad position
+                    bool(move.get('in_check', False)) or  # Under check
+                    bool(move.get('under_attack', False))  # Piece under attack
                 )
                 
                 if is_critical:
@@ -943,93 +977,82 @@ class MetricsCalculator:
                         'position': move,
                         'eval_before': eval_before,
                         'eval_after': eval_after,
-                        'improvement': eval_after - eval_before
+                        'improvement': float(eval_after - eval_before)
                     })
                     
                     # Calculate defensive score
                     if eval_after > eval_before:
-                        defensive_scores.append(min(100, (eval_after - eval_before) / 2))
-                    elif eval_after >= eval_before - 50:  # Minimal loss in bad position
-                        defensive_scores.append(50)
+                        defensive_scores.append(min(100.0, (eval_after - eval_before) / 2.0))
+                    elif eval_after >= eval_before - 50.0:  # Minimal loss in bad position
+                        defensive_scores.append(50.0)
                     else:
-                        defensive_scores.append(0)
-                    
-                    # Calculate counter play score
-                    if i < len(moves) - 1:
-                        next_move = moves[i + 1]
-                        try:
-                            next_eval = float(str(next_move.get('eval_after', 0)))
-                        except (ValueError, TypeError):
-                            next_eval = 0.0
-                        next_eval = next_eval if is_white else -next_eval
-                        if next_eval > eval_after:
-                            counter_play_scores.append(min(100, (next_eval - eval_after) / 2))
+                        defensive_scores.append(0.0)
                 
                 # Track position recovery
-                if eval_before < -200 and eval_after > eval_before:
-                    recovery_score = min(100, (eval_after - eval_before) / 4)
-                    recovery_scores.append(recovery_score)
+                if eval_before < -200.0 and eval_after > eval_before:
+                    recovery_score = min(100.0, (eval_after - eval_before) / 4.0)
+                    recovery_positions.append(recovery_score)
                 
                 # Track tactical defense
-                if move.get('is_tactical', False) and eval_before < -100:
+                if bool(move.get('is_tactical', False)) and eval_before < -100.0:
                     if eval_after > eval_before:
-                        tactical_defense_scores.append(100)
-                    elif eval_after >= eval_before - 50:
-                        tactical_defense_scores.append(50)
+                        tactical_defenses.append(100.0)
+                    elif eval_after >= eval_before - 50.0:
+                        tactical_defenses.append(50.0)
             
-            # Calculate metrics with proper validation
-            defense_score = statistics.mean(defensive_scores) if defensive_scores else 0.0
-            counter_play = statistics.mean(counter_play_scores) if counter_play_scores else 0.0
-            recovery = statistics.mean(recovery_scores) if recovery_scores else 0.0
-            tactical_defense = statistics.mean(tactical_defense_scores) if tactical_defense_scores else 0.0
+            # Calculate metrics
+            total_critical = max(1, len(critical_positions))
+            total_moves = len(moves)
             
-            # Calculate best move finding in critical positions
-            critical_moves = max(1, sum(1 for m in moves if m.get('is_critical', False)))
-            best_moves = sum(1 for m in moves 
-                           if m.get('is_critical', False) and 
-                           (m.get('is_best_move', False) or 
-                            float(str(m.get('evaluation_improvement', 0))) > 50))
+            # Calculate recovery rate
+            recovery_rate = (len(recovery_positions) / total_moves * 100.0) if total_moves > 0 else 0.0
             
-            best_move_rate = float(best_moves) / float(critical_moves) * 100.0
+            # Calculate defensive score
+            defensive_score = statistics.mean(defensive_scores) if defensive_scores else 0.0
+            
+            # Calculate critical defense
+            critical_defense = sum(1 for pos in critical_positions if float(pos['improvement']) > 0.0)
+            critical_defense_rate = (critical_defense / total_critical * 100.0) if total_critical > 0 else 0.0
+            
+            # Calculate tactical defense
+            tactical_defense_score = statistics.mean(tactical_defenses) if tactical_defenses else 0.0
+            
+            # Calculate best move finding
+            best_moves = sum(1 for m in moves if bool(m.get('is_critical', False)) and bool(m.get('is_best', False)))
+            best_move_rate = (best_moves / total_critical * 100.0) if total_critical > 0 else 0.0
+            
+            # Calculate position recovery
+            position_recovery = statistics.mean(recovery_positions) if recovery_positions else 0.0
             
             # Calculate comeback potential
-            try:
-                worst_position = min((float(str(m.get('eval_before', 0))) for m in moves), default=0.0)
-            except (ValueError, TypeError):
-                worst_position = 0.0
-            worst_position = worst_position if is_white else -worst_position
-            
-            try:
-                final_position = float(str(moves[-1].get('eval_after', 0))) if moves else 0.0
-            except (ValueError, TypeError):
-                final_position = 0.0
-            final_position = final_position if is_white else -final_position
-            
-            comeback_score = 0.0
-            if worst_position < -200:
-                improvement = final_position - worst_position
-                comeback_score = min(100.0, max(0.0, improvement / 4.0))
+            worst_eval = min((float(pos['eval_before']) for pos in critical_positions), default=0.0)
+            final_eval = float(str(moves[-1].get('eval_after', '0.0'))) if moves else 0.0
+            comeback_potential = min(100.0, max(0.0, (final_eval - worst_eval) / 4.0)) if worst_eval < -200.0 else 0.0
             
             return {
-                'critical_defense_score': round(defense_score, 1),
-                'comeback_potential': round(comeback_score, 1),
+                'recovery_rate': round(recovery_rate, 1),
+                'defensive_score': round(defensive_score, 1),
+                'critical_defense': round(critical_defense_rate, 1),
+                'tactical_defense': round(tactical_defense_score, 1),
                 'best_move_finding': round(best_move_rate, 1),
-                'defensive_resourcefulness': round(defense_score * 0.7 + counter_play * 0.3, 1),
-                'counter_play': round(counter_play, 1),
-                'position_recovery': round(recovery, 1),
-                'tactical_defense': round(tactical_defense, 1)
+                'position_recovery': round(position_recovery, 1),
+                'comeback_potential': round(comeback_potential, 1),
+                'critical_defense_score': round(critical_defense_rate, 1),
+                'defensive_resourcefulness': round((defensive_score + critical_defense_rate) / 2.0, 1)
             }
             
         except Exception as e:
             logger.error(f"Error calculating resourcefulness metrics: {str(e)}")
             return {
-                'critical_defense_score': 0.0,
-                'comeback_potential': 0.0,
+                'recovery_rate': 0.0,
+                'defensive_score': 0.0,
+                'critical_defense': 0.0,
+                'tactical_defense': 0.0,
                 'best_move_finding': 0.0,
-                'defensive_resourcefulness': 0.0,
-                'counter_play': 0.0,
                 'position_recovery': 0.0,
-                'tactical_defense': 0.0
+                'comeback_potential': 0.0,
+                'critical_defense_score': 0.0,
+                'defensive_resourcefulness': 0.0
             }
 
     @staticmethod
@@ -1140,63 +1163,83 @@ class MetricsCalculator:
 
     @staticmethod
     def _get_default_metrics() -> Dict[str, Any]:
-        """Return default metrics structure with zero values."""
+        """Return default metrics structure matching frontend requirements."""
+        default_time_management = {
+            'average_time': 0.0,
+            'time_variance': 0.0,
+            'time_consistency': 0.0,
+            'time_pressure_moves': 0,
+            'time_management_score': 0.0,
+            'time_pressure_percentage': 0.0
+        }
+
         return {
             'overall': {
-                'total_moves': 0,
                 'accuracy': 0.0,
-                'consistency_score': 0.0,
+                'consistency': 0.0,
                 'mistakes': 0,
                 'blunders': 0,
                 'inaccuracies': 0,
                 'quality_moves': 0,
-                'critical_positions': 0
+                'critical_positions': 0,
+                'position_quality': 0.0
             },
             'phases': {
                 'opening': {
                     'accuracy': 0.0,
                     'moves': [],
-                    'num_moves': 0,
                     'mistakes': 0,
-                    'blunders': 0
+                    'blunders': 0,
+                    'critical_moves': 0,
+                    'time_management': default_time_management.copy()
                 },
                 'middlegame': {
                     'accuracy': 0.0,
                     'moves': [],
-                    'num_moves': 0,
                     'mistakes': 0,
-                    'blunders': 0
+                    'blunders': 0,
+                    'critical_moves': 0,
+                    'time_management': default_time_management.copy()
                 },
                 'endgame': {
                     'accuracy': 0.0,
                     'moves': [],
-                    'num_moves': 0,
                     'mistakes': 0,
-                    'blunders': 0
+                    'blunders': 0,
+                    'critical_moves': 0,
+                    'time_management': default_time_management.copy()
                 }
             },
             'tactics': {
                 'opportunities': 0,
                 'successful': 0,
+                'brilliant_moves': 0,
                 'missed': 0,
-                'success_rate': 0.0
+                'success_rate': 0.0,
+                'pattern_recognition': 0.0,
+                'tactical_score': 0.0
             },
-            'time_management': {
-                'average_time': 0.0,
-                'time_pressure_moves': 0,
-                'time_pressure_percentage': 0.0,
-                'time_variance': 0.0
-            },
+            'time_management': default_time_management.copy(),
             'advantage': {
                 'max_advantage': 0.0,
+                'min_advantage': 0.0,
+                'average_advantage': 0.0,
                 'advantage_conversion': 0.0,
                 'pressure_handling': 0.0,
-                'advantage_duration': 0
+                'advantage_duration': 0,
+                'winning_positions': 0,
+                'advantage_retention': 0.0,
+                'advantage_trend': 0.0
             },
             'resourcefulness': {
-                'critical_defense_score': 0.0,
-                'comeback_potential': 0.0,
+                'recovery_rate': 0.0,
+                'defensive_score': 0.0,
+                'critical_defense': 0.0,
+                'tactical_defense': 0.0,
                 'best_move_finding': 0.0,
+                'position_recovery': 0.0,
+                'comeback_potential': 0.0,
+                'critical_defense_score': 0.0,
                 'defensive_resourcefulness': 0.0
             }
         }

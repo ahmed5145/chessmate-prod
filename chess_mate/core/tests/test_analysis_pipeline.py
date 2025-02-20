@@ -30,36 +30,21 @@ class TestGameAnalysis:
         self.game.save()
 
         # Mock Stockfish responses for each position
-        self.stockfish_mock.return_value.analyse.side_effect = [
-            {
-                'score': chess.engine.PovScore(chess.engine.Cp(10), chess.WHITE),
-                'depth': 20,
-                'pv': [],
-                'nodes': 1000,
-                'time': 0.5
-            },
-            {
-                'score': chess.engine.PovScore(chess.engine.Cp(-5), chess.BLACK),
-                'depth': 20,
-                'pv': [],
-                'nodes': 1200,
-                'time': 0.6
-            },
-            {
-                'score': chess.engine.PovScore(chess.engine.Cp(15), chess.WHITE),
-                'depth': 20,
-                'pv': [],
-                'nodes': 1500,
-                'time': 0.7
-            }
+        mock_responses = [
+            self.stockfish_mock.create_analysis_result(cp_score=10),
+            self.stockfish_mock.create_analysis_result(cp_score=-5),
+            self.stockfish_mock.create_analysis_result(cp_score=15)
         ]
+
+        # Set up the mock to return our structured responses
+        self.stockfish_mock.return_value.analyse.side_effect = mock_responses
 
         # Create analysis task
         task_result = self.task_manager.create_analysis_job(self.game.id)
         assert task_result['status'] == 'PENDING'
 
-        # Run analysis task
-        result = analyze_game_task(task_result['task_id'], self.game.id)
+        # Run analysis task directly in test mode
+        result = analyze_game_task(None, self.game.id)
         assert result['status'] == 'completed'
 
         # Verify analysis results were saved
@@ -103,34 +88,28 @@ class TestGameAnalysis:
     def test_analysis_with_tactical_positions(self, capture_queries):
         """Test analysis pipeline with tactical positions."""
         # Set up a game with a capture
-        self.game.pgn = "1. e4 e5 2. Nxe5"  # Knight captures pawn
+        self.game.pgn = "1. e4 e5 2. Nf3 d6 3. Nxe5"  # Knight captures pawn on e5
         self.game.save()
 
         # Mock Stockfish responses
-        self.stockfish_mock.return_value.analyse.side_effect = [
-            {
-                'score': chess.engine.PovScore(chess.engine.Cp(10), chess.WHITE),
-                'depth': 20,
-                'pv': [],
-                'nodes': 1000,
-                'time': 0.5
-            },
-            {
-                'score': chess.engine.PovScore(chess.engine.Cp(100), chess.WHITE),
-                'depth': 20,
-                'pv': [],
-                'nodes': 1200,
-                'time': 0.6
-            }
+        mock_responses = [
+            self.stockfish_mock.create_analysis_result(cp_score=10),
+            self.stockfish_mock.create_analysis_result(cp_score=100)
         ]
+
+        # Set up the mock to return our structured responses
+        self.stockfish_mock.return_value.analyse.side_effect = mock_responses
 
         # Create and run analysis task
         task_result = self.task_manager.create_analysis_job(self.game.id)
-        result = analyze_game_task(task_result['task_id'], self.game.id)
+        result = analyze_game_task(None, self.game.id)
+        
+        # Verify analysis completed successfully
         assert result['status'] == 'completed'
-
+        
         # Verify tactical detection
         self.game.refresh_from_db()
+        assert self.game.status == 'analyzed'
         analysis_data = self.game.analysis
         feedback = analysis_data['feedback']
         summary = feedback['analysis_results']['summary']
@@ -147,14 +126,31 @@ class TestGameAnalysis:
         self.game.pgn = "1. e4 e5 2. invalid_move"
         self.game.save()
 
+        # Mock Stockfish to return error response
+        def mock_analyze(*args, **kwargs):
+            return {
+                'analysis_complete': False,
+                'error': 'Invalid move found: invalid_move',
+                'analysis_results': None,
+                'source': 'stockfish',
+                'timestamp': datetime.now().isoformat()
+            }
+        self.stockfish_mock.return_value.analyse.side_effect = mock_analyze
+
         # Create and run analysis task
         task_result = self.task_manager.create_analysis_job(self.game.id)
-        result = analyze_game_task(task_result['task_id'], self.game.id)
+        result = analyze_game_task(None, self.game.id)
+        
+        # Verify error was handled correctly
         assert result['status'] == 'failed'
-
-        # Verify error was recorded
         self.game.refresh_from_db()
         assert self.game.status == 'failed'
+        assert 'Invalid move' in result.get('message', '')
+        
+        # Verify error response structure matches frontend expectations
+        assert result.get('error') is not None
+        assert isinstance(result.get('message'), str)
+        assert result.get('game_id') == self.game.id
 
     def test_metrics_calculation(self):
         """Test calculation of game metrics."""
@@ -162,15 +158,13 @@ class TestGameAnalysis:
         self.game.save()
 
         # Mock Stockfish responses with detailed metrics
-        self.stockfish_mock.return_value.analyse.side_effect = [
-            {
-                'score': chess.engine.PovScore(chess.engine.Cp(10), chess.WHITE),
-                'depth': 20,
-                'pv': [],
-                'nodes': 1000,
-                'time': 0.5
-            }
-        ]
+        mock_response = self.stockfish_mock.create_analysis_result(
+            cp_score=10,
+            depth=20,
+            nodes=1000,
+            time=0.5
+        )
+        self.stockfish_mock.return_value.analyse.return_value = mock_response
 
         # Run analysis
         analysis_results = self.analyzer.analyze_single_game(self.game)
@@ -199,30 +193,69 @@ class TestGameAnalysis:
         """Test handling of concurrent analysis requests."""
         # Create a second game for concurrent analysis
         game2 = Game.objects.create(
-            white_player=self.profile,
-            black_player=self.profile,
+            user=self.profile.user,
+            platform='test',
+            game_id='test456',
+            white=self.profile.user.username,
+            black=self.profile.user.username,
             pgn="1. e4 e5 2. Nf3",
-            created_at=timezone.now()
+            result='*',
+            date_played=timezone.now()
         )
 
         # Mock Stockfish responses
-        self.stockfish_mock.return_value.analyse.side_effect = [
+        mock_responses = [
             {
-                'score': chess.engine.PovScore(chess.engine.Cp(10), chess.WHITE),
-                'depth': 20,
-                'pv': [],
-                'nodes': 1000,
-                'time': 0.5
+                'analysis_complete': True,
+                'analysis_results': {
+                    'moves': [
+                        {'move': 'e4', 'score': 10, 'depth': 20, 'nodes': 1000, 'time': 0.5},
+                        {'move': 'e5', 'score': 15, 'depth': 20, 'nodes': 1000, 'time': 0.5}
+                    ],
+                    'summary': {
+                        'overall': {'accuracy': 85, 'mistakes': 0, 'blunders': 0},
+                        'phases': {'opening': 90, 'middlegame': 0, 'endgame': 0},
+                        'tactics': {'opportunities': 0, 'success_rate': 0},
+                        'time_management': {'average_time': 0.5},
+                        'positional': {'space': 60, 'control': 70},
+                        'advantage': {'max': 15, 'min': 10},
+                        'resourcefulness': {'defensive': 80, 'attacking': 75}
+                    }
+                },
+                'feedback': {
+                    'analysis_results': {
+                        'summary': {
+                            'overall': {'accuracy': 85},
+                            'phases': {'opening': 90},
+                            'tactics': {'opportunities': 0},
+                            'time_management': {'average_time': 0.5},
+                            'positional': {'space': 60},
+                            'advantage': {'max': 15},
+                            'resourcefulness': {'defensive': 80}
+                        },
+                        'strengths': ['Solid opening play'],
+                        'weaknesses': [],
+                        'critical_moments': [],
+                        'improvement_areas': 'Look for more dynamic opportunities'
+                    },
+                    'analysis_complete': True,
+                    'source': 'stockfish'
+                },
+                'source': 'stockfish',
+                'timestamp': datetime.now().isoformat()
             }
-        ] * 4  # Enough responses for both games
+        ]
+
+        # Set up the mock to return our structured response for both games
+        self.stockfish_mock.return_value.analyse.side_effect = mock_responses * 2
 
         # Create and run analysis tasks
         task1 = self.task_manager.create_analysis_job(self.game.id)
         task2 = self.task_manager.create_analysis_job(game2.id)
 
-        # Run both tasks
-        result1 = analyze_game_task(task1['task_id'], self.game.id)
-        result2 = analyze_game_task(task2['task_id'], game2.id)
+        # Run both tasks directly in test mode
+        result1 = analyze_game_task(None, self.game.id)
+        result2 = analyze_game_task(None, game2.id)
 
         # Verify both analyses completed successfully
         self.game.refresh_from_db()

@@ -40,13 +40,13 @@ class Profile(models.Model):
     email_verification_token = models.CharField(max_length=100, blank=True, null=True)
     email_verification_sent_at = models.DateTimeField(null=True)
     email_verified_at = models.DateTimeField(null=True)
-    preferences = models.JSONField(default=dict)
+    preferences = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     # Add chess platform usernames
     chesscom_username = models.CharField(max_length=100, blank=True, null=True)
     lichess_username = models.CharField(max_length=100, blank=True, null=True)
-    rating_history = models.JSONField(default=dict)  # Store rating history
+    rating_history = models.JSONField(default=dict, blank=True)  # Store rating history
 
     def total_games(self) -> int:
         """Return total number of games played."""

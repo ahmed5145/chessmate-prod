@@ -7,28 +7,10 @@ from .settings import *
 # Test database settings
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'test_chessmate',
-        'USER': 'postgres',
-        'PASSWORD': 'admin',
-        'HOST': 'localhost',
-        'PORT': '5432',
-        'ATOMIC_REQUESTS': True,
-        'CONN_MAX_AGE': None,  # Keep connections alive
-        'OPTIONS': {
-            'client_encoding': 'UTF8',
-            'connect_timeout': 10,
-            'sslmode': 'disable',
-            'keepalives': 1,
-            'keepalives_idle': 30,
-            'keepalives_interval': 10,
-            'keepalives_count': 5
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'test_db.sqlite3',
         'TEST': {
-            'NAME': 'test_chessmate',
-            'SERIALIZE': False,
-            'MIRROR': None,
-            'DEPENDENCIES': []
+            'NAME': BASE_DIR / 'test_db.sqlite3'
         }
     }
 }
@@ -36,6 +18,13 @@ DATABASES = {
 # Test-specific settings
 DEBUG = False
 TESTING = True
+
+# Celery test settings
+CELERY_TASK_ALWAYS_EAGER = True  # Execute tasks synchronously
+CELERY_TASK_EAGER_PROPAGATES = True  # Propagate exceptions
+CELERY_BROKER_URL = 'memory://'
+CELERY_RESULT_BACKEND = 'cache'
+CELERY_CACHE_BACKEND = 'memory'
 
 # Disable Redis for tests
 CACHES = {
@@ -117,4 +106,11 @@ STOCKFISH_MOVE_OVERHEAD = 30
 import warnings
 from django.utils.deprecation import RemovedInDjango60Warning
 warnings.filterwarnings('ignore', category=RemovedInDjango60Warning)
-warnings.filterwarnings('ignore', category=DeprecationWarning) 
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+
+# OpenAI Settings
+OPENAI_API_KEY = 'test-key'
+USE_OPENAI = True  # Enable OpenAI for tests
+OPENAI_MODEL = 'gpt-3.5-turbo'
+OPENAI_MAX_TOKENS = 500
+OPENAI_TEMPERATURE = 0.7 

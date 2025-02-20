@@ -260,170 +260,114 @@ const GameAnalysis = ({ onComplete }) => {
     return renderFeedbackSection('Study Plan', content, <GraduationCap className="w-6 h-6" />);
   };
 
-  const startAnalysis = useCallback(async () => {
-    if (!gameId || analysisStarted) {
-      console.log('Analysis already started or no gameId, skipping startAnalysis');
-        return;
-      }
-
-      try {
-      console.log('Starting analysis for game:', gameId);
-      setAnalysisStarted(true);
-        setError(null);
-        setLoading(true);
-        const response = await analyzeSpecificGame(gameId);
-      console.log('Analysis started response:', response);
-
-        if (response.task_id) {
-        console.log('Setting taskId:', response.task_id);
-          setTaskId(response.task_id);
-          toast.loading('Analyzing game...', {
-            id: 'analysis-status'
-          });
-        } else if (response.analysis) {
-        console.log('Received immediate analysis results');
-          setAnalysis(response.analysis);
-          setLoading(false);
-          toast.success('Analysis loaded successfully!');
-        } else {
-          throw new Error('Invalid response from analysis service');
-        }
-      } catch (error) {
-        console.error('Error starting analysis:', error);
-      setError(error.message || 'Failed to start analysis');
-      setLoading(false);
-          toast.error(error.message || 'Failed to start analysis');
-      setAnalysisStarted(false); // Reset analysis started flag on error
-    }
-  }, [gameId]);
-
-  const checkStatus = useCallback(async () => {
-    if (!taskId || isPollingRef.current) {
-      return;
-    }
-
+  const pollStatus = async (taskId) => {
     try {
-      isPollingRef.current = true;
+      console.log('Polling for status of task:', taskId);
       const response = await checkAnalysisStatus(taskId);
-      const status = response.status?.toUpperCase();
+      console.log('Poll response:', response);
+
+      // Normalize status to uppercase for consistent comparison
+      const status = response.status.toUpperCase();
+      console.log('Normalized status:', status);
 
       if (status === 'COMPLETED' || status === 'SUCCESS') {
-        if (response.analysis) {
-          // Transform the analysis data to match the expected structure
-          const transformedAnalysis = {
-            ...response.analysis,
-            feedback: {
-              metrics: {
-                accuracy: response.analysis.feedback.analysis_results.summary.overall.accuracy || 0,
-                blunders: response.analysis.feedback.analysis_results.summary.overall.blunders || 0,
-                mistakes: response.analysis.feedback.analysis_results.summary.overall.mistakes || 0,
-                total_moves: response.analysis.feedback.analysis_results.summary.overall.total_moves || 0,
-                inaccuracies: response.analysis.feedback.analysis_results.summary.overall.inaccuracies || 0
-              },
-              overall_performance: {
-                interpretation: response.analysis.feedback.analysis_results.summary.overall.accuracy,
-                key_strengths: response.analysis.feedback.analysis_results.strengths || [],
-                areas_to_improve: response.analysis.feedback.analysis_results.weaknesses || []
-              },
-              phases: {
-                opening: response.analysis.feedback.analysis_results.summary.phases.opening || {},
-                middlegame: response.analysis.feedback.analysis_results.summary.phases.middlegame || {},
-                endgame: response.analysis.feedback.analysis_results.summary.phases.endgame || {}
-              },
-              tactics: response.analysis.feedback.analysis_results.summary.tactics || {},
-              time_management: response.analysis.feedback.analysis_results.summary.time_management || {},
-              positional: response.analysis.feedback.analysis_results.summary.positional || {},
-              advantage: response.analysis.feedback.analysis_results.summary.advantage || {},
-              source: response.analysis.source || 'stockfish'
-            }
-          };
-          
-          setAnalysis(transformedAnalysis);
+        console.log('Analysis completed, fetching results');
+        clearInterval(pollingIntervalRef.current);
+        
+        try {
+          const analysisData = await fetchGameAnalysis(gameId);
+          if (analysisData) {
+            setAnalysis(analysisData);
+            setLoading(false);
+            toast.success('Analysis completed!', { id: 'analysis-progress' });
+            navigate(`/game/${gameId}/analysis/results`);
+          } else {
+            throw new Error('No analysis data received');
+          }
+        } catch (error) {
+          console.error('Error fetching analysis data:', error);
+          setError('Failed to fetch analysis results');
           setLoading(false);
-          
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-          
-          toast.dismiss('analysis-status');
-          toast.success('Analysis completed successfully!');
-          
-          if (onComplete) {
-            onComplete(transformedAnalysis);
-          }
-          navigate(`/game/${response.game_id}/analysis/results`);
-          return true; // Indicate completion
+          toast.error('Failed to fetch analysis results', { id: 'analysis-progress' });
+        }
+      } else if (status === 'FAILED' || status === 'FAILURE') {
+        console.error('Analysis failed:', response.message);
+        clearInterval(pollingIntervalRef.current);
+        setError(response.message || 'Analysis failed');
+        setLoading(false);
+        toast.error('Analysis failed', { id: 'analysis-progress' });
+      } else {
+        // Continue polling for pending/in-progress status
+        console.log('Analysis in progress, continuing to poll');
+        if (response.progress) {
+          toast.loading(`Analysis in progress: ${response.progress}%`, { id: 'analysis-progress' });
         }
       }
-      return false; // Indicate not complete
     } catch (error) {
-      console.error('Error checking status:', error);
-      setError('Error checking analysis status');
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-      return false;
-    } finally {
-      isPollingRef.current = false;
+      console.error('Error polling status:', error);
+      clearInterval(pollingIntervalRef.current);
+      setError('Failed to check analysis status');
+      setLoading(false);
+      toast.error('Failed to check analysis status', { id: 'analysis-progress' });
     }
-  }, [taskId, navigate, onComplete]);
+  };
+
+  const setupPolling = (taskId) => {
+    console.log('Setting up polling for task:', taskId);
+    
+    // Clear any existing polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+
+    // Start polling immediately
+    pollStatus(taskId);
+
+    // Then continue polling every 5 seconds
+    pollingIntervalRef.current = setInterval(() => pollStatus(taskId), 5000);
+  };
+
+  const startAnalysis = async () => {
+    try {
+      setLoading(true);
+      setAnalysisStarted(true);
+      console.log('Starting analysis for game:', gameId);
+
+      const response = await analyzeSpecificGame(gameId);
+      console.log('Analysis response:', response);
+
+      // Extract taskId from response, handling both new and existing tasks
+      const taskId = response.taskId;
+      
+      if (!taskId) {
+        throw new Error('No task ID received from server');
+      }
+
+      // Show appropriate toast message based on whether it's an existing task
+      if (response.isExistingTask) {
+        toast.loading('Resuming existing analysis...', { id: 'analysis-progress' });
+      } else {
+        toast.loading('Starting new analysis...', { id: 'analysis-progress' });
+      }
+
+      // Start polling with the task ID
+      setupPolling(taskId);
+
+    } catch (error) {
+      console.error('Error starting analysis:', error);
+      setError(error.message || 'Failed to start analysis');
+      setLoading(false);
+      setAnalysisStarted(false);
+      toast.error(error.message || 'Failed to start analysis', { id: 'analysis-progress' });
+    }
+  };
 
   // Start analysis when component mounts
   useEffect(() => {
-    if (!analysis && !error && !analysisStarted) {
+    if (gameId && !analysisStarted) {
       startAnalysis();
     }
-  }, [analysis, error, analysisStarted, startAnalysis]);
-
-  // Setup polling when taskId is available
-  useEffect(() => {
-    let isMounted = true;
-    let pollCount = 0;
-    const MAX_POLLS = 60; // 5 minutes maximum polling time
-
-    const setupPolling = async () => {
-      if (!taskId || !isMounted) return;
-
-      // Clear any existing interval
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-
-      // Initial check
-      const isComplete = await checkStatus();
-      if (isComplete || !isMounted) return;
-
-      // Set up polling interval
-      pollingIntervalRef.current = setInterval(async () => {
-        pollCount++;
-        if (pollCount >= MAX_POLLS) {
-          clearInterval(pollingIntervalRef.current);
-          pollingIntervalRef.current = null;
-          setError('Analysis timed out after 5 minutes');
-          return;
-        }
-
-        const complete = await checkStatus();
-        if (complete) {
-          clearInterval(pollingIntervalRef.current);
-          pollingIntervalRef.current = null;
-        }
-      }, 5000);
-    };
-
-    setupPolling();
-
-    return () => {
-      isMounted = false;
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    };
-  }, [taskId, checkStatus]);
+  }, [gameId, analysisStarted]);
 
   // Add simulated progress
   useEffect(() => {

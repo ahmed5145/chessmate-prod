@@ -9,6 +9,8 @@ from django.core.management import call_command
 import logging
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
+from typing import Optional
+from datetime import datetime
 
 # Set up logging
 logging.basicConfig(
@@ -32,34 +34,17 @@ def pytest_configure():
     """Configure test environment."""
     settings.DEBUG = False
     settings.TESTING = True
-    settings.DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'test_chessmate',
-            'USER': 'postgres',
-            'PASSWORD': 'admin',
-            'HOST': 'localhost',
-            'PORT': '5432',
-            'ATOMIC_REQUESTS': True,
-            'CONN_MAX_AGE': 0,
-            'OPTIONS': {
-                'client_encoding': 'UTF8',
-            },
-            'TEST': {
-                'NAME': 'test_chessmate',
-                'SERIALIZE': False,
-            }
-        }
-    }
 
 @pytest.fixture(scope='session')
 def django_db_setup(django_db_blocker):
     """Set up the test database."""
-    from django.test.utils import setup_databases, teardown_databases
+    settings.DATABASES['default'] = {
+            'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': settings.BASE_DIR / 'test_db.sqlite3',
+    }
     with django_db_blocker.unblock():
-        db_cfg = setup_databases(verbosity=0, interactive=False)
+        call_command('migrate')
         yield
-        teardown_databases(db_cfg, verbosity=0)
 
 @pytest.fixture(autouse=True)
 def db_access_wrapper(django_db_setup, django_db_blocker):
@@ -77,11 +62,161 @@ def capture_queries():
 @pytest.fixture
 def stockfish_mock(mocker):
     """Mock Stockfish engine for testing."""
+    # Create a mock PovScore class
+    class MockScore:
+        def __init__(self, cp_score=None, mate_in=None):
+            self._cp_score = cp_score
+            self._mate_in = mate_in
+            
+        def score(self, mate_score: int = 10000) -> Optional[int]:
+            if self._mate_in is not None:
+                return self._mate_in * mate_score
+            return self._cp_score
+            
+        def cp(self):
+            return self._cp_score
+            
+        def is_mate(self):
+            return self._mate_in is not None
+            
+        def mate(self):
+            return self._mate_in
+
+    class MockPovScore:
+        def __init__(self, score: MockScore, color: bool):
+            self._score = score
+            self._color = color
+            
+        def relative(self):
+            return self._score
+            
+        def pov(self, color: bool):
+            return self._score if color == self._color else MockScore(-self._score.score())
+            
+        def white(self):
+            return self.pov(True)
+            
+        def black(self):
+            return self.pov(False)
+            
+        def is_mate(self):
+            return self._score.is_mate()
+            
+        def mate(self):
+            return self._score.mate()
+            
+        def cp(self):
+            return self._score.cp()
+
+    # Create the mock engine
     mock = mocker.patch('chess.engine.SimpleEngine.popen_uci')
-    mock.return_value.analyse.return_value = {
-        'score': mocker.Mock(relative=mocker.Mock(return_value=0)),
-        'pv': []
-    }
+    
+    # Set up default analysis response
+    def create_analysis_result(cp_score=10, depth=20, nodes=1000, time=0.5, pv=None):
+        """Create a mock analysis result that matches frontend expectations."""
+        move_analysis = {
+            'score': MockPovScore(MockScore(cp_score), True),
+            'depth': depth,
+            'pv': pv or [],
+            'nodes': nodes,
+            'time': time
+        }
+        
+        analysis_data = {
+            'analysis_complete': True,
+            'analysis_results': {
+                'moves': [{
+                    'move': 'e4',
+                    'score': cp_score,
+                    'depth': depth,
+                    'nodes': nodes,
+                    'time': time,
+                    'analysis': move_analysis,
+                    'is_critical': False,
+                    'is_mistake': False,
+                    'is_blunder': False,
+                    'eval_change': 0.0
+                }],
+                'is_white': True,
+                'total_moves': 1,
+                'depth': depth,
+                'summary': {
+                    'overall': {
+                        'accuracy': 85.5,
+                        'mistakes': 0,
+                        'blunders': 0,
+                        'average_centipawn_loss': 15.2
+                    },
+                    'phases': {
+                        'opening': {'accuracy': 90.0, 'moves': 10},
+                        'middlegame': {'accuracy': 85.0, 'moves': 20},
+                        'endgame': {'accuracy': 0.0, 'moves': 0}
+                    },
+                    'tactics': {
+                        'opportunities': 1,
+                        'success_rate': 100,
+                        'missed': 0,
+                        'found': 1
+                    },
+                    'time_management': {
+                        'average_time': time,
+                        'critical_time_usage': 0.8,
+                        'time_pressure_mistakes': 0
+                    },
+                    'positional': {
+                        'space': 60,
+                        'control': 70,
+                        'piece_activity': 75
+                    },
+                    'advantage': {
+                        'max': cp_score,
+                        'min': -cp_score,
+                        'average': cp_score/2
+                    },
+                    'resourcefulness': {
+                        'defensive': 80,
+                        'attacking': 75,
+                        'tactical_awareness': 85
+                    }
+                }
+            },
+            'feedback': {
+                'analysis_results': {
+                    'summary': {
+                        'overall': {'accuracy': 85.5, 'evaluation': 'Strong performance'},
+                        'phases': {'opening': 90.0, 'middlegame': 85.0, 'endgame': 0.0},
+                        'tactics': {'opportunities': 1, 'success_rate': 100},
+                        'time_management': {'average_time': time, 'efficiency': 85},
+                        'positional': {'space': 60, 'control': 70},
+                        'advantage': {'max': cp_score, 'average': cp_score/2},
+                        'resourcefulness': {'defensive': 80, 'attacking': 75}
+                    },
+                    'strengths': ['Solid opening play', 'Good tactical awareness'],
+                    'weaknesses': ['Could improve time management'],
+                    'critical_moments': [
+                        {
+                            'move': 'e4',
+                            'position': 1,
+                            'evaluation': cp_score,
+                            'description': 'Key opening move'
+                        }
+                    ],
+                    'improvement_areas': 'Focus on time management and positional understanding'
+                },
+                'analysis_complete': True,
+                'source': 'stockfish'
+            },
+            'source': 'stockfish',
+            'timestamp': datetime.now().isoformat()
+        }
+        return analysis_data
+    
+    # Set up the mock to return a default analysis result
+    mock.return_value.analyse.return_value = create_analysis_result()
+    
+    # Store the create_analysis_result function on the mock for test customization
+    mock.create_analysis_result = create_analysis_result
+    
     return mock
 
 @pytest.fixture
@@ -101,12 +236,7 @@ def test_profile(test_user):
     from core.models import Profile
     with transaction.atomic():
         profile, created = Profile.objects.get_or_create(
-            user=test_user,
-            defaults={
-                'credits': 5,
-                'platform_username': 'test_user',
-                'platform': 'chess.com'
-            }
+            user=test_user
         )
     return profile
 
@@ -117,13 +247,13 @@ def test_game(test_profile):
     with transaction.atomic():
         game = Game.objects.create(
             user=test_profile.user,
-            white='test_user',
-            black='opponent',
+            platform='test',
+            game_id='test123',
+            white=test_profile.user.username,
+            black=test_profile.user.username,
             pgn='1. e4 e5',
             result='*',
-            platform='chess.com',
-            date_played=timezone.now(),
-            game_id='test123'
+            date_played=timezone.now()
         )
     return game
 
@@ -168,6 +298,17 @@ def mock_openai():
         ]
     )
     return mock
+
+@pytest.fixture
+def admin_user(django_user_model):
+    """Create a superuser for admin access."""
+    with transaction.atomic():
+        admin = django_user_model.objects.create_superuser(
+            username='admin',
+            email='admin@example.com',
+            password='admin'
+        )
+    return admin
 
 class TestCase(TransactionTestCase):
     """Base test case class with improved database handling."""

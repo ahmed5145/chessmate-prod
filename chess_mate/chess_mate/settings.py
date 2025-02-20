@@ -24,6 +24,7 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 # OpenAI Settings
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+USE_OPENAI = bool(OPENAI_API_KEY)
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = 'gpt-3.5-turbo'
 OPENAI_MAX_TOKENS = 500

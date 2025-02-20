@@ -65,7 +65,7 @@ class PatternAnalyzer:
                             'type': 'tactical',
                             'move': str(move),
                             'ply': move_data.get('ply'),
-                            'description': 'Position contains tactical themes'
+                            'description': self._get_tactical_description(current_board, move)
                         })
 
                     # Positional patterns
@@ -76,23 +76,27 @@ class PatternAnalyzer:
                                 'type': 'positional',
                                 'move': str(move),
                                 'ply': move_data.get('ply'),
-                                'pattern': pos_pattern
+                                'pattern': pos_pattern,
+                                'description': self._get_positional_description(pos_pattern)
                             })
 
                     # Endgame patterns
                     if self._is_endgame_position(current_board):
+                        end_pattern = self._identify_endgame_pattern(current_board)
+                        if end_pattern:
                         patterns['endgame'].append({
                             'type': 'endgame',
                             'move': str(move),
                             'ply': move_data.get('ply'),
-                            'description': 'Position has endgame characteristics'
+                                'pattern': end_pattern,
+                                'description': self._get_endgame_description(end_pattern)
                         })
 
                     # Make the move on the board
                     current_board.push(move)
 
                 except Exception as e:
-                    patterns['errors'].append(f"Error analyzing move {move_str}: {str(e)}")
+                    patterns['errors'].append(f"Error analyzing move: {str(e)}")
                     continue
 
             return patterns
@@ -103,7 +107,7 @@ class PatternAnalyzer:
                 'tactical': [],
                 'positional': [],
                 'endgame': [],
-                'errors': [f"Fatal error in pattern analysis: {str(e)}"]
+                'errors': [str(e)]
             }
 
     def _is_pin(self, board: chess.Board, move: chess.Move) -> bool:
@@ -174,180 +178,431 @@ class PatternAnalyzer:
             return False
 
     def _is_tactical_position(self, board: chess.Board, move: chess.Move) -> bool:
-        """Check if position contains tactical themes."""
+        """Check if a position contains tactical themes."""
         try:
-            # Check for basic tactical elements
+            # Check for captures
             is_capture = board.is_capture(move)
+            
+            # Check for checks
             gives_check = board.gives_check(move)
-            is_attacked = bool(board.attackers(not board.turn, move.to_square))
             
-            return is_capture or gives_check or is_attacked
+            # Check for piece hanging
+            is_hanging = self._is_piece_hanging(board, move)
             
-        except Exception as e:
-            logger.error(f"Error checking tactical position: {str(e)}")
+            # Check for pins and forks
+            has_pin_or_fork = self._has_pin_or_fork(board)
+            
+            return any([is_capture, gives_check, is_hanging, has_pin_or_fork])
+            
+        except Exception:
             return False
 
     def _is_positional_theme(self, board: chess.Board) -> bool:
-        """Check if position contains positional themes."""
+        """Check if a position contains positional themes."""
         try:
-            # Check for pawn structure themes
-            has_isolated_pawns = any(self._is_isolated_pawn(board, sq) for sq in chess.SQUARES 
-                                   if board.piece_at(sq) and board.piece_at(sq).piece_type == chess.PAWN)
+            # Check pawn structure
+            has_pawn_theme = self._has_pawn_structure_theme(board)
             
-            # Check for piece placement themes
-            has_outpost = any(self._is_outpost(board, sq) for sq in chess.SQUARES 
-                            if board.piece_at(sq) and board.piece_at(sq).piece_type in [chess.KNIGHT, chess.BISHOP])
+            # Check piece placement
+            has_piece_theme = self._has_piece_placement_theme(board)
             
-            return has_isolated_pawns or has_outpost
+            # Check control of key squares
+            has_control_theme = self._has_control_theme(board)
             
-        except Exception as e:
-            logger.error(f"Error checking positional theme: {str(e)}")
+            return any([has_pawn_theme, has_piece_theme, has_control_theme])
+            
+        except Exception:
             return False
 
     def _is_endgame_position(self, board: chess.Board) -> bool:
         """Check if position is an endgame position."""
         try:
-            # Count major pieces
+            # Count material
+            total_pieces = len(board.piece_map())
+            
+            # Check for specific endgame characteristics
             queens = len(board.pieces(chess.QUEEN, chess.WHITE)) + len(board.pieces(chess.QUEEN, chess.BLACK))
             rooks = len(board.pieces(chess.ROOK, chess.WHITE)) + len(board.pieces(chess.ROOK, chess.BLACK))
-            minors = (len(board.pieces(chess.BISHOP, chess.WHITE)) + len(board.pieces(chess.BISHOP, chess.BLACK)) +
-                     len(board.pieces(chess.KNIGHT, chess.WHITE)) + len(board.pieces(chess.KNIGHT, chess.BLACK)))
             
-            # Consider it endgame if:
-            # 1. No queens and 2 or fewer minor pieces
-            # 2. Only one queen per side and no other pieces
-            # 3. Two or fewer minor pieces per side and no other major pieces
-            return (queens == 0 and minors <= 2) or \
-                   (queens <= 2 and rooks == 0 and minors == 0) or \
-                   (queens == 0 and rooks == 0 and minors <= 4)
-                   
-        except Exception as e:
-            logger.error(f"Error checking endgame position: {str(e)}")
+            return total_pieces <= 12 or (queens == 0 and rooks <= 2)
+            
+        except Exception:
             return False
 
-    def _identify_tactical_pattern(self, board: chess.Board, move: chess.Move) -> Optional[Dict[str, Any]]:
-        """Identify specific tactical pattern in position."""
+    def _identify_positional_pattern(self, board: chess.Board) -> Optional[str]:
+        """Identify specific positional patterns."""
         try:
-            patterns = []
+            # Check isolated pawns
+            if self._has_isolated_pawns(board):
+                return 'isolated_pawns'
+                
+            # Check backward pawns
+            if self._has_backward_pawns(board):
+                return 'backward_pawns'
+                
+            # Check doubled pawns
+            if self._has_doubled_pawns(board):
+                return 'doubled_pawns'
+                
+            # Check outposts
+            if self._has_outpost(board):
+                return 'outpost'
+                
+            # Check fianchetto
+            if self._has_fianchetto(board):
+                return 'fianchetto'
+                
+            return None
             
-            # Check for pin
-            if self._is_pin(board, move):
-                patterns.append({
-                    'name': 'Pin',
-                    'description': 'A piece is pinned against a more valuable piece'
-                })
-            
-            # Check for fork
-            if self._is_fork(board, move):
-                patterns.append({
-                    'name': 'Fork',
-                    'description': 'A piece attacks two or more enemy pieces simultaneously'
-                })
-            
-            # Check for discovered attack
-            if self._is_discovered_attack(board, move):
-                patterns.append({
-                    'name': 'Discovered Attack',
-                    'description': 'Moving one piece reveals an attack from another'
-                })
-            
-            return patterns[0] if patterns else None
-            
-        except Exception as e:
-            logger.error(f"Error identifying tactical pattern: {str(e)}")
+        except Exception:
             return None
 
-    def _identify_positional_pattern(self, board: chess.Board) -> Optional[Dict[str, Any]]:
-        """Identify specific positional pattern in position."""
+    def _identify_endgame_pattern(self, board: chess.Board) -> Optional[str]:
+        """Identify specific endgame patterns."""
         try:
-            patterns = []
-            
-            # Check for isolated pawn structure
-            if self._has_isolated_pawn_structure(board):
-                patterns.append({
-                    'name': 'Isolated Pawn Structure',
-                    'description': 'Position contains isolated pawns affecting strategy'
-                })
-            
-            # Check for outpost
-            if self._has_knight_outpost(board):
-                patterns.append({
-                    'name': 'Knight Outpost',
-                    'description': 'Strong knight position supported by pawns'
-                })
-            
-            # Check for good/bad bishop
-            bishop_quality = self._evaluate_bishop_quality(board)
-            if bishop_quality:
-                patterns.append(bishop_quality)
-            
-            return patterns[0] if patterns else None
-            
-        except Exception as e:
-            logger.error(f"Error identifying positional pattern: {str(e)}")
-            return None
-
-    def _identify_endgame_pattern(self, board: chess.Board, move: chess.Move) -> Optional[Dict[str, Any]]:
-        """Identify specific endgame pattern in position."""
-        try:
-            patterns = []
-            
-            # Check for pawn endgame patterns
-            if self._is_pawn_endgame(board):
-                if self._has_passed_pawn(board):
-                    patterns.append({
-                        'name': 'Passed Pawn Endgame',
-                        'description': 'Critical passed pawn in pawn endgame'
-                    })
-                    
-            # Check for king and pawn endgame patterns
+            # Check king and pawn endgames
             if self._is_king_and_pawn_endgame(board):
-                if self._has_opposition(board):
-                    patterns.append({
-                        'name': 'King Opposition',
-                        'description': 'Kings in opposition in pawn endgame'
-                    })
-            
-            # Check for rook endgame patterns
+                return 'king_and_pawn'
+                
+            # Check rook endgames
             if self._is_rook_endgame(board):
-                if self._is_lucena_position(board):
-                    patterns.append({
-                        'name': 'Lucena Position',
-                        'description': 'Classic rook endgame winning position'
-                    })
-                elif self._is_philidor_position(board):
-                    patterns.append({
-                        'name': 'Philidor Position',
-                        'description': 'Classic rook endgame drawing position'
-                    })
+                return 'rook_endgame'
+                
+            # Check minor piece endgames
+            if self._is_minor_piece_endgame(board):
+                return 'minor_piece_endgame'
+                
+            # Check opposite colored bishops
+            if self._is_opposite_colored_bishops(board):
+                return 'opposite_colored_bishops'
+                
+            return None
             
-            return patterns[0] if patterns else None
-            
-        except Exception as e:
-            logger.error(f"Error identifying endgame pattern: {str(e)}")
+        except Exception:
             return None
 
-    def _summarize_patterns(self, patterns: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
-        """Summarize found patterns into analysis."""
+    def _get_tactical_description(self, board: chess.Board, move: chess.Move) -> str:
+        """Generate description for tactical patterns."""
         try:
-            return {
-                'tactical_patterns': self._summarize_tactical_patterns(patterns['tactical']),
-                'positional_patterns': self._summarize_positional_patterns(patterns['positional']),
-                'endgame_patterns': self._summarize_endgame_patterns(patterns['endgame']),
-                'overall_assessment': self._generate_pattern_assessment(patterns)
-            }
-        except Exception as e:
-            logger.error(f"Error summarizing patterns: {str(e)}")
-            return self._get_default_pattern_analysis()
+            if board.is_capture(move):
+                return "Material gain through capture"
+            elif board.gives_check(move):
+                return "Attack on enemy king"
+            elif self._is_piece_hanging(board, move):
+                return "Tactical opportunity with hanging piece"
+            elif self._has_pin_or_fork(board):
+                return "Multiple pieces under attack"
+            return "Complex tactical position"
+        except Exception:
+            return "Tactical opportunity"
 
-    def _get_default_pattern_analysis(self) -> Dict[str, Any]:
-        """Return default pattern analysis when analysis fails."""
-        return {
-            'tactical_patterns': [],
-            'positional_patterns': [],
-            'endgame_patterns': [],
-            'overall_assessment': 'Pattern analysis not available'
+    def _get_positional_description(self, pattern: str) -> str:
+        """Generate description for positional patterns."""
+        descriptions = {
+            'isolated_pawns': "Position features isolated pawns, creating potential weaknesses",
+            'backward_pawns': "Presence of backward pawns affecting pawn structure",
+            'doubled_pawns': "Doubled pawns creating structural considerations",
+            'outpost': "Strong outpost position for pieces",
+            'fianchetto': "Fianchetto formation providing bishop activity"
         }
+        return descriptions.get(pattern, "Positional imbalance")
+
+    def _get_endgame_description(self, pattern: str) -> str:
+        """Generate description for endgame patterns."""
+        descriptions = {
+            'king_and_pawn': "King and pawn endgame requiring precise calculation",
+            'rook_endgame': "Rook endgame with technical winning chances",
+            'minor_piece_endgame': "Minor piece endgame with strategic possibilities",
+            'opposite_colored_bishops': "Opposite colored bishops affecting drawing chances"
+        }
+        return descriptions.get(pattern, "Technical endgame position")
+
+    def _is_piece_hanging(self, board: chess.Board, move: chess.Move) -> bool:
+        """Check if a piece is hanging after a move."""
+        try:
+            # Make the move on a copy of the board
+            board_copy = board.copy()
+            board_copy.push(move)
+            
+            # Check each square
+            for square in chess.SQUARES:
+                piece = board_copy.piece_at(square)
+                if piece is None:
+                    continue
+                    
+                # Count attackers and defenders
+                attackers = board_copy.attackers(not piece.color, square)
+                defenders = board_copy.attackers(piece.color, square)
+                
+                if len(attackers) > len(defenders):
+                    return True
+                    
+            return False
+            
+        except Exception:
+            return False
+
+    def _has_pin_or_fork(self, board: chess.Board) -> bool:
+        """Check for pins or forks in the position."""
+        try:
+            # Check each square for potential fork points
+            for square in chess.SQUARES:
+                attackers = []
+                for attacked_square in chess.SQUARES:
+                    piece = board.piece_at(attacked_square)
+                    if piece and board.is_attacked_by(not piece.color, attacked_square):
+                        attackers.append(attacked_square)
+                if len(attackers) >= 2:
+                    return True
+                    
+            return False
+            
+        except Exception:
+            return False
+
+    def _has_pawn_structure_theme(self, board: chess.Board) -> bool:
+        """Check for pawn structure themes."""
+        try:
+            # Count pawns on each file
+            files = [0] * 8
+            for square in chess.SQUARES:
+                piece = board.piece_at(square)
+                if piece and piece.piece_type == chess.PAWN:
+                    files[chess.square_file(square)] += 1
+                    
+            # Check for structural features
+            has_doubled = any(f > 1 for f in files)
+            has_isolated = any(f == 1 and (i == 0 or files[i-1] == 0) and (i == 7 or files[i+1] == 0) 
+                             for i, f in enumerate(files))
+                             
+            return has_doubled or has_isolated
+            
+        except Exception:
+            return False
+
+    def _has_piece_placement_theme(self, board: chess.Board) -> bool:
+        """Check for piece placement themes."""
+        try:
+            # Check central squares
+            central_squares = [chess.E4, chess.D4, chess.E5, chess.D5]
+            center_control = sum(1 for sq in central_squares if board.piece_at(sq) is not None)
+            
+            # Check piece development
+            developed_pieces = sum(1 for sq in chess.SQUARES if board.piece_at(sq) and 
+                                 board.piece_at(sq).piece_type in [chess.KNIGHT, chess.BISHOP] and
+                                 chess.square_rank(sq) not in [0, 1, 6, 7])
+                                 
+            return center_control >= 2 or developed_pieces >= 3
+            
+        except Exception:
+            return False
+
+    def _has_control_theme(self, board: chess.Board) -> bool:
+        """Check for control of key squares."""
+        try:
+            # Define key squares
+            key_squares = [chess.E4, chess.D4, chess.E5, chess.D5,  # Center
+                          chess.C4, chess.F4, chess.C5, chess.F5]  # Extended center
+                          
+            # Count control of key squares
+            white_control = sum(1 for sq in key_squares if board.is_attacked_by(chess.WHITE, sq))
+            black_control = sum(1 for sq in key_squares if board.is_attacked_by(chess.BLACK, sq))
+            
+            return white_control >= 4 or black_control >= 4
+            
+        except Exception:
+            return False
+
+    def _has_isolated_pawns(self, board: chess.Board) -> bool:
+        """Check for isolated pawns."""
+        try:
+            files = [0] * 8
+            for square in chess.SQUARES:
+                piece = board.piece_at(square)
+                if piece and piece.piece_type == chess.PAWN:
+                    files[chess.square_file(square)] = 1
+                    
+            return any(files[i] == 1 and (i == 0 or files[i-1] == 0) and (i == 7 or files[i+1] == 0)
+                      for i in range(8))
+                      
+        except Exception:
+            return False
+
+    def _has_backward_pawns(self, board: chess.Board) -> bool:
+        """Check for backward pawns."""
+        try:
+            for square in chess.SQUARES:
+                piece = board.piece_at(square)
+                if piece and piece.piece_type == chess.PAWN:
+                    file = chess.square_file(square)
+                    rank = chess.square_rank(square)
+                    
+                    # Check adjacent files for pawns
+                    adjacent_files = []
+                    if file > 0:
+                        adjacent_files.append(file - 1)
+                    if file < 7:
+                        adjacent_files.append(file + 1)
+                        
+                    # Check if pawn is behind adjacent pawns
+                    for adj_file in adjacent_files:
+                        adj_rank = None
+                        for r in range(8):
+                            adj_square = chess.square(adj_file, r)
+                            adj_piece = board.piece_at(adj_square)
+                            if adj_piece and adj_piece.piece_type == chess.PAWN and adj_piece.color == piece.color:
+                                adj_rank = r
+                                break
+                                
+                        if adj_rank is not None:
+                            if (piece.color == chess.WHITE and rank < adj_rank) or \
+                               (piece.color == chess.BLACK and rank > adj_rank):
+                                return True
+                                
+            return False
+            
+        except Exception:
+            return False
+
+    def _has_doubled_pawns(self, board: chess.Board) -> bool:
+        """Check for doubled pawns."""
+        try:
+            files = [0] * 8
+            for square in chess.SQUARES:
+                piece = board.piece_at(square)
+                if piece and piece.piece_type == chess.PAWN:
+                    files[chess.square_file(square)] += 1
+                    
+            return any(f > 1 for f in files)
+            
+        except Exception:
+            return False
+
+    def _has_outpost(self, board: chess.Board) -> bool:
+        """Check for outposts."""
+        try:
+            for square in chess.SQUARES:
+                piece = board.piece_at(square)
+                if piece and piece.piece_type in [chess.KNIGHT, chess.BISHOP]:
+                    file = chess.square_file(square)
+                    rank = chess.square_rank(square)
+                    
+                    # Check if piece is in enemy territory
+                    if (piece.color == chess.WHITE and rank >= 4) or \
+                       (piece.color == chess.BLACK and rank <= 3):
+                        # Check if protected by pawn
+                        if self._is_protected_by_pawn(board, square, piece.color):
+                            return True
+                            
+            return False
+            
+        except Exception:
+            return False
+
+    def _has_fianchetto(self, board: chess.Board) -> bool:
+        """Check for fianchetto formation."""
+        try:
+            fianchetto_squares = [
+                (chess.G2, chess.F3, chess.G3),  # White kingside
+                (chess.B2, chess.C3, chess.B3),  # White queenside
+                (chess.G7, chess.F6, chess.G6),  # Black kingside
+                (chess.B7, chess.C6, chess.B6)   # Black queenside
+            ]
+            
+            for squares in fianchetto_squares:
+                bishop_square, knight_square, pawn_square = squares
+                bishop = board.piece_at(bishop_square)
+                if bishop and bishop.piece_type == chess.BISHOP:
+                    pawn = board.piece_at(pawn_square)
+                    if pawn and pawn.piece_type == chess.PAWN and pawn.color == bishop.color:
+                        return True
+                        
+            return False
+            
+        except Exception:
+            return False
+
+    def _is_king_and_pawn_endgame(self, board: chess.Board) -> bool:
+        """Check if position is a king and pawn endgame."""
+        try:
+            pieces = board.piece_map()
+            only_kings_and_pawns = all(p.piece_type in [chess.KING, chess.PAWN] for p in pieces.values())
+            return only_kings_and_pawns and len(pieces) <= 7
+        except Exception:
+            return False
+
+    def _is_rook_endgame(self, board: chess.Board) -> bool:
+        """Check if position is a rook endgame."""
+        try:
+            pieces = board.piece_map()
+            has_rooks = any(p.piece_type == chess.ROOK for p in pieces.values())
+            no_queens = all(p.piece_type != chess.QUEEN for p in pieces.values())
+            few_pieces = len(pieces) <= 8
+            return has_rooks and no_queens and few_pieces
+        except Exception:
+            return False
+
+    def _is_minor_piece_endgame(self, board: chess.Board) -> bool:
+        """Check if position is a minor piece endgame."""
+        try:
+            pieces = board.piece_map()
+            only_minor = all(p.piece_type in [chess.KING, chess.BISHOP, chess.KNIGHT] for p in pieces.values())
+            return only_minor and len(pieces) <= 6
+        except Exception:
+            return False
+
+    def _is_opposite_colored_bishops(self, board: chess.Board) -> bool:
+        """Check if position has opposite colored bishops."""
+        try:
+            white_bishops = board.pieces(chess.BISHOP, chess.WHITE)
+            black_bishops = board.pieces(chess.BISHOP, chess.BLACK)
+            
+            if len(white_bishops) == 1 and len(black_bishops) == 1:
+                white_bishop_square = white_bishops.pop()
+                black_bishop_square = black_bishops.pop()
+                
+                white_bishop_color = (chess.square_rank(white_bishop_square) + 
+                                    chess.square_file(white_bishop_square)) % 2
+                black_bishop_color = (chess.square_rank(black_bishop_square) + 
+                                    chess.square_file(black_bishop_square)) % 2
+                                    
+                return white_bishop_color != black_bishop_color
+                
+            return False
+            
+        except Exception:
+            return False
+
+    def _is_protected_by_pawn(self, board: chess.Board, square: chess.Square, color: bool) -> bool:
+        """Check if a square is protected by a pawn of the given color."""
+        try:
+            file = chess.square_file(square)
+            rank = chess.square_rank(square)
+            
+            # Check pawn protection squares
+            protection_squares = []
+            if color == chess.WHITE:
+                if rank > 0:
+                    if file > 0:
+                        protection_squares.append(chess.square(file - 1, rank - 1))
+                    if file < 7:
+                        protection_squares.append(chess.square(file + 1, rank - 1))
+            else:
+                if rank < 7:
+                    if file > 0:
+                        protection_squares.append(chess.square(file - 1, rank + 1))
+                    if file < 7:
+                        protection_squares.append(chess.square(file + 1, rank + 1))
+                        
+            for prot_square in protection_squares:
+                piece = board.piece_at(prot_square)
+                if piece and piece.piece_type == chess.PAWN and piece.color == color:
+                    return True
+                    
+            return False
+            
+        except Exception:
+            return False
 
     def _get_tactical_patterns(self) -> Dict[str, Any]:
         """Get dictionary of tactical patterns to look for."""
@@ -379,81 +634,27 @@ class PatternAnalyzer:
             'zugzwang': {'name': 'Zugzwang', 'value': 1}
         }
 
-    def _is_isolated_pawn(self, board: chess.Board, square: chess.Square) -> bool:
-        """Check if a pawn is isolated."""
+    def _summarize_patterns(self, patterns: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
+        """Summarize found patterns into analysis."""
         try:
-            if not board.piece_at(square) or board.piece_at(square).piece_type != chess.PAWN:
-                return False
-                
-            file = chess.square_file(square)
-            color = board.piece_at(square).color
-            
-            # Check adjacent files for friendly pawns
-            for adj_file in [file - 1, file + 1]:
-                if adj_file < 0 or adj_file > 7:
-                    continue
-                    
-                # Check entire file for friendly pawns
-                for rank in range(8):
-                    adj_square = chess.square(adj_file, rank)
-                    piece = board.piece_at(adj_square)
-                    if piece and piece.piece_type == chess.PAWN and piece.color == color:
-                        return False
-                        
-            return True
-            
+            return {
+                'tactical_patterns': self._summarize_tactical_patterns(patterns['tactical']),
+                'positional_patterns': self._summarize_positional_patterns(patterns['positional']),
+                'endgame_patterns': self._summarize_endgame_patterns(patterns['endgame']),
+                'overall_assessment': self._generate_pattern_assessment(patterns)
+            }
         except Exception as e:
-            logger.error(f"Error checking isolated pawn: {str(e)}")
-            return False
+            logger.error(f"Error summarizing patterns: {str(e)}")
+            return self._get_default_pattern_analysis()
 
-    def _is_outpost(self, board: chess.Board, square: chess.Square) -> bool:
-        """Check if a square is a potential outpost."""
-        try:
-            piece = board.piece_at(square)
-            if not piece or piece.piece_type not in [chess.KNIGHT, chess.BISHOP]:
-                return False
-                
-            color = piece.color
-            file = chess.square_file(square)
-            rank = chess.square_rank(square)
-            
-            # Check if square is protected by friendly pawn
-            pawn_protectors = False
-            for adj_file in [file - 1, file + 1]:
-                if adj_file < 0 or adj_file > 7:
-                    continue
-                    
-                protector_rank = rank - 1 if color == chess.WHITE else rank + 1
-                if 0 <= protector_rank <= 7:
-                    protector_square = chess.square(adj_file, protector_rank)
-                    protector = board.piece_at(protector_square)
-                    if protector and protector.piece_type == chess.PAWN and protector.color == color:
-                        pawn_protectors = True
-                        break
-            
-            # Check if square can be attacked by enemy pawns
-            can_be_attacked = False
-            for adj_file in [file - 1, file + 1]:
-                if adj_file < 0 or adj_file > 7:
-                    continue
-                    
-                for attack_rank in range(rank + (1 if color == chess.WHITE else -1), 
-                                      8 if color == chess.WHITE else -1, 
-                                      1 if color == chess.WHITE else -1):
-                    if not (0 <= attack_rank <= 7):
-                        continue
-                        
-                    attacker_square = chess.square(adj_file, attack_rank)
-                    attacker = board.piece_at(attacker_square)
-                    if attacker and attacker.piece_type == chess.PAWN and attacker.color != color:
-                        can_be_attacked = True
-                        break
-                        
-            return pawn_protectors and not can_be_attacked
-            
-        except Exception as e:
-            logger.error(f"Error checking outpost: {str(e)}")
-            return False
+    def _get_default_pattern_analysis(self) -> Dict[str, Any]:
+        """Return default pattern analysis when analysis fails."""
+        return {
+            'tactical_patterns': [],
+            'positional_patterns': [],
+            'endgame_patterns': [],
+            'overall_assessment': 'Pattern analysis not available'
+        }
 
     def _summarize_tactical_patterns(self, patterns: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Summarize tactical patterns found in the game."""
