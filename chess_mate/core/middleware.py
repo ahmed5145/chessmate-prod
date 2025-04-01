@@ -7,6 +7,7 @@ required fields and have proper data formats before they reach the view function
 import json
 import re
 import logging
+import uuid
 from typing import Any, Callable, Dict, List, Optional, Union
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import resolve
@@ -143,6 +144,31 @@ DEFAULT_ERROR_RESPONSE = {
 }
 
 
+class RequestIDMiddleware:
+    """Middleware that adds a unique request ID to each request for traceability."""
+
+    def __init__(self, get_response: Callable):
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        # Generate a unique request ID
+        request_id = str(uuid.uuid4())
+        
+        # Add request ID to the request object
+        request.request_id = request_id
+        
+        # Add request ID to thread-local storage for logger access
+        # This requires thread_local from threading module if needed
+        
+        # Process the request
+        response = self.get_response(request)
+        
+        # Add request ID to response headers
+        response['X-Request-ID'] = request_id
+        
+        return response
+
+
 class RequestValidationMiddleware:
     """Middleware for validating API requests against defined schemas."""
 
@@ -157,7 +183,8 @@ class RequestValidationMiddleware:
         is_valid, errors = self._validate_request(request)
         if not is_valid:
             logger.warning(
-                f"Request validation failed: {request.method} {request.path} - {errors}"
+                f"Request validation failed: {request.method} {request.path} - {errors}",
+                extra={"request_id": getattr(request, "request_id", None)}
             )
             return self._create_error_response(errors)
 

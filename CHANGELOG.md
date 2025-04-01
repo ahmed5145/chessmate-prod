@@ -16,12 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deployment workflows for staging and production
 - Request validation middleware for all API endpoints with customizable schemas
 - Comprehensive tests for the validation middleware
+- Standardized error handling system with custom exception classes
+- Request ID tracking for improved debugging and traceability
+- Comprehensive documentation for validation and error handling
 
 ### Improved
 - Enhanced API request security with input validation
 - Type checking for all API request parameters
 - Better error messages for invalid API requests
 - Consistent error response format
+- Unified error handling across all endpoints
+- Custom exception classes for common error scenarios
+- Improved debugging with request ID tracking
+- Standardized success response format
 
 ## [0.9.0-beta] - 2025-04-01
 

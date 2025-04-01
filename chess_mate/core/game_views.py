@@ -31,6 +31,11 @@ from .tasks import analyze_game_task, analyze_batch_games_task
 from .task_manager import TaskManager
 from .cache_manager import CacheManager
 from .constants import MAX_BATCH_SIZE
+from .error_handling import (
+    api_error_handler, create_success_response,
+    ResourceNotFoundError, InvalidOperationError, CreditLimitError,
+    ChessServiceError
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -47,250 +52,253 @@ lichess_service = LichessService()
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@api_error_handler
 def user_games_view(request):
     """
     Retrieve all saved games for the logged-in user.
     """
     user = request.user
-    try:
-        games = Game.objects.filter(user=user).values(
-            "id",
-            "platform",
-            "white",
-            "black",
-            "opponent",
-            "result",
-            "date_played",
-            "opening_name",
-            "analysis"
-        ).order_by("-date_played")
-        
-        return Response(list(games), status=status.HTTP_200_OK)
-    except Exception as e:
-        logger.error(f"Error fetching user games: {str(e)}")
-        return Response(
-            {"error": "Failed to fetch games"}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+    games = Game.objects.filter(user=user).values(
+        "id",
+        "platform",
+        "white",
+        "black",
+        "opponent",
+        "result",
+        "date_played",
+        "opening_name",
+        "analysis"
+    ).order_by("-date_played")
+    
+    return create_success_response(data=list(games))
 
 @rate_limit(endpoint_type='FETCH')
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@api_error_handler
 def fetch_games(request):
     """
     Fetch games from Chess.com or Lichess for the user.
     """
+    user = request.user
+    
     try:
-        user = request.user
         profile = Profile.objects.get(user=user)
+    except Profile.DoesNotExist:
+        raise ResourceNotFoundError("User profile")
+    
+    platform = request.data.get('platform')
+    username = request.data.get('username')
+    game_type = request.data.get('game_type', 'rapid')
+    num_games = int(request.data.get('num_games', 10))
+    
+    # Validate parameters
+    if not platform or not username:
+        from .error_handling import ValidationError
+        errors = []
+        if not platform:
+            errors.append({"field": "platform", "message": "Platform is required"})
+        if not username:
+            errors.append({"field": "username", "message": "Username is required"})
+        raise ValidationError(errors)
         
-        platform = request.data.get('platform')
-        username = request.data.get('username')
-        game_type = request.data.get('game_type', 'rapid')
-        num_games = int(request.data.get('num_games', 10))
+    # Check credits
+    if profile.credits < 1:
+        raise CreditLimitError(required=1, available=profile.credits)
         
-        # Validate parameters
-        if not platform or not username:
-            return Response(
-                {"error": "Platform and username are required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-        # Check credits
-        if profile.credits < 1:
-            return Response(
-                {"error": "Insufficient credits. Please purchase more credits to fetch games."},
-                status=status.HTTP_402_PAYMENT_REQUIRED
-            )
-            
-        # Normalize parameters
-        platform = platform.lower()
-        username = username.strip()
+    # Normalize parameters
+    platform = platform.lower()
+    username = username.strip()
+    
+    # Limit number of games
+    if num_games > 50:
+        num_games = 50  # Cap at 50 games max
         
-        # Limit number of games
-        if num_games > 50:
-            num_games = 50  # Cap at 50 games max
-            
-        # Get games based on platform
-        games_data = []
+    # Get games based on platform
+    games_data = []
+    try:
         if platform == 'chess.com':
             games_data = chess_com_service.get_user_games(username, game_type, num_games)
         elif platform == 'lichess':
             games_data = lichess_service.get_user_games(username, game_type, num_games)
         else:
-            return Response(
-                {"error": "Invalid platform. Supported platforms are 'chess.com' and 'lichess'"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-        # Save games to database
-        saved_games = []
-        for game_data in games_data:
-            # Check if user is white or black player
-            is_white = False
-            is_black = False
-            
-            if platform == 'chess.com':
-                is_white = game_data.get('white', {}).get('username', '').lower() == username.lower()
-                is_black = game_data.get('black', {}).get('username', '').lower() == username.lower()
-            elif platform == 'lichess':
-                is_white = game_data.get('players', {}).get('white', {}).get('user', {}).get('name', '').lower() == username.lower()
-                is_black = game_data.get('players', {}).get('black', {}).get('user', {}).get('name', '').lower() == username.lower()
-                
-            if is_white or is_black:
-                # Save the game
-                game = save_game(user, platform, game_data)
-                if game:
-                    saved_games.append(game.id)
-                    
-        # Deduct credits
-        if saved_games:
-            profile.credits -= 1
-            profile.save()
-                    
-        return Response(
-            {
-                "message": f"Successfully fetched {len(saved_games)} games",
-                "saved_games": saved_games,
-                "remaining_credits": profile.credits
-            },
-            status=status.HTTP_200_OK
-        )
-    except Profile.DoesNotExist:
-        return Response(
-            {"error": "User profile not found"},
-            status=status.HTTP_404_NOT_FOUND
-        )
+            from .error_handling import ValidationError
+            raise ValidationError([{
+                "field": "platform", 
+                "message": "Invalid platform. Supported platforms are 'chess.com' and 'lichess'"
+            }])
     except Exception as e:
-        logger.error(f"Error fetching games: {str(e)}")
-        return Response(
-            {"error": f"Failed to fetch games: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        # Convert service-specific exceptions to our standard format
+        raise ChessServiceError(platform, str(e))
+        
+    # Save games to database
+    saved_games = []
+    for game_data in games_data:
+        # Check if user is white or black player
+        is_white = False
+        is_black = False
+        
+        if platform == 'chess.com':
+            is_white = game_data.get('white', {}).get('username', '').lower() == username.lower()
+            is_black = game_data.get('black', {}).get('username', '').lower() == username.lower()
+        elif platform == 'lichess':
+            is_white = game_data.get('players', {}).get('white', {}).get('user', {}).get('name', '').lower() == username.lower()
+            is_black = game_data.get('players', {}).get('black', {}).get('user', {}).get('name', '').lower() == username.lower()
+            
+        if is_white or is_black:
+            # Save the game
+            game = save_game(user, platform, game_data)
+            if game:
+                saved_games.append(game.id)
+                
+    # Deduct credits
+    if saved_games:
+        profile.credits -= 1
+        profile.save()
+                
+    return create_success_response(
+        data={
+            "saved_games": saved_games,
+            "remaining_credits": profile.credits
+        },
+        message=f"Successfully fetched {len(saved_games)} games"
+    )
 
 @rate_limit(endpoint_type='ANALYZE')
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@api_error_handler
 def analyze_game(request, game_id):
     """
     Analyze a single game and return the task ID.
     """
+    user = request.user
+    
     try:
-        user = request.user
         profile = Profile.objects.get(user=user)
-        
-        # Check if game exists and belongs to user
-        try:
-            game = Game.objects.get(id=game_id, user=user)
-        except Game.DoesNotExist:
-            return Response(
-                {"error": "Game not found or does not belong to user"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-            
-        # Check if game is already being analyzed
-        if game.analysis_status == 'analyzing':
-            # If there's an existing task, return its ID
-            existing_task = task_manager.get_task_for_game(game_id)
-            if existing_task:
-                return Response(
-                    {"task_id": existing_task, "status": "in_progress"},
-                    status=status.HTTP_200_OK
-                )
-                
-        # Check credits
-        if profile.credits < 1:
-            return Response(
-                {"error": "Insufficient credits. Please purchase more credits to analyze games."},
-                status=status.HTTP_402_PAYMENT_REQUIRED
-            )
-            
-        # Update game status
-        game.analysis_status = 'analyzing'
-        game.save()
-        
-        # Start analysis task
-        task = analyze_game_task.delay(game_id)
-        
-        # Register task with task manager
-        task_manager.register_task(task.id, game_id, user.id)
-        
-        # Deduct credits
-        profile.credits -= 1
-        profile.save()
-        
-        return Response(
-            {
-                "task_id": task.id,
-                "status": "started",
-                "message": "Game analysis started",
-                "remaining_credits": profile.credits
-            },
-            status=status.HTTP_202_ACCEPTED
-        )
     except Profile.DoesNotExist:
-        return Response(
-            {"error": "User profile not found"},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    except Exception as e:
-        logger.error(f"Error starting game analysis: {str(e)}")
-        return Response(
-            {"error": f"Failed to start game analysis: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        raise ResourceNotFoundError("User profile")
+    
+    # Check if game exists and belongs to user
+    try:
+        game = Game.objects.get(id=game_id, user=user)
+    except Game.DoesNotExist:
+        raise ResourceNotFoundError("Game", game_id)
+        
+    # Check if game is already being analyzed
+    if game.analysis_status == 'analyzing':
+        # If there's an existing task, return its ID
+        existing_task = task_manager.get_task_for_game(game_id)
+        if existing_task:
+            return create_success_response(
+                data={"task_id": existing_task, "status": "in_progress"},
+                message="Analysis is already in progress"
+            )
+            
+    # Check if analysis already exists and is complete
+    if game.analysis_status == 'completed':
+        try:
+            analysis = GameAnalysis.objects.get(game=game)
+            return create_success_response(
+                data={"analysis_id": analysis.id, "status": "completed"},
+                message="Analysis is already completed"
+            )
+        except GameAnalysis.DoesNotExist:
+            # This shouldn't happen normally, but we reset status if it does
+            game.analysis_status = 'not_started'
+            game.save()
+            
+    # Check credits
+    analysis_cost = 2  # Standard analysis cost
+    
+    # Get optional parameters with defaults
+    depth = int(request.data.get('depth', settings.STOCKFISH_DEPTH))
+    lines = int(request.data.get('lines', 3))
+    
+    # Adjust cost based on parameters
+    if depth > 20:
+        analysis_cost += 1
+    if lines > 3:
+        analysis_cost += 1
+        
+    if profile.credits < analysis_cost:
+        raise CreditLimitError(required=analysis_cost, available=profile.credits)
+        
+    # Update game status to 'analyzing'
+    game.analysis_status = 'analyzing'
+    game.save()
+    
+    # Queue the analysis task
+    task = analyze_game_task.delay(
+        game_id=game.id,
+        depth=depth,
+        multi_pv=lines
+    )
+    
+    # Register the task
+    task_manager.register_task(str(task.id), 'game_analysis', game.id)
+    
+    # Deduct credits
+    profile.credits -= analysis_cost
+    profile.save()
+    
+    return create_success_response(
+        data={
+            "task_id": str(task.id),
+            "status": "submitted",
+            "credits_used": analysis_cost,
+            "remaining_credits": profile.credits
+        },
+        message="Game analysis started successfully",
+        status_code=status.HTTP_202_ACCEPTED
+    )
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@api_error_handler
 def get_game_analysis(request, game_id):
     """
-    Get the analysis results for a specific game.
+    Get the analysis results for a game.
     """
+    user = request.user
+    
+    # Check if game exists and belongs to user
     try:
-        user = request.user
+        game = Game.objects.get(id=game_id, user=user)
+    except Game.DoesNotExist:
+        raise ResourceNotFoundError("Game", game_id)
         
-        # Check if game exists and belongs to user
-        try:
-            game = Game.objects.get(id=game_id, user=user)
-        except Game.DoesNotExist:
-            return Response(
-                {"error": "Game not found or does not belong to user"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-            
-        # Check if game has been analyzed
-        if game.analysis_status != 'analyzed':
-            return Response(
-                {
-                    "status": game.analysis_status,
-                    "message": f"Game analysis status: {game.analysis_status}"
-                },
-                status=status.HTTP_200_OK
-            )
-            
-        # Get analysis data
-        analysis_data = game.analysis
+    # Check if analysis exists
+    try:
+        analysis = GameAnalysis.objects.get(game=game)
+    except GameAnalysis.DoesNotExist:
+        if game.analysis_status == 'analyzing':
+            task_id = task_manager.get_task_for_game(game_id)
+            if task_id:
+                return create_success_response(
+                    data={"task_id": task_id, "status": "in_progress"},
+                    message="Analysis is in progress"
+                )
+        raise ResourceNotFoundError("Analysis", f"for game {game_id}")
         
-        # If no analysis data, return error
-        if not analysis_data:
-            return Response(
-                {"error": "No analysis data found for this game"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-            
-        return Response(
-            {
-                "analysis_data": analysis_data,
-                "completed_at": game.analysis_completed_at
-            },
-            status=status.HTTP_200_OK
-        )
-    except Exception as e:
-        logger.error(f"Error fetching game analysis: {str(e)}")
-        return Response(
-            {"error": f"Failed to fetch game analysis: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+    # Return the analysis data
+    analysis_data = {
+        "id": analysis.id,
+        "game_id": game.id,
+        "created_at": analysis.created_at,
+        "updated_at": analysis.updated_at,
+        "data": analysis.data,
+        "depth": analysis.depth,
+        "lines": analysis.lines,
+        "evaluation": analysis.evaluation,
+        "best_moves": analysis.best_moves,
+        "critical_positions": analysis.critical_positions,
+        "inaccuracies": analysis.inaccuracies,
+        "mistakes": analysis.mistakes,
+        "blunders": analysis.blunders
+    }
+    
+    return create_success_response(data=analysis_data)
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])

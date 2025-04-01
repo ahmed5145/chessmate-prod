@@ -62,6 +62,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'core.middleware.RequestIDMiddleware',  # Add request ID to each request
     'corsheaders.middleware.CorsMiddleware',  # Must be first
     'django.middleware.common.CommonMiddleware',  # Must be right after CORS
     'django.middleware.security.SecurityMiddleware',
@@ -322,6 +323,7 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
     ),
+    'EXCEPTION_HANDLER': 'core.error_handling.custom_exception_handler',
 }
 
 # Email Configuration
