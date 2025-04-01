@@ -50,6 +50,7 @@ PASSWORD_HASHERS = [
 
 # Disable CSRF protection for testing API endpoints
 MIDDLEWARE = [m for m in MIDDLEWARE if m != 'django.middleware.csrf.CsrfViewMiddleware']
+MIDDLEWARE.append('core.middleware.RequestValidationMiddleware')  # Add validation middleware for testing
 
 # Reduce rate limiting for tests
 RATE_LIMIT = {

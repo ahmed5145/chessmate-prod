@@ -5,7 +5,25 @@ All notable changes to ChessMate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.0-beta] - 2024-04-01
+## [Unreleased]
+
+### Added
+- CI/CD pipeline with GitHub Actions
+- Dockerization of the entire application
+- Automated testing, linting, and security scanning
+- Docker Compose for local development
+- Nginx configuration for web server
+- Deployment workflows for staging and production
+- Request validation middleware for all API endpoints with customizable schemas
+- Comprehensive tests for the validation middleware
+
+### Improved
+- Enhanced API request security with input validation
+- Type checking for all API request parameters
+- Better error messages for invalid API requests
+- Consistent error response format
+
+## [0.9.0-beta] - 2025-04-01
 
 ### Added
 - Modular backend organization with dedicated view files for:
@@ -35,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced separation of concerns in the backend architecture
 - Fixed inconsistent error handling
 
-## [0.8.0-alpha] - 2024-03-15
+## [0.8.0-alpha] - 2025-03-15
 
 ### Added
 - Initial implementation of AI feedback using OpenAI
@@ -55,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved error messages for better user experience
 - Fixed authentication flow issues
 
-## [0.7.0-alpha] - 2024-02-20
+## [0.7.0-alpha] - 2025-02-20
 
 ### Added
 - Basic authentication system with JWT
@@ -65,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simple dashboard
 - Basic frontend implementation
 
-## [0.6.0-pre-alpha] - 2024-01-15
+## [0.6.0-pre-alpha] - 2025-01-15
 
 ### Added
 - Project structure and setup
