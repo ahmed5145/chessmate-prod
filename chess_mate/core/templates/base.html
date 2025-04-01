@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{% block title %}ChessMate - Advanced Chess Analysis{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="icon" href="{% static 'favicon.ico' %}">
+    <!-- Additional meta tags for SEO -->
+    <meta name="description" content="ChessMate - Advanced chess analysis and feedback using AI and Stockfish engine">
+    <meta name="keywords" content="chess, analysis, ai, stockfish, improvement, tactics">
+    <!-- Open Graph tags for social sharing -->
+    <meta property="og:title" content="ChessMate - Advanced Chess Analysis">
+    <meta property="og:description" content="Improve your chess game with detailed AI-powered analysis and feedback">
+    <meta property="og:image" content="{% static 'images/og-image.jpg' %}">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    <meta property="og:type" content="website">
+    <!-- Version information -->
+    <meta name="version" content="v0.9.0-beta">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <header class="site-header">
+        <div class="container">
+            <div class="logo">
+                <a href="{% url 'home' %}">
+                    <img src="{% static 'images/logo.png' %}" alt="ChessMate Logo">
+                    <span>ChessMate</span>
+                </a>
+                <span class="version-tag">Beta</span>
+            </div>
+            <nav class="main-nav">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'dashboard' %}">Dashboard</a>
+                    <a href="{% url 'games' %}">Games</a>
+                    <a href="{% url 'analysis' %}">Analysis</a>
+                    <a href="{% url 'profile' %}">Profile</a>
+                    <a href="{% url 'logout' %}">Logout</a>
+                {% else %}
+                    <a href="{% url 'login' %}">Login</a>
+                    <a href="{% url 'register' %}">Register</a>
+                    <a href="{% url 'features' %}">Features</a>
+                    <a href="{% url 'pricing' %}">Pricing</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="message message-{{ message.tags }}">
+                            {{ message }}
+                            <button class="close-message">&times;</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+    
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-info">
+                <div class="footer-logo">
+                    <img src="{% static 'images/logo-footer.png' %}" alt="ChessMate Logo">
+                    <span>ChessMate</span>
+                </div>
+                <p>&copy; {% now "Y" %} ChessMate. All rights reserved.</p>
+                <p class="version">Version: v0.9.0-beta | Preparing for public release</p>
+            </div>
+            <div class="footer-links">
+                <div class="link-group">
+                    <h4>Resources</h4>
+                    <a href="{% url 'features' %}">Features</a>
+                    <a href="{% url 'pricing' %}">Pricing</a>
+                    <a href="{% url 'docs' %}">Documentation</a>
+                    <a href="{% url 'api' %}">API</a>
+                </div>
+                <div class="link-group">
+                    <h4>Company</h4>
+                    <a href="{% url 'about' %}">About Us</a>
+                    <a href="{% url 'contact' %}">Contact</a>
+                    <a href="{% url 'terms' %}">Terms of Service</a>
+                    <a href="{% url 'privacy' %}">Privacy Policy</a>
+                </div>
+                <div class="link-group">
+                    <h4>Connect</h4>
+                    <a href="https://twitter.com/chessmate" target="_blank" rel="noopener">Twitter</a>
+                    <a href="https://github.com/ahmed5145/chessmate" target="_blank" rel="noopener">GitHub</a>
+                    <a href="https://discord.gg/chessmate" target="_blank" rel="noopener">Discord</a>
+                    <a href="{% url 'blog' %}">Blog</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Main JavaScript -->
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_scripts %}{% endblock %}
+    
+    <!-- Analytics (only in production) -->
+    {% if not debug %}
+    <script>
+        // Analytics code goes here
+    </script>
+    {% endif %}
+</body>
+</html> 

@@ -1,44 +1,86 @@
 """
 Test settings for the ChessMate project.
+These settings are used for running tests to ensure the environment is properly isolated.
 """
 
+# Import base settings
 from .settings import *
 
-# Test database settings
+# Use in-memory SQLite database for testing
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',  # Use in-memory database for tests
+        'NAME': ':memory:',
     }
 }
 
-# Test-specific settings
-DEBUG = False
+# Set testing flag
 TESTING = True
 
-# Celery test settings
-CELERY_TASK_ALWAYS_EAGER = True  # Execute tasks synchronously
-CELERY_TASK_EAGER_PROPAGATES = True  # Propagate exceptions
-CELERY_BROKER_URL = 'memory://'
-CELERY_RESULT_BACKEND = 'cache'
-CELERY_CACHE_BACKEND = 'memory'
+# Disable debug mode for testing
+DEBUG = False
 
-# Disable Redis for tests
+# Configure Celery for testing
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
+# Disable cache for testing
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
     },
     'local': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'local-memory',
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
     }
 }
 
-# Use fast password hasher for tests
+# Mock external service keys
+OPENAI_API_KEY = 'test-key'
+STRIPE_SECRET_KEY = 'test-stripe-secret-key'
+STRIPE_PUBLIC_KEY = 'test-stripe-public-key'
+STOCKFISH_PATH = '/mock/path/to/stockfish'
+
+# Use console email backend for testing
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Speed up password hashing during tests
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.MD5PasswordHasher',
 ]
+
+# Disable CSRF protection for testing API endpoints
+MIDDLEWARE = [m for m in MIDDLEWARE if m != 'django.middleware.csrf.CsrfViewMiddleware']
+
+# Reduce rate limiting for tests
+RATE_LIMIT = {
+    'DEFAULT': {
+        'MAX_REQUESTS': 1000,
+        'TIME_WINDOW': 60,
+    },
+    'AUTH': {
+        'MAX_REQUESTS': 1000,
+        'TIME_WINDOW': 60,
+    },
+    'ANALYSIS': {
+        'MAX_REQUESTS': 1000,
+        'TIME_WINDOW': 60,
+    },
+    'CREDITS': {
+        'MAX_REQUESTS': 1000,
+        'TIME_WINDOW': 60,
+    },
+    'GAMES': {
+        'MAX_REQUESTS': 1000,
+        'TIME_WINDOW': 60,
+    },
+}
+
+# Override OPENAI settings for testing
+OPENAI_RATE_LIMIT = {
+    'max_requests': 1000,
+    'window_seconds': 60,
+    'min_interval': 0.01,
+}
 
 # Disable celery during tests
 CELERY_ALWAYS_EAGER = True
@@ -111,7 +153,6 @@ warnings.filterwarnings('ignore', category=RemovedInDjango60Warning)
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 # OpenAI Settings
-OPENAI_API_KEY = 'test-key'
 USE_OPENAI = True  # Enable OpenAI for tests
 OPENAI_MODEL = 'gpt-3.5-turbo'
 OPENAI_MAX_TOKENS = 500

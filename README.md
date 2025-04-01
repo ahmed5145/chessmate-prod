@@ -10,9 +10,11 @@
 ChessMate is a sophisticated chess analysis platform that combines the power of the Stockfish engine with modern web technologies to provide detailed game analysis and personalized feedback.
 
 ## Navigation
+
 - [Features](#features)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
+- [Code Organization](#code-organization)
 - [Usage](#usage)
 - [Testing](#testing)
 - [API Documentation](#api-documentation)
@@ -40,6 +42,7 @@ ChessMate is a sophisticated chess analysis platform that combines the power of 
 ## Installation
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/ahmed5145/chessmate.git
    cd chessmate
@@ -47,6 +50,7 @@ ChessMate is a sophisticated chess analysis platform that combines the power of 
 
 2. **Install dependencies**:
    - **Backend**:
+
      ```bash
      cd chessmate
      python -m venv venv
@@ -55,12 +59,14 @@ ChessMate is a sophisticated chess analysis platform that combines the power of 
      ```
 
    - **Frontend**:
+
      ```bash
      cd frontend
      npm install
      ```
 
 3. **Set up environment variables**:
+
    ```bash
    cp .env.example .env
    # Edit .env with your configuration:
@@ -71,33 +77,54 @@ ChessMate is a sophisticated chess analysis platform that combines the power of 
    ```
 
 4. **Initialize the database**:
+
    ```bash
    python manage.py makemigrations
    python manage.py migrate
    ```
 
 5. **Start Redis Server**:
+
    ```bash
    redis-server
    ```
 
 6. **Start Celery Worker**:
+
    ```bash
    celery -A chess_mate worker -l info
    ```
 
 7. **Run development servers**:
+
    - **Backend**:
+
      ```bash
      cd chess_mate
      python manage.py runserver
      ```
 
    - **Frontend**:
+
      ```bash
      cd frontend
      npm start
      ```
+
+## Code Organization
+
+The ChessMate backend is organized into modular components for better maintainability:
+
+### Core Modules
+
+- **Authentication** (`auth_views.py`): User registration, login, logout, password reset, and token management
+- **Game Management** (`game_views.py`): Game retrieval, analysis, and batch operations
+- **User Profiles** (`profile_views.py`): Profile management, subscriptions, and credit system
+- **Dashboard** (`dashboard_views.py`): User statistics, performance trends, and mistake analysis
+- **AI Feedback** (`feedback_views.py`): AI-powered game feedback and improvement suggestions
+- **Utilities** (`util_views.py`): Health checks, monitoring, and system information
+
+Each module has corresponding test files in the `/tests` directory ensuring comprehensive test coverage.
 
 ## Usage
 
@@ -115,12 +142,70 @@ ChessMate is a sophisticated chess analysis platform that combines the power of 
 ## Testing
 
 - **Backend Tests**:
+
+  ### Using provided test scripts:
+  ```bash
+  # On Unix/Linux/macOS
+  cd chess_mate
+  chmod +x run_tests.sh
+  ./run_tests.sh                    # Run all tests
+  ./run_tests.sh core/tests/test_auth_views.py  # Run specific test file
+  
+  # On Windows
+  cd chess_mate
+  run_tests.bat                     # Run all tests
+  run_tests.bat core\tests\test_auth_views.py  # Run specific test file
+  ```
+
+  ### Manual testing setup:
   ```bash
   cd chess_mate
   python -m pytest
   ```
 
+  The test suite includes comprehensive tests for all core modules:
+  - Authentication tests
+  - Game management tests
+  - Profile management tests
+  - Dashboard functionality tests
+  - AI feedback tests
+  - Utility endpoint tests
+
+  **Setting up the test environment**:
+  1. Create a test settings file at `chess_mate/test_settings.py`:
+     ```python
+     from .settings import *
+     
+     # Use in-memory SQLite for tests
+     DATABASES = {
+         'default': {
+             'ENGINE': 'django.db.backends.sqlite3',
+             'NAME': ':memory:',
+         }
+     }
+     
+     # Disable Celery tasks during testing
+     CELERY_ALWAYS_EAGER = True
+     
+     # Mock external services
+     OPENAI_API_KEY = 'test-key'
+     STRIPE_SECRET_KEY = 'test-stripe-secret-key'
+     STRIPE_PUBLIC_KEY = 'test-stripe-public-key'
+     ```
+  
+  2. Run tests with the custom settings:
+     ```bash
+     DJANGO_SETTINGS_MODULE=chess_mate.test_settings python -m pytest
+     ```
+  
+  3. For CI/CD environments, add environment variables:
+     ```bash
+     export DJANGO_SETTINGS_MODULE=chess_mate.test_settings
+     export TESTING=True
+     ```
+
 - **Frontend Tests**:
+
   ```bash
   cd frontend
   npm test
@@ -150,5 +235,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Lichess API
 
 ---
-*Document last updated on January 18, 2024*  
+*Document last updated on April 1, 2025*  
 *Copyright © 2024 ChessMate. All rights reserved.*
