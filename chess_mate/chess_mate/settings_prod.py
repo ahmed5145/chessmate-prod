@@ -2,7 +2,6 @@
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from .settings import *  # noqa
-from .logging import LOGGING  # Import logging configuration
 from datetime import timedelta
 import os
 
@@ -48,15 +47,14 @@ CACHES = {
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'SOCKET_CONNECT_TIMEOUT': '5',
-            'SOCKET_TIMEOUT': '5',
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
             'RETRY_ON_TIMEOUT': True,
-            'MAX_CONNECTIONS': '20',
-            'CONNECTION_POOL_KWARGS': {'max_connections': '10'},
+            'MAX_CONNECTIONS': 20,
+            'CONNECTION_POOL_KWARGS': {'max_connections': 10},
             'KEY_PREFIX': 'cm',
             'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
             'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
-            'KEY_FUNCTION': 'django_redis.serializers.json.default_key_function',
         }
     },
     'local': {
@@ -276,15 +274,21 @@ ANALYSIS_CACHE_TTL = int(os.getenv('ANALYSIS_CACHE_TTL', '86400'))  # 24 hours
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'chessmate_prod',
-        'USER': 'postgres',
-        'PASSWORD': 'admin',
-        'HOST': 'chessmate-db.ct2c8gou6c3u.us-east-2.rds.amazonaws.com',  # Replace with your RDS endpoint
-        'PORT': '5432',
+        'NAME': os.getenv('DB_NAME', 'chessmate_prod'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
         'ATOMIC_REQUESTS': True,
-        'CONN_MAX_AGE': 0,
+        'CONN_MAX_AGE': 0,  # Disable persistent connections
         'OPTIONS': {
+            'connect_timeout': 30,
             'client_encoding': 'UTF8',
+            'keepalives': 1,
+            'keepalives_idle': 30,
+            'keepalives_interval': 10,
+            'keepalives_count': 5,
+            'sslmode': 'require' if not DEBUG else 'prefer'
         },
     }
 } 

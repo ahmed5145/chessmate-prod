@@ -21,6 +21,9 @@ import redis
 import json
 import time
 from .task_manager import TaskManager
+from core.analysis.stockfish_analyzer import StockfishAnalyzer
+from core.analysis.feedback_generator import FeedbackGenerator
+from core.utils import analyze_game
 
 logger = get_task_logger(__name__)
 cache_manager = CacheManager()
@@ -46,194 +49,110 @@ class BaseAnalysisTask(Task):
 
 @shared_task(bind=True, base=BaseAnalysisTask)
 def analyze_game_task(self, game_id: int, depth: int = 20, use_ai: bool = True) -> Dict[str, Any]:
-    """Analyze a single game."""
-    logger.info(f"Starting analysis for game {game_id}")
-    analyzer = None
+    """
+    Analyze a single game.
+    """
     try:
-        # Log the game retrieval attempt
-        logger.info(f"Attempting to retrieve game {game_id}")
         game = Game.objects.get(id=game_id)
-        logger.info(f"Successfully retrieved game {game_id}")
-        
-        # Update game status to analyzing
-        with transaction.atomic():
-            game.status = 'analyzing'
-            game.save(update_fields=['status'])
-        
+        game.analysis_status = 'analyzing'
+        game.save()
+
         analyzer = GameAnalyzer()
-        try:
-            logger.info(f"Starting game analysis for game {game_id}")
-            analysis_data = analyzer.analyze_single_game(game, depth=depth)
-            logger.info(f"Analysis completed for game {game_id}. Data present: {bool(analysis_data)}")
+        analysis_results = analyzer.analyze_single_game(game, depth)
+        
+        if not analysis_results or not analysis_results.get('analysis_results'):
+            raise ValueError("Invalid analysis results")
+
+        if use_ai and analysis_results.get('analysis_results', {}).get('moves'):
+            try:
+                feedback_generator = FeedbackGenerator()
+                feedback = feedback_generator.generate_feedback(analysis_results)
+                if feedback:
+                    analysis_results['feedback'] = {
+                        'source': 'openai',
+                        'feedback': feedback
+                    }
+            except Exception as e:
+                logger.error(f"Error generating AI feedback: {str(e)}")
+                # Keep existing feedback if AI generation fails
+
+        # Ensure consistent response structure
+        if 'game_id' not in analysis_results:
+            analysis_results['game_id'] = game_id
             
-            # Check if analysis was successful and complete
-            if (analysis_data and 
-                analysis_data.get('analysis_complete', False) and 
-                isinstance(analysis_data.get('analysis_results', {}).get('moves', []), list)):
-                
-                logger.info(f"Analysis successful for game {game_id}. Saving results.")
-                with transaction.atomic():
-                    game.refresh_from_db()
-                    game.status = 'analyzed'
-                    game.analysis = analysis_data
-                    game.analysis_completed_at = timezone.now()
-                    game.save(update_fields=['status', 'analysis', 'analysis_completed_at'])
-                logger.info(f"Successfully saved analysis results for game {game_id}")
-                
-                return {
-                    'status': 'completed',
-                    'game_id': game_id,
-                    'message': 'Analysis completed successfully'
-                }
-            
-            # Handle analysis failure
-            error_msg = analysis_data.get('error', 'Analysis incomplete or invalid') if analysis_data else 'No analysis data returned'
-            logger.error(f"Analysis failed for game {game_id}: {error_msg}")
-            with transaction.atomic():
-                game.refresh_from_db()
-                game.status = 'failed'
-                game.save(update_fields=['status'])
-            return {
-                'status': 'failed',
-                'game_id': game_id,
-                'message': f'Analysis failed: {error_msg}'
-            }
-            
-        except Exception as e:
-            logger.error(f"Error during game analysis: {str(e)}", exc_info=True)
-            with transaction.atomic():
-                game.refresh_from_db()
-                game.status = 'failed'
-                game.save(update_fields=['status'])
-            return {
-                'status': 'failed',
-                'game_id': game_id,
-                'message': f'Analysis error: {str(e)}'
-            }
-            
+        if 'analysis_complete' not in analysis_results:
+            analysis_results['analysis_complete'] = True
+
+        # Update game with analysis results
+        game.analysis = analysis_results
+        game.analysis_status = 'analyzed'
+        game.analysis_completed_at = timezone.now()
+        game.save()
+
+        return analysis_results
+
     except Game.DoesNotExist:
-        logger.error(f"Game {game_id} not found")
+        logger.error(f"Game with id {game_id} not found")
         return {
-            'status': 'failed',
+            'analysis_complete': True,
             'game_id': game_id,
-            'message': 'Game not found'
+            'analysis_results': {
+                'summary': GameAnalyzer()._get_default_metrics(),
+                'moves': []
+            },
+            'feedback': {
+                'source': 'system',
+                'feedback': {
+                    'strengths': [],
+                    'weaknesses': [f'Game with id {game_id} not found'],
+                    'critical_moments': [],
+                    'improvement_areas': ['Ensure the game exists before analysis'],
+                    'opening': {'analysis': 'Game not found', 'suggestion': 'Verify game ID'},
+                    'middlegame': {'analysis': 'Game not found', 'suggestion': 'Verify game ID'},
+                    'endgame': {'analysis': 'Game not found', 'suggestion': 'Verify game ID'}
+                }
+            }
         }
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        logger.error(f"Error analyzing game {game_id}: {str(e)}", exc_info=True)
+        game.analysis_status = 'failed'
+        game.save()
+        
         return {
-            'status': 'failed',
+            'analysis_complete': True,
             'game_id': game_id,
-            'message': f'Unexpected error: {str(e)}'
+            'analysis_results': {
+                'summary': GameAnalyzer()._get_default_metrics(),
+                'moves': []
+            },
+            'feedback': {
+                'source': 'system',
+                'feedback': {
+                    'strengths': [],
+                    'weaknesses': [f'Analysis failed: {str(e)}'],
+                    'critical_moments': [],
+                    'improvement_areas': ['Try analyzing the game again'],
+                    'opening': {'analysis': 'Analysis failed', 'suggestion': 'Try again'},
+                    'middlegame': {'analysis': 'Analysis failed', 'suggestion': 'Try again'},
+                    'endgame': {'analysis': 'Analysis failed', 'suggestion': 'Try again'}
+                }
+            }
         }
-    finally:
-        if analyzer:
-            try:
-                analyzer.close_engine()
-            except Exception as e:
-                logger.error(f"Error during engine cleanup: {str(e)}")
 
 @shared_task(bind=True, base=BaseAnalysisTask)
 def analyze_batch_games_task(self, game_ids: List[int], depth: int = 20, use_ai: bool = True, include_analyzed: bool = False) -> Dict[str, Any]:
-    """Analyze multiple games in batch."""
-    logger.info(f"Starting batch analysis of {len(game_ids)} games")
-    
-    successful_games = []
-    failed_games = []
-    analyzer = None
-    
-    try:
-        analyzer = GameAnalyzer()
-        total_games = len(game_ids)
-        
-        for index, game_id in enumerate(game_ids, 1):
-            try:
-                game = Game.objects.get(id=game_id)
-                
-                # Skip already analyzed games if not explicitly included
-                if not include_analyzed and game.status == 'analyzed':
-                    logger.info(f"Skipping already analyzed game {game_id}")
-                    continue
-                
-                # Update progress
-                self.update_state(
-                    state='PROGRESS',
-                    meta={
-                        'current': index,
-                        'total': total_games,
-                        'game_id': game_id,
-                        'status': 'processing'
-                    }
-                )
-                
-                logger.info(f"Processing game {game_id} ({index}/{total_games})")
-                
-                # Update game status
-                with transaction.atomic():
-                    game.status = 'analyzing'
-                    game.save(update_fields=['status'])
-                
-                # Analyze game
-                analysis_data = analyzer.analyze_single_game(game, depth=depth)
-                
-                if (analysis_data and 
-                    analysis_data.get('analysis_complete', False) and 
-                    analysis_data.get('analysis_results', {}).get('moves', [])):
-                    
-                    # Save results
-                    with transaction.atomic():
-                        game.refresh_from_db()
-                        game.status = 'analyzed'
-                        game.analysis = analysis_data
-                        game.analysis_completed_at = timezone.now()
-                        game.save(update_fields=['status', 'analysis', 'analysis_completed_at'])
-                    
-                    successful_games.append(game_id)
-                    logger.info(f"Successfully analyzed game {game_id}")
-                    
-                else:
-                    error_msg = analysis_data.get('error', 'Analysis incomplete or invalid') if analysis_data else 'No analysis data returned'
-                    logger.error(f"Analysis failed for game {game_id}: {error_msg}")
-                    with transaction.atomic():
-                        game.status = 'failed'
-                        game.save(update_fields=['status'])
-                    failed_games.append(game_id)
-                
-            except Game.DoesNotExist:
-                logger.error(f"Game {game_id} not found")
-                failed_games.append(game_id)
-            except Exception as e:
-                logger.error(f"Error processing game {game_id}: {str(e)}", exc_info=True)
-                failed_games.append(game_id)
-                try:
-                    with transaction.atomic():
-                        game = Game.objects.get(id=game_id)
-                        game.status = 'failed'
-                        game.save(update_fields=['status'])
-                except Exception:
-                    pass
-    
-    except Exception as e:
-        logger.error(f"Batch analysis failed: {str(e)}", exc_info=True)
-        return {
-            'status': 'failed',
-            'successful_games': successful_games,
-            'failed_games': failed_games,
-            'error': str(e)
-        }
-    
-    finally:
-        if analyzer:
-            try:
-                analyzer.close_engine()
-            except Exception as e:
-                logger.error(f"Error during engine cleanup: {str(e)}")
-    
-    return {
-        'status': 'completed',
-        'successful_games': successful_games,
-        'failed_games': failed_games,
-        'total_processed': len(successful_games) + len(failed_games)
-    }
+    """
+    Analyze a batch of games.
+    """
+    results = {}
+    for game_id in game_ids:
+        try:
+            result = analyze_game_task(game_id, depth, use_ai)
+            results[game_id] = result
+        except Exception as e:
+            logger.error(f"Error analyzing game {game_id} in batch: {str(e)}")
+            results[game_id] = {"error": str(e)}
+    return results
 
 @shared_task(base=BaseAnalysisTask)
 def cleanup_analysis_cache() -> None:

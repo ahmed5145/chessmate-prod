@@ -1,356 +1,420 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { analyzeSpecificGame, checkAnalysisStatus, fetchGameAnalysis } from '../services/gameAnalysisService';
-import GameFeedback from './GameFeedback';
+import GameAnalysisResults from './GameAnalysisResults';
 import LoadingSpinner from './LoadingSpinner';
-import { debounce } from 'lodash';
-import {
-  TrendingUp,
-  Clock,
-  Target,
-  Award,
-  Sword,
-  Crown,
-  AlertTriangle,
-  Zap,
-  BarChart2,
-  Loader,
-  Cpu,
-  Crosshair,
-  AlertCircle,
-  AlertOctagon,
-  BookOpen,
-  Swords,
-  Flag,
-  FileText,
-  BarChart,
-} from 'lucide-react';
-import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
 import './SingleGameAnalysis.css';
-import { toast } from 'react-hot-toast';
+import { useTheme } from '../context/ThemeContext';
+import { FaChess } from 'react-icons/fa';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
+const ProgressBar = ({ progress, isDarkMode, startTime }) => {
+    const [timeElapsed, setTimeElapsed] = useState(0);
+    
+    useEffect(() => {
+        const timer = setInterval(() => {
+            if (startTime) {
+                setTimeElapsed(Math.floor((Date.now() - startTime) / 1000));
+            }
+        }, 1000);
+        
+        return () => clearInterval(timer);
+    }, [startTime]);
+    
+    const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+    
+    return (
+        <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center">
+                    <FaChess className={`mr-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                    <span className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                        Analyzing Game
+                    </span>
+                </div>
+                <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {formatTime(timeElapsed)}
+                </span>
+            </div>
+            <div className="relative pt-1">
+                <div className="flex mb-2 items-center justify-between">
+                    <div>
+                        <span className={`text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full ${
+                            isDarkMode ? 'text-blue-400 bg-blue-900' : 'text-blue-600 bg-blue-200'
+                        }`}>
+                            {progress}% Complete
+                        </span>
+                    </div>
+                </div>
+                <div className={`overflow-hidden h-2 mb-4 text-xs flex rounded ${
+                    isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                }`}>
+                    <div
+                        style={{ width: `${progress}%`, transition: 'width 0.5s ease-in-out' }}
+                        className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
+                            isDarkMode ? 'bg-blue-500' : 'bg-blue-600'
+                        }`}
+                    ></div>
+                </div>
+                <div className="text-center">
+                    <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {progress < 100 ? 'Analyzing moves and generating feedback...' : 'Analysis complete!'}
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const SingleGameAnalysis = () => {
   const { gameId } = useParams();
-  const [analysis, setAnalysis] = useState(null);
-  const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
+    const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [taskId, setTaskId] = useState(null);
-  const [progress, setProgress] = useState(null);
-  const [pollingInterval, setPollingInterval] = useState(null);
+    const [analysisData, setAnalysisData] = useState(null);
+    const pollingIntervalRef = useRef(null);
+    const hasStartedRef = useRef(false);
+    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [analysisStartTime, setAnalysisStartTime] = useState(null);
 
-  const checkStatus = async () => {
-    try {
-      console.log('Checking status for task:', taskId);
-      const statusResponse = await checkAnalysisStatus(taskId);
-      console.log('Status check response:', statusResponse);
+    // Validate analysis data structure
+    const validateAnalysisData = (data) => {
+        if (!data) {
+            console.warn('No data received');
+            return false;
+        }
+        
+        // Handle polling status response
+        if (data.status) {
+            // This is a status response, validate accordingly
+            if (['completed', 'in_progress', 'PENDING', 'started'].includes(data.status)) {
+                return true;
+            }
+            if (data.status === 'error' || data.status === 'failed') {
+                console.warn('Error status in response:', data.message);
+                return false;
+            }
+        }
+        
+        // Handle final analysis response
+        // First, try to get the analysis results from the correct path
+        const analysisResults = data.analysis_results || 
+                              (data.analysis && data.analysis.analysis_results) || 
+                              data.analysis;
+                              
+        if (!analysisResults) {
+            console.warn('No analysis results found:', data);
+            return false;
+        }
+        
+        // Check for required structures
+        const hasAnalysisData = analysisResults.summary || analysisResults.moves;
+        const hasFeedback = data.feedback && 
+                           (data.feedback.feedback || 
+                            (typeof data.feedback === 'object' && Object.keys(data.feedback).length > 0));
+                            
+        if (!hasAnalysisData && !hasFeedback) {
+            console.warn('Missing both analysis data and feedback:', data);
+            return false;
+        }
 
-      const status = statusResponse.status?.toUpperCase();
-      
-      if (status === 'COMPLETED') {
-        if (statusResponse.analysis) {
-          setAnalysis(statusResponse.analysis);
-          setLoading(false);
-          if (pollingInterval) {
-            clearInterval(pollingInterval);
-            setPollingInterval(null);
-          }
-        } else {
-          console.error('Analysis completed but no analysis data received');
-          setError('Analysis completed but results are missing');
-          setLoading(false);
-          if (pollingInterval) {
-            clearInterval(pollingInterval);
-            setPollingInterval(null);
-          }
-        }
-      } else if (status === 'FAILED' || status === 'FAILURE') {
-        setError(statusResponse.message || 'Analysis failed');
-        setLoading(false);
-        if (pollingInterval) {
-          clearInterval(pollingInterval);
-          setPollingInterval(null);
-        }
-      } else if (status === 'IN_PROGRESS' || status === 'PENDING') {
-        // Update progress if available
-        if (statusResponse.progress) {
-          setProgress(statusResponse.progress);
-        }
-      } else {
-        console.error('Unknown status received:', status);
-        setError('Unknown analysis status');
-        setLoading(false);
-        if (pollingInterval) {
-          clearInterval(pollingInterval);
-          setPollingInterval(null);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking analysis status:', error);
-      setError(error.message || 'Failed to check analysis status');
-      setLoading(false);
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-        setPollingInterval(null);
-      }
-    }
-  };
+        return true;
+    };
 
+    const mergeAnalysisData = (results, statusResponse) => {
+        // Extract analysis data from both responses
+        const analysisResults = results.analysis_results || results.analysis || {};
+        const statusAnalysis = statusResponse.analysis || {};
+        const statusFeedback = statusResponse.feedback || {};
+        
+        // Normalize the data structure
+        const normalizedResults = {
+            analysis_results: {
+                summary: {
+                    overall: {
+                        ...statusAnalysis.summary?.overall,
+                        ...analysisResults.summary?.overall
+                    },
+                    phases: {
+                        ...statusAnalysis.summary?.phases,
+                        ...analysisResults.summary?.phases
+                    },
+                    time_management: {
+                        ...statusAnalysis.summary?.time_management,
+                        ...analysisResults.summary?.time_management
+                    },
+                    tactics: {
+                        ...statusAnalysis.summary?.tactics,
+                        ...analysisResults.summary?.tactics
+                    },
+                    resourcefulness: {
+                        ...statusAnalysis.summary?.resourcefulness,
+                        ...analysisResults.summary?.resourcefulness
+                    }
+                },
+                moves: analysisResults.moves || statusAnalysis.moves || []
+            },
+            feedback: {
+                source: statusFeedback.source || 'statistical',
+                strengths: statusFeedback.strengths || [],
+                weaknesses: statusFeedback.weaknesses || [],
+                critical_moments: statusFeedback.critical_moments || [],
+                opening: statusFeedback.opening || {},
+                middlegame: statusFeedback.middlegame || {},
+                endgame: statusFeedback.endgame || {},
+                suggestions: statusFeedback.suggestions || []
+            }
+        };
+
+        // Ensure we have valid metrics
+        if (normalizedResults.analysis_results.summary.overall.accuracy === undefined) {
+            normalizedResults.analysis_results.summary.overall.accuracy = 0;
+        }
+
+        // Ensure phase metrics are properly populated
+        ['opening', 'middlegame', 'endgame'].forEach(phase => {
+            if (!normalizedResults.analysis_results.summary.phases[phase]) {
+                normalizedResults.analysis_results.summary.phases[phase] = {
+                    accuracy: normalizedResults.analysis_results.summary.overall.accuracy || 0,
+                    mistakes: 0,
+                    opportunities: 0,
+                    best_moves: 0
+                };
+            }
+        });
+
+        return normalizedResults;
+    };
+
+    // Update the polling status function
+    const pollStatus = async (taskId) => {
+        try {
+            const statusResponse = await checkAnalysisStatus(taskId);
+            console.log('Status check response:', statusResponse);
+
+            if (!statusResponse) {
+                throw new Error('No response received from status check');
+            }
+
+            // Update progress
+            if (statusResponse.progress !== undefined) {
+                setProgress(Math.min(95, statusResponse.progress));
+            } else if (statusResponse.status === 'in_progress') {
+                setProgress((prev) => Math.min(95, prev + 5));
+            }
+
+            if (statusResponse.status === 'FAILURE' || statusResponse.status === 'failed' || statusResponse.status === 'error') {
+                clearInterval(pollingIntervalRef.current);
+                const errorMessage = statusResponse.message || 'Analysis failed. Please try again.';
+                setError(errorMessage);
+                setLoading(false);
+                setAnalysisStartTime(null);
+                return;
+            }
+
+            if (statusResponse.status === 'SUCCESS' || statusResponse.status === 'completed') {
+                clearInterval(pollingIntervalRef.current);
+                setProgress(100);
+                
+                // Get the complete analysis results
+                const results = await fetchGameAnalysis(gameId);
+                console.log('Final analysis results:', results);
+                
+                // Merge data properly
+                const mergedResults = mergeAnalysisData(results, statusResponse);
+                
+                if (validateAnalysisData(mergedResults)) {
+                    setAnalysisData(mergedResults);
+                    setLoading(false);
+                } else {
+                    console.warn('Invalid analysis results format:', mergedResults);
+                    setError('Error processing analysis results. Please try again.');
+                    setLoading(false);
+                }
+                setAnalysisStartTime(null);
+            }
+        } catch (error) {
+            console.error('Error during polling:', error);
+            clearInterval(pollingIntervalRef.current);
+            setError('Error checking analysis status. Please try again.');
+            setLoading(false);
+            setAnalysisStartTime(null);
+        }
+    };
+
+    useEffect(() => {
+        // Check system dark mode preference
+        const darkModePreference = window.matchMedia('(prefers-color-scheme: dark)');
+        setIsDarkMode(darkModePreference.matches);
+
+        // Listen for changes in system dark mode
+        const handleDarkModeChange = (e) => setIsDarkMode(e.matches);
+        darkModePreference.addEventListener('change', handleDarkModeChange);
+
+        return () => {
+            darkModePreference.removeEventListener('change', handleDarkModeChange);
+        };
+    }, []);
+
+    useEffect(() => {
   const startAnalysis = async () => {
     try {
       setLoading(true);
       setError(null);
-      setAnalysis(null);
-      setProgress(null);
+      setAnalysisStartTime(Date.now());
+      setProgress(0);
       
+      // Start the analysis
       const response = await analyzeSpecificGame(gameId);
-      
-      if (response.task_id) {
-        setTaskId(response.task_id);
-      } else if (response.analysis) {
-        setAnalysis(response.analysis);
+      console.log('Initial analysis response:', response);
+
+      if (!response) {
+        throw new Error('No response received from analysis request');
+      }
+
+      if (response.status === 'completed' || response.status === 'already_analyzed') {
+        // Analysis is already complete, fetch the results
+        const results = await fetchGameAnalysis(gameId);
+        console.log('Fetched analysis results:', results);
+        if (validateAnalysisData(results)) {
+          setAnalysisData(results);
+        } else {
+          throw new Error('Invalid analysis results format');
+        }
         setLoading(false);
+      } else if (response.status === 'started' || response.status === 'PENDING' || response.status === 'in_progress') {
+        // Start polling for status
+        const pollStatus = async (taskId) => {
+          try {
+            const statusResponse = await checkAnalysisStatus(taskId);
+            console.log('Status check response:', statusResponse);
+
+            if (!statusResponse) {
+              throw new Error('No response received from status check');
+            }
+
+            if (statusResponse.status === 'FAILURE' || statusResponse.status === 'failed' || statusResponse.status === 'error') {
+              clearInterval(pollingIntervalRef.current);
+              const errorMessage = statusResponse.message || 'Analysis failed. Please try again.';
+              setError(errorMessage);
+              setLoading(false);
+              setAnalysisStartTime(null);
+              return;
+            }
+
+            if (statusResponse.status === 'SUCCESS' || statusResponse.status === 'completed') {
+              clearInterval(pollingIntervalRef.current);
+              setProgress(100);
+              
+              // Get the complete analysis results
+              const results = await fetchGameAnalysis(gameId);
+              console.log('Final analysis results:', results);
+              
+              // Merge data properly
+              const mergedResults = mergeAnalysisData(results, statusResponse);
+              
+              if (validateAnalysisData(mergedResults)) {
+                setAnalysisData(mergedResults);
+                setLoading(false);
+              } else {
+                console.warn('Invalid analysis results format:', mergedResults);
+                setError('Error processing analysis results. Please try again.');
+                setLoading(false);
+              }
+              setAnalysisStartTime(null);
+            }
+          } catch (error) {
+            console.error('Error during polling:', error);
+            clearInterval(pollingIntervalRef.current);
+            setError('Error checking analysis status. Please try again.');
+            setLoading(false);
+            setAnalysisStartTime(null);
+          }
+        };
+
+        // Start polling every 4 seconds
+        pollingIntervalRef.current = setInterval(() => pollStatus(response.task_id), 4000);
       } else {
-        throw new Error('Invalid response from analysis request');
+        throw new Error(`Unexpected status: ${response.status}`);
       }
     } catch (error) {
       console.error('Error starting analysis:', error);
-      setError(error.message || 'Failed to start analysis');
+      setError(error.message || 'Error starting analysis. Please try again.');
       setLoading(false);
+      setAnalysisStartTime(null);
     }
   };
 
-  useEffect(() => {
-    if (taskId) {
-      const interval = setInterval(checkStatus, 5000);
-      setPollingInterval(interval);
-      return () => {
-        if (interval) {
-          clearInterval(interval);
+        if (!hasStartedRef.current) {
+            hasStartedRef.current = true;
+            startAnalysis();
         }
-      };
-    }
-  }, [taskId]);
+
+      return () => {
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+            }
+        };
+    }, [gameId, navigate]);
+
+    const handleRetry = () => {
+        hasStartedRef.current = false;
+        if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+        }
+        setError(null);
+        setLoading(true);
+        setAnalysisData(null);
+    };
 
   if (loading) {
-    return <LoadingSpinner />;
+        return <LoadingSpinner message="Analyzing game..." />;
   }
 
   if (error) {
     return (
-      <div className="text-red-600 dark:text-red-400 p-4">
-        {error}
+            <div className="error-container">
+                <p className="error-message">{error}</p>
+                <button onClick={handleRetry} className="retry-button">
+                    Retry Analysis
+                </button>
       </div>
     );
   }
 
-  if (!analysis) {
+    if (!analysisData) {
     return (
-      <div className="text-gray-600 dark:text-gray-400 p-4">
-        No analysis results available
+            <div className="error-container">
+                <p className="error-message">No analysis data available</p>
+                <button onClick={handleRetry} className="retry-button">
+                    Retry Analysis
+                </button>
       </div>
     );
   }
 
-  const renderMetricCard = (title, value, description = '', icon = null) => {
-    if (value === undefined || value === null) return null;
-
     return (
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            {title}
-          </h3>
-          {icon && <span className="text-gray-500">{icon}</span>}
+        <div className="container mx-auto px-4 py-8">
+            {error ? (
+                <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-700'} mb-4`}>
+                    {error}
+                </div>
+            ) : loading ? (
+                <ProgressBar 
+                    progress={progress} 
+                    isDarkMode={isDarkMode} 
+                    startTime={analysisStartTime}
+                />
+            ) : (
+                <GameAnalysisResults analysisData={analysisData} isDarkMode={isDarkMode} />
+            )}
         </div>
-        <div className="mt-2">
-          <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-            {typeof value === 'number' ? value.toFixed(1) : value}
-          </div>
-          {description && (
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {description}
-            </p>
-          )}
-        </div>
-      </div>
     );
-  };
-
-  const renderFeedbackSection = (title, items) => {
-    if (!items || items.length === 0) return null;
-
-    return (
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-          {title}
-        </h3>
-        <ul className="space-y-2">
-          {items.map((item, index) => (
-            <li
-              key={index}
-              className="flex items-start text-gray-600 dark:text-gray-300"
-            >
-              <span className="mr-2">•</span>
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  };
-
-  const renderSourceBadge = (source) => {
-    const sourceConfig = {
-      ai: {
-        label: 'AI Analysis',
-        color: 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100',
-        icon: <Cpu className="w-4 h-4 mr-1" />
-      },
-      statistical: {
-        label: 'Statistical',
-        color: 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100',
-        icon: <BarChart className="w-4 h-4 mr-1" />
-      },
-      default: {
-        label: 'Basic',
-        color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100',
-        icon: <FileText className="w-4 h-4 mr-1" />
-      }
-    };
-
-    const config = sourceConfig[source] || sourceConfig.default;
-
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
-        {config.icon}
-        {config.label}
-      </span>
-    );
-  };
-
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-              Game Analysis
-            </h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-300">
-              {analysis.summary}
-            </p>
-          </div>
-          <div className="flex space-x-2">
-            {analysis.source && renderSourceBadge(analysis.source)}
-          </div>
-        </div>
-
-        {/* Overall Performance */}
-        <section>
-          <h2 className="text-2xl font-bold mb-4">Overall Performance</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {renderMetricCard(
-              'Accuracy',
-              analysis.metrics?.accuracy,
-              'Overall playing accuracy',
-              <Target className="w-6 h-6" />
-            )}
-            {renderMetricCard(
-              'Critical Moves',
-              analysis.metrics?.critical_moves,
-              'Key decision points',
-              <Crosshair className="w-6 h-6" />
-            )}
-            {renderMetricCard(
-              'Time Management',
-              analysis.metrics?.time_score,
-              'Time usage efficiency',
-              <Clock className="w-6 h-6" />
-            )}
-          </div>
-        </section>
-
-        {/* Mistakes Analysis */}
-        <section>
-          <h2 className="text-2xl font-bold mb-4">Mistakes Analysis</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {renderMetricCard(
-              'Blunders',
-              analysis.metrics?.blunders,
-              'Serious mistakes',
-              <AlertTriangle className="w-6 h-6" />
-            )}
-            {renderMetricCard(
-              'Mistakes',
-              analysis.metrics?.mistakes,
-              'Regular mistakes',
-              <AlertCircle className="w-6 h-6" />
-            )}
-            {renderMetricCard(
-              'Inaccuracies',
-              analysis.metrics?.inaccuracies,
-              'Minor imprecisions',
-              <AlertOctagon className="w-6 h-6" />
-            )}
-          </div>
-        </section>
-
-        {/* Game Phases */}
-        <section>
-          <h2 className="text-2xl font-bold mb-4">Game Phases</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {renderMetricCard(
-              'Opening',
-              analysis.phases?.opening?.accuracy,
-              analysis.phases?.opening?.evaluation,
-              <BookOpen className="w-6 h-6" />
-            )}
-            {renderMetricCard(
-              'Middlegame',
-              analysis.phases?.middlegame?.accuracy,
-              analysis.phases?.middlegame?.evaluation,
-              <Swords className="w-6 h-6" />
-            )}
-            {renderMetricCard(
-              'Endgame',
-              analysis.phases?.endgame?.accuracy,
-              analysis.phases?.endgame?.evaluation,
-              <Flag className="w-6 h-6" />
-            )}
-          </div>
-        </section>
-
-        {/* Feedback Sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {renderFeedbackSection('Tactical Analysis', analysis.tactical_feedback)}
-          {renderFeedbackSection('Positional Analysis', analysis.positional_feedback)}
-          {renderFeedbackSection('Time Management', analysis.time_management_feedback)}
-          {renderFeedbackSection('Improvement Areas', analysis.improvement_areas)}
-        </div>
-      </div>
-    </div>
-  );
 };
 
 export default SingleGameAnalysis; 

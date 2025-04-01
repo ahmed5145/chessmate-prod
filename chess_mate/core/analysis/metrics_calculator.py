@@ -33,81 +33,78 @@ class MetricsCalculator:
         """Calculate comprehensive game metrics."""
         try:
             if not moves:
+                logger.warning("No moves provided for metrics calculation")
                 return MetricsCalculator._get_default_metrics()
 
-            # Calculate phase transitions
+            # Calculate phase transitions with better move count handling
+            total_moves = len(moves)
             phases = MetricsCalculator._detect_phase_transitions(moves)
             
             # Calculate overall metrics
             try:
                 overall_metrics = {
-                    'accuracy': MetricsCalculator._calculate_accuracy(moves),
-                    'consistency': MetricsCalculator._calculate_consistency(moves),
+                    'accuracy': MetricsCalculator._calculate_accuracy(moves) or 0.0,  # Ensure non-None
+                    'consistency': MetricsCalculator._calculate_consistency(moves) or 0.0,
+                    'total_moves': total_moves,
                     'mistakes': sum(1 for m in moves if m.get('is_mistake', False)),
                     'blunders': sum(1 for m in moves if m.get('is_blunder', False)),
                     'inaccuracies': sum(1 for m in moves if m.get('is_inaccuracy', False)),
                     'quality_moves': sum(1 for m in moves if m.get('is_best', False)),
                     'critical_positions': sum(1 for m in moves if m.get('is_critical', False)),
-                    'position_quality': sum(m.get('position_quality', 0) for m in moves) / len(moves) if moves else 0
+                    'position_quality': sum(m.get('position_quality', 0) for m in moves) / total_moves if total_moves else 0
                 }
             except Exception as e:
                 logger.error(f"Error calculating overall metrics: {str(e)}")
                 overall_metrics = MetricsCalculator._get_default_metrics()['overall']
+                overall_metrics['total_moves'] = total_moves  # Ensure we keep the move count
 
-            # Calculate phase-specific metrics
+            # Calculate phase-specific metrics with proper move ranges
+            opening_end = min(phases['opening'], total_moves)
+            middlegame_end = min(phases['middlegame'], total_moves)
+            
             try:
                 phase_metrics = {
-                    'opening': MetricsCalculator._calculate_phase_metrics(moves[:phases['opening']], is_white),
-                    'middlegame': MetricsCalculator._calculate_phase_metrics(moves[phases['opening']:phases['middlegame']], is_white),
-                    'endgame': MetricsCalculator._calculate_phase_metrics(moves[phases['middlegame']:], is_white)
+                    'opening': MetricsCalculator._calculate_phase_metrics(moves[:opening_end], is_white),
+                    'middlegame': MetricsCalculator._calculate_phase_metrics(moves[opening_end:middlegame_end], is_white),
+                    'endgame': MetricsCalculator._calculate_phase_metrics(moves[middlegame_end:], is_white)
                 }
+                
+                # Ensure each phase has move counts
+                phase_ranges = {
+                    'opening': (0, opening_end),
+                    'middlegame': (opening_end, middlegame_end),
+                    'endgame': (middlegame_end, total_moves)
+                }
+                
+                for phase, metrics in phase_metrics.items():
+                    if metrics:
+                        start, end = phase_ranges[phase]
+                        metrics['moves_in_phase'] = len(moves[start:end])
+                        
             except Exception as e:
                 logger.error(f"Error calculating phase metrics: {str(e)}")
                 phase_metrics = MetricsCalculator._get_default_metrics()['phases']
 
-            # Calculate tactical metrics
-            try:
-                tactical_metrics = MetricsCalculator._calculate_tactical_metrics(moves, is_white)
-            except Exception as e:
-                logger.error(f"Error calculating tactical metrics: {str(e)}")
-                tactical_metrics = MetricsCalculator._get_default_metrics()['tactics']
-
-            # Calculate time management metrics
-            try:
-                time_metrics = MetricsCalculator._calculate_time_metrics(moves)
-            except Exception as e:
-                logger.error(f"Error calculating time metrics: {str(e)}")
-                time_metrics = MetricsCalculator._get_default_metrics()['time_management']
-
-            # Calculate advantage metrics
-            try:
-                advantage_metrics = MetricsCalculator._calculate_advantage_metrics(moves, is_white)
-            except Exception as e:
-                logger.error(f"Error calculating advantage metrics: {str(e)}")
-                advantage_metrics = MetricsCalculator._get_default_metrics()['advantage']
-
-            # Calculate resourcefulness metrics
-            try:
-                resourcefulness_metrics = MetricsCalculator._calculate_resourcefulness_metrics(moves, is_white)
-            except Exception as e:
-                logger.error(f"Error calculating resourcefulness metrics: {str(e)}")
-                resourcefulness_metrics = MetricsCalculator._get_default_metrics()['resourcefulness']
-
-            # Validate and return all metrics
+            # Calculate remaining metrics
             metrics = {
-                'overall': overall_metrics,
-                'phases': phase_metrics,
-                'tactics': tactical_metrics,
-                'time_management': time_metrics,
-                'advantage': advantage_metrics,
-                'resourcefulness': resourcefulness_metrics
+                'summary': {  # Wrap in summary for consistency
+                    'overall': overall_metrics,
+                    'phases': phase_metrics,
+                    'tactics': MetricsCalculator._calculate_tactical_metrics(moves, is_white),
+                    'time_management': MetricsCalculator._calculate_time_metrics(moves),
+                    'advantage': MetricsCalculator._calculate_advantage_metrics(moves, is_white),
+                    'resourcefulness': MetricsCalculator._calculate_resourcefulness_metrics(moves, is_white)
+                },
+                'moves': moves  # Keep moves at top level
             }
             
-            return MetricsCalculator._validate_metrics(metrics)
+            return metrics
 
         except Exception as e:
             logger.error(f"Error calculating game metrics: {str(e)}")
-            return MetricsCalculator._get_default_metrics()
+            default_metrics = MetricsCalculator._get_default_metrics()
+            default_metrics['moves'] = moves  # Ensure moves are included even in error case
+            return default_metrics
 
     @staticmethod
     def _detect_phase_transitions(moves: List[Dict[str, Any]]) -> Dict[str, int]:
@@ -123,7 +120,7 @@ class MetricsCalculator:
             endgame_start = total_moves * 2 // 3
 
             # Track material count
-            material_count = 32  # Starting position
+            material_count: float = 32.0  # Starting position as float
             for i, move in enumerate(moves):
                 # Update material count if available
                 if 'material_count' in move:
@@ -131,7 +128,7 @@ class MetricsCalculator:
                 
                 # Detect opening end based on multiple factors
                 if i < total_moves // 3:
-                    if (material_count < 28 or  # Significant material exchange
+                    if (material_count < 28.0 or  # Significant material exchange
                         bool(move.get('is_tactical', False)) or  # Tactical play started
                         i >= 10):  # Hard limit on opening
                         opening_end = i
@@ -140,7 +137,7 @@ class MetricsCalculator:
 
                 # Detect endgame start
                 if i > total_moves // 2:
-                    if material_count < 20:  # Clear endgame material situation
+                    if material_count < 20.0:  # Clear endgame material situation
                         endgame_start = i
                         break
 
@@ -1113,48 +1110,82 @@ class MetricsCalculator:
     def _validate_metrics(metrics: Dict[str, Any]) -> Dict[str, Any]:
         """Validate and normalize all metrics to ensure they are within reasonable ranges."""
         try:
-            # Validate time metrics
-            if 'time_management' in metrics:
-                time_metrics = metrics['time_management']
-                time_metrics['average_time'] = max(0, min(3600, time_metrics.get('average_time', 0)))
-                time_metrics['time_pressure_percentage'] = max(0, min(100, time_metrics.get('time_pressure_percentage', 0)))
-                time_metrics['time_consistency'] = max(0, min(100, time_metrics.get('time_consistency', 0)))
-                time_metrics['time_management_score'] = max(0, min(100, time_metrics.get('time_management_score', 0)))
-
-            # Validate tactical metrics
-            if 'tactics' in metrics:
-                tactical_metrics = metrics['tactics']
-                tactical_metrics['opportunities'] = max(0, tactical_metrics.get('opportunities', 0))
-                tactical_metrics['successful'] = max(0, min(tactical_metrics.get('successful', 0), tactical_metrics.get('opportunities', 0)))
-                tactical_metrics['success_rate'] = max(0, min(100, tactical_metrics.get('success_rate', 0)))
-                tactical_metrics['tactical_score'] = max(0, min(100, tactical_metrics.get('tactical_score', 0)))
-
-            # Validate advantage metrics
-            if 'advantage' in metrics:
-                advantage_metrics = metrics['advantage']
-                advantage_metrics['max_advantage'] = max(-2000, min(2000, advantage_metrics.get('max_advantage', 0)))
-                advantage_metrics['average_advantage'] = max(-2000, min(2000, advantage_metrics.get('average_advantage', 0)))
-                advantage_metrics['conversion_rate'] = max(0, min(100, advantage_metrics.get('conversion_rate', 0)))
-                advantage_metrics['advantage_retention'] = max(0, min(100, advantage_metrics.get('advantage_retention', 0)))
+            # Validate overall metrics
+            if 'overall' in metrics:
+                overall = metrics['overall']
+                overall['accuracy'] = max(0, min(100, overall.get('accuracy', 0)))
+                overall['consistency_score'] = max(0, min(100, overall.get('consistency_score', 0)))
+                overall['mistakes'] = max(0, overall.get('mistakes', 0))
+                overall['blunders'] = max(0, overall.get('blunders', 0))
+                overall['inaccuracies'] = max(0, overall.get('inaccuracies', 0))
+                overall['quality_moves'] = max(0, overall.get('quality_moves', 0))
+                overall['critical_positions'] = max(0, overall.get('critical_positions', 0))
+                overall['position_quality'] = max(0, min(100, overall.get('position_quality', 0)))
 
             # Validate phase metrics
             if 'phases' in metrics:
-                for phase in metrics['phases'].values():
-                    if phase:
-                        phase['accuracy'] = max(0, min(100, phase.get('accuracy', 0)))
-                        phase['moves_count'] = max(0, phase.get('moves_count', 0))
-                        if 'time_management' in phase:
-                            phase['time_management']['average_time'] = max(0, min(3600, phase['time_management'].get('average_time', 0)))
-                            phase['time_management']['time_pressure_percentage'] = max(0, min(100, phase['time_management'].get('time_pressure_percentage', 0)))
+                for phase in ['opening', 'middlegame', 'endgame']:
+                    if phase in metrics['phases']:
+                        phase_data = metrics['phases'][phase]
+                        phase_data['accuracy'] = max(0, min(100, phase_data.get('accuracy', 0)))
+                        phase_data['moves_count'] = max(0, phase_data.get('moves_count', 0))
+                        phase_data['mistakes'] = max(0, phase_data.get('mistakes', 0))
+                        phase_data['blunders'] = max(0, phase_data.get('blunders', 0))
+                        phase_data['critical_moves'] = max(0, phase_data.get('critical_moves', 0))
+
+                        # Validate time management for phase
+                        if 'time_management' in phase_data:
+                            time_mgmt = phase_data['time_management']
+                            time_mgmt['average_time'] = max(0, min(3600, time_mgmt.get('average_time', 0)))
+                            time_mgmt['time_pressure_percentage'] = max(0, min(100, time_mgmt.get('time_pressure_percentage', 0)))
+                            time_mgmt['time_consistency'] = max(0, min(100, time_mgmt.get('time_consistency', 0)))
+
+            # Validate tactical metrics
+            if 'tactics' in metrics:
+                tactics = metrics['tactics']
+                tactics['opportunities'] = max(0, tactics.get('opportunities', 0))
+                tactics['successful'] = max(0, min(tactics.get('successful', 0), tactics.get('opportunities', 0)))
+                tactics['brilliant_moves'] = max(0, tactics.get('brilliant_moves', 0))
+                tactics['missed'] = max(0, tactics.get('missed', 0))
+                tactics['success_rate'] = max(0, min(100, tactics.get('success_rate', 0)))
+                tactics['pattern_recognition'] = max(0, min(100, tactics.get('pattern_recognition', 0)))
+                tactics['tactical_score'] = max(0, min(100, tactics.get('tactical_score', 0)))
+
+            # Validate time management metrics
+            if 'time_management' in metrics:
+                time_mgmt = metrics['time_management']
+                time_mgmt['average_time'] = max(0, min(3600, time_mgmt.get('average_time', 0)))
+                time_mgmt['time_variance'] = max(0, time_mgmt.get('time_variance', 0))
+                time_mgmt['time_consistency'] = max(0, min(100, time_mgmt.get('time_consistency', 0)))
+                time_mgmt['time_pressure_moves'] = max(0, time_mgmt.get('time_pressure_moves', 0))
+                time_mgmt['time_management_score'] = max(0, min(100, time_mgmt.get('time_management_score', 0)))
+                time_mgmt['time_pressure_percentage'] = max(0, min(100, time_mgmt.get('time_pressure_percentage', 0)))
+
+            # Validate advantage metrics
+            if 'advantage' in metrics:
+                advantage = metrics['advantage']
+                advantage['max_advantage'] = max(-20, min(20, advantage.get('max_advantage', 0)))
+                advantage['min_advantage'] = max(-20, min(20, advantage.get('min_advantage', 0)))
+                advantage['average_advantage'] = max(-20, min(20, advantage.get('average_advantage', 0)))
+                advantage['advantage_conversion'] = max(0, min(100, advantage.get('advantage_conversion', 0)))
+                advantage['pressure_handling'] = max(0, min(100, advantage.get('pressure_handling', 0)))
+                advantage['advantage_duration'] = max(0, advantage.get('advantage_duration', 0))
+                advantage['winning_positions'] = max(0, advantage.get('winning_positions', 0))
+                advantage['advantage_retention'] = max(0, min(100, advantage.get('advantage_retention', 0)))
+                advantage['advantage_trend'] = max(-20, min(20, advantage.get('advantage_trend', 0)))
 
             # Validate resourcefulness metrics
             if 'resourcefulness' in metrics:
-                resourcefulness_metrics = metrics['resourcefulness']
-                resourcefulness_metrics['defensive_score'] = max(0, min(100, resourcefulness_metrics.get('defensive_score', 0)))
-                resourcefulness_metrics['counter_play'] = max(0, min(100, resourcefulness_metrics.get('counter_play', 0)))
-                resourcefulness_metrics['recovery_rate'] = max(0, min(100, resourcefulness_metrics.get('recovery_rate', 0)))
-                resourcefulness_metrics['critical_defense'] = max(0, min(100, resourcefulness_metrics.get('critical_defense', 0)))
-                resourcefulness_metrics['best_move_finding'] = max(0, min(100, resourcefulness_metrics.get('best_move_finding', 0)))
+                resourcefulness = metrics['resourcefulness']
+                resourcefulness['recovery_rate'] = max(0, min(100, resourcefulness.get('recovery_rate', 0)))
+                resourcefulness['defensive_score'] = max(0, min(100, resourcefulness.get('defensive_score', 0)))
+                resourcefulness['critical_defense'] = max(0, min(100, resourcefulness.get('critical_defense', 0)))
+                resourcefulness['tactical_defense'] = max(0, min(100, resourcefulness.get('tactical_defense', 0)))
+                resourcefulness['best_move_finding'] = max(0, min(100, resourcefulness.get('best_move_finding', 0)))
+                resourcefulness['position_recovery'] = max(0, min(100, resourcefulness.get('position_recovery', 0)))
+                resourcefulness['comeback_potential'] = max(0, min(100, resourcefulness.get('comeback_potential', 0)))
+                resourcefulness['critical_defense_score'] = max(0, min(100, resourcefulness.get('critical_defense_score', 0)))
+                resourcefulness['defensive_resourcefulness'] = max(0, min(100, resourcefulness.get('defensive_resourcefulness', 0)))
 
             return metrics
         except Exception as e:

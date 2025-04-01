@@ -84,7 +84,7 @@ class PatternAnalyzer:
                     if self._is_endgame_position(current_board):
                         end_pattern = self._identify_endgame_pattern(current_board)
                         if end_pattern:
-                        patterns['endgame'].append({
+                            patterns['endgame'].append({
                             'type': 'endgame',
                             'move': str(move),
                             'ply': move_data.get('ply'),

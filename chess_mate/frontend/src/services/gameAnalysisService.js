@@ -58,31 +58,8 @@ const getCachedAnalysis = async (gameId) => {
 
 export const analyzeSpecificGame = async (gameId) => {
     try {
-        // Check cache first
-        const cachedData = await getCachedAnalysis(gameId);
-        if (cachedData && cachedData.status === 'completed') {
-            return cachedData;
-        }
-
-        const response = await axios.post(
-            `${API_BASE_URL}/api/game/${gameId}/analyze/`,
-            {},
-            {
-                withCredentials: true,
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            }
-        );
-
-        if (response.data && response.data.task_id) {
-            return {
-                status: 'started',
-                task_id: response.data.task_id
-            };
-        } else {
-            throw new Error('Invalid response format');
-        }
+        const response = await api.post(`/api/game/${gameId}/analyze/`);
+        return response.data;
     } catch (error) {
         console.error('Error starting analysis:', error);
         throw error.response?.data?.error || error.message || 'Failed to start analysis';
@@ -91,41 +68,8 @@ export const analyzeSpecificGame = async (gameId) => {
 
 export const checkAnalysisStatus = async (taskId) => {
     try {
-        const response = await axios.get(
-            `${API_BASE_URL}/api/game/analysis/status/${taskId}/`,
-            {
-                withCredentials: true,
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            }
-        );
-
-        if (response.data) {
-            // Handle the response format from the backend
-            const result = {
-                status: response.data.status,
-                message: response.data.message,
-                game_id: response.data.game_id
-            };
-
-            // If the status is completed, fetch the analysis immediately
-            if (result.status === 'completed') {
-                try {
-                    const analysisResponse = await fetchGameAnalysis(result.game_id);
-                    return {
-                        ...result,
-                        analysis: analysisResponse
-                    };
-                } catch (analysisError) {
-                    console.error('Error fetching analysis after completion:', analysisError);
-                }
-            }
-
-            return result;
-        } else {
-            throw new Error('Invalid response format');
-        }
+        const response = await api.get(`/api/game/analysis/status/${taskId}/`);
+        return response.data;
     } catch (error) {
         console.error('Error checking analysis status:', error);
         throw error.response?.data?.error || error.message || 'Failed to check analysis status';
@@ -134,41 +78,10 @@ export const checkAnalysisStatus = async (taskId) => {
 
 export const fetchGameAnalysis = async (gameId) => {
     try {
-        // Check cache first
-        const cachedData = await getCachedAnalysis(gameId);
-        if (cachedData) {
-            return cachedData;
-        }
-
-        const response = await axios.get(
-            `${API_BASE_URL}/api/game/${gameId}/analysis/`,
-            {
-                withCredentials: true,
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            }
-        );
-
-        console.log('Analysis response:', response.data); // Debug log
-
-        if (response.data) {
-            // Handle different response formats
-            const analysisData = response.data.analysis_data || response.data.analysis || response.data;
-            
-            if (analysisData) {
-                await cacheAnalysis(gameId, analysisData);
-                return analysisData;
-            } else {
-                console.error('No analysis data in response:', response.data);
-                throw new Error('No analysis data found in response');
-            }
-        } else {
-            throw new Error('Invalid response format');
-        }
+        const response = await api.get(`/api/game/${gameId}/analysis/`);
+        return response.data;
     } catch (error) {
         console.error('Error fetching analysis:', error);
-        console.error('Error details:', error.response?.data); // Log response data if available
         throw error.response?.data?.error || error.message || 'Failed to fetch analysis';
     }
 };

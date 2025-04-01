@@ -9,8 +9,20 @@ class TestCacheManager(TestCase):
     def setUp(self):
         self.cache_manager = CacheManager()
         self.test_data = {
-            'analysis': {'moves': [1, 2, 3], 'score': 0.5},
-            'games': [{'id': 1, 'result': 'win'}, {'id': 2, 'result': 'loss'}]
+            'analysis': {
+                'moves': [{'move': 'e4', 'evaluation': 0.5}],
+                'summary': {'accuracy': 80.5},
+                'evaluation': {'score': 0.5},
+                'timestamp': '2024-02-24T16:00:00Z'
+            },
+            'games': [
+                {
+                    'id': 1,
+                    'result': 'win',
+                    'moves': ['e4', 'e5'],
+                    'timestamp': '2024-02-24T16:00:00Z'
+                }
+            ]
         }
 
     def test_compression(self):
@@ -24,17 +36,29 @@ class TestCacheManager(TestCase):
         """Test caching analysis data with Redis."""
         mock_redis_instance = MagicMock()
         mock_redis.return_value = mock_redis_instance
+        
+        # Configure mock to return the compressed data
+        def mock_get(key):
+            if key == b"chessmate:analysis:1":
+                return self.cache_manager._compress_data(self.test_data['analysis'])
+            return None
+        
+        mock_redis_instance.get.side_effect = mock_get
         self.cache_manager.use_redis = True
         self.cache_manager.redis = mock_redis_instance
 
         # Test successful caching
         game_id = 1
-        self.cache_manager.cache_analysis(game_id, self.test_data['analysis'])
-        
+        success = self.cache_manager.cache_analysis(game_id, self.test_data['analysis'])
+        self.assertTrue(success)
         mock_redis_instance.setex.assert_called_once()
         key = f"chessmate:analysis:{game_id}"
         compressed_data = self.cache_manager._compress_data(self.test_data['analysis'])
         mock_redis_instance.setex.assert_called_with(key, 3600, compressed_data)
+
+        # Test retrieval
+        cached_data = self.cache_manager.get_cached_analysis(game_id)
+        self.assertEqual(cached_data, self.test_data['analysis'])
 
     def test_cache_analysis_django_cache(self):
         """Test caching analysis data with Django's cache."""
@@ -54,6 +78,14 @@ class TestCacheManager(TestCase):
         """Test caching user games with Redis."""
         mock_redis_instance = MagicMock()
         mock_redis.return_value = mock_redis_instance
+        
+        # Configure mock to return the compressed data
+        def mock_get(key):
+            if key == b"chessmate:games:1":
+                return self.cache_manager._compress_data(self.test_data['games'])
+            return None
+            
+        mock_redis_instance.get.side_effect = mock_get
         self.cache_manager.use_redis = True
         self.cache_manager.redis = mock_redis_instance
 
@@ -64,6 +96,10 @@ class TestCacheManager(TestCase):
         key = f"chessmate:games:{user_id}"
         compressed_data = self.cache_manager._compress_data(self.test_data['games'])
         mock_redis_instance.setex.assert_called_with(key, 1800, compressed_data)
+
+        # Test retrieval
+        cached_data = self.cache_manager.get_cached_user_games(user_id)
+        self.assertEqual(cached_data, self.test_data['games'])
 
     def test_cache_user_games_django_cache(self):
         """Test caching user games with Django's cache."""

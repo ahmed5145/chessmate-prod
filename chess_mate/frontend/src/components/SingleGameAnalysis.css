@@ -173,4 +173,57 @@
   .move-row:hover {
     background-color: rgba(59, 130, 246, 0.1);
   }
+}
+
+.error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    padding: 2rem;
+    text-align: center;
+}
+
+.error-message {
+    color: #ef4444;
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.retry-button {
+    padding: 0.75rem 1.5rem;
+    background-color: #3b82f6;
+    color: white;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.retry-button:hover {
+    background-color: #2563eb;
+}
+
+.retry-button:focus {
+    outline: 2px solid #60a5fa;
+    outline-offset: 2px;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .error-message {
+        color: #fca5a5;
+    }
+    
+    .retry-button {
+        background-color: #2563eb;
+    }
+    
+    .retry-button:hover {
+        background-color: #1d4ed8;
+    }
+    
+    .retry-button:focus {
+        outline-color: #3b82f6;
+    }
 } 

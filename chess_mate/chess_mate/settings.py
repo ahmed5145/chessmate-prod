@@ -48,13 +48,13 @@ ALLOWED_HOSTS = [
 
 # Application definition
 INSTALLED_APPS = [
+    'corsheaders',  # Must be at the top
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'corsheaders',
     'rest_framework',
     'core',
     "rest_framework_simplejwt",
@@ -62,10 +62,10 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Must be first
+    'django.middleware.common.CommonMiddleware',  # Must be right after CORS
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -112,16 +112,20 @@ else:
             'PASSWORD': os.getenv('DB_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', 'localhost'),
             'PORT': os.getenv('DB_PORT', '5432'),
-            'CONN_MAX_AGE': 600,
+            'CONN_MAX_AGE': 0,  # Disable persistent connections
             'OPTIONS': {
-                'connect_timeout': 10,
-                'client_encoding': 'UTF8'
+                'connect_timeout': 30,  # Increase timeout to 30 seconds
+                'client_encoding': 'UTF8',
+                'keepalives': 1,
+                'keepalives_idle': 30,
+                'keepalives_interval': 10,
+                'keepalives_count': 5
             },
         }
     }
 
 # Connection age settings
-CONN_MAX_AGE: Union[int, None] = 600
+CONN_MAX_AGE = 0  # Disable persistent connections for better reliability
 
 # Database indexes
 INDEXES = {
@@ -248,7 +252,7 @@ SIMPLE_JWT = {
     'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
-# CORS settings
+# CORS Configuration
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -257,42 +261,41 @@ CORS_ALLOWED_ORIGINS = [
 
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
-    CORS_ALLOW_CREDENTIALS = True
+    CORS_ALLOW_METHODS = [
+        'DELETE',
+        'GET',
+        'OPTIONS',
+        'PATCH',
+        'POST',
+        'PUT',
+    ]
+    CORS_ALLOW_HEADERS = [
+        'accept',
+        'accept-encoding',
+        'authorization',
+        'content-type',
+        'dnt',
+        'origin',
+        'user-agent',
+        'x-csrftoken',
+        'x-requested-with',
+    ]
 
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
-
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-    'baggage',
-    'sentry-trace',
-]
-
-# CSRF settings
-CSRF_COOKIE_SAMESITE = 'Lax'  # Changed from 'None' for better security in development
-CSRF_COOKIE_SECURE = False  # Set to True when using HTTPS
-CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access
-CSRF_USE_SESSIONS = False  # Use cookie-based CSRF
-CSRF_COOKIE_NAME = 'csrftoken'
-CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
+# CSRF Configuration
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'None' if DEBUG else 'Lax'
+CSRF_COOKIE_SECURE = not DEBUG
+
+# Security settings for development
+if DEBUG:
+    SESSION_COOKIE_SECURE = False
+    SESSION_COOKIE_SAMESITE = 'None'
+    CSRF_COOKIE_SECURE = False
 
 # Stockfish configuration
 STOCKFISH_PATH = os.getenv('STOCKFISH_PATH', 'C:/Users/PCAdmin/Downloads/stockfish-windows-x86-64-avx2/stockfish/stockfish-windows-x86-64-avx2.exe')
@@ -309,8 +312,14 @@ MAX_BATCH_SIZE = int(os.getenv('MAX_BATCH_SIZE', '10'))  # games
 ANALYSIS_CACHE_TTL = int(os.getenv('ANALYSIS_CACHE_TTL', '86400'))  # 24 hours 
 # REST Framework settings
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
     ),
 }
 

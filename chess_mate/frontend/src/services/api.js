@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { jwtDecode } from "jwt-decode";
+import { toast } from 'react-hot-toast';
 
 // Get the base URL from environment variables or use a default
 const getBaseUrl = () => {
@@ -19,7 +20,9 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    withCredentials: true
+    withCredentials: true,  // Required for CORS with credentials
+    xsrfCookieName: 'csrftoken',  // Django's CSRF cookie name
+    xsrfHeaderName: 'X-CSRFToken',  // Django's CSRF header name
 });
 
 // Track token refresh promise to prevent multiple simultaneous refreshes
@@ -33,13 +36,34 @@ const subscribeTokenRefresh = (callback) => {
 
 // Notify subscribers that token has been refreshed
 const onTokenRefreshed = (token) => {
-    refreshSubscribers.map(callback => callback(token));
+    refreshSubscribers.forEach(callback => callback(token));
     refreshSubscribers = [];
 };
 
-// Helper function to get CSRF token
+// Check if endpoint is an auth endpoint
+const isAuthEndpoint = (url) => {
+    const authEndpoints = [
+        '/api/login/',
+        '/api/register/',
+        '/api/token/refresh/',
+        '/api/auth/password-reset/',
+        '/api/auth/password-reset/confirm/',
+        '/api/verify-email/',
+        '/api/csrf/',
+        '/api/logout/'
+    ];
+    return authEndpoints.some(endpoint => url.includes(endpoint));
+};
+
+// Get CSRF token from cookie or fetch from server
 const getCsrfToken = async () => {
     try {
+        // For auth endpoints, we don't need CSRF token
+        const currentUrl = window.location.pathname;
+        if (currentUrl.includes('login') || currentUrl.includes('register')) {
+            return null;
+        }
+
         // Try to get CSRF token from cookie first
         const csrfToken = document.cookie
             .split('; ')
@@ -50,17 +74,8 @@ const getCsrfToken = async () => {
             return csrfToken;
         }
 
-        // If no token in cookie, fetch from server
-        console.log('Fetching CSRF token from server...');
-        const response = await axios.get(`${API_BASE_URL}/api/csrf/`, { 
-            withCredentials: true,
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        console.log('CSRF token response:', response.data);
+        // If no token in cookie, fetch it from the server
+        const response = await axios.get(`${API_BASE_URL}/api/csrf/`, { withCredentials: true });
         return response.data.csrfToken;
     } catch (error) {
         console.error('Error fetching CSRF token:', error);
@@ -68,83 +83,127 @@ const getCsrfToken = async () => {
     }
 };
 
-// Helper function to set CSRF token after auth
-const setCsrfAfterAuth = async () => {
-    try {
-        // Fetch new CSRF token
-        const response = await axios.get(`${API_BASE_URL}/api/csrf/`, {
-            withCredentials: true,
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        // The Django backend will set the CSRF cookie automatically
-        return response.data.csrfToken;
-    } catch (error) {
-        console.error('Error setting CSRF token after auth:', error);
-        return null;
+// Check if endpoint requires CSRF
+const requiresCsrf = (url, method) => {
+    // Auth endpoints are exempt from CSRF
+    if (isAuthEndpoint(url)) {
+        return false;
     }
+    return !['get', 'options', 'head'].includes(method.toLowerCase());
 };
 
-// Request interceptor to add authorization token
-api.interceptors.request.use(
-    (config) => {
-        const tokens = localStorage.getItem('tokens');
-        if (tokens) {
-            const { access } = JSON.parse(tokens);
-            config.headers.Authorization = `Bearer ${access}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
+// Setup request interceptor for CSRF and Auth
+api.interceptors.request.use(async (config) => {
+    // Add CORS headers for all requests
+    config.headers['Access-Control-Allow-Origin'] = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+    config.headers['Access-Control-Allow-Credentials'] = 'true';
+    
+    // For auth endpoints, we need special handling
+    if (isAuthEndpoint(config.url)) {
+        // Don't add CSRF token for auth endpoints
+        return {
+            ...config,
+            headers: {
+                ...config.headers,
+                'Content-Type': 'application/json',
+            }
+        };
     }
-);
 
-// Response interceptor to handle token refresh
+    // Add auth token if available
+    const tokens = localStorage.getItem('tokens');
+    if (tokens) {
+        try {
+            const { access } = JSON.parse(tokens);
+            if (access && !isTokenExpired(access)) {
+                config.headers.Authorization = `Bearer ${access}`;
+            }
+        } catch (error) {
+            console.error('Error parsing tokens:', error);
+        }
+    }
+
+    // Add CSRF token if required
+    if (requiresCsrf(config.url, config.method)) {
+        const token = await getCsrfToken();
+        if (token) {
+            config.headers['X-CSRFToken'] = token;
+        }
+    }
+
+    return config;
+}, (error) => {
+    return Promise.reject(error);
+});
+
+// Setup response interceptor for error handling
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
+        // Handle CORS errors specifically
+        if (error.message === 'Network Error') {
+            console.error('CORS or Network Error:', error);
+            toast.error('Unable to connect to the server. Please try again.');
+            return Promise.reject(error);
+        }
+
         const originalRequest = error.config;
-
-        // If the error is 401 and we haven't tried to refresh the token yet
+        
+        // Handle 401 errors
         if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
+            // Skip token refresh for auth endpoints
+            if (isAuthEndpoint(originalRequest.url)) {
+                return Promise.reject(error);
+            }
 
+            if (isRefreshing) {
+                try {
+                    const token = await new Promise(resolve => subscribeTokenRefresh(resolve));
+                    originalRequest.headers['Authorization'] = `Bearer ${token}`;
+                    return api(originalRequest);
+                } catch (error) {
+                    return Promise.reject(error);
+                }
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+            
             try {
-                // Get the refresh token
-                const tokens = localStorage.getItem('tokens');
-                if (!tokens) {
+                const tokens = JSON.parse(localStorage.getItem('tokens') || '{}');
+                if (!tokens.refresh) {
                     throw new Error('No refresh token available');
                 }
 
-                const { refresh } = JSON.parse(tokens);
-                
-                // Try to get a new access token
-                const response = await axios.post('/api/token/refresh/', { refresh });
+                const response = await api.post('/api/token/refresh/', {
+                    refresh: tokens.refresh
+                });
                 
                 if (response.data.access) {
-                    // Update the tokens in localStorage
-                    localStorage.setItem('tokens', JSON.stringify({
-                        ...JSON.parse(tokens),
+                    const newTokens = {
+                        ...tokens,
                         access: response.data.access
-                    }));
-
-                    // Update the authorization header
-                    originalRequest.headers.Authorization = `Bearer ${response.data.access}`;
-                    
-                    // Retry the original request
+                    };
+                    localStorage.setItem('tokens', JSON.stringify(newTokens));
+                    api.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
+                    onTokenRefreshed(response.data.access);
                     return api(originalRequest);
                 }
             } catch (refreshError) {
-                // If refresh fails, clear tokens and redirect to login
+                console.error('Token refresh failed:', refreshError);
                 localStorage.removeItem('tokens');
                 window.location.href = '/login';
-                return Promise.reject(refreshError);
+            } finally {
+                isRefreshing = false;
             }
         }
+
+        // Show error toast for user feedback
+        const errorMessage = error.response?.data?.detail || 
+                           error.response?.data?.error ||
+                           error.message ||
+                           'An error occurred';
+        toast.error(errorMessage);
 
         return Promise.reject(error);
     }
@@ -153,10 +212,9 @@ api.interceptors.response.use(
 // Helper function to check if token is expired
 const isTokenExpired = (token) => {
     try {
-        const decoded = jwtDecode(token);
-        const currentTime = Date.now() / 1000;
-        return decoded.exp < currentTime;
-    } catch (error) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.exp * 1000 < Date.now();
+    } catch {
         return true;
     }
 };
@@ -184,4 +242,16 @@ const removeExpiredTokens = () => {
 // Call removeExpiredTokens on script load
 removeExpiredTokens();
 
+// Helper function to ensure CSRF token after auth
+const setCsrfAfterAuth = async () => {
+    try {
+        await getCsrfToken();
+        return true;
+    } catch (error) {
+        console.error('Failed to set CSRF token after auth:', error);
+        return false;
+    }
+};
+
+export { setCsrfAfterAuth };
 export default api; 

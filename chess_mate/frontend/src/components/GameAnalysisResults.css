@@ -1,0 +1,201 @@
+.analysis-results {
+  @apply max-w-7xl mx-auto px-4 py-8;
+}
+
+.analysis-results.dark {
+  @apply bg-gray-900 text-gray-100;
+}
+
+.analysis-results.light {
+  @apply bg-white text-gray-900;
+}
+
+.stats-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6;
+}
+
+.stat-item {
+  @apply p-4 rounded-lg flex flex-col;
+}
+
+.dark .stat-item {
+  @apply bg-gray-800 shadow-lg;
+}
+
+.light .stat-item {
+  @apply bg-gray-50 shadow-md;
+}
+
+.stat-label {
+  @apply text-sm font-medium mb-1;
+}
+
+.dark .stat-label {
+  @apply text-gray-300;
+}
+
+.light .stat-label {
+  @apply text-gray-600;
+}
+
+.stat-value {
+  @apply text-2xl font-bold;
+}
+
+.dark .stat-value {
+  @apply text-white;
+}
+
+.light .stat-value {
+  @apply text-gray-900;
+}
+
+.feedback-content {
+  @apply p-6 rounded-lg;
+}
+
+.dark .feedback-content {
+  @apply bg-gray-800;
+}
+
+.light .feedback-content {
+  @apply bg-gray-50;
+}
+
+.stats-section {
+  @apply p-6 rounded-lg mb-6;
+}
+
+.dark .stats-section {
+  @apply bg-gray-800;
+}
+
+.light .stats-section {
+  @apply bg-gray-50;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.analysis-results section {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.analysis-results section:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.analysis-results section:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .stats-grid {
+    @apply grid-cols-1;
+  }
+  
+  .stat-item {
+    @apply text-center;
+  }
+}
+
+/* Interactive Elements */
+.stat-item {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+.stat-item:hover {
+  @apply transform scale-105;
+}
+
+.dark .stat-item:hover {
+  @apply bg-gray-700;
+}
+
+.light .stat-item:hover {
+  @apply bg-gray-100;
+}
+
+/* Progress Indicators */
+.progress-bar {
+  @apply h-2 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700;
+}
+
+.progress-value {
+  @apply h-full rounded-full transition-all duration-300;
+}
+
+.dark .progress-value {
+  @apply bg-blue-500;
+}
+
+.light .progress-value {
+  @apply bg-blue-600;
+}
+
+/* Lists */
+.feedback-content ul {
+  @apply space-y-2;
+}
+
+.feedback-content li {
+  @apply flex items-start;
+}
+
+.feedback-content li:before {
+  content: "•";
+  @apply mr-2 text-blue-500;
+}
+
+/* Section Headers */
+.section-header {
+  @apply flex items-center space-x-2 mb-4;
+}
+
+.section-header svg {
+  @apply w-6 h-6;
+}
+
+.dark .section-header svg {
+  @apply text-blue-400;
+}
+
+.light .section-header svg {
+  @apply text-blue-600;
+}
+
+/* Charts and Visualizations */
+.chart-container {
+  @apply w-full h-64 mt-4;
+}
+
+/* Tooltips */
+.tooltip {
+  @apply invisible absolute;
+}
+
+.has-tooltip:hover .tooltip {
+  @apply visible z-50;
+}
+
+/* Loading States */
+.loading-overlay {
+  @apply absolute inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center;
+}
+
+/* Error States */
+.error-message {
+  @apply text-red-500 text-center p-4 rounded-lg;
+}
+
+.dark .error-message {
+  @apply bg-red-900 bg-opacity-20;
+}
+
+.light .error-message {
+  @apply bg-red-50;
+} 

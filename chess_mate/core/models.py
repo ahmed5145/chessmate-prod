@@ -471,7 +471,14 @@ def get_default_user():
     return User.objects.get_or_create(username='legacy_user')[0].id
 
 class Game(models.Model):
-    """Model representing a game."""
+    """Model representing a chess game."""
+    TIME_CONTROL_CHOICES = [
+        ('bullet', 'Bullet'),
+        ('blitz', 'Blitz'),
+        ('rapid', 'Rapid'),
+        ('classical', 'Classical')
+    ]
+    
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('analyzing', 'Analyzing'),
@@ -489,23 +496,45 @@ class Game(models.Model):
     opponent = models.CharField(max_length=100, default="Unknown")
     opening_name = models.CharField(max_length=200, default="Unknown Opening")
     date_played = models.DateTimeField()
+    
+    # Enhanced fields
+    time_control = models.CharField(max_length=50, default='blitz')
+    time_control_type = models.CharField(max_length=20, choices=TIME_CONTROL_CHOICES, default='blitz')
+    eco_code = models.CharField(max_length=3, null=True)  # ECO code for the opening
+    opening_played = models.CharField(max_length=200, default="Unknown Opening")
+    opening_variation = models.CharField(max_length=200, default="Unknown Variation")
+    opponent_opening = models.CharField(max_length=200, default='Unknown Opponent Opening')
+    analysis_version = models.IntegerField(default=1)
+    last_analysis_date = models.DateTimeField(null=True)
+    analysis_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    analysis_priority = models.IntegerField(default=0)  # For batch processing
+    
+    # Existing fields
     analysis = models.JSONField(null=True, blank=True)
     feedback = models.JSONField(null=True, blank=True)  # Store analysis feedback
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    analysis_completed_at = models.DateTimeField(null=True, blank=True)
     white_elo = models.IntegerField(null=True, blank=True)
     black_elo = models.IntegerField(null=True, blank=True)
-    time_control = models.CharField(max_length=50, null=True, blank=True)
-
-    def __str__(self) -> str:
-        return f"{self.user.username} vs {self.opponent} ({self.result})"
-
+    
+    player_color = models.CharField(max_length=5, choices=[('white', 'White'), ('black', 'Black')], default='white')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    analysis_completed_at = models.DateTimeField(null=True, blank=True)
+    
     class Meta:
         db_table = 'games'
         unique_together = ('user', 'platform', 'game_id')
         ordering = ['-date_played']
+        indexes = [
+            models.Index(fields=['user', 'platform']),
+            models.Index(fields=['date_played']),
+            models.Index(fields=['analysis_status']),
+            models.Index(fields=['time_control_type']),
+            models.Index(fields=['eco_code']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user.username} vs {self.opponent} ({self.result})"
 
     def save(self, *args, **kwargs):
         """Override save to handle rating updates."""
@@ -670,18 +699,87 @@ class Game(models.Model):
             logger.error(f"Error determining time control category: {str(e)}")
             return None
 
+    def get_player_rating(self, username: str) -> Optional[int]:
+        """Get the rating of a specific player in this game."""
+        if self.white.lower() == username.lower():
+            return self.white_elo
+        elif self.black.lower() == username.lower():
+            return self.black_elo
+        return None
+
+    def get_opponent_username(self, username: str) -> Optional[str]:
+        """Get the opponent's username for a given player."""
+        if self.white.lower() == username.lower():
+            return self.black
+        elif self.black.lower() == username.lower():
+            return self.white
+        return None
+
+    def get_result_for_player(self, username: str) -> Optional[str]:
+        """Get the game result from a specific player's perspective."""
+        if not username:
+            return None
+            
+        if self.white.lower() == username.lower():
+            if self.result == '1-0':
+                return 'win'
+            elif self.result == '0-1':
+                return 'loss'
+            elif self.result == '1/2-1/2':
+                return 'draw'
+        elif self.black.lower() == username.lower():
+            if self.result == '1-0':
+                return 'loss'
+            elif self.result == '0-1':
+                return 'win'
+            elif self.result == '1/2-1/2':
+                return 'draw'
+        return None
+
 class GameAnalysis(models.Model):
-    """Model representing a game analysis."""
+    """Model representing a detailed game analysis."""
     game = models.OneToOneField(Game, on_delete=models.CASCADE)
-    analysis_data = models.JSONField()
+    
+    # Enhanced fields
+    metrics = models.JSONField(default=dict)
+    phase_metrics = models.JSONField(default=dict)  # Opening, middlegame, endgame
+    time_metrics = models.JSONField(default=dict)
+    tactical_metrics = models.JSONField(default=dict)
+    positional_metrics = models.JSONField(default=dict)
+    feedback = models.JSONField(default=dict)
+    time_control_feedback = models.JSONField(default=dict)
+    study_plan = models.JSONField(default=dict)
+    cache_key = models.CharField(max_length=100, unique=True, default='default_cache_key')
+    analysis_metadata = models.JSONField(default=dict)  # Version, settings used, etc.
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'game_analysis'
+        indexes = [
+            models.Index(fields=['cache_key']),
+            models.Index(fields=['created_at']),
+        ]
 
     def __str__(self) -> str:
         return f"Analysis for {self.game}"
 
+class AnalysisCache(models.Model):
+    """Model to track cache usage and implement eviction policies."""
+    key = models.CharField(max_length=100, primary_key=True)
+    size_bytes = models.IntegerField()
+    last_accessed = models.DateTimeField(auto_now=True)
+    priority = models.IntegerField(default=0)
+    expires_at = models.DateTimeField()
+    
     class Meta:
-        db_table = 'game_analysis'
+        db_table = 'analysis_cache'
+        indexes = [
+            models.Index(fields=['last_accessed']),
+            models.Index(fields=['priority']),
+            models.Index(fields=['expires_at']),
+        ]
 
 class Transaction(models.Model):
     """Model representing a credit transaction."""
@@ -712,3 +810,15 @@ class Transaction(models.Model):
 
     class Meta:
         db_table = 'transactions'
+
+class BatchAnalysis(models.Model):
+    """Model representing a batch analysis of multiple games."""
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    games = models.ManyToManyField(Game, related_name='batch_analyses')
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, default='pending')  # e.g., 'pending', 'completed'
+
+    def __str__(self):
+        return self.name

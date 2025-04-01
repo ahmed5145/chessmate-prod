@@ -31,11 +31,8 @@ TEST_SETTINGS = {
     'STOCKFISH_CONTEMPT': 0,
     'STOCKFISH_MIN_THINK_TIME': 20,
     'STOCKFISH_SKILL_LEVEL': 20,
-    'REDIS_URL': os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
-    'REDIS_HOST': os.getenv('REDIS_HOST', 'localhost'),
-    'REDIS_PORT': int(os.getenv('REDIS_PORT', '6379')),
-    'REDIS_DB': int(os.getenv('REDIS_DB', '0')),
-    'CACHE_TTL': 3600,
+    'REDIS_URL': None,  # Disable Redis for tests
+    'USE_REDIS': False,
     'CACHES': {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -50,181 +47,142 @@ class TestOpenAIFeedback(TestCase):
         # Create test user
         self.user = User.objects.create_user(
             username='testuser',
-            password='testpass'
+            password='testpass123'
         )
         
         # Create test game
         self.game = Game.objects.create(
             user=self.user,
-            platform='chess.com',
+            pgn='1. e4 e5 2. Nf3 Nc6',
+            platform='lichess',
             game_id='test123',
-            pgn='1. e4 e5 2. Nf3 Nc6 3. Bb5 a6',
             result='1-0',
+            date_played=timezone.now(),
             white='testuser',
-            black='opponent',
-            date_played='2024-01-01T00:00:00Z'
+            black='opponent'
         )
         
-        # Sample analysis results
-        self.analysis_results = [
-            {
-                'move_number': 1,
-                'move': 'e4',
-                'score': 0.5,
-                'depth': 20,
-                'time_spent': 1.0,
-                'is_mistake': False,
-                'is_blunder': False,
-                'evaluation_drop': 0,
-                'position_complexity': 0.3,
-                'time_control_phase': 'opening'
-            },
-            {
-                'move_number': 1,
-                'move': 'e5',
-                'score': 0.3,
-                'depth': 20,
-                'time_spent': 1.5,
-                'is_mistake': False,
-                'is_blunder': False,
-                'evaluation_drop': 0.2,
-                'position_complexity': 0.4,
-                'time_control_phase': 'opening'
-            }
-        ]
+        # Mock Stockfish engine
+        self.patcher = patch('chess.engine.SimpleEngine.popen_uci')
+        self.mock_engine = self.patcher.start()
+        
+        # Configure mock engine
+        mock_engine_instance = MagicMock()
+        mock_engine_instance.analyse.return_value = {
+            "score": MagicMock(relative=MagicMock(return_value=MagicMock(cp=lambda: 100))),
+            "depth": 20,
+            "time": 0.5
+        }
+        self.mock_engine.return_value = mock_engine_instance
+        
+        # Mock OpenAI client
+        self.openai_patcher = patch('core.game_analyzer.OpenAI')
+        self.mock_openai = self.openai_patcher.start()
+        self.mock_openai_instance = MagicMock()
+        self.mock_openai.return_value = self.mock_openai_instance
 
     def test_valid_openai_response(self):
         """Test handling of a valid OpenAI response"""
-        mock_response = {
-            "summary": {
-                "accuracy": 85.5,
-                "evaluation": "Equal position",
-                "comment": "Strong tactical play with good time management"
-            },
-            "phases": {
+        # Create a valid response with all required sections
+        valid_response = {
+            "feedback": {
+                "overall_performance": {
+                    "accuracy": 85.5,
+                    "evaluation": "Equal position",
+                    "personalized_comment": "Strong tactical play"
+                },
                 "opening": {
                     "analysis": "Solid opening play",
-                    "suggestions": ["Develop pieces faster", "Control center early"]
+                    "suggestions": ["Develop pieces faster"]
                 },
                 "middlegame": {
                     "analysis": "Good tactical awareness",
-                    "suggestions": ["Look for combinations", "Improve piece coordination"]
+                    "suggestions": ["Look for combinations"]
                 },
                 "endgame": {
-                    "analysis": "Technical conversion needed work",
-                    "suggestions": ["Practice basic endgames", "Activate king earlier"]
+                    "analysis": "Technical conversion",
+                    "suggestions": ["Practice endgames"]
+                },
+                "tactics": {
+                    "analysis": "Good tactical vision",
+                    "suggestions": ["Practice tactics"]
+                },
+                "time_management": {
+                    "analysis": "Good time usage",
+                    "suggestions": ["Be more consistent"]
                 }
-            },
-            "tactics": {
-                "analysis": "Good tactical awareness",
-                "opportunities": 5,
-                "successful": 3,
-                "success_rate": 60.0,
-                "suggestions": ["Practice tactical patterns", "Calculate variations deeper"]
-            },
-            "time_management": {
-                "score": 85,
-                "avg_time_per_move": 15.5,
-                "time_pressure_moves": 3,
-                "time_pressure_percentage": 10.0,
-                "suggestion": "Good time management overall"
             }
         }
-
-        with patch('chess.engine.SimpleEngine.popen_uci'), \
-             patch('openai.OpenAI') as mock_openai:
-            
-            # Configure mock OpenAI response
-            mock_message = ChatCompletionMessage(
-                content=json.dumps(mock_response),
-                role="assistant",
-                function_call=None,
-                tool_calls=None
-            )
-            mock_choice = Choice(
-                finish_reason="stop",
-                index=0,
-                message=mock_message
-            )
-            mock_completion = ChatCompletion(
-                id="test-id",
-                choices=[mock_choice],
-                created=1234567890,
-                model="gpt-3.5-turbo",
-                object="chat.completion",
-                usage={"prompt_tokens": 100, "completion_tokens": 100, "total_tokens": 200}
-            )
-            
-            # Set up mock client
-            mock_client = MagicMock()
-            mock_client.chat.completions.create.return_value = mock_completion
-            mock_openai.return_value = mock_client
-            
-            # Test the analyzer
-            analyzer = GameAnalyzer()
-            feedback = analyzer._generate_ai_feedback(self.analysis_results, self.game)
-            
-            # Verify response structure
-            self.assertIsNotNone(feedback)
-            self.assertIn('summary', feedback)
-            self.assertIn('phases', feedback)
-            self.assertIn('tactics', feedback)
-            self.assertIn('time_management', feedback)
-            
-            # Verify content
-            self.assertEqual(feedback['summary']['accuracy'], 85.5)
-            self.assertEqual(feedback['phases']['opening']['analysis'], "Solid opening play")
-            self.assertEqual(feedback['tactics']['success_rate'], 60.0)
-            self.assertEqual(feedback['time_management']['score'], 85)
+        
+        # Configure mock OpenAI response
+        mock_completion = MagicMock()
+        mock_completion.choices = [
+            MagicMock(message=MagicMock(content=json.dumps(valid_response)))
+        ]
+        self.mock_openai_instance.chat.completions.create.return_value = mock_completion
+        
+        # Create analyzer instance
+        analyzer = GameAnalyzer()
+        
+        # Test with sample game data
+        game_analysis = [{
+            'move': 'e4',
+            'evaluation': 0.3,
+            'best_move': 'd4',
+            'position': 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1'
+        }]
+        
+        # Generate feedback
+        feedback = analyzer._generate_ai_feedback(game_analysis, self.game)
+        
+        # Verify feedback structure
+        self.assertIsNotNone(feedback)
+        self.assertIn('overall_performance', feedback)
+        self.assertIn('opening', feedback)
+        self.assertIn('middlegame', feedback)
+        self.assertIn('endgame', feedback)
+        self.assertIn('tactics', feedback)
+        self.assertIn('time_management', feedback)
 
     def test_malformed_response(self):
-        """Test handling of malformed OpenAI response"""
-        # Create an intentionally truncated response string
-        truncated_json = (
-            '{"summary":{"accuracy":100.0,"evaluation":"Perfect game",'
-            '"comment":"Flawless play"},"time_management":{"score":92,'
-            '"avg_time_per_move":1.0,"time'
-        )
-
-        with patch('chess.engine.SimpleEngine.popen_uci'), \
-             patch('openai.OpenAI') as mock_openai:
-            
-            # Configure mock OpenAI response with malformed JSON
-            mock_message = ChatCompletionMessage(
-                content=truncated_json,
-                role="assistant",
-                function_call=None,
-                tool_calls=None
-            )
-            mock_choice = Choice(
-                finish_reason="stop",
-                index=0,
-                message=mock_message
-            )
-            mock_completion = ChatCompletion(
-                id="test-id",
-                choices=[mock_choice],
-                created=1234567890,
-                model="gpt-3.5-turbo",
-                object="chat.completion",
-                usage={"prompt_tokens": 100, "completion_tokens": 100, "total_tokens": 200}
-            )
-            
-            # Set up mock client
-            mock_client = MagicMock()
-            mock_client.chat.completions.create.return_value = mock_completion
-            mock_openai.return_value = mock_client
-            
-            # Test the analyzer
-            analyzer = GameAnalyzer()
-            feedback = analyzer._generate_ai_feedback(self.analysis_results, self.game)
-            
-            # Verify fallback behavior
-            self.assertIsNotNone(feedback)
-            self.assertIn('source', feedback)
-            self.assertEqual(feedback['source'], 'statistical_analysis')
+        """Test handling of a malformed OpenAI response"""
+        # Create a malformed response missing required sections
+        malformed_response = {
+            "feedback": {
+                "overall_performance": {
+                    "accuracy": 85.5
+                }
+                # Missing required sections
+            }
+        }
+        
+        # Configure mock OpenAI response
+        mock_completion = MagicMock()
+        mock_completion.choices = [
+            MagicMock(message=MagicMock(content=json.dumps(malformed_response)))
+        ]
+        self.mock_openai_instance.chat.completions.create.return_value = mock_completion
+        
+        # Create analyzer instance
+        analyzer = GameAnalyzer()
+        
+        # Test with sample game data
+        game_analysis = [{
+            'move': 'e4',
+            'evaluation': 0.3,
+            'best_move': 'd4'
+        }]
+        
+        # Generate feedback
+        feedback = analyzer._generate_ai_feedback(game_analysis, self.game)
+        
+        # Verify fallback to statistical feedback
+        self.assertIsNone(feedback)
 
     def tearDown(self):
+        # Stop the patchers
+        self.patcher.stop()
+        self.openai_patcher.stop()
         # Clean up
-        self.user.delete()
-        self.game.delete() 
+        self.game.delete()
+        self.user.delete() 

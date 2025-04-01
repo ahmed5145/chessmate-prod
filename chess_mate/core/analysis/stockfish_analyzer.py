@@ -211,8 +211,8 @@ class StockfishAnalyzer:
             if hasattr(score, 'is_mate') and hasattr(score, 'cp'):
                 # Handle both Score and MockScore
                 if score.is_mate():
-                mate_score = score.mate()
-                if mate_score is None:
+                    mate_score = score.mate()
+                    if mate_score is None:
                         return 0.0
                     # Return a high value for mate, scaled by number of moves
                     return 100.0 if mate_score > 0 else -100.0
@@ -273,7 +273,7 @@ class StockfishAnalyzer:
     def cleanup(self) -> None:
         """Public method to clean up engine resources."""
         try:
-        self._cleanup_engine()
+            self._cleanup_engine()
         except Exception as e:
             logger.error(f"Error in cleanup: {str(e)}")
         finally:
@@ -283,8 +283,8 @@ class StockfishAnalyzer:
     def cleanup_if_idle(self) -> None:
         """Close engine if it has been idle for too long."""
         try:
-        if self._initialized and time.time() - self._last_used > self._TIMEOUT:
-            self.cleanup()
+            if self._initialized and time.time() - self._last_used > self._TIMEOUT:
+                self.cleanup()
         except Exception as e:
             logger.error(f"Error in cleanup_if_idle: {str(e)}")
             self.cleanup()  # Force cleanup on error
@@ -292,7 +292,7 @@ class StockfishAnalyzer:
     def __del__(self):
         """Ensure engine is closed on deletion."""
         try:
-        self.cleanup()
+            self.cleanup()
         except Exception as e:
             logger.error(f"Error in __del__: {str(e)}")
 

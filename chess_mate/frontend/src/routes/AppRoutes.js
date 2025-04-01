@@ -10,7 +10,7 @@ import ResetPasswordSuccess from '../components/ResetPasswordSuccess';
 import ResetPasswordFailed from '../components/ResetPasswordFailed';
 import Credits from '../components/Credits';
 import Games from '../components/Games';
-import GameAnalysis from '../components/GameAnalysis';
+import SingleGameAnalysis from '../components/SingleGameAnalysis';
 import BatchAnalysis from '../components/BatchAnalysis';
 import BatchAnalysisResults from '../components/BatchAnalysisResults';
 import FetchGames from '../components/FetchGames';
@@ -79,15 +79,7 @@ const AppRoutes = () => {
         path="/game/:gameId/analysis"
         element={
           <ProtectedRoute>
-            <GameAnalysis />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/game/:gameId/analysis/results"
-        element={
-          <ProtectedRoute>
-            <GameAnalysis />
+            <SingleGameAnalysis />
           </ProtectedRoute>
         }
       />

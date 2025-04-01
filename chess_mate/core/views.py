@@ -161,6 +161,10 @@ class EmailVerificationToken:
 @csrf_exempt  # Exempt registration from CSRF
 def register_view(request):
     """Handle user registration with email verification."""
+    response = Response()  # Create response object early to add CORS headers
+    response["Access-Control-Allow-Origin"] = request.headers.get('origin', '*')
+    response["Access-Control-Allow-Credentials"] = 'true'
+    
     try:
         data = request.data
         username = data.get("username")
@@ -381,6 +385,10 @@ def login_view(request):
     """
     Handle user login with email verification check.
     """
+    response = Response()  # Create response object early to add CORS headers
+    response["Access-Control-Allow-Origin"] = request.headers.get('origin', '*')
+    response["Access-Control-Allow-Credentials"] = 'true'
+    
     try:
         data = request.data
         email = data.get("email")
@@ -650,16 +658,29 @@ def check_analysis_status(request, task_id):
             if task.successful():
                 result = task.get()
                 if isinstance(result, dict):
-                    # Normalize status to 'completed' if successful
+                    # Handle the case where we have analysis results
+                    if 'analysis_results' in result:
+                        return Response({
+                            "status": "completed",
+                            "analysis": result.get('analysis_results'),
+                            "feedback": result.get('feedback'),
+                            "game_id": result.get('game_id')
+                        })
+                    
+                    # Normalize status for consistency
                     if result.get('status') in ['SUCCESS', 'COMPLETED', 'completed']:
                         result['status'] = 'completed'
+                    elif not result.get('status'):
+                        result['status'] = 'completed'
                     
-                    # Ensure game_id is included in the response
+                    # Ensure game_id is included
                     if 'game_id' not in result and 'status' in result:
                         task_data = task_manager.get_task_by_id(task_id)
                         if task_data and 'game_id' in task_data:
                             result['game_id'] = task_data['game_id']
                     return Response(result)
+                
+                # Handle non-dict results
                 return Response({
                     "status": "completed",
                     "result": result
@@ -668,28 +689,20 @@ def check_analysis_status(request, task_id):
                 error = str(task.result)
                 return Response({
                     "status": "failed",
-                    "error": error
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    "message": error
+                }, status=status.HTTP_400_BAD_REQUEST)
         else:
-            # Get progress info if available
-            progress = task.info
-            if progress and isinstance(progress, dict):
-                return Response({
-                    "status": "in_progress",
-                    "progress": progress.get('progress', 0),
-                    "message": progress.get('message', 'Analysis in progress')
-                })
-            # Task is still running but no progress info
+            # Task is still running
             return Response({
                 "status": "in_progress",
+                "progress": task.info.get('progress', 0) if task.info else 0,
                 "message": "Analysis in progress"
             })
-            
     except Exception as e:
-        logger.error(f"Error checking analysis status: {str(e)}")
+        logger.error(f"Error checking analysis status: {str(e)}", exc_info=True)
         return Response({
-            "status": "failed",
-            "error": str(e)
+            "status": "error",
+            "message": f"Error checking analysis status: {str(e)}"
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(["GET"])
@@ -1040,6 +1053,7 @@ def get_tokens_for_user(user):
     }
 
 @api_view(["POST"])
+@csrf_exempt  # Exempt logout from CSRF
 @permission_classes([IsAuthenticated])
 def logout_view(request):
     """
@@ -1315,7 +1329,8 @@ def confirm_purchase(request):
             'details': str(e)
         }, status=500)
 
-@api_view(['POST'])
+@api_view(["POST"])
+@csrf_exempt  # Exempt token refresh from CSRF
 def token_refresh_view(request):
     """Refresh the user's access token."""
     try:
@@ -1384,6 +1399,7 @@ def request_password_reset(request):
         )
 
 @api_view(["POST"])
+@csrf_exempt  # Exempt password reset from CSRF
 def reset_password(request):
     """
     Handle password reset with token.
@@ -1541,22 +1557,12 @@ def health_check(request):
 @ensure_csrf_cookie
 def csrf(request):
     """
-    Set CSRF cookie and return it in the response.
+    Get CSRF token for the client.
     """
-    token = get_token(request)
-    response = JsonResponse({
-        "detail": "CSRF cookie set",
-        "csrfToken": token
-    })
-    response.set_cookie(
-        'csrftoken',
-        token,
-        max_age=None,  # Session length
-        path='/',
-        secure=False,  # Set to True in production with HTTPS
-        samesite='None',  # Required for cross-origin requests
-        httponly=False  # Allow JavaScript access
-    )
+    response = Response({'detail': 'CSRF cookie set'})
+    if settings.DEBUG:
+        response["Access-Control-Allow-Origin"] = request.headers.get('origin', 'http://localhost:3000')
+    response["Access-Control-Allow-Credentials"] = 'true'
     return response
 
 @api_view(['POST'])

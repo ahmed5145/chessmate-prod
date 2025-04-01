@@ -27,6 +27,8 @@ class TestGameAnalysis:
         """Test the complete analysis pipeline."""
         # Set up test game with known positions
         self.game.pgn = "1. e4 e5 2. Nf3 Nc6 3. Bb5"  # Simple Spanish opening
+        self.game.status = 'pending'
+        self.game.analysis_status = 'pending'
         self.game.save()
 
         # Mock Stockfish responses for each position
@@ -50,40 +52,35 @@ class TestGameAnalysis:
         # Verify analysis results were saved
         self.game.refresh_from_db()
         assert self.game.status == 'analyzed'
+        assert self.game.analysis_status == 'completed'
         assert self.game.analysis is not None
         assert self.game.analysis_completed_at is not None
 
         # Verify analysis data structure
         analysis_data = self.game.analysis
-        assert 'analysis_results' in analysis_data
-        assert 'feedback' in analysis_data
-        assert 'analysis_complete' in analysis_data
+        assert isinstance(analysis_data, dict)
+        assert 'moves' in analysis_data
+        assert 'summary' in analysis_data
+        assert 'evaluation' in analysis_data
         assert 'timestamp' in analysis_data
-        assert 'source' in analysis_data
 
-        # Verify feedback structure
-        feedback = analysis_data['feedback']
-        assert 'analysis_results' in feedback
-        assert 'analysis_complete' in feedback
-        assert feedback['source'] == 'stockfish'
+        # Verify moves analysis
+        moves = analysis_data['moves']
+        assert isinstance(moves, list)
+        assert len(moves) > 0
+        for move in moves:
+            assert 'move' in move
+            assert 'evaluation' in move
+            assert 'position' in move
 
-        # Verify analysis results structure
-        analysis_results = feedback['analysis_results']
-        assert 'summary' in analysis_results
-        assert 'strengths' in analysis_results
-        assert 'weaknesses' in analysis_results
-        assert 'critical_moments' in analysis_results
-        assert 'improvement_areas' in analysis_results
-
-        # Verify summary metrics
-        summary = analysis_results['summary']
-        assert 'overall' in summary
-        assert 'phases' in summary
-        assert 'tactics' in summary
-        assert 'time_management' in summary
-        assert 'positional' in summary
-        assert 'advantage' in summary
-        assert 'resourcefulness' in summary
+        # Verify summary
+        summary = analysis_data['summary']
+        assert isinstance(summary, dict)
+        assert 'opening' in summary
+        assert 'middlegame' in summary
+        assert 'endgame' in summary
+        assert 'strengths' in summary
+        assert 'weaknesses' in summary
 
     def test_analysis_with_tactical_positions(self, capture_queries):
         """Test analysis pipeline with tactical positions."""

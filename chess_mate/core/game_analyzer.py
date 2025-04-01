@@ -70,6 +70,10 @@ class GameAnalyzer:
         except Exception as e:
             logger.error("Error closing Stockfish engine: %s", str(e))
 
+    def cleanup(self):
+        """Cleanup resources."""
+        self.close_engine()
+
     def analyze_move(self, board: chess.Board, move: chess.Move, depth: int = 20, is_white: bool = True) -> Dict[str, Any]:
         """Analyze a single move and return evaluation data."""
         try:
@@ -182,7 +186,7 @@ class GameAnalyzer:
             elif isinstance(score, chess.engine.Score):
                 score_value = score.score()
                 if score_value is None:
-                return 0.0
+                    return 0.0
                 raw_score = float(score_value) / 100.0 if isinstance(score, chess.engine.Cp) else (
                     10000.0 if score_value > 0 else -10000.0
                 )
@@ -200,24 +204,63 @@ class GameAnalyzer:
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def analyze_single_game(self, game: Game, depth: int = 20) -> Dict[str, Any]:
         """Analyze a single game and return comprehensive results."""
+        if not game or not game.id:
+            logger.error("Invalid game object provided")
+            return self._get_error_response(None, "Invalid game object")
+
         try:
             # Parse moves from PGN
             moves = self._parse_pgn(game)
+            
+            # Handle empty game case
             if not moves:
-                raise ValueError("No moves found in game")
+                logger.warning(f"No moves found in game {game.id}")
+                return {
+                    'analysis_complete': True,
+                    'game_id': game.id,
+                    'analysis_results': {
+                        'summary': self._get_default_metrics(),
+                        'moves': []
+                    },
+                    'feedback': {
+                        'source': 'system',
+                        'feedback': {
+                            'strengths': [],
+                            'weaknesses': ['No moves were made in the game, indicating a lack of gameplay or analysis provided.'],
+                            'critical_moments': [],
+                            'improvement_areas': ['Start playing games to gather data for analysis.'],
+                            'opening': {
+                                'analysis': 'No data available as no moves were made.',
+                                'suggestion': 'Start playing games to gather data on opening choices and performance.'
+                            },
+                            'middlegame': {
+                                'analysis': 'No data available as no moves were made.',
+                                'suggestion': 'Start playing games to assess middlegame decision-making and tactics.'
+                            },
+                            'endgame': {
+                                'analysis': 'No data available as no moves were made.',
+                                'suggestion': 'Start playing games to evaluate endgame strategies and execution.'
+                            }
+                        },
+                        'metrics': self._get_default_metrics()['overall']
+                    }
+                }
 
             # Analyze moves
             analysis_results = self._analyze_moves(moves, depth, game.white == game.user.username)
             if not analysis_results:
-                raise ValueError("Move analysis failed")
+                return self._get_error_response(game.id, "Move analysis failed")
 
             # Calculate metrics
             metrics = self._calculate_metrics({'moves': analysis_results, 'is_white': game.white == game.user.username})
             
+            # Ensure metrics has moves for feedback generation
+            metrics['moves'] = analysis_results
+            
             # Generate feedback
             feedback_source = 'openai' if settings.USE_OPENAI else 'statistical'
             try:
-                feedback = self.generate_feedback({'moves': analysis_results, 'metrics': metrics}, game)
+                feedback = self.generate_feedback(metrics)
                 if not feedback:
                     feedback_source = 'basic'
                     feedback = self._get_default_feedback()
@@ -226,60 +269,101 @@ class GameAnalyzer:
                 feedback_source = 'basic'
                 feedback = self._get_default_feedback()
 
-            # Structure the response to match frontend expectations
+            # Structure the response
             response = {
                 'analysis_complete': True,
-                'analysis_results': {
-                    'summary': {
-                        'overall': metrics.get('overall', {}),
-                        'phases': metrics.get('phases', {}),
-                        'tactics': metrics.get('tactics', {}),
-                        'time_management': metrics.get('time_management', {}),
-                        'positional': metrics.get('positional', {}),
-                        'advantage': metrics.get('advantage', {}),
-                        'resourcefulness': metrics.get('resourcefulness', {})
-                    },
-                    'moves': analysis_results
-                },
-                'feedback': feedback
+                'game_id': game.id,
+                'analysis_results': metrics,
+                'feedback': {
+                    'source': feedback_source,
+                    'feedback': feedback
+                }
             }
 
             return response
-            
+
         except Exception as e:
-            logger.error(f"Error during game analysis: {str(e)}", exc_info=True)
-            return {
-                'analysis_complete': False,
-                'error': str(e),
-                'message': 'Analysis failed: Analysis incomplete or invalid'
+            logger.error(f"Error analyzing game {game.id}: {str(e)}", exc_info=True)
+            return self._get_error_response(game.id, str(e))
+
+    def _get_error_response(self, game_id: Optional[int], error_message: str) -> Dict[str, Any]:
+        """Generate a standardized error response."""
+        return {
+            'analysis_complete': True,
+            'game_id': game_id,
+            'analysis_results': {
+                'summary': self._get_default_metrics(),
+                'moves': []
+            },
+            'feedback': {
+                'source': 'system',
+                'feedback': {
+                    'strengths': [],
+                    'weaknesses': [f'Analysis failed: {error_message}'],
+                    'critical_moments': [],
+                    'improvement_areas': ['Try analyzing the game again'],
+                    'opening': {
+                        'analysis': 'Analysis not available due to error',
+                        'suggestion': 'Try analyzing the game again'
+                    },
+                    'middlegame': {
+                        'analysis': 'Analysis not available due to error',
+                        'suggestion': 'Try analyzing the game again'
+                    },
+                    'endgame': {
+                        'analysis': 'Analysis not available due to error',
+                        'suggestion': 'Try analyzing the game again'
+                    }
+                },
+                'metrics': self._get_default_metrics()['overall']
             }
+        }
 
     def _parse_pgn(self, game: Game) -> List[chess.Move]:
-        """Parse PGN and return list of moves."""
+        """Parse moves from PGN and return a list of valid moves."""
         try:
-            pgn_str = game.pgn
-        if not pgn_str:
-            raise ValueError("Empty PGN data")
+            if not game or not game.pgn:
+                logger.warning(f"No game or PGN data found for game_id: {game.id if game else None}")
+                return []
 
-            # Create a StringIO object for the python-chess PGN parser
-            pgn_io = io.StringIO(pgn_str)
-            chess_game = chess.pgn.read_game(pgn_io)
-            
-            if not chess_game:
-            raise ValueError("Invalid PGN data: Could not parse game")
+            # Clean PGN data
+            pgn_data = game.pgn.strip()
+            if not pgn_data:
+                logger.warning(f"Empty PGN data for game_id: {game.id}")
+                return []
 
-            # Get the mainline moves
-            moves = []
-            board = chess_game.board()
-            for move in chess_game.mainline_moves():
-                moves.append(move)
-                board.push(move)
+            # Parse PGN
+            try:
+                pgn_game = chess.pgn.read_game(io.StringIO(pgn_data))
+                if not pgn_game:
+                    logger.error(f"Failed to parse PGN for game_id: {game.id}")
+                    return []
 
-        return moves
+                # Extract moves
+                moves: List[chess.Move] = []
+                board = pgn_game.board()
+                for move in pgn_game.mainline_moves():
+                    if move in board.legal_moves:
+                        moves.append(move)
+                        board.push(move)
+                    else:
+                        logger.warning(f"Illegal move found in game {game.id}: {move.uci()}")
+                        break
+
+                if not moves:
+                    logger.warning(f"No valid moves found in game {game.id}")
+                else:
+                    logger.info(f"Successfully parsed {len(moves)} moves from game {game.id}")
+
+                return moves
+
+            except Exception as e:
+                logger.error(f"Error parsing PGN for game {game.id}: {str(e)}")
+                return []
 
         except Exception as e:
-            logger.error(f"Error parsing PGN: {str(e)}")
-            raise ValueError(f"Failed to parse PGN: {str(e)}")
+            logger.error(f"Error in _parse_pgn: {str(e)}")
+            return []
 
     def _analyze_moves(self, moves: List[chess.Move], depth: int, is_white: bool = True) -> List[Dict[str, Any]]:
         """Analyze a list of moves."""
@@ -755,34 +839,30 @@ class GameAnalyzer:
                 temperature=0.7
             )
 
+            logger.info("Received response from OpenAI: %s", response)
             feedback_text = response.choices[0].message.content
+            logger.info("Feedback text: %s", feedback_text)
             if not feedback_text:
                 logger.error("Empty response from OpenAI")
                 return None
-                
             try:
                 # Parse the response as JSON
                 feedback_data = json.loads(feedback_text)
-                
+                logger.info("Parsed feedback data: %s", feedback_data)
                 # Validate the structure
                 if not isinstance(feedback_data, dict) or 'feedback' not in feedback_data:
                     logger.error("Invalid feedback structure")
                     return None
-                    
                 feedback = feedback_data['feedback']
-                
                 # Ensure all required sections are present
                 required_sections = ['overall_performance', 'opening', 'middlegame', 'endgame', 'tactics', 'time_management']
                 if not all(section in feedback for section in required_sections):
                     logger.error("Missing required sections in feedback")
                     return None
-                    
                 return feedback
-                
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse OpenAI response as JSON: {str(e)}")
                 return None
-                    
         except Exception as e:
             logger.error(f"Error generating AI feedback: {str(e)}")
             return None
@@ -1005,7 +1085,7 @@ class GameAnalyzer:
         else:
             analysis = "Room for improvement in defensive play and advantage conversion"
             
-            return {
+        return {
             'defensive_moves': defensive_moves,
             'winning_conversions': winning_conversions,
             'resourcefulness_score': resourcefulness_score,
@@ -1025,7 +1105,7 @@ class GameAnalyzer:
             
             # Calculate base metrics using enhanced calculator
             try:
-            metrics = MetricsCalculator.calculate_game_metrics(moves, is_white)
+                metrics = MetricsCalculator.calculate_game_metrics(moves, is_white)
             except Exception as e:
                 logger.error(f"Error in MetricsCalculator: {str(e)}")
                 metrics = self._get_default_metrics()
@@ -1038,83 +1118,65 @@ class GameAnalyzer:
             return self._get_default_metrics()
 
     def _get_default_metrics(self) -> Dict[str, Any]:
-        """Return default metrics structure matching frontend requirements."""
-        default_time_management = {
-            'average_time': 0.0,
-            'time_variance': 0.0,
-            'time_consistency': 0.0,
-            'time_pressure_moves': 0,
-            'time_management_score': 0.0,
-            'time_pressure_percentage': 0.0
-        }
-
+        """Return default metrics structure with zero values."""
         return {
             'overall': {
-                'accuracy': 0.0,
-                'consistency': 0.0,
+                'accuracy': 0,
                 'mistakes': 0,
                 'blunders': 0,
-                'inaccuracies': 0,
-                'quality_moves': 0,
-                'critical_positions': 0,
-                'position_quality': 0.0
+                'average_centipawn_loss': 0,
+                'time_management_score': 0,
+                'total_moves': 0
             },
             'phases': {
                 'opening': {
-                    'accuracy': 0.0,
-                    'moves': 0,
+                    'accuracy': 0,
                     'mistakes': 0,
                     'blunders': 0,
-                    'critical_moves': 0,
-                    'time_management': default_time_management.copy()
+                    'average_centipawn_loss': 0,
+                    'time_per_move': 0
                 },
                 'middlegame': {
-                    'accuracy': 0.0,
-                    'moves': 0,
+                    'accuracy': 0,
                     'mistakes': 0,
                     'blunders': 0,
-                    'critical_moves': 0,
-                    'time_management': default_time_management.copy()
+                    'average_centipawn_loss': 0,
+                    'time_per_move': 0
                 },
                 'endgame': {
-                    'accuracy': 0.0,
-                    'moves': 0,
+                    'accuracy': 0,
                     'mistakes': 0,
                     'blunders': 0,
-                    'critical_moves': 0,
-                    'time_management': default_time_management.copy()
+                    'average_centipawn_loss': 0,
+                    'time_per_move': 0
                 }
             },
             'tactics': {
-                'opportunities': 0,
-                'successful': 0,
-                'missed': 0,
-                'success_rate': 0.0,
-                'tactical_score': 0.0,
-                'pattern_recognition': 0.0
+                'opportunities_found': 0,
+                'opportunities_missed': 0,
+                'total_opportunities': 0,
+                'tactical_accuracy': 0
             },
-            'time_management': default_time_management.copy(),
+            'time_management': {
+                'time_pressure_mistakes': 0,
+                'average_time_per_move': 0,
+                'time_management_score': 0
+            },
+            'positional': {
+                'piece_placement_score': 0,
+                'center_control_score': 0,
+                'king_safety_score': 0,
+                'pawn_structure_score': 0
+            },
             'advantage': {
-                'max_advantage': 0.0,
-                'min_advantage': 0.0,
-                'average_advantage': 0.0,
-                'advantage_conversion': 0.0,
-                'pressure_handling': 0.0,
-                'advantage_duration': 0,
-                'winning_positions': 0,
-                'advantage_retention': 0.0,
-                'advantage_trend': 0.0
+                'maximum_advantage': 0,
+                'average_advantage': 0,
+                'advantage_transitions': 0
             },
             'resourcefulness': {
-                'recovery_rate': 0.0,
-                'defensive_score': 0.0,
-                'critical_defense': 0.0,
-                'tactical_defense': 0.0,
-                'best_move_finding': 0.0,
-                'position_recovery': 0.0,
-                'comeback_potential': 0.0,
-                'critical_defense_score': 0.0,
-                'defensive_resourcefulness': 0.0
+                'defense_score': 0,
+                'counter_play_score': 0,
+                'recovery_score': 0
             }
         }
 
@@ -1273,50 +1335,26 @@ class GameAnalyzer:
     def _get_default_feedback(self) -> Dict[str, Any]:
         """Return default feedback structure."""
         return {
-            'source': 'basic',
-            'strengths': [],
-            'weaknesses': [],
+            'source': 'system',
+            'feedback': {
+                'strengths': ['Analysis not available'],
+                'weaknesses': ['Analysis not available'],
             'critical_moments': [],
-            'improvement_areas': [],
+                'improvement_areas': ['Try analyzing the game again'],
             'opening': {
-                'analysis': 'No opening analysis available',
-                'suggestion': 'Focus on basic opening principles'
+                    'analysis': 'Analysis not available',
+                    'suggestion': 'Try analyzing the game again to get opening insights'
             },
             'middlegame': {
-                'analysis': 'No middlegame analysis available',
-                'suggestion': 'Practice tactical awareness'
+                    'analysis': 'Analysis not available',
+                    'suggestion': 'Try analyzing the game again to get middlegame insights'
             },
             'endgame': {
-                'analysis': 'No endgame analysis available',
-                'suggestion': 'Study basic endgame principles'
+                    'analysis': 'Analysis not available',
+                    'suggestion': 'Try analyzing the game again to get endgame insights'
+                }
             },
-            'tactics': {
-                'analysis': 'No tactical analysis available',
-                'opportunities': 0,
-                'successful': 0,
-                'success_rate': 0
-            },
-            'time_management': {
-                'analysis': 'No time management analysis available',
-                'avg_time_per_move': 0,
-                'time_pressure_moves': 0,
-                'time_pressure_percentage': 0
-            },
-            'advantage': {
-                'analysis': 'No advantage analysis available',
-                'max_advantage': 0,
-                'min_advantage': 0,
-                'average_advantage': 0,
-                'winning_positions': 0,
-                'advantage_retention': 0
-            },
-            'resourcefulness': {
-                'analysis': 'No resourcefulness analysis available',
-                'recovery_rate': 0,
-                'defensive_score': 0,
-                'critical_defense': 0,
-                'position_recovery': 0
-            }
+            'metrics': self._get_default_metrics()['overall']
         }
 
 # Placeholder for future enhancement to support asynchronous analysis using Celery

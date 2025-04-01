@@ -1,11 +1,12 @@
 import pytest
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from unittest.mock import patch, MagicMock
 from core.rate_limiter import RateLimiter
-from core.models import Profile  # type: ignore
+from core.models import Profile
+from django.core.cache import cache
 from django.db import models
 from typing import Type, cast
 import redis
@@ -13,11 +14,37 @@ import time
 
 UserModel = get_user_model()
 
+TEST_SETTINGS = {
+    'RATE_LIMIT': {
+        'DEFAULT': {
+            'MAX_REQUESTS': 100,
+            'TIME_WINDOW': 60,
+        },
+        'AUTH': {
+            'MAX_REQUESTS': 5,
+            'TIME_WINDOW': 300,
+        },
+        'ANALYSIS': {
+            'MAX_REQUESTS': 10,
+            'TIME_WINDOW': 600,
+        }
+    },
+    'REDIS_URL': None,  # Disable Redis for tests
+    'USE_REDIS': False,
+    'CACHES': {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'test-cache',
+        }
+    }
+}
+
+@override_settings(**TEST_SETTINGS)
 class TestRateLimiter(TestCase):
     @classmethod
     def setUpTestData(cls):
         # Create test user once for all tests
-        cls.user = UserModel.objects.create_user(  # type: ignore
+        cls.user = UserModel.objects.create_user(
             username='testuser',
             email='test@example.com',
             password='testpass123'
@@ -26,19 +53,17 @@ class TestRateLimiter(TestCase):
     def setUp(self):
         self.client = Client()
         self.rate_limiter = RateLimiter()
-        # Use objects manager directly from model class
-        Profile.objects.filter(user=self.user).delete()  # type: ignore
-        self.profile = Profile.objects.create(user=self.user)  # type: ignore
+        Profile.objects.filter(user=self.user).delete()
+        self.profile = Profile.objects.create(user=self.user)
+        cache.clear()
 
     def tearDown(self):
-        # Clean up after each test
-        if hasattr(self, 'rate_limiter') and hasattr(self.rate_limiter, 'redis'):
-            self.rate_limiter.redis.flushdb()
+        cache.clear()
 
     def test_rate_limiter_initialization(self):
         """Test that rate limiter initializes correctly."""
-        self.assertIsNotNone(self.rate_limiter.redis)
-        self.assertTrue(self.rate_limiter.redis.ping())
+        self.assertIsNotNone(self.rate_limiter.cache)
+        self.assertEqual(self.rate_limiter.use_redis, False)
 
     def test_rate_limit_config(self):
         """Test that rate limit config is retrieved correctly."""
@@ -88,16 +113,10 @@ class TestRateLimiter(TestCase):
         # Set initial window time to 30 seconds ago
         current_time = int(time.time())
         past_time = current_time - 30  # Set window start to 30 seconds ago
-        window_key = f"{key}:window"
-        counter_key = f"{key}:counter"
         
-        # Clear any existing keys
-        self.rate_limiter.redis.delete(window_key)
-        self.rate_limiter.redis.delete(counter_key)
-        
-        # Set window expiry and counter
-        self.rate_limiter.redis.setex(window_key, window, str(past_time))
-        self.rate_limiter.redis.setex(counter_key, window, "1")
+        # Set window start time in cache
+        cache.set(f"{key}:window", str(past_time), window)
+        cache.set(f"{key}:counter", "1", window)
         
         # Get reset time
         reset_time = self.rate_limiter.get_reset_time(key)
@@ -108,21 +127,22 @@ class TestRateLimiter(TestCase):
         self.assertLessEqual(reset_time, window)
         self.assertGreater(reset_time, window - 35)  # Allow 5 seconds tolerance
 
-    @patch('redis.Redis')
-    def test_rate_limiter_redis_error(self, mock_redis):
-        """Test that rate limiter handles Redis errors gracefully."""
-        mock_redis.return_value.incr.side_effect = redis.RedisError("Test error")
-        
-        # Rate limiter should fail open (allow requests) on Redis errors
-        self.assertFalse(
-            self.rate_limiter.is_rate_limited('test:error', 'AUTH')
-        )
+    def test_rate_limiter_cache_error(self):
+        """Test that rate limiter handles cache errors gracefully."""
+        with patch('django.core.cache.cache.get') as mock_get:
+            mock_get.side_effect = Exception("Test error")
+            
+            # Rate limiter should fail open (allow requests) on cache errors
+            self.assertFalse(
+                self.rate_limiter.is_rate_limited('test:error', 'AUTH')
+            )
 
+@override_settings(**TEST_SETTINGS)
 class TestRateLimitDecorator(TestCase):
     @classmethod
     def setUpTestData(cls):
         # Create test user once for all tests
-        cls.user = UserModel.objects.create_user(  # type: ignore
+        cls.user = UserModel.objects.create_user(
             username='testuser',
             email='test@example.com',
             password='testpass123'
@@ -131,16 +151,14 @@ class TestRateLimitDecorator(TestCase):
     def setUp(self):
         self.client = Client()
         self.rate_limiter = RateLimiter()
-        # Use objects manager directly from model class
-        Profile.objects.filter(user=self.user).delete()  # type: ignore
-        self.profile = Profile.objects.create(user=self.user)  # type: ignore
+        Profile.objects.filter(user=self.user).delete()
+        self.profile = Profile.objects.create(user=self.user)
         # Login the user
         self.client.login(username='testuser', password='testpass123')
+        cache.clear()
 
     def tearDown(self):
-        # Clean up Redis after each test
-        if hasattr(self.rate_limiter, 'redis'):
-            self.rate_limiter.redis.flushdb()
+        cache.clear()
 
     def test_login_rate_limit(self):
         """Test rate limiting on login endpoint."""

@@ -81,8 +81,7 @@ const GameFeedback = ({ gameId }) => {
     }
   }, [feedback, isDarkMode]);
 
-  const renderFeedbackSource = () => {
-    const source = feedback?.source;
+  const renderFeedbackSource = (source) => {
     if (!source) return null;
 
     const sourceConfig = {
@@ -152,47 +151,193 @@ const GameFeedback = ({ gameId }) => {
   };
 
   const renderFeedback = () => {
-    if (!feedback?.analysis_results?.feedback) return null;
+    if (!feedback?.feedback) return null;
     
-    const { strengths, weaknesses, critical_moments } = feedback.analysis_results.feedback;
-    
+    const { 
+        source,
+        strengths,
+        weaknesses,
+        critical_moments,
+        improvement_areas,
+        opening,
+        middlegame,
+        endgame,
+        tactics,
+        time_management,
+        advantage,
+        resourcefulness
+    } = feedback.feedback;
+
     return (
-      <div className="space-y-6">
-        {strengths?.length > 0 && (
-          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-            <h4 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Strengths</h4>
-            <ul className={`list-disc pl-5 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              {strengths.map((strength, index) => (
-                <li key={index}>{strength}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        
-        {weaknesses?.length > 0 && (
-          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-            <h4 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Areas for Improvement</h4>
-            <ul className={`list-disc pl-5 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              {weaknesses.map((weakness, index) => (
-                <li key={index}>{weakness}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        
-        {critical_moments?.length > 0 && (
-          <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-            <h4 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Critical Moments</h4>
-            <ul className={`list-disc pl-5 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              {critical_moments.map((moment, index) => (
-                <li key={index}>{moment.description} (Move {moment.move_number})</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+        <div className="space-y-6">
+            {renderFeedbackSource(source)}
+            
+            {/* Strengths and Weaknesses */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {renderFeedbackSection("Strengths", strengths, <CheckCircle className="text-green-500" />)}
+                {renderFeedbackSection("Weaknesses", weaknesses, <AlertCircle className="text-red-500" />)}
+            </div>
+
+            {/* Critical Moments */}
+            {critical_moments.length > 0 && (
+                <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        <Flag className="inline-block mr-2" /> Critical Moments
+                    </h3>
+                    <div className="space-y-4">
+                        {critical_moments.map((moment, index) => (
+                            <div key={index} className="border-l-4 border-yellow-500 pl-4">
+                                <p className="font-medium">Move {moment.move}</p>
+                                <p className="text-sm text-gray-600">{moment.description}</p>
+                                <p className="text-sm text-blue-500">{moment.suggestion}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Phase Analysis */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {renderPhaseSection("Opening", opening, <Play />)}
+                {renderPhaseSection("Middlegame", middlegame, <Swords />)}
+                {renderPhaseSection("Endgame", endgame, <Flag />)}
+            </div>
+
+            {/* Tactical Analysis */}
+            <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <Target className="inline-block mr-2" /> Tactical Analysis
+                </h3>
+                <p>{tactics.analysis}</p>
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <p className="text-sm text-gray-500">Opportunities</p>
+                        <p className="text-xl font-semibold">{tactics.opportunities}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500">Success Rate</p>
+                        <p className="text-xl font-semibold">{tactics.success_rate.toFixed(1)}%</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500">Successful</p>
+                        <p className="text-xl font-semibold">{tactics.successful}</p>
+                    </div>
+                </div>
+                {tactics.suggestions.length > 0 && (
+                    <div className="mt-4">
+                        <h4 className="font-medium mb-2">Suggestions</h4>
+                        <ul className="list-disc list-inside space-y-1">
+                            {tactics.suggestions.map((suggestion, index) => (
+                                <li key={index} className="text-sm">{suggestion}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </div>
+
+            {/* Time Management */}
+            <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <Clock className="inline-block mr-2" /> Time Management
+                </h3>
+                <p>{time_management.analysis}</p>
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <p className="text-sm text-gray-500">Avg Time/Move</p>
+                        <p className="text-xl font-semibold">{time_management.avg_time_per_move.toFixed(1)}s</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500">Pressure Moves</p>
+                        <p className="text-xl font-semibold">{time_management.time_pressure_moves}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500">Pressure %</p>
+                        <p className="text-xl font-semibold">{time_management.time_pressure_percentage.toFixed(1)}%</p>
+                    </div>
+                </div>
+                {time_management.suggestions.length > 0 && (
+                    <div className="mt-4">
+                        <h4 className="font-medium mb-2">Suggestions</h4>
+                        <ul className="list-disc list-inside space-y-1">
+                            {time_management.suggestions.map((suggestion, index) => (
+                                <li key={index} className="text-sm">{suggestion}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </div>
+
+            {/* Advantage Analysis */}
+            <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <TrendingUp className="inline-block mr-2" /> Advantage Analysis
+                </h3>
+                <p>{advantage.analysis}</p>
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <p className="text-sm text-gray-500">Max Advantage</p>
+                        <p className="text-xl font-semibold">{advantage.max_advantage.toFixed(1)}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500">Winning Positions</p>
+                        <p className="text-xl font-semibold">{advantage.winning_positions}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500">Retention %</p>
+                        <p className="text-xl font-semibold">{advantage.advantage_retention.toFixed(1)}%</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Resourcefulness */}
+            <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <Zap className="inline-block mr-2" /> Resourcefulness
+                </h3>
+                <p>{resourcefulness.analysis}</p>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <p className="text-sm text-gray-500">Recovery Rate</p>
+                        <p className="text-xl font-semibold">{resourcefulness.recovery_rate.toFixed(1)}%</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500">Defense Score</p>
+                        <p className="text-xl font-semibold">{resourcefulness.defensive_score.toFixed(1)}</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Improvement Areas */}
+            {improvement_areas.length > 0 && (
+                <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        <Target className="inline-block mr-2" /> Areas for Improvement
+                    </h3>
+                    <ul className="list-disc list-inside space-y-2">
+                        {improvement_areas.map((area, index) => (
+                            <li key={index}>{area}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
     );
   };
+
+  const renderPhaseSection = (title, phase, Icon) => (
+    <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <Icon className="inline-block mr-2" /> {title}
+        </h3>
+        <p>{phase.analysis}</p>
+        {phase.suggestion && (
+            <div className="mt-4">
+                <h4 className="font-medium mb-2">Suggestion</h4>
+                <p className="text-sm">{phase.suggestion}</p>
+            </div>
+        )}
+    </div>
+  );
 
   const renderFeedbackSection = (title, content, icon = null) => {
     if (!content || Object.keys(content).length === 0) {
@@ -308,7 +453,7 @@ const GameFeedback = ({ gameId }) => {
       icon: TrendingUp,
       content: (
         <div className="space-y-4">
-          {renderFeedbackSource()}
+          {renderFeedbackSource(feedback?.source)}
           <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
             <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Summary</h3>
             <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{feedback.summary}</p>
