@@ -1,0 +1,132 @@
+name: ChessMate CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r chess_mate/requirements.txt
+    
+    - name: Install Stockfish
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y stockfish
+    
+    - name: Cache pytest
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pytest
+        key: ${{ runner.os }}-pytest-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pytest-
+    
+    - name: Run tests
+      env:
+        DJANGO_SETTINGS_MODULE: chess_mate.test_settings
+        TESTING: True
+        STOCKFISH_PATH: /usr/games/stockfish
+      run: |
+        cd chess_mate
+        python -m pytest -v
+    
+    - name: Run linting
+      run: |
+        cd chess_mate
+        pip install flake8
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'frontend/package-lock.json'
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Run tests
+      run: |
+        cd frontend
+        npm test -- --watchAll=false
+    
+    - name: Run linting
+      run: |
+        cd frontend
+        npm run lint
+
+  build:
+    needs: [test-backend, test-frontend]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r chess_mate/requirements.txt
+        cd frontend
+        npm ci
+    
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm run build
+    
+    - name: Collect static files
+      env:
+        DJANGO_SETTINGS_MODULE: chess_mate.settings
+      run: |
+        cd chess_mate
+        python manage.py collectstatic --noinput
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-files
+        path: |
+          chess_mate/staticfiles/
+          frontend/build/ 

@@ -4,6 +4,7 @@
 [![GitHub forks](https://img.shields.io/github/forks/ahmed5145/chessmate.svg)](https://github.com/ahmed5145/chessmate/network)
 [![GitHub issues](https://img.shields.io/github/issues/ahmed5145/chessmate.svg)](https://github.com/ahmed5145/chessmate/issues)
 ![GitHub last commit](https://img.shields.io/github/last-commit/ahmed5145/chessmate)
+![CI Status](https://github.com/ahmed5145/chessmate/workflows/ChessMate%20CI/badge.svg)
 
 # ChessMate - Advanced Chess Game Analysis Platform
 
@@ -17,6 +18,8 @@ ChessMate is a sophisticated chess analysis platform that combines the power of 
 - [Code Organization](#code-organization)
 - [Usage](#usage)
 - [Testing](#testing)
+- [CI/CD](#cicd)
+- [Deployment](#deployment)
 - [API Documentation](#api-documentation)
 - [Contributing](#contributing)
 - [License](#license)
@@ -210,6 +213,50 @@ Each module has corresponding test files in the `/tests` directory ensuring comp
   cd frontend
   npm test
   ```
+
+## CI/CD
+
+ChessMate uses GitHub Actions for automated testing, building, and deployment pipelines:
+
+### Continuous Integration
+
+- **Backend Tests**: All Python code is automatically tested on every pull request and push to main branches
+- **Frontend Tests**: React components and integration tests are run automatically
+- **Linting**: Code quality checks ensure consistent style and prevent common issues
+- **Security Scanning**: Regular security scans identify potential vulnerabilities
+
+To view the CI pipeline status, check the Actions tab in the GitHub repository.
+
+### Continuous Deployment
+
+- **Staging Environment**: Changes merged to the `staging` branch are automatically deployed to the staging environment
+- **Production Environment**: Changes merged to the `main` branch are automatically deployed to production after approval
+- **Manual Deployment**: Deployment can also be triggered manually through GitHub Actions
+
+### Docker Support
+
+The application is containerized using Docker, with the following components:
+
+- **Backend Container**: Django application with Gunicorn
+- **Frontend Container**: React application served through Nginx
+- **Database Container**: PostgreSQL for data storage
+- **Redis Container**: For caching and Celery task queue
+- **Celery Container**: For background task processing
+
+To build and run the application using Docker:
+
+```bash
+# Build and start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop all services
+docker-compose down
+```
+
+## Deployment
 
 ## API Documentation
 
