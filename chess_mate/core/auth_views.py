@@ -305,80 +305,62 @@ def logout_view(request):
         raise InvalidOperationError("logout", "invalid or expired token")
 
 @api_view(['POST'])
+@api_error_handler
 def token_refresh_view(request):
     """Refresh the JWT access token using the refresh token."""
+    refresh_token = request.data.get('refresh')
+    if not refresh_token:
+        raise APIValidationError([{"field": "refresh", "message": "Refresh token is required"}])
+    
     try:
-        refresh_token = request.data.get('refresh')
-        if not refresh_token:
-            return Response(
-                {"error": "Refresh token is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
         # Validate and refresh token
-        try:
-            refresh = RefreshToken(refresh_token)
-            access_token = str(refresh.access_token)
-            
-            return Response(
-                {
-                    "access": access_token,
-                    "refresh": str(refresh)  # Optional: return a new refresh token too
-                },
-                status=status.HTTP_200_OK
-            )
-            
-        except Exception as e:
-            logger.error(f"Token refresh error: {str(e)}")
-            return Response(
-                {"error": "Invalid or expired refresh token"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-            
+        refresh = RefreshToken(refresh_token)
+        access_token = str(refresh.access_token)
+        
+        return create_success_response({
+            "access": access_token,
+            "refresh": str(refresh)  # Optional: return a new refresh token too
+        })
+        
     except Exception as e:
         logger.error(f"Token refresh error: {str(e)}")
-        return Response(
-            {"error": "An unexpected error occurred"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        raise InvalidOperationError("refresh token", "invalid or expired token")
 
 @rate_limit(endpoint_type='AUTH')
 @api_view(['POST'])
+@api_error_handler
 def request_password_reset(request):
     """Send password reset email with token."""
+    email = request.data.get('email')
+    if not email:
+        raise APIValidationError([{"field": "email", "message": "Email is required"}])
+    
     try:
-        email = request.data.get('email')
-        if not email:
-            return Response(
-                {"error": "Email is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            # We still return success to prevent email enumeration
-            return Response(
-                {"message": "Password reset link has been sent to your email if an account exists."},
-                status=status.HTTP_200_OK
-            )
-        
-        # Generate password reset token
-        token = default_token_generator.make_token(user)
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        
-        # Create reset link
-        current_site = get_current_site(request)
-        domain = current_site.domain
-        reset_link = f"http://{domain}/reset-password/{uid}/{token}/"
-        
-        # Prepare email content
-        mail_subject = 'Reset your ChessMate password'
-        message = render_to_string('email/password_reset_email.html', {
-            'user': user,
-            'reset_link': reset_link,
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        # We still return success to prevent email enumeration
+        # This is a security measure - don't let attackers know if an email exists
+        return create_success_response({
+            "message": "Password reset link has been sent to your email if an account exists."
         })
-        
+    
+    # Generate password reset token
+    token = default_token_generator.make_token(user)
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    
+    # Create reset link
+    current_site = get_current_site(request)
+    domain = current_site.domain
+    reset_link = f"http://{domain}/reset-password/{uid}/{token}/"
+    
+    # Prepare email content
+    mail_subject = 'Reset your ChessMate password'
+    message = render_to_string('email/password_reset_email.html', {
+        'user': user,
+        'reset_link': reset_link,
+    })
+    
+    try:
         # Send email
         send_mail(
             subject=mail_subject,
@@ -390,78 +372,65 @@ def request_password_reset(request):
         
         logger.info(f"Password reset email sent to {email}")
         
-        return Response(
-            {"message": "Password reset link has been sent to your email."},
-            status=status.HTTP_200_OK
-        )
-        
+        return create_success_response({
+            "message": "Password reset link has been sent to your email."
+        })
     except Exception as e:
-        logger.error(f"Password reset request error: {str(e)}")
-        return Response(
-            {"error": "An unexpected error occurred"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        logger.error(f"Failed to send password reset email: {str(e)}")
+        # We don't want to expose that the email exists, so return a success response
+        return create_success_response({
+            "message": "Password reset link has been sent to your email if an account exists."
+        })
 
 @rate_limit(endpoint_type='AUTH')
 @api_view(['POST'])
+@api_error_handler
 def reset_password(request):
     """Reset password using the token from the email link."""
+    uid = request.data.get('uid')
+    token = request.data.get('token')
+    new_password = request.data.get('new_password')
+    
+    # Validate required fields
+    errors = []
+    if not uid:
+        errors.append({"field": "uid", "message": "User ID is required"})
+    if not token:
+        errors.append({"field": "token", "message": "Token is required"})
+    if not new_password:
+        errors.append({"field": "new_password", "message": "New password is required"})
+    
+    if errors:
+        raise APIValidationError(errors)
+    
+    # Validate password complexity
     try:
-        uid = request.data.get('uid')
-        token = request.data.get('token')
-        new_password = request.data.get('new_password')
+        validate_password_complexity(new_password)
+    except DjangoValidationError as e:
+        raise APIValidationError([{"field": "new_password", "message": str(e)}])
+    
+    try:
+        # Get user from uid
+        user_id = force_str(urlsafe_base64_decode(uid))
+        user = User.objects.get(pk=user_id)
         
-        if not all([uid, token, new_password]):
-            return Response(
-                {"error": "All fields are required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Verify token
+        if not default_token_generator.check_token(user, token):
+            raise InvalidOperationError("reset password", "invalid or expired reset link")
         
-        # Validate password complexity
-        try:
-            validate_password_complexity(new_password)
-        except DjangoValidationError as e:
-            return Response(
-                {"error": str(e), "field": "password"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Set new password
+        user.set_password(new_password)
+        user.save()
         
-        try:
-            # Get user from uid
-            user_id = force_str(urlsafe_base64_decode(uid))
-            user = User.objects.get(pk=user_id)
-            
-            # Verify token
-            if not default_token_generator.check_token(user, token):
-                return Response(
-                    {"error": "Invalid or expired reset link."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Set new password
-            user.set_password(new_password)
-            user.save()
-            
-            logger.info(f"Password reset successful for user {user.email}")
-            
-            return Response(
-                {"message": "Password has been reset successfully."},
-                status=status.HTTP_200_OK
-            )
-            
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
-            logger.error(f"Password reset error: {str(e)}")
-            return Response(
-                {"error": "Invalid or expired reset link."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-    except Exception as e:
+        logger.info(f"Password reset successful for user {user.email}")
+        
+        return create_success_response({
+            "message": "Password has been reset successfully."
+        })
+        
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
         logger.error(f"Password reset error: {str(e)}")
-        return Response(
-            {"error": "An unexpected error occurred"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        raise InvalidOperationError("reset password", "invalid or expired reset link")
 
 @api_view(['GET'])
 def verify_email(request, uidb64, token):
@@ -480,6 +449,7 @@ def verify_email(request, uidb64, token):
                 return redirect('/login?verified=already')
             
             if profile.email_verification_token != token:
+                logger.warning(f"Invalid verification token for user {user.email}")
                 return render(request, 'email/verification_failed.html', {
                     'message': 'Invalid verification link.'
                 })
