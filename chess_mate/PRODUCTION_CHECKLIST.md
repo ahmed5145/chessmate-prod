@@ -9,10 +9,10 @@ This checklist outlines the steps required to prepare ChessMate for public relea
   - [ ] Check password handling and reset flows
   - [ ] Audit token management
   - [ ] Verify CSRF protection on all endpoints
-- [ ] Implement rate limiting for all endpoints
-  - [ ] Authentication endpoints
-  - [ ] Analysis endpoints
-  - [ ] API endpoints
+- [x] Implement rate limiting for all endpoints
+  - [x] Authentication endpoints
+  - [x] Analysis endpoints
+  - [x] API endpoints
 - [ ] Configure SSL/TLS
   - [ ] Obtain SSL certificate
   - [ ] Configure web server for HTTPS

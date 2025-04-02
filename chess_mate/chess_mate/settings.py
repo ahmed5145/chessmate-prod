@@ -72,6 +72,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.RequestValidationMiddleware',  # New validation middleware
+    'core.middleware.RateLimitMiddleware',  # Add rate limiting middleware
 ]
 
 ROOT_URLCONF = 'chess_mate.urls'
@@ -352,3 +353,72 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 3600
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# Add the following rate limiting configuration settings
+
+# Rate limiting configuration
+RATE_LIMIT_CONFIG = {
+    'DEFAULT': {'MAX_REQUESTS': 100, 'TIME_WINDOW': 3600},  # 100 requests per hour
+    'AUTH': {'MAX_REQUESTS': 20, 'TIME_WINDOW': 3600},      # 20 requests per hour
+    'GAME': {'MAX_REQUESTS': 50, 'TIME_WINDOW': 3600},      # 50 requests per hour
+    'ANALYSIS': {'MAX_REQUESTS': 30, 'TIME_WINDOW': 3600},  # 30 requests per hour
+    'FEEDBACK': {'MAX_REQUESTS': 20, 'TIME_WINDOW': 3600},  # 20 requests per hour
+    'PROFILE': {'MAX_REQUESTS': 60, 'TIME_WINDOW': 3600},   # 60 requests per hour
+    'DASHBOARD': {'MAX_REQUESTS': 60, 'TIME_WINDOW': 3600}, # 60 requests per hour
+}
+
+# Rate limiting patterns for different endpoint types
+RATE_LIMIT_PATTERNS = {
+    'AUTH': [
+        r'^/api/(register|login|logout|token/refresh|reset-password|verify-email)/?.*$',
+    ],
+    'GAME': [
+        r'^/api/games/?$',
+        r'^/api/games/fetch/?$',
+    ],
+    'ANALYSIS': [
+        r'^/api/games/\d+/analyze/?$',
+        r'^/api/games/\d+/analysis/?$',
+        r'^/api/batch-analyze/?$',
+    ],
+    'FEEDBACK': [
+        r'^/api/games/\d+/feedback/?$',
+        r'^/api/feedback/.*$',
+    ],
+    'PROFILE': [
+        r'^/api/profile/?.*$',
+        r'^/api/subscription/?.*$',
+        r'^/api/credits/?.*$',
+    ],
+    'DASHBOARD': [
+        r'^/api/dashboard/?.*$',
+    ],
+}
+
+# Paths excluded from rate limiting
+RATE_LIMIT_EXCLUDED_PATHS = [
+    r'^/api/health/?$',
+    r'^/api/csrf/?$',
+    r'^/api/docs/?.*$',
+    r'^/api/version/?$',
+]
+
+# Use Redis for rate limiting if available
+USE_REDIS = os.environ.get('USE_REDIS', 'False').lower() == 'true'
+
+# Cache configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'chessmate-cache',
+    }
+}
+
+if USE_REDIS:
+    CACHES['redis'] = {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }

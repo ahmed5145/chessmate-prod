@@ -8,12 +8,18 @@ import json
 import re
 import logging
 import uuid
-from typing import Any, Callable, Dict, List, Optional, Union
+import time
+from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import resolve
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.exceptions import ValidationError
+from django.conf import settings
+from django.utils.deprecation import MiddlewareMixin
+
+from .rate_limiter import RateLimiter
+from .error_handling import create_error_response
 
 logger = logging.getLogger(__name__)
 
@@ -326,4 +332,87 @@ class RequestValidationMiddleware:
         return JsonResponse(
             response_data,
             status=status.HTTP_400_BAD_REQUEST
-        ) 
+        )
+
+
+class RateLimitMiddleware:
+    """
+    Middleware that applies rate limiting to API requests based on endpoint patterns.
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+        try:
+            self.rate_limiter = RateLimiter()
+            self.endpoint_patterns = getattr(settings, 'RATE_LIMIT_PATTERNS', {})
+            logger.info("Rate limit middleware initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize rate limit middleware: {str(e)}")
+            self.rate_limiter = None
+            
+    def _get_endpoint_type(self, path: str) -> str:
+        """
+        Determine the endpoint type based on the request path.
+        Returns 'DEFAULT' if no matching pattern is found.
+        """
+        for endpoint_type, patterns in self.endpoint_patterns.items():
+            for pattern in patterns:
+                if re.match(pattern, path):
+                    return endpoint_type
+        return 'DEFAULT'
+            
+    def __call__(self, request):
+        if not self.rate_limiter:
+            return self.get_response(request)
+            
+        # Skip rate limiting for non-API requests
+        if not request.path.startswith('/api/'):
+            return self.get_response(request)
+            
+        # Skip rate limiting for excluded paths
+        excluded_paths = getattr(settings, 'RATE_LIMIT_EXCLUDED_PATHS', [])
+        for path in excluded_paths:
+            if re.match(path, request.path):
+                return self.get_response(request)
+        
+        # Determine client identifier (IP or user ID)
+        if request.user.is_authenticated:
+            client_id = f"user:{request.user.id}"
+        else:
+            client_id = f"ip:{request.META.get('REMOTE_ADDR', 'unknown')}"
+            
+        # Determine endpoint type and create rate limit key
+        endpoint_type = self._get_endpoint_type(request.path)
+        rate_limit_key = f"rate_limit:{client_id}:{endpoint_type}"
+        
+        # Check if rate limited
+        if self.rate_limiter.is_rate_limited(rate_limit_key, endpoint_type):
+            remaining_time = self.rate_limiter.get_reset_time(rate_limit_key, endpoint_type)
+            logger.warning(f"Rate limit exceeded for {client_id} on endpoint {request.path}")
+            
+            return create_error_response(
+                error_type="rate_limit_exceeded",
+                message=f"Rate limit exceeded. Please try again in {remaining_time} seconds.",
+                status_code=429,
+                details={
+                    "reset_time": remaining_time,
+                    "endpoint_type": endpoint_type
+                }
+            )
+            
+        # Process the request
+        response = self.get_response(request)
+        
+        # Add rate limit headers to response
+        try:
+            config = self.rate_limiter.get_rate_limit_config(endpoint_type)
+            remaining = self.rate_limiter.get_remaining_requests(rate_limit_key, endpoint_type)
+            reset_time = self.rate_limiter.get_reset_time(rate_limit_key, endpoint_type)
+            
+            response['X-RateLimit-Limit'] = str(config['MAX_REQUESTS'])
+            response['X-RateLimit-Remaining'] = str(remaining)
+            response['X-RateLimit-Reset'] = str(reset_time)
+        except Exception as e:
+            logger.error(f"Error adding rate limit headers: {str(e)}")
+            
+        return response

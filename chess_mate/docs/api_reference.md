@@ -8,6 +8,7 @@ This document provides detailed specifications for the ChessMate API endpoints.
 2. [Authentication API](#authentication-api)
 3. [Game Management API](#game-management-api)
 4. [Error Handling](#error-handling)
+5. [Rate Limiting](#rate-limiting)
 
 ## Standard Response Format
 
@@ -561,6 +562,60 @@ Request analysis for multiple games.
 ## Error Handling
 
 Please refer to the [Error Handling Documentation](error_handling.md) for detailed information about error codes, error response formats, and exception handling.
+
+## Rate Limiting
+
+The ChessMate API implements rate limiting to ensure fair usage and protect our infrastructure. Different types of endpoints have different rate limits.
+
+### Rate Limit Headers
+
+All API responses include the following headers:
+
+| Header               | Description                                           |
+|----------------------|-------------------------------------------------------|
+| X-RateLimit-Limit    | Maximum number of requests allowed in the time window |
+| X-RateLimit-Remaining| Number of requests remaining in the current window    |
+| X-RateLimit-Reset    | Time in seconds until the rate limit resets           |
+
+### Rate Limit Categories
+
+| Category  | Limit                  | Description                                |
+|-----------|------------------------|--------------------------------------------|
+| DEFAULT   | 100 requests per hour  | Default limit for uncategorized endpoints  |
+| AUTH      | 20 requests per hour   | Authentication-related endpoints           |
+| GAME      | 50 requests per hour   | Game retrieval and management endpoints    |
+| ANALYSIS  | 30 requests per hour   | Game analysis endpoints                    |
+| FEEDBACK  | 20 requests per hour   | AI feedback endpoints                      |
+| PROFILE   | 60 requests per hour   | User profile and subscription endpoints    |
+| DASHBOARD | 60 requests per hour   | Dashboard and analytics endpoints          |
+
+### Rate Limit Exceeded Response
+
+When a rate limit is exceeded, the API returns a 429 Too Many Requests response:
+
+```json
+{
+  "status": "error",
+  "code": "rate_limit_exceeded",
+  "message": "Rate limit exceeded. Please try again in 3600 seconds.",
+  "details": {
+    "reset_time": 3600,
+    "endpoint_type": "AUTH"
+  },
+  "request_id": "unique-request-id"
+}
+```
+
+### Best Practices
+
+To avoid hitting rate limits:
+
+1. Implement proper backoff and retry logic in your client
+2. Cache API responses when appropriate
+3. Use batch endpoints where available (e.g., `batch-analyze` instead of multiple `analyze` calls)
+4. Monitor the rate limit headers to track your usage
+
+For more detailed information, see the [Rate Limiting Documentation](rate_limiting.md).
 
 ---
 

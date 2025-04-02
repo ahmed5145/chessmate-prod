@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive documentation for validation and error handling
 - Complete API reference documentation with OpenAPI/Swagger UI
 - Script for generating OpenAPI specification from markdown documentation
+- Rate limiting middleware with configurable limits for different endpoint types
+- Detailed rate limiting documentation with best practices
 
 ### Improved
 - Enhanced API request security with input validation
@@ -32,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved debugging with request ID tracking
 - Standardized success response format
 - Better developer experience with interactive API documentation
+- API security with comprehensive rate limiting across all endpoints
+- Response headers with rate limit information for better client-side handling
 
 ## [0.9.0-beta] - 2025-04-01
 
@@ -101,4 +105,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic API endpoints
 - Initial documentation 
 
-*Last Updated: April 2, 2025*
+*Last Updated: April 5, 2025*
