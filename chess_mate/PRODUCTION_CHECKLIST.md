@@ -92,11 +92,10 @@ This checklist outlines the steps required to prepare ChessMate for public relea
 
 ## Documentation
 
-- [ ] API documentation
-  - [ ] Document all API endpoints
-  - [ ] Generate OpenAPI/Swagger documentation
-  - [x] Provide example requests and responses
-  - [x] Implement request validation for all endpoints
+- [ ] API Documentation
+  - [x] Generate OpenAPI/Swagger documentation
+  - [x] Create API reference documentation
+  - [ ] Update README with API usage examples
 - [ ] User documentation
   - [ ] Create user guides
   - [ ] Document common workflows
@@ -168,4 +167,4 @@ This checklist outlines the steps required to prepare ChessMate for public relea
 
 ---
 
-*Last Updated: April 1, 2025*
+*Last Updated: April 5, 2025*

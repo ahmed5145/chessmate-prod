@@ -12,15 +12,20 @@ from typing import Dict, Any
 
 # Django imports
 from django.conf import settings
-from django.http import HttpRequest, JsonResponse
+from django.http import HttpRequest, JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.db import connection
+from django.shortcuts import render
+from django.utils import timezone
 
 # Third-party imports
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
+
+# Local application imports
+from .error_handling import api_error_handler, create_success_response
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -36,33 +41,14 @@ def csrf(request):
 @api_view(["GET"])
 def health_check(request):
     """
-    Health check endpoint to verify the API is running.
+    Health check endpoint for monitoring and load balancers.
     """
-    try:
-        # Check database connection
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-            db_status = cursor.fetchone()[0] == 1
-            
-        # Get system information
-        system_info = {
-            "python_version": sys.version,
-            "platform": sys.platform,
-            "api_version": getattr(settings, "API_VERSION", "1.0.0"),
-            "debug_mode": settings.DEBUG
-        }
-        
-        return Response({
-            "status": "healthy",
-            "database": "connected" if db_status else "error",
-            "system_info": system_info
-        })
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        return Response({
-            "status": "unhealthy",
-            "error": str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return JsonResponse({
+        "status": "healthy",
+        "timestamp": timezone.now().isoformat(),
+        "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT
+    })
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -219,9 +205,50 @@ def get_server_time(request):
     Get the current server time.
     Useful for debugging time-related issues.
     """
-    from django.utils import timezone
-    
     return Response({
         "server_time": timezone.now().isoformat(),
         "timezone": str(timezone.get_current_timezone())
-    }) 
+    })
+
+@api_view(['GET'])
+@api_error_handler
+def version_check(request):
+    """
+    Return the current API version.
+    """
+    return create_success_response({
+        "version": settings.VERSION,
+        "release_date": settings.RELEASE_DATE,
+        "environment": settings.ENVIRONMENT
+    })
+
+@api_view(['GET'])
+def api_documentation(request):
+    """
+    Serve API documentation using Swagger UI.
+    """
+    return render(request, 'api/swagger.html', {
+        'title': 'ChessMate API Documentation',
+        'openapi_url': settings.STATIC_URL + 'openapi.json'
+    })
+
+@api_view(['GET'])
+def openapi_spec(request, format='json'):
+    """
+    Serve the OpenAPI specification in JSON or YAML format.
+    """
+    if format not in ['json', 'yaml']:
+        return HttpResponse(status=404)
+    
+    static_dir = os.path.join(settings.BASE_DIR, 'static')
+    file_path = os.path.join(static_dir, f'openapi.{format}')
+    
+    try:
+        with open(file_path, 'r') as f:
+            content = f.read()
+            
+        content_type = 'application/json' if format == 'json' else 'application/yaml'
+        return HttpResponse(content, content_type=content_type)
+    except FileNotFoundError:
+        logger.error(f"OpenAPI specification file not found: {file_path}")
+        return HttpResponse("OpenAPI specification not found", status=404) 

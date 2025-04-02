@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized error handling system with custom exception classes
 - Request ID tracking for improved debugging and traceability
 - Comprehensive documentation for validation and error handling
+- Complete API reference documentation with OpenAPI/Swagger UI
+- Script for generating OpenAPI specification from markdown documentation
 
 ### Improved
 - Enhanced API request security with input validation
@@ -29,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom exception classes for common error scenarios
 - Improved debugging with request ID tracking
 - Standardized success response format
+- Better developer experience with interactive API documentation
 
 ## [0.9.0-beta] - 2025-04-01
 
@@ -97,3 +100,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Database models
 - Basic API endpoints
 - Initial documentation 
+
+*Last Updated: April 2, 2025*

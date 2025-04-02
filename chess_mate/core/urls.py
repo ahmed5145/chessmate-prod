@@ -57,7 +57,12 @@ urlpatterns = [
     path('api/health/', util_views.health_check, name='health_check'),
     path('api/info/', util_views.api_info, name='api_info'),
     path('api/constants/', util_views.get_system_constants, name='get_system_constants'),
-    path('api/version/', util_views.check_version, name='check_version'),
+    path('api/version/', util_views.version_check, name='version_check'),
     path('api/time/', util_views.get_server_time, name='get_server_time'),
     path('api/debug/', util_views.debug_request, name='debug_request'),
+    
+    # API Documentation
+    path('api/docs/', util_views.api_documentation, name='api_docs'),
+    path('api/docs/openapi.json', util_views.openapi_spec, {'format': 'json'}, name='openapi_json'),
+    path('api/docs/openapi.yaml', util_views.openapi_spec, {'format': 'yaml'}, name='openapi_yaml'),
 ]
