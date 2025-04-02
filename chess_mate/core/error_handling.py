@@ -238,10 +238,13 @@ def custom_exception_handler(exc: Exception, context: Dict) -> JsonResponse:
     request = context.get('request')
     request_id = getattr(request, 'request_id', None)
     
+    # Get the error message - handle different data types
+    error_message = str(response.data) if not isinstance(response.data, dict) else str(response.data.get('detail', ''))
+    
     response_data = ERROR_RESPONSE_STRUCTURE.copy()
     response_data.update({
         "code": ERROR_CODES.get(error_type, ERROR_CODES["internal_error"]),
-        "message": str(response.data),
+        "message": error_message,
         "details": response.data if isinstance(response.data, dict) else None,
         "request_id": request_id
     })

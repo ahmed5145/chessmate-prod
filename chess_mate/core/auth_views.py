@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional
 # Django imports
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -39,6 +39,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Profile
 from .validators import validate_password_complexity
 from .decorators import rate_limit
+from .error_handling import (
+    api_error_handler, create_success_response, create_error_response,
+    ValidationError as APIValidationError, ResourceNotFoundError,
+    InvalidOperationError, CreditLimitError
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -68,76 +73,152 @@ def csrf(request):
 @rate_limit(endpoint_type='AUTH')
 @api_view(['POST'])
 @csrf_exempt  # Exempt registration from CSRF
+@api_error_handler
 def register_view(request):
     """Handle user registration with email verification."""
     response = Response()  # Create response object early to add CORS headers
     response["Access-Control-Allow-Origin"] = request.headers.get('origin', '*')
     response["Access-Control-Allow-Credentials"] = 'true'
     
+    data = request.data
+    username = data.get("username")
+    email = data.get("email")
+    password = data.get("password")
+
+    # Validate required fields
+    if not all([username, email, password]):
+        errors = []
+        if not username:
+            errors.append({"field": "username", "message": "Username is required"})
+        if not email:
+            errors.append({"field": "email", "message": "Email is required"})
+        if not password:
+            errors.append({"field": "password", "message": "Password is required"})
+        raise APIValidationError(errors)
+
+    # Validate email format
     try:
-        data = request.data
-        username = data.get("username")
-        email = data.get("email")
-        password = data.get("password")
+        validate_email(email)
+    except DjangoValidationError as e:
+        raise APIValidationError([{"field": "email", "message": str(e)}])
 
-        # Validate required fields
-        if not all([username, email, password]):
-            return Response(
-                {"error": "All fields are required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    # Check if email already exists
+    if User.objects.filter(email=email).exists():
+        raise APIValidationError([{"field": "email", "message": "Email already registered"}])
 
-        # Validate email format
+    # Check if username already exists
+    if User.objects.filter(username=username).exists():
+        raise APIValidationError([{"field": "username", "message": "Username already taken"}])
+
+    # Validate password complexity
+    try:
+        validate_password_complexity(password)
+    except DjangoValidationError as e:
+        raise APIValidationError([{"field": "password", "message": str(e)}])
+
+    # Create user
+    try:
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            is_active=True  # User is active but email not verified
+        )
+        
+        # Create profile
+        profile = Profile.objects.create(
+            user=user,
+            email_verified=False,
+            email_verification_token=EmailVerificationToken.generate_token(),
+            email_verification_sent_at=timezone.now()
+        )
+        
+        # Send verification email
         try:
-            validate_email(email)
-        except ValidationError as e:
-            return Response(
-                {"error": str(e), "field": "email"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Check if email already exists
-        if User.objects.filter(email=email).exists():
-            return Response(
-                {"error": "Email already registered.", "field": "email"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Check if username already exists
-        if User.objects.filter(username=username).exists():
-            return Response(
-                {"error": "Username already taken.", "field": "username"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Validate password complexity
-        try:
-            validate_password_complexity(password)
-        except ValidationError as e:
-            return Response(
-                {"error": str(e), "field": "password"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Create user
-        try:
-            user = User.objects.create_user(
-                username=username,
-                email=email,
-                password=password,
-                is_active=True  # User is active but email not verified
+            # Get domain from request
+            current_site = get_current_site(request)
+            domain = current_site.domain
+            
+            # Create verification URL
+            uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+            token = profile.email_verification_token
+            verification_link = f"http://{domain}/api/verify-email/{uidb64}/{token}/"
+            
+            # Prepare email content
+            mail_subject = 'Activate your ChessMate account'
+            message = render_to_string('email/account_activation_email.html', {
+                'user': user,
+                'verification_link': verification_link,
+            })
+            
+            # Send email
+            send_mail(
+                subject=mail_subject,
+                message=strip_tags(message),
+                from_email=None,  # Use DEFAULT_FROM_EMAIL from settings
+                recipient_list=[email],
+                html_message=message,
             )
             
-            # Create profile
-            profile = Profile.objects.create(
-                user=user,
-                email_verified=False,
-                email_verification_token=EmailVerificationToken.generate_token(),
-                email_verification_sent_at=timezone.now()
-            )
-            
-            # Send verification email
-            try:
+            logger.info(f"Verification email sent to {email}")
+        except Exception as email_error:
+            logger.error(f"Error sending verification email: {str(email_error)}")
+            # Registration is still successful even if email fails
+        
+        # Registration successful
+        return create_success_response(
+            {
+                "message": "Registration successful! Please check your email to verify your account.",
+                "email": email
+            },
+            status_code=status.HTTP_201_CREATED
+        )
+        
+    except IntegrityError as e:
+        logger.error(f"Error creating user: {str(e)}")
+        raise InvalidOperationError("register user", "database integrity error")
+
+@rate_limit(endpoint_type='AUTH')
+@api_view(['POST'])
+@api_error_handler
+def login_view(request):
+    """Handle user login and return JWT tokens."""
+    data = request.data
+    email = data.get("email")
+    password = data.get("password")
+    
+    if not email or not password:
+        errors = []
+        if not email:
+            errors.append({"field": "email", "message": "Email is required"})
+        if not password:
+            errors.append({"field": "password", "message": "Password is required"})
+        raise APIValidationError(errors)
+    
+    # Get user by email
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        # We use a generic message for security reasons
+        raise InvalidOperationError("authenticate", "invalid credentials")
+    
+    # Authenticate user
+    user = authenticate(username=user.username, password=password)
+    if user is None:
+        raise InvalidOperationError("authenticate", "invalid credentials")
+    
+    # Check if email is verified
+    try:
+        profile = Profile.objects.get(user=user)
+        if not profile.email_verified:
+            # Re-send verification email if needed
+            if profile.email_verification_sent_at is None or \
+               (timezone.now() - profile.email_verification_sent_at).days > 1:
+                # Update token and sent timestamp
+                profile.email_verification_token = EmailVerificationToken.generate_token()
+                profile.email_verification_sent_at = timezone.now()
+                profile.save()
+                
                 # Get domain from request
                 current_site = get_current_site(request)
                 domain = current_site.domain
@@ -159,184 +240,69 @@ def register_view(request):
                     subject=mail_subject,
                     message=strip_tags(message),
                     from_email=None,  # Use DEFAULT_FROM_EMAIL from settings
-                    recipient_list=[email],
+                    recipient_list=[user.email],
                     html_message=message,
                 )
                 
-                logger.info(f"Verification email sent to {email}")
-            except Exception as email_error:
-                logger.error(f"Error sending verification email: {str(email_error)}")
-                # Registration is still successful even if email fails
+                logger.info(f"Verification email resent to {user.email}")
             
-            # Registration successful
-            return Response(
-                {
-                    "message": "Registration successful! Please check your email to verify your account.",
-                    "email": email
-                },
-                status=status.HTTP_201_CREATED
+            # Return error response about unverified email
+            return create_error_response(
+                error_type="authentication_failed",
+                message="Email not verified. Please check your inbox for the verification link.",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                details={"email_verified": False, "email": user.email}
             )
-            
-        except IntegrityError as e:
-            logger.error(f"Error creating user: {str(e)}")
-            return Response(
-                {"error": "An error occurred during registration. Please try again."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-            
-    except Exception as e:
-        logger.error(f"Registration error: {str(e)}")
-        return Response(
-            {"error": "An unexpected error occurred."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-
-@rate_limit(endpoint_type='AUTH')
-@api_view(['POST'])
-def login_view(request):
-    """Handle user login and return JWT tokens."""
-    try:
-        data = request.data
-        email = data.get("email")
-        password = data.get("password")
-        
-        if not email or not password:
-            return Response(
-                {"error": "Email and password are required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Get user by email
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return Response(
-                {"error": "Invalid email or password"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-        
-        # Authenticate user
-        user = authenticate(username=user.username, password=password)
-        if user is None:
-            return Response(
-                {"error": "Invalid email or password"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-        
-        # Check if email is verified
-        try:
-            profile = Profile.objects.get(user=user)
-            if not profile.email_verified:
-                # Re-send verification email if needed
-                if profile.email_verification_sent_at is None or \
-                   (timezone.now() - profile.email_verification_sent_at).days > 1:
-                    # Update token and sent timestamp
-                    profile.email_verification_token = EmailVerificationToken.generate_token()
-                    profile.email_verification_sent_at = timezone.now()
-                    profile.save()
-                    
-                    # Get domain from request
-                    current_site = get_current_site(request)
-                    domain = current_site.domain
-                    
-                    # Create verification URL
-                    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
-                    token = profile.email_verification_token
-                    verification_link = f"http://{domain}/api/verify-email/{uidb64}/{token}/"
-                    
-                    # Prepare email content
-                    mail_subject = 'Activate your ChessMate account'
-                    message = render_to_string('email/account_activation_email.html', {
-                        'user': user,
-                        'verification_link': verification_link,
-                    })
-                    
-                    # Send email
-                    send_mail(
-                        subject=mail_subject,
-                        message=strip_tags(message),
-                        from_email=None,  # Use DEFAULT_FROM_EMAIL from settings
-                        recipient_list=[user.email],
-                        html_message=message,
-                    )
-                    
-                    logger.info(f"Verification email re-sent to {user.email}")
-                
-                return Response(
-                    {"error": "Please verify your email before logging in. Check your inbox for the verification link."},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-        except Profile.DoesNotExist:
-            # Create profile if it doesn't exist
-            profile = Profile.objects.create(user=user, email_verified=True)
-        
-        # Generate tokens
-        refresh = RefreshToken.for_user(user)
-        tokens = {
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-        }
-        
-        # Get user data
-        user_data = {
+    except Profile.DoesNotExist:
+        raise ResourceNotFoundError("User profile")
+    
+    # Generate tokens
+    refresh = RefreshToken.for_user(user)
+    
+    # Record login time and save user
+    user.last_login = timezone.now()
+    user.save()
+    
+    # Return tokens
+    return create_success_response({
+        "refresh": str(refresh),
+        "access": str(refresh.access_token),
+        "user": {
             "id": user.id,
             "username": user.username,
-            "email": user.email
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name
         }
-        
-        # Login user in session (for session-based views)
-        login(request, user)
-        
-        return Response(
-            {
-                "message": "Login successful!",
-                "tokens": tokens,
-                "user": user_data
-            },
-            status=status.HTTP_200_OK
-        )
-        
-    except Exception as e:
-        logger.error(f"Login error: {str(e)}")
-        return Response(
-            {"error": "An unexpected error occurred"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+    })
 
 @api_view(['POST'])
+@api_error_handler
 def logout_view(request):
-    """Handle user logout and blacklist the refresh token."""
+    """Handle user logout by blacklisting the refresh token."""
+    data = request.data
+    refresh_token = data.get('refresh')
+    
+    if not refresh_token:
+        raise APIValidationError([{"field": "refresh", "message": "Refresh token is required"}])
+    
     try:
-        # Get refresh token from request
-        refresh_token = request.data.get('refresh_token')
-        if not refresh_token:
-            return Response(
-                {"error": "Refresh token is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Get token from request
+        token = RefreshToken(refresh_token)
         
-        # Blacklist the token
-        try:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-        except Exception as e:
-            logger.error(f"Error blacklisting token: {str(e)}")
-            # We still want to log the user out even if token blacklisting fails
+        # Add to blacklist
+        token.blacklist()
         
-        # Logout user from session
+        # Also handle session logout if relevant
         logout(request)
         
-        return Response(
-            {"message": "Logout successful!"},
-            status=status.HTTP_200_OK
+        return create_success_response(
+            message="Logged out successfully"
         )
-        
     except Exception as e:
-        logger.error(f"Logout error: {str(e)}")
-        return Response(
-            {"error": "An unexpected error occurred"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        # Token might be invalid or already blacklisted
+        logger.warning(f"Error blacklisting token: {str(e)}")
+        raise InvalidOperationError("logout", "invalid or expired token")
 
 @api_view(['POST'])
 def token_refresh_view(request):
@@ -454,7 +420,7 @@ def reset_password(request):
         # Validate password complexity
         try:
             validate_password_complexity(new_password)
-        except ValidationError as e:
+        except DjangoValidationError as e:
             return Response(
                 {"error": str(e), "field": "password"},
                 status=status.HTTP_400_BAD_REQUEST

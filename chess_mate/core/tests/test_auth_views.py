@@ -9,6 +9,9 @@ from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from rest_framework import status
 from unittest.mock import patch, MagicMock
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
 
 from ..models import Profile
 from .. import auth_views
@@ -245,3 +248,64 @@ class TestAuthViews:
         assert 'detail' in response.data
         # Check if CSRF cookie was set
         assert 'csrftoken' in response.cookies 
+
+@pytest.mark.django_db
+class TestErrorHandling:
+    """Test the standardized error handling in auth views."""
+    
+    def test_validation_error_format(self, api_client):
+        """Test that validation errors follow the standard format."""
+        # Test with missing fields in registration
+        url = reverse('register')
+        response = api_client.post(url, {}, format='json')
+        
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        data = response.json()
+        # Check error response structure
+        assert data['status'] == 'error'
+        assert 'code' in data
+        assert 'message' in data
+        assert 'details' in data
+        assert 'request_id' in data
+        
+        # Check that specific validation errors are included
+        errors = data['details']['errors']
+        fields = [error['field'] for error in errors]
+        assert 'username' in fields
+        assert 'email' in fields
+        assert 'password' in fields
+    
+    def test_auth_error_format(self, api_client):
+        """Test that authentication errors follow the standard format."""
+        # Try to login with invalid credentials
+        url = reverse('login')
+        response = api_client.post(url, {
+            'email': 'nonexistent@example.com',
+            'password': 'wrongpassword'
+        }, format='json')
+        
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        data = response.json()
+        # Check error response structure
+        assert data['status'] == 'error'
+        assert 'code' in data
+        assert 'message' in data
+        assert 'invalid credentials' in data['message'].lower()
+    
+    def test_success_response_format(self, api_client):
+        """Test that success responses follow the standard format."""
+        # Register a new user
+        url = reverse('register')
+        response = api_client.post(url, {
+            'username': 'testuser',
+            'email': 'test@example.com',
+            'password': 'SecurePassword123!'
+        }, format='json')
+        
+        assert response.status_code == status.HTTP_201_CREATED
+        data = response.json()
+        # Check success response structure
+        assert data['status'] == 'success'
+        assert 'data' in data
+        assert 'email' in data['data'] 
+        assert data['data']['email'] == 'test@example.com' 
