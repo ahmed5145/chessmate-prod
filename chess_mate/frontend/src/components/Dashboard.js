@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  ChevronRight, 
-  PieChart, 
-  Clock, 
-  Target, 
-  Award, 
-  TrendingUp, 
-  Brain, 
+import {
+  ChevronRight,
+  PieChart,
+  Clock,
+  Target,
+  Award,
+  TrendingUp,
+  Brain,
   Zap,
   Crown,
   BarChart2,
@@ -33,7 +33,7 @@ import LoadingSpinner from './LoadingSpinner';
 const StatCard = ({ title, value, icon: Icon, trend, color = 'indigo' }) => {
   const { isDarkMode } = useTheme();
   const trendColor = trend > 0 ? 'text-green-500' : trend < 0 ? 'text-red-500' : 'text-gray-500';
-  
+
   return (
     <div className={`p-4 rounded-xl transition-all duration-200 hover:scale-[1.02] ${
       isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
@@ -59,7 +59,7 @@ const StatCard = ({ title, value, icon: Icon, trend, color = 'indigo' }) => {
 
 const QuickAction = ({ title, icon: Icon, description, to, color }) => {
   const { isDarkMode } = useTheme();
-  
+
   return (
     <Link
       to={to}
@@ -87,7 +87,7 @@ const QuickAction = ({ title, icon: Icon, description, to, color }) => {
 
 const InsightCard = ({ title, insights, icon: Icon }) => {
   const { isDarkMode } = useTheme();
-  
+
   return (
     <div className={`p-6 rounded-xl ${
       isDarkMode ? 'bg-gray-800' : 'bg-white'
@@ -123,7 +123,7 @@ const InsightCard = ({ title, insights, icon: Icon }) => {
 const RecentGameCard = ({ game }) => {
   const { isDarkMode } = useTheme();
   const { user } = useUser();
-  
+
   return (
     <Link
       to={`/game/${game.id}/analysis`}
@@ -140,7 +140,7 @@ const RecentGameCard = ({ game }) => {
               vs {game.opponent || (game.white === user?.username ? game.black : game.white) || 'Unknown'}
             </h3>
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-              game.result === 'win' 
+              game.result === 'win'
                 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                 : game.result === 'loss'
                 ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
@@ -203,14 +203,14 @@ const RecentGameCard = ({ game }) => {
 /*
 const RatingsSection = ({ ratings }) => {
   const { isDarkMode } = useTheme();
-  
+
   const ratingCards = [
     { title: 'Bullet', value: ratings?.bullet || 1200, icon: Timer, color: 'red' },
     { title: 'Blitz', value: ratings?.blitz || 1200, icon: Zap, color: 'orange' },
     { title: 'Rapid', value: ratings?.rapid || 1200, icon: Clock, color: 'green' },
     { title: 'Classical', value: ratings?.classical || 1200, icon: Brain, color: 'blue' }
   ];
-  
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {ratingCards.map(({ title, value, icon: Icon, color }) => (
@@ -261,14 +261,14 @@ const Dashboard = () => {
     const handleGameImported = () => {
       refreshDashboardData();
     };
-    
+
     const handleCreditUpdate = () => {
       refreshDashboardData();
     };
 
     window.addEventListener('game-imported', handleGameImported);
     window.addEventListener('credits-updated', handleCreditUpdate);
-    
+
     return () => {
       window.removeEventListener('game-imported', handleGameImported);
       window.removeEventListener('credits-updated', handleCreditUpdate);

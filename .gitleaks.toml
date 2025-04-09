@@ -1,0 +1,99 @@
+# GitLeaks configuration file
+# https://github.com/zricethezav/gitleaks/wiki/Configuration
+
+title = "ChessMate Gitleaks Config"
+
+# Extend the default gitleaks config
+[extend]
+useDefault = true
+
+# Allowed specific test secrets
+[[allowlist.paths]]
+path = '''tests/test_data/'''
+
+# Allowed specific test secrets fixtures
+[[allowlist.paths]]
+path = '''conftest.py'''
+
+# Custom regex rules for ChessMate secrets
+[[rules]]
+id = "chessmate-stockfish-path"
+description = "Stockfish path in settings"
+regex = '''STOCKFISH_PATH.*=.*(\/|\\)stockfish'''
+secretGroup = 1
+severity = "medium"
+
+[[rules]]
+id = "chessmate-api-key"
+description = "ChessMate API key"
+regex = '''(?i)CHESSMATE_API_KEY.*=.*(['"])([0-9a-f]{32,})(['"])'''
+secretGroup = 2
+severity = "high"
+
+[[rules]]
+id = "chess-com-api-key"
+description = "Chess.com API key"
+regex = '''(?i)CHESS_COM_API_KEY.*=.*(['"])([0-9a-f]{32,})(['"])'''
+secretGroup = 2
+severity = "high"
+
+[[rules]]
+id = "lichess-api-key"
+description = "Lichess API key"
+regex = '''(?i)LICHESS_API_KEY.*=.*(['"])([a-zA-Z0-9]{32,})(['"])'''
+secretGroup = 2
+severity = "high"
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API key"
+regex = '''(?i)(openai|OPENAI_API_KEY).*?[=:].*(sk-[a-zA-Z0-9]{32,})'''
+secretGroup = 2
+severity = "high"
+
+[[rules]]
+id = "stripe-key"
+description = "Stripe API key"
+regex = '''(?i)(stripe|STRIPE_SECRET_KEY).*?[=:].*(sk_live_[a-zA-Z0-9]{24,})'''
+secretGroup = 2
+severity = "high"
+
+[[rules]]
+id = "aws-key"
+description = "AWS keys"
+regex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
+severity = "high"
+
+[[rules]]
+id = "redis-password"
+description = "Redis password"
+regex = '''(?i)REDIS_PASSWORD.*?[=:].*(["'\s])(?P<secret>[a-zA-Z0-9!@#$%^&*()_+-=]{8,})(\1)'''
+secretGroup = 2
+severity = "high"
+
+[[rules]]
+id = "django-secret-key"
+description = "Django secret key"
+regex = '''(?i)(SECRET_KEY|DJANGO_SECRET_KEY).*?[=:].*(["'\s])(?P<secret>[a-zA-Z0-9!@#$%^&*()_+=-]{16,})(\2)'''
+secretGroup = 3
+severity = "high"
+
+[[rules]]
+id = "jwt-secret"
+description = "JWT secret key"
+regex = '''(?i)(JWT_SECRET|JWT_SECRET_KEY).*?[=:].*(["'\s])(?P<secret>[a-zA-Z0-9!@#$%^&*()_+-=]{8,})(\2)'''
+secretGroup = 3
+severity = "high"
+
+# Allow list rules
+[[allowlist.regexes]]
+description = "Local placeholder secrets like xxx or 123"
+regex = '''['"](?:xxx+|test|secret|password|key|token|unused|not_used|placeholder|example|sample|dummy)['"]'''
+
+[[allowlist.regexes]]
+description = "Skip dummy API keys"
+regex = '''['"](?:sk_test_|pk_test_|example|sample|test_)[a-zA-Z0-9_]+['"]'''
+
+[[allowlist.regexes]]
+description = "Ignore localhost connections"
+regex = '''(?i)://localhost[:/]'''

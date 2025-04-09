@@ -1,16 +1,20 @@
 """Redis connection manager for ChessMate."""
-from typing import Optional
-import redis
-from redis.connection import ConnectionPool
+
 import logging
 import os
 import threading
 from contextlib import contextmanager
+from typing import Optional
+
+import redis
+from redis.connection import ConnectionPool
 
 logger = logging.getLogger(__name__)
 
+
 class RedisManager:
     """Singleton Redis connection manager with connection pooling."""
+
     _instance = None
     _lock = threading.Lock()
     _pool = None
@@ -37,7 +41,7 @@ class RedisManager:
     def _initialize_pool(self):
         """Initialize the Redis connection pool with optimized settings."""
         try:
-            redis_url = os.getenv('REDIS_URL')
+            redis_url = os.getenv("REDIS_URL")
             if not redis_url:
                 raise ValueError("REDIS_URL environment variable not set")
 
@@ -49,7 +53,7 @@ class RedisManager:
                 socket_keepalive=True,
                 retry_on_timeout=True,
                 health_check_interval=30,
-                decode_responses=True
+                decode_responses=True,
             )
             logger.info(f"Redis connection pool initialized with {self._MAX_CONNECTIONS} max connections")
         except Exception as e:
@@ -96,5 +100,6 @@ class RedisManager:
         """Ensure connections are cleaned up on deletion."""
         self.close_all()
 
+
 # Global instance
-redis_manager = RedisManager() 
+redis_manager = RedisManager()

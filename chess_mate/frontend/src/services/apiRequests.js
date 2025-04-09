@@ -1,77 +1,102 @@
 import api from './api';
 import { toast } from 'react-hot-toast';
+import { refreshTokens, getAccessToken, getRefreshToken, setTokens } from './authService';
+import { API_URL } from '../config';
+
+// Define API base URL
+const API_BASE_URL = API_URL;
 
 // Authentication functions
 export const loginUser = async (email, password) => {
     try {
-        // Clear any existing tokens
-        localStorage.removeItem('tokens');
+        console.log('Logging in user with email:', email);
+        const response = await api.post("/api/v1/auth/login/", { email, password });
+        console.log('Login response:', response.data);
         
-        // Attempt login
-        const response = await api.post('/api/login/', {
-            email,
-            password
-        });
-
-        // Handle successful login
-        if (response.data?.tokens) {
-            localStorage.setItem('tokens', JSON.stringify(response.data.tokens));
-            api.defaults.headers.common['Authorization'] = `Bearer ${response.data.tokens.access}`;
-            
-            // Fetch user profile
-            try {
-                const profileResponse = await api.get('/api/profile/');
-                return {
-                    success: true,
-                    data: {
-                        ...response.data,
-                        profile: profileResponse.data
-                    }
-                };
-            } catch (profileError) {
-                console.error('Error fetching profile:', profileError);
-                // Still return success even if profile fetch fails
-                return {
-                    success: true,
-                    data: response.data
-                };
-            }
+        // Check the response structure
+        if (!response.data) {
+            throw new Error("Invalid response from server");
         }
         
-        throw new Error('Invalid response format');
-    } catch (error) {
-        console.error('Login error:', error);
+        // Handle response in standard format: { status: 'success', data: {...} }
+        let userData = null;
+        let accessToken = null;
+        let refreshToken = null;
         
-        // Handle specific error cases
-        const errorMessage = error.response?.data?.detail || 
-                           error.response?.data?.error ||
-                           error.message ||
-                           'An error occurred during login';
-                           
-        toast.error(errorMessage);
+        // Extract tokens and user data from different possible response formats
+        if (response.data.status === 'success' && response.data.data) {
+            // Standard API format with status and data fields
+            accessToken = response.data.data.access || null;
+            refreshToken = response.data.data.refresh || null;
+            userData = response.data.data.user || null;
+        } else {
+            // Direct format with access, refresh, and user fields
+            accessToken = response.data.access || null;
+            refreshToken = response.data.refresh || null;
+            userData = response.data.user || null;
+        }
         
+        // Validate that we have the necessary data
+        if (!accessToken || !refreshToken) {
+            console.error('Missing tokens in response:', response.data);
+            throw new Error("Authentication tokens not found in server response");
+        }
+        
+        // Store tokens in localStorage
+        localStorage.setItem('tokens', JSON.stringify({
+            access: accessToken,
+            refresh: refreshToken
+        }));
+        
+        // Set default Authorization header
+        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+        
+        console.log('Login successful, user data:', userData);
+
         return {
-            success: false,
-            error: errorMessage
+            success: true,
+            user: userData || {}
         };
+    } catch (error) {
+        console.error('Login error details:', error);
+        // Provide specific error messages based on status codes
+        if (error.response?.status === 401) {
+            throw new Error("Invalid credentials");
+        } else if (error.response?.status === 403) {
+            throw new Error("Account is locked or requires verification");
+        } else if (error.response?.status === 429) {
+            throw new Error("Too many login attempts. Please try again later.");
+        }
+        
+        // Handle error messages from backend
+        if (error.response?.data?.message) {
+            throw new Error(error.response.data.message);
+        } else if (error.response?.data?.error) {
+            throw new Error(error.response.data.error);
+        } else if (error.message) {
+            throw new Error(error.message);
+        }
+        
+        throw new Error("Login failed, please try again");
     }
 };
 
 export const logoutUser = async () => {
     try {
-        const tokens = localStorage.getItem('tokens');
-        if (tokens) {
-            const parsedTokens = JSON.parse(tokens);
-            // First remove tokens from localStorage to prevent any race conditions
+        const tokens = JSON.parse(localStorage.getItem('tokens') || '{}');
+        
+        if (tokens.refresh) {
+            await api.post("/api/v1/auth/logout/", { refresh: tokens.refresh });
+        }
+        
+        // Clear tokens regardless of server response
             localStorage.removeItem('tokens');
             delete api.defaults.headers.common['Authorization'];
-            
-            // Then blacklist the token on the server
-            await api.post('/api/logout/', { refresh_token: parsedTokens.refresh });
-        }
+
         return true;
     } catch (error) {
         console.error('Logout error:', error);
+        
         // Even if the server request fails, we want to clear local storage
         localStorage.removeItem('tokens');
         delete api.defaults.headers.common['Authorization'];
@@ -81,13 +106,23 @@ export const logoutUser = async () => {
 
 export const registerUser = async (userData) => {
     try {
-        const response = await api.post("/api/register/", userData);
+        const response = await api.post("/api/v1/auth/register/", userData);
+        console.log('Registration response:', response.data);
+        
+        // Check for standard success structure
+        if (response.data && response.data.status === 'success') {
+            // Return the data object that contains the tokens
+            return response.data.data;
+        }
+        
+        // If it's not in standard format, return the full response data
         return response.data;
     } catch (error) {
+        console.error('Registration error details:', error.response?.data || error);
         if (error.response?.status === 400) {
             throw error.response.data;
         }
-        throw new Error("Registration failed");
+        throw new Error(error.response?.data?.message || "Registration failed");
     }
 };
 
@@ -95,15 +130,52 @@ export const registerUser = async (userData) => {
 export const fetchUserGames = async () => {
     try {
         console.log('Fetching user games...');
-        const response = await api.get("/api/games/");
+        const response = await api.get("/api/v1/games/");
         console.log('Games response:', response.data);
+
+        let games = [];
         
-        if (!Array.isArray(response.data)) {
+        // Process different response formats to extract games
+        if (response.data?.results && Array.isArray(response.data.results)) {
+            games = response.data.results;
+        } else if (response.data?.data && Array.isArray(response.data.data)) {
+            games = response.data.data;
+        } else if (response.data?.games && Array.isArray(response.data.games)) {
+            games = response.data.games;
+        } else if (Array.isArray(response.data)) {
+            games = response.data;
+        } else {
             console.error('Invalid response format:', response.data);
-            return [];
+            return { results: [] };
         }
         
-        return response.data;
+        // Normalize and validate each game object
+        const normalizedGames = games.map(game => {
+            return {
+                id: game.id,
+                opponent: game.opponent || 'Unknown',
+                result: game.result || 'unknown',
+                date_played: game.date_played || game.played_at || new Date().toISOString(),
+                opening_name: game.opening_name || 'Unknown Opening',
+                status: game.status || 'pending',
+                analysis_status: game.analysis_status || 'pending',
+                white: game.white || game.opponent || 'Unknown',
+                black: game.black || game.user_username || 'Unknown',
+                pgn: game.pgn || '',
+                platform: game.platform || 'Unknown',
+                // Add any other required fields with defaults
+            };
+        });
+        
+        console.log('Normalized games:', normalizedGames);
+        
+        // Return in the format expected by components
+        return {
+            results: normalizedGames,
+            count: normalizedGames.length,
+            next: response.data?.next || null,
+            previous: response.data?.previous || null
+        };
     } catch (error) {
         console.error('Error fetching games:', error);
         if (error.response?.status === 401) {
@@ -115,7 +187,7 @@ export const fetchUserGames = async () => {
 
 export const fetchDashboardData = async () => {
     try {
-        const response = await api.get("/api/dashboard/");
+        const response = await api.get("/api/v1/dashboard/");
         return response.data;
     } catch (error) {
         if (error.response?.status === 401) {
@@ -129,43 +201,166 @@ export const fetchExternalGames = async (platform, username, gameType, numGames 
     try {
         const effectiveGameType = gameType === "all" ? "rapid" : gameType;
         console.log('Fetching external games...', { platform, username, gameType: effectiveGameType, numGames });
+
+        // Get user ID and token from localStorage
+        let userId = null;
+        let authHeader = null;
         
-        const response = await api.post("/api/games/fetch/", {
+        try {
+            const tokensString = localStorage.getItem('tokens');
+            if (tokensString) {
+                const tokens = JSON.parse(tokensString);
+                if (tokens && tokens.access) {
+                    // Set the authorization header
+                    authHeader = `Bearer ${tokens.access}`;
+                    
+                    // Get user ID from token
+                    const decoded = JSON.parse(atob(tokens.access.split('.')[1]));
+                    userId = decoded.user_id;
+                    console.log('Using user ID from token:', userId);
+                } else {
+                    console.warn('Access token not found in tokens object');
+                }
+            } else {
+                console.warn('No tokens found in localStorage');
+            }
+        } catch (e) {
+            console.error('Error extracting token information:', e);
+        }
+        
+        // Ensure we have authentication
+        if (!authHeader) {
+            throw new Error('Authentication required. Please log in again.');
+        }
+
+        // Make the API request with explicit Authorization header
+        const response = await api.post("/api/v1/games/fetch/", 
+            {
             platform: platform.toLowerCase(),
             username: username.trim(),
             game_type: effectiveGameType,
-            num_games: numGames
-        });
-        
+                num_games: numGames,
+                user_id: userId // Include user ID from token
+            },
+            {
+                headers: {
+                    'Authorization': authHeader
+                }
+            }
+        );
+
         console.log('External games response:', response.data);
-        
-        if (response.data.error) {
+
+        if (response.data?.error) {
             throw new Error(response.data.error);
         }
-        
+
+        // Handle different response formats
+        if (response.data?.data && Array.isArray(response.data.data)) {
+            return response.data.data;
+        } else if (response.data?.games && Array.isArray(response.data.games)) {
+            return response.data.games;
+        } else if (Array.isArray(response.data)) {
+            return response.data;
+        }
+
+        // Return the original response if format is not recognized
         return response.data;
     } catch (error) {
         console.error('Fetch games error:', error);
+        // Handle unauthorized errors
         if (error.response?.status === 401) {
-            throw new Error("Please log in to fetch games");
+            throw new Error("Authentication required. Please log in to fetch games.");
         }
+        // Handle payment required errors
         if (error.response?.status === 402) {
             throw new Error("Insufficient credits. Please purchase more credits to fetch games.");
         }
-        throw new Error(error.response?.data?.error || error.message || "Failed to fetch external games");
+        // Handle not found errors specifically to help debugging
+        if (error.response?.status === 404) {
+            throw new Error("The server returned a 404 error. The fetch games endpoint may not be configured properly.");
+        }
+        // Get the most descriptive error message possible
+        const errorMessage = 
+            error.response?.data?.message || 
+            error.response?.data?.error || 
+            error.message || 
+            "Failed to fetch external games";
+        
+        throw new Error(errorMessage);
     }
 };
 
 // Game analysis functions
 export const analyzeSpecificGame = async (gameId) => {
     try {
-        const response = await api.post(`/api/game/${gameId}/analyze/`);
-        return response.data;
-    } catch (error) {
-        if (error.response?.status === 401) {
-            throw new Error('Authentication failed');
+        console.log('Starting analysis for game:', gameId);
+        
+        // Use token helper functions instead of direct localStorage access
+        const accessToken = getAccessToken();
+        if (!accessToken) {
+            throw new Error('Authentication required to analyze games');
         }
-        throw new Error(error.response?.data?.message || 'Failed to start game analysis');
+        
+        // Get CSRF token from cookies if available
+        const getCookie = (name) => {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return '';
+        };
+        const csrfToken = getCookie('csrftoken');
+        
+        console.log('Using token for analysis:', accessToken.substring(0, 10) + '...');
+        
+        // Use fetch instead of axios to avoid redirect issues
+        const response = await fetch(`${API_BASE_URL}/api/v1/games/${gameId}/analyze/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+            },
+            // Include game_id in the body for validation, even though it's also in the URL
+            body: JSON.stringify({ game_id: gameId }),
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            // Log detailed error information
+            console.error(`Analysis request failed: ${response.status} ${response.statusText}`);
+            
+            // Handle specific HTTP status codes
+            if (response.status === 401 || response.status === 403) {
+                console.log('Auth error detected, attempting to refresh token...');
+                // Try to refresh token
+                const refreshResult = await refreshTokens();
+                if (refreshResult && refreshResult.access) {
+                    console.log('Token refreshed successfully, retrying...');
+                    // Retry with new token
+                    return analyzeSpecificGame(gameId);
+                }
+                throw new Error('Authentication failed. Please log in again.');
+            } else if (response.status === 404) {
+                throw new Error('Game not found');
+            } else if (response.status === 402) {
+                throw new Error('Game analysis is temporarily unavailable. Please try again later.');
+            } else if (response.status === 400) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || 'Validation failed');
+            }
+            
+            // Try to extract error message from response
+            const errorData = await response.json().catch(() => null);
+            throw new Error(errorData?.message || `Server error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Analysis start response:', data);
+        return data;
+    } catch (error) {
+        console.error('Error starting analysis:', error);
+        throw error;
     }
 };
 
@@ -186,58 +381,129 @@ const isValidStatus = (status) => {
     return Object.values(ANALYSIS_STATUS).includes(status?.toUpperCase());
 };
 
-export const checkAnalysisStatus = async (taskId) => {
+export const checkAnalysisStatus = async (gameId) => {
     try {
-        console.log('Checking status for task:', taskId);
-        const response = await api.get(`/api/analysis/status/${taskId}/`);
-        console.log('Status response:', response.data);
+        console.log(`Checking analysis status for game: ${gameId}`);
         
-        if (!response.data) {
-            throw new Error('Invalid response from server');
+        // Use token helper functions
+        const accessToken = getAccessToken();
+        if (!accessToken) {
+            return {
+                status: 'AUTH_ERROR',
+                message: 'Authentication required'
+            };
         }
-
-        // If analysis is complete, fetch the analysis data
-        if (response.data.status === 'completed' || response.data.status === 'SUCCESS') {
-            if (!response.data.game_id) {
-                throw new Error('Game ID missing from completed analysis');
-            }
-
-            try {
-                const analysisData = await fetchGameAnalysis(response.data.game_id);
+        
+        // Use the correct URL format with GET method
+        try {
+            const response = await api.get(`/api/v1/games/${gameId}/analysis/status/`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            // Process the response
+            const data = response.data;
+            
+            if (data.status === 'success') {
+                // Task completed successfully
                 return {
                     status: 'COMPLETED',
-                    analysis: analysisData.analysis_results,
-                    feedback: analysisData.feedback,
-                    gameId: response.data.game_id,
-                    progress: 100
+                    progress: 100,
+                    message: data.message || 'Analysis completed',
+                    analysis: data.analysis
                 };
-            } catch (analysisError) {
-                console.error('Error fetching analysis data:', analysisError);
-                // Return a more detailed error message
-                const errorMessage = analysisError.message || 'Unknown error occurred';
-                throw new Error(`Failed to fetch analysis results: ${errorMessage}`);
+            } else if (data.task && data.task.status) {
+                const taskStatus = data.task.status.toUpperCase();
+                
+                if (isValidStatus(taskStatus)) {
+                    // Map Celery status to our status constants
+                    let status = taskStatus;
+                    
+                    if (taskStatus === 'PROGRESS' || taskStatus === 'STARTED') {
+                        status = 'IN_PROGRESS';
+                    }
+                    
+                    return {
+                        status,
+                        progress: data.task.progress || 0,
+                        message: data.task.message || 'Analysis in progress',
+                        taskId: data.task.id
+                    };
+                }
             }
-        } else if (response.data.status === 'ERROR' || response.data.status === 'FAILURE' || response.data.status === 'FAILED') {
-            // Handle error states explicitly
-            throw new Error(response.data.message || 'Analysis failed');
+            
+            // Default to pending status
+            return {
+                status: 'PENDING',
+                progress: 0,
+                message: data.message || 'Analysis pending'
+            };
+        } catch (error) {
+            // Handle errors
+            console.error(`Error checking analysis status for game ${gameId}`, error);
+            
+            // Check for authentication errors
+            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                try {
+                    // Try to refresh the token
+                    const refreshResult = await refreshTokens();
+                    
+                    if (refreshResult && refreshResult.access) {
+                        // Retry the request with the new token
+                        return await checkAnalysisStatus(gameId);
+                    }
+                } catch (refreshError) {
+                    console.error('Failed to refresh token:', refreshError);
+                }
+                
+                return {
+                    status: 'AUTH_ERROR',
+                    message: 'Authentication error'
+                };
+            }
+            
+            // Handle not found error
+            if (error.response && error.response.status === 404) {
+                return {
+                    status: 'NOT_FOUND',
+                    message: 'Analysis task not found'
+                };
+            }
+            
+            // Other errors
+            return {
+                status: 'ERROR',
+                message: error.message || 'Failed to check analysis status'
+            };
         }
-        
-        // For in-progress status, return normalized response
-        return {
-            status: response.data.status?.toUpperCase() || 'PENDING',
-            progress: response.data.progress || 0,
-            message: response.data.message || 'Analysis in progress'
-        };
     } catch (error) {
-        console.error('Error checking analysis status:', error);
-        throw error.response?.data?.message || error.message || 'Failed to check analysis status';
+        console.error(`Error checking analysis status for game ${gameId}`, error);
+        return {
+            status: 'ERROR',
+            message: 'Unexpected error checking analysis status'
+        };
     }
 };
 
 export const fetchGameAnalysis = async (gameId) => {
     try {
         console.log('Fetching analysis for game:', gameId);
-        const response = await api.get(`/api/game/${gameId}/analysis/`);
+        
+        // Use token helper functions
+        const accessToken = getAccessToken();
+        if (!accessToken) {
+            throw new Error('Authentication required to fetch analysis');
+        }
+        
+        // Use the correct endpoint based on backend URL configuration
+        const response = await api.get(`/api/v1/games/${gameId}/analysis/`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        
         console.log('Analysis response:', response.data);
 
         if (!response.data) {
@@ -245,7 +511,7 @@ export const fetchGameAnalysis = async (gameId) => {
         }
 
         // Extract analysis data from response
-        const analysisData = response.data.analysis;
+        const analysisData = response.data.analysis || response.data;
         if (!analysisData) {
             throw new Error('No analysis data found');
         }
@@ -304,30 +570,45 @@ export const fetchGameAnalysis = async (gameId) => {
         return transformedData;
     } catch (error) {
         console.error('Error fetching game analysis:', error);
+        
+        // Handle auth errors
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+            try {
+                // Try to refresh token
+                const refreshResult = await refreshTokens();
+                if (refreshResult && refreshResult.access) {
+                    // Retry with new token
+                    return fetchGameAnalysis(gameId);
+                }
+            } catch (refreshError) {
+                console.error('Token refresh failed:', refreshError);
+            }
+        }
+        
         throw error.response?.data?.message || error.message || 'Failed to fetch game analysis';
     }
 };
 
 export const analyzeBatchGames = async (numGames, timeControl = 'all', includeAnalyzed = false) => {
     try {
-        const response = await api.post('/api/games/batch-analyze/', {
+        const response = await api.post('/api/v1/games/batch-analyze/', {
             num_games: parseInt(numGames, 10),
             time_control: timeControl,
             include_analyzed: includeAnalyzed,
             depth: 20,
             use_ai: true
         });
-        
+
         if (!response.data) {
             throw new Error('Invalid response from server');
         }
-        
+
         const { task_id, total_games, status, estimated_time, message } = response.data;
-        
+
         if (!task_id) {
             throw new Error('No task ID received from server');
         }
-        
+
         return {
             task_id,
             total_games,
@@ -347,8 +628,8 @@ export const checkBatchAnalysisStatus = async (taskId) => {
             throw new Error('No task ID provided');
         }
 
-        const response = await api.get(`/api/games/batch-analyze/status/${taskId}/`);
-        
+        const response = await api.get(`/api/v1/games/batch-analyze/status/${taskId}/`);
+
         if (!response.data) {
             throw new Error('Invalid response from server');
         }
@@ -417,7 +698,7 @@ export const checkBatchAnalysisStatus = async (taskId) => {
 // User profile functions
 export const getUserProfile = async () => {
     try {
-        const response = await api.get('/api/profile/');
+        const response = await api.get('/api/v1/profile/');
         return response.data;
     } catch (error) {
         console.error('Error fetching profile data:', error);
@@ -427,7 +708,7 @@ export const getUserProfile = async () => {
 
 export const updateUserProfile = async (profileData) => {
     try {
-        const response = await api.patch("/api/profile/", profileData);
+        const response = await api.patch("/api/v1/profile/", profileData);
         return response.data;
     } catch (error) {
         if (error.response?.status === 400) {
@@ -440,39 +721,37 @@ export const updateUserProfile = async (profileData) => {
 // Password reset functions
 export const requestPasswordReset = async (email) => {
     try {
-        // No need for CSRF token for initial request
-        const response = await api.post("/api/auth/password-reset/", { email });
+        const response = await api.post("/api/v1/auth/reset-password/", { email });
         return response.data;
     } catch (error) {
-        if (error.response?.status === 400) {
-            throw new Error("Invalid email address");
+        console.error('Password reset request error:', error);
+        if (error.response?.data?.message) {
+            throw new Error(error.response.data.message);
         }
-        throw error.response?.data?.error || new Error("Failed to request password reset");
+        throw new Error("Failed to send password reset link. Please try again later.");
     }
 };
 
-export const resetPassword = async (uid, token, newPassword) => {
+export const resetPassword = async (token, newPassword) => {
     try {
-        await api.get('/api/csrf/');
-        // Make the password reset confirmation request
-        const response = await api.post("/api/auth/password-reset/confirm/", {
-            uid,
+        const response = await api.post("/api/v1/auth/reset-password/confirm/", {
             token,
             new_password: newPassword
         });
         return response.data;
     } catch (error) {
-        if (error.response?.status === 400) {
-            throw new Error(error.response.data?.message || "Invalid password or token");
+        console.error('Password reset error:', error);
+        if (error.response?.data?.message) {
+            throw new Error(error.response.data.message);
         }
-        throw error.response?.data?.error || new Error("Failed to reset password");
+        throw new Error("Failed to reset password. The link may have expired.");
     }
 };
 
 // Credit system functions
 export const getCredits = async () => {
     try {
-        const response = await api.get('/api/credits/');
+        const response = await api.get('/api/v1/credits/');
         return response.data.credits;
     } catch (error) {
         console.error('Error fetching credits:', error);
@@ -482,7 +761,7 @@ export const getCredits = async () => {
 
 export const purchaseCredits = async (packageId) => {
     try {
-        const response = await api.post("/purchase-credits/", { package_id: packageId });
+        const response = await api.post("/api/v1/purchase-credits/", { package_id: packageId });
         return response.data;
     } catch (error) {
         if (error.response?.status === 400) {
@@ -494,7 +773,7 @@ export const purchaseCredits = async (packageId) => {
 
 export const confirmPurchase = async (paymentId) => {
     try {
-        const response = await api.post("/confirm-purchase/", { payment_id: paymentId });
+        const response = await api.post("/api/v1/confirm-purchase/", { payment_id: paymentId });
         return response.data;
     } catch (error) {
         if (error.response?.status === 400) {
@@ -506,7 +785,7 @@ export const confirmPurchase = async (paymentId) => {
 
 export const fetchProfileData = async () => {
     try {
-        const response = await api.get('/api/profile/');
+        const response = await api.get('/api/v1/profile/');
         return response.data;
     } catch (error) {
         console.error('Error fetching profile data:', error);
@@ -516,15 +795,15 @@ export const fetchProfileData = async () => {
 
 export const fetchGameFeedback = async (gameId) => {
   try {
-    const response = await api.get(`/api/game/${gameId}/analysis/`);
-    
+    const response = await api.get(`/api/v1/game/${gameId}/analysis/`);
+
     if (!response.data) {
       throw new Error('Invalid analysis data structure');
     }
 
     // Extract analysis data, handling both nested and flat structures
     const analysisData = response.data.analysis || response.data;
-    
+
     // Return the properly structured response
     return {
       status: 'COMPLETED',
@@ -578,3 +857,167 @@ export const fetchGameFeedback = async (gameId) => {
     throw error;
   }
 };
+
+// Handle authentication errors without redirecting
+const handleAuthError = (error) => {
+    console.error('Auth error in API request:', error);
+    
+    // Return a standardized error response
+    return {
+        status: 'error',
+        error: 'auth_error',
+        message: 'Authentication required. Please login to continue.',
+        code: error.response?.status || 401
+    };
+};
+
+// General API error handler with improved consistency
+const handleApiError = (error, customMessage = null) => {
+    // Network errors
+    if (error.message === 'Network Error' || !error.response) {
+        return {
+            status: 'error',
+            error: 'network_error',
+            message: 'Network connection issue. Please check your internet connection.',
+            code: 0
+        };
+    }
+    
+    // Authentication errors
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+        return handleAuthError(error);
+    }
+    
+    // Server errors
+    if (error.response && error.response.status >= 500) {
+        return {
+            status: 'error',
+            error: 'server_error',
+            message: customMessage || 'Server error. Please try again later.',
+            code: error.response.status
+        };
+    }
+    
+    // Other HTTP errors
+    if (error.response) {
+        const message = error.response.data?.message || 
+                      error.response.data?.detail || 
+                      error.response.data?.error ||
+                      customMessage ||
+                      'Request failed. Please try again.';
+        
+        return {
+            status: 'error',
+            error: 'request_error',
+            message: message,
+            code: error.response.status,
+            details: error.response.data
+        };
+    }
+    
+    // Generic error
+    return {
+        status: 'error',
+        error: 'unknown_error',
+        message: customMessage || error.message || 'An unexpected error occurred.',
+        code: 0
+    };
+};
+
+// Find the checkMultipleAnalysisStatuses function and replace it with this
+
+export async function checkMultipleAnalysisStatuses(gameIds) {
+    if (!gameIds || gameIds.length === 0) {
+        return {};
+    }
+
+    console.log(`Checking status for ${gameIds.length} games`);
+
+    try {
+        const accessToken = localStorage.getItem("access_token");
+        const refreshToken = localStorage.getItem("refresh_token");
+
+        if (!accessToken) {
+            if (refreshToken) {
+                await refreshTokenFunc();
+                return checkMultipleAnalysisStatuses(gameIds);
+            } else {
+                console.error("No auth tokens available");
+                return {};
+            }
+        }
+
+        const response = await fetch(`${API_URL}/api/v1/games/batch-status/`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ game_ids: gameIds }),
+        });
+
+        if (response.status !== 200) {
+            if (response.status === 401 && refreshToken) {
+                await refreshTokenFunc();
+                return checkMultipleAnalysisStatuses(gameIds);
+            }
+            console.warn(`Status check failed with status: ${response.status}`);
+            return {};
+        }
+
+        const data = await response.json();
+        console.log("Batch status response:", data);
+
+        // Handle different response formats
+        if (data.statuses) {
+            return data.statuses;
+        } else if (Array.isArray(data)) {
+            // Convert array to object mapping game_id to status
+            const statusMap = {};
+            data.forEach((item) => {
+                statusMap[item.game_id] = item.status;
+            });
+            return statusMap;
+        } else if (typeof data === "object") {
+            return data;
+        }
+
+        console.warn("Unexpected response format:", data);
+        return {};
+    } catch (error) {
+        console.error("Error checking game statuses:", error);
+        return {};
+    }
+}
+
+async function refreshTokenFunc() {
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (!refreshToken) {
+        return false;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/v1/token/refresh/`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ refresh: refreshToken }),
+        });
+
+        if (response.status !== 200) {
+            console.error(`Failed to refresh token: ${response.status}`);
+            return false;
+        }
+
+        const data = await response.json();
+        if (data.access) {
+            localStorage.setItem("access_token", data.access);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error("Error refreshing token:", error);
+        return false;
+    }
+}

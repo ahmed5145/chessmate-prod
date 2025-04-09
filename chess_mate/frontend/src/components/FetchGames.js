@@ -27,7 +27,7 @@ const FetchGames = () => {
         lichess: data.lichess_username
       };
       setLinkedAccounts(accounts);
-      
+
       // Auto-fill username based on current platform
       const platformUsername = platform === 'chess.com' ? accounts.chesscom : accounts.lichess;
       if (platformUsername) {
@@ -50,7 +50,7 @@ const FetchGames = () => {
 
     try {
       const response = await fetchExternalGames(platform, username, gameMode, numGames);
-      
+
       if (response && response.message) {
         toast.success(response.message);
       } else if (response && typeof response.saved === 'number') {
@@ -58,7 +58,7 @@ const FetchGames = () => {
       } else {
         toast.success('Games imported successfully');
       }
-      
+
       await loadProfileData();
       navigate('/games');
     } catch (error) {
@@ -114,8 +114,8 @@ const FetchGames = () => {
       {/* Main Form */}
       <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'} shadow-lg`}>
         <form onSubmit={handleSubmit} className={`space-y-6 p-6 rounded-lg shadow-lg ${
-              isDarkMode 
-                ? 'bg-gray-800 border border-gray-700' 
+              isDarkMode
+                ? 'bg-gray-800 border border-gray-700'
                 : 'bg-white border border-gray-200'
             }`}>
           {/* Platform Selection */}

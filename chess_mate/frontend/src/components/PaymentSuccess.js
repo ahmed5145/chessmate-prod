@@ -26,7 +26,7 @@ const PaymentSuccess = () => {
           throw new Error('No access token found');
         }
 
-        const response = await api.post('/api/confirm-purchase/', 
+        const response = await api.post('/api/confirm-purchase/',
           { session_id: sessionId },
           {
             headers: {
@@ -70,8 +70,8 @@ const PaymentSuccess = () => {
               {isProcessing ? 'Processing Payment...' : 'Payment Successful!'}
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              {isProcessing 
-                ? retryCount > 0 
+              {isProcessing
+                ? retryCount > 0
                   ? `Retrying confirmation... (Attempt ${retryCount} of ${MAX_RETRIES})`
                   : 'Please wait while we confirm your purchase.'
                 : 'Thank you for your purchase. Your credits have been added to your account.'}
@@ -88,4 +88,4 @@ const PaymentSuccess = () => {
   );
 };
 
-export default PaymentSuccess; 
+export default PaymentSuccess;

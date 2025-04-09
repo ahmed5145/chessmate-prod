@@ -25,22 +25,22 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* Public routes */}
-      <Route 
-        path="/" 
-        element={<LandingPage />} 
+      <Route
+        path="/"
+        element={<LandingPage />}
       />
-      <Route 
-        path="/login" 
-        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} 
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />}
       />
-      <Route 
-        path="/register" 
-        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />} 
+      <Route
+        path="/register"
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />}
       />
       <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
-      <Route path="/password-reset-success" element={<ResetPasswordSuccess />} />
-      <Route path="/password-reset-failed" element={<ResetPasswordFailed />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/reset-password-success" element={<ResetPasswordSuccess />} />
+      <Route path="/reset-password-failed" element={<ResetPasswordFailed />} />
 
       {/* Protected routes */}
       <Route
@@ -130,4 +130,4 @@ const AppRoutes = () => {
   );
 };
 
-export default AppRoutes; 
+export default AppRoutes;

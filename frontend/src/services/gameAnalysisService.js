@@ -77,4 +77,4 @@ export const fetchGameAnalysis = async (gameId) => {
         console.error('Error fetching analysis:', error);
         throw error.response?.data?.error || error.message || 'Failed to fetch analysis';
     }
-}; 
+};

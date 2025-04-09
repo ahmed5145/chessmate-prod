@@ -1,14 +1,53 @@
-Django>=4.2.0,<5.0.0
-psycopg2-binary>=2.9.9
-python-chess>=1.10.0
-stockfish>=3.28.0
-pytest>=7.4.0
-pytest-django>=4.7.0
-pytest-mock>=3.12.0
-pytest-cov>=4.1.0
-pytest-xdist>=3.5.0
-pytest-sugar>=1.0.0
-pytest-timeout>=2.2.0
-pytest-env>=1.1.0
-pytest-randomly>=3.15.0
-pytest-freezegun>=0.4.2 
+# ChessMate Application Dependencies
+
+# Django and REST Framework
+Django==4.2.5
+djangorestframework==3.14.0
+django-cors-headers==4.2.0
+django-filter==23.2
+django-storages==1.14.1
+django-redis==5.3.0
+rest_framework_simplejwt==5.3.0
+
+# Web Server
+gunicorn==21.2.0
+whitenoise==6.5.0
+
+# Database and Cache
+psycopg2-binary==2.9.7
+redis==4.6.0
+hiredis==2.2.3
+
+# Chess Libraries
+stockfish==3.28.0
+python-chess==1.999
+
+# Asynchronous Task Processing
+celery==5.3.4
+
+# Utility Libraries
+python-dotenv==1.0.0
+requests==2.31.0
+Pillow==10.0.1
+stripe==6.5.0
+
+# API Documentation
+drf-yasg==1.21.7
+
+# Testing
+pytest==7.4.2
+pytest-django==4.5.2
+pytest-mock==3.12.0
+pytest-cov==4.1.0
+pytest-xdist==3.5.0
+pytest-sugar==1.0.0
+pytest-timeout==2.2.0
+pytest-env==1.1.0
+pytest-randomly==3.15.0
+pytest-freezegun==0.4.2
+coverage==7.3.1
+
+# Development Tools
+black==23.9.1
+flake8==6.1.0
+isort==5.12.0

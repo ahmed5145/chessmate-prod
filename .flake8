@@ -1,0 +1,11 @@
+[flake8]
+max-line-length = 120
+exclude = .git,__pycache__,*/migrations/*,*/static/*,docs/*,venv/*
+ignore = E203, W503, E231
+per-file-ignores =
+    # Ignore imports in __init__.py
+    */__init__.py: F401, F403
+    */settings/*.py: F401, F403, F405
+    # More specific ignores for cache and other files
+    */core/cache.py: E501, E302
+    */tests/test_*.py: F841

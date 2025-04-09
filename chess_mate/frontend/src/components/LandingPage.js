@@ -6,9 +6,9 @@ import { useUser } from '../contexts/UserContext';
 
 const Feature = ({ icon: Icon, title, description, delay = 0 }) => {
   const { isDarkMode } = useTheme();
-  
+
   return (
-    <div 
+    <div
       className={`p-6 rounded-xl ${
         isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
       } transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1 animate-fade-in`}
@@ -33,9 +33,9 @@ const Feature = ({ icon: Icon, title, description, delay = 0 }) => {
 
 const Testimonial = ({ quote, author, role, delay = 0 }) => {
   const { isDarkMode } = useTheme();
-  
+
   return (
-    <div 
+    <div
       className={`p-6 rounded-xl ${
         isDarkMode ? 'bg-gray-800' : 'bg-white'
       } shadow-lg animate-fade-in`}
@@ -60,7 +60,7 @@ const Testimonial = ({ quote, author, role, delay = 0 }) => {
 const LandingPage = () => {
   const { isDarkMode } = useTheme();
   const { user } = useUser();
-  
+
   const features = [
     {
       icon: Brain,
@@ -110,13 +110,13 @@ const LandingPage = () => {
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 z-0">
           <div className={`absolute inset-0 ${
-            isDarkMode 
-              ? 'bg-gradient-to-br from-gray-900 via-indigo-900/20 to-gray-900' 
+            isDarkMode
+              ? 'bg-gradient-to-br from-gray-900 via-indigo-900/20 to-gray-900'
               : 'bg-gradient-to-br from-gray-50 via-indigo-50/20 to-gray-50'
           }`}></div>
           <div className="absolute inset-0 bg-[url('/public/chess-pattern.svg')] opacity-5"></div>
         </div>
-        
+
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20">
           <div className="text-center">
             <div className="flex justify-center items-center mb-8 animate-bounce-slow">
@@ -145,8 +145,8 @@ const LandingPage = () => {
                 <Link
                   to="/login"
                   className={`inline-flex items-center px-8 py-4 border text-lg font-medium rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 ${
-                    isDarkMode 
-                      ? 'border-gray-700 text-white hover:bg-gray-800' 
+                    isDarkMode
+                      ? 'border-gray-700 text-white hover:bg-gray-800'
                       : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -244,4 +244,4 @@ const LandingPage = () => {
   );
 };
 
-export default LandingPage; 
+export default LandingPage;

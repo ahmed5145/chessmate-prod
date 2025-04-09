@@ -51,10 +51,33 @@ export const UserProvider = ({ children }) => {
       const profileData = await getUserProfile();
       if (profileData) {
         setUser(profileData);
-        setCredits(profileData.credits);
+        // Check different possible locations of the credits value
+        if (profileData.data && profileData.data.profile && profileData.data.profile.credits !== undefined) {
+          setCredits(profileData.data.profile.credits);
+          console.log('Credits found in profileData.data.profile.credits:', profileData.data.profile.credits);
+        } else if (profileData.data && profileData.data.credits !== undefined) {
+          setCredits(profileData.data.credits);
+          console.log('Credits found in profileData.data.credits:', profileData.data.credits);
+        } else if (profileData.profile && profileData.profile.credits !== undefined) {
+          setCredits(profileData.profile.credits);
+          console.log('Credits found in profileData.profile.credits:', profileData.profile.credits);
+        } else if (profileData.credits !== undefined) {
+          setCredits(profileData.credits);
+          console.log('Credits found in profileData.credits:', profileData.credits);
+        } else {
+          console.warn('No credits found in profile data. Data structure:', JSON.stringify(profileData, null, 2));
+          // Default to 0 credits if none found
+          setCredits(0);
+        }
+      } else {
+        console.warn('No profile data returned from getUserProfile');
       }
     } catch (error) {
       console.error('Error refreshing user data:', error);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      }
     }
   }, []);
 
@@ -88,4 +111,4 @@ export const useUser = () => {
   return context;
 };
 
-export { UserContext }; 
+export { UserContext };

@@ -103,6 +103,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Project structure and setup
 - Database models
 - Basic API endpoints
-- Initial documentation 
+- Initial documentation
 
 *Last Updated: April 5, 2025*

@@ -42,4 +42,4 @@ ssh -i "C:\Users\PCAdmin\Downloads\chessmate-key-pair.pem" $EC2_USER@$EC2_HOST <
     sudo docker-compose -f docker-compose.prod.yml ps
 EOF
 
-echo "Deployment completed!" 
+echo "Deployment completed!"

@@ -37,4 +37,4 @@ sudo docker-compose -f docker-compose.prod.yml up -d
 echo "Checking container status..."
 sudo docker-compose -f docker-compose.prod.yml ps
 
-echo "Update completed!" 
+echo "Update completed!"

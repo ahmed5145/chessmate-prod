@@ -1,11 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 const ResetPasswordFailed = () => {
+  const { isDarkMode } = useTheme();
+
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className={`min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className={`py-8 px-4 shadow sm:rounded-lg sm:px-10 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
           <div className="text-center">
             <svg
               className="mx-auto h-12 w-12 text-red-600"
@@ -21,8 +24,8 @@ const ResetPasswordFailed = () => {
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
               />
             </svg>
-            <h2 className="mt-4 text-2xl font-bold text-gray-900">Password Reset Failed</h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <h2 className={`mt-4 text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Password Reset Failed</h2>
+            <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Sorry, we couldn't reset your password. The link may have expired or is invalid.
             </p>
             <div className="mt-6 space-y-4">
@@ -35,7 +38,7 @@ const ResetPasswordFailed = () => {
               <div>
                 <Link
                   to="/"
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                  className={`text-sm font-medium ${isDarkMode ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-600 hover:text-indigo-500'}`}
                 >
                   Return to Login
                 </Link>
@@ -48,4 +51,4 @@ const ResetPasswordFailed = () => {
   );
 };
 
-export default ResetPasswordFailed; 
+export default ResetPasswordFailed;

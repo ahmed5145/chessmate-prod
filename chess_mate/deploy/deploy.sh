@@ -49,4 +49,4 @@ sleep 10
 echo "Checking service status..."
 docker-compose -f deploy/docker-compose.yml ps
 
-echo "Deployment complete!" 
+echo "Deployment complete!"

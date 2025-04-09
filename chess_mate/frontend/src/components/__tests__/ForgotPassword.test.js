@@ -110,4 +110,4 @@ describe("ForgotPassword Component", () => {
     expect(screen.getByText("Sending reset link...")).toBeInTheDocument();
     expect(submitButton).toBeDisabled();
   });
-}); 
+});

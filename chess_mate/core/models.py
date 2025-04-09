@@ -6,31 +6,39 @@ Models:
 - Profile: Represents a user profile with additional information.
 - Game: Represents a chess game played by a user.
 - GameAnalysis: Represents the analysis of a chess game, including move details and scores.
+- SubscriptionTier: Represents available subscription plans
+- Subscription: Represents a user's subscription
 """
 
-from django.db import models
+import logging
+import re
+from typing import Any, Dict, List, Optional
+
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
+from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
-from typing import Any, List, Dict, Optional
-import logging
-import re
 
 logger = logging.getLogger(__name__)
 
+
 class Player(models.Model):
     """Model representing a player."""
+
     username = models.CharField(max_length=100, unique=True)
     date_joined = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
         return str(self.username)
 
+
 class Profile(models.Model):
     """User profile model."""
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    bio = models.TextField(blank=True, default='')
     credits = models.IntegerField(default=10)
     bullet_rating = models.IntegerField(default=1200)
     blitz_rating = models.IntegerField(default=1200)
@@ -40,13 +48,19 @@ class Profile(models.Model):
     email_verification_token = models.CharField(max_length=100, blank=True, null=True)
     email_verification_sent_at = models.DateTimeField(null=True)
     email_verified_at = models.DateTimeField(null=True)
+    last_credit_purchase = models.DateTimeField(null=True, blank=True)
     preferences = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     # Add chess platform usernames
-    chesscom_username = models.CharField(max_length=100, blank=True, null=True)
-    lichess_username = models.CharField(max_length=100, blank=True, null=True)
+    chess_com_username = models.CharField(max_length=50, blank=True, default='')
+    lichess_username = models.CharField(max_length=50, blank=True, default='')
     rating_history = models.JSONField(default=dict, blank=True)  # Store rating history
+    
+    @property
+    def rating(self) -> int:
+        """Get the user's highest rating across all time controls."""
+        return max(self.bullet_rating, self.blitz_rating, self.rapid_rating, self.classical_rating)
 
     def total_games(self) -> int:
         """Return total number of games played."""
@@ -54,17 +68,17 @@ class Profile(models.Model):
 
     def get_platform_username(self, platform: str) -> Optional[str]:
         """Get the user's username for a specific platform."""
-        if platform == 'chess.com':
-            return self.chesscom_username
-        elif platform == 'lichess':
+        if platform == "chess.com":
+            return self.chess_com_username
+        elif platform == "lichess":
             return self.lichess_username
         return None
 
     def set_platform_username(self, platform: str, username: str) -> None:
         """Set the user's username for a specific platform."""
-        if platform == 'chess.com':
-            self.chesscom_username = username
-        elif platform == 'lichess':
+        if platform == "chess.com":
+            self.chess_com_username = username
+        elif platform == "lichess":
             self.lichess_username = username
         self.save()
 
@@ -80,7 +94,7 @@ class Profile(models.Model):
         total = self.total_games()
         if total == 0:
             return 0.0
-        wins = Game.objects.filter(user=self.user, result='win').count()
+        wins = Game.objects.filter(user=self.user, result="win").count()
         return round((wins / total) * 100, 2)
 
     def get_rating_history(self) -> Dict[str, Dict[str, int]]:
@@ -88,77 +102,79 @@ class Profile(models.Model):
         try:
             if not self.rating_history:
                 self.rating_history = {}
-                
+
             # Get all games ordered by date
-            games = Game.objects.filter(user=self.user).order_by('date_played')
-            
+            games = Game.objects.filter(user=self.user).order_by("date_played")
+
             # Track ratings by date
             current_ratings = {
-                'bullet': self.bullet_rating,
-                'blitz': self.blitz_rating,
-                'rapid': self.rapid_rating,
-                'classical': self.classical_rating
+                "bullet": self.bullet_rating,
+                "blitz": self.blitz_rating,
+                "rapid": self.rapid_rating,
+                "classical": self.classical_rating,
             }
-            
+
             for game in games:
                 try:
                     date = game.date_played.date().isoformat()
                     time_category = game.get_time_control_category()
                     if not time_category:
                         continue
-                    
+
                     # Get the player's rating from the game
                     is_white = False
                     try:
-                        if (game.platform == 'chess.com' and self.chesscom_username and 
-                            game.white and self.chesscom_username):
-                            is_white = game.white.lower() == self.chesscom_username.lower()
-                        elif (game.platform == 'lichess' and self.lichess_username and 
-                              game.white and self.lichess_username):
+                        if (
+                            game.platform == "chess.com"
+                            and self.chess_com_username
+                            and game.white
+                            and self.chess_com_username
+                        ):
+                            is_white = game.white.lower() == self.chess_com_username.lower()
+                        elif (
+                            game.platform == "lichess"
+                            and self.lichess_username
+                            and game.white
+                            and self.lichess_username
+                        ):
                             is_white = game.white.lower() == self.lichess_username.lower()
                     except AttributeError as e:
                         logger.error(
                             f"Error comparing usernames in get_rating_history: game={game.id}, "
                             f"platform={game.platform}, white={game.white}, black={game.black}, "
-                            f"chesscom_username={self.chesscom_username}, "
+                            f"chess_com_username={self.chess_com_username}, "
                             f"lichess_username={self.lichess_username}. Error: {str(e)}"
                         )
                         continue
-                    
+
                     rating = game.white_elo if is_white else game.black_elo
-                    
+
                     if rating is not None:
                         current_ratings[time_category] = rating
                         self.rating_history[date] = current_ratings.copy()
                 except Exception as e:
-                    logger.error(
-                        f"Error processing game {game.id} in get_rating_history: {str(e)}", 
-                        exc_info=True
-                    )
+                    logger.error(f"Error processing game {game.id} in get_rating_history: {str(e)}", exc_info=True)
                     continue
-            
+
             # Sort history by date
             sorted_history = dict(sorted(self.rating_history.items()))
             self.rating_history = sorted_history
             self.save()
-            
+
             return sorted_history
         except Exception as e:
-            logger.error(
-                f"Error getting rating history for user {self.user.username}: {str(e)}", 
-                exc_info=True
-            )
+            logger.error(f"Error getting rating history for user {self.user.username}: {str(e)}", exc_info=True)
             return {}
 
     def get_current_rating(self, time_category: str) -> int:
         """Get current rating for a specific time control category."""
-        if time_category == 'bullet':
+        if time_category == "bullet":
             return self.bullet_rating
-        elif time_category == 'blitz':
+        elif time_category == "blitz":
             return self.blitz_rating
-        elif time_category == 'rapid':
+        elif time_category == "rapid":
             return self.rapid_rating
-        elif time_category == 'classical':
+        elif time_category == "classical":
             return self.classical_rating
         return 1200  # Default rating
 
@@ -166,48 +182,48 @@ class Profile(models.Model):
         """Update rating for a specific time control category and return the rating change."""
         old_rating = self.get_current_rating(time_category)
         rating_change = new_rating - old_rating
-        
+
         # Update current rating
-        if time_category == 'bullet':
+        if time_category == "bullet":
             self.bullet_rating = new_rating
-        elif time_category == 'blitz':
+        elif time_category == "blitz":
             self.blitz_rating = new_rating
-        elif time_category == 'rapid':
+        elif time_category == "rapid":
             self.rapid_rating = new_rating
-        elif time_category == 'classical':
+        elif time_category == "classical":
             self.classical_rating = new_rating
-            
+
         # Update rating history
         current_date = timezone.now().date().isoformat()
         if not self.rating_history:
             self.rating_history = {}
-        
+
         # Get or create today's ratings
         if current_date not in self.rating_history:
             self.rating_history[current_date] = {
-                'bullet': self.bullet_rating,
-                'blitz': self.blitz_rating,
-                'rapid': self.rapid_rating,
-                'classical': self.classical_rating
+                "bullet": self.bullet_rating,
+                "blitz": self.blitz_rating,
+                "rapid": self.rapid_rating,
+                "classical": self.classical_rating,
             }
-        
+
         # Update the specific time category
         self.rating_history[current_date][time_category] = new_rating
-        
+
         # Store rating change in preferences
         if not self.preferences:
             self.preferences = {}
-        self.preferences[f'last_rating_change_{time_category}'] = rating_change
-        
+        self.preferences[f"last_rating_change_{time_category}"] = rating_change
+
         self.save()
         return rating_change
 
     def __str__(self):
-        return f"{self.user.username}'s profile"
+        return f"Profile for {self.user.username}"
 
     class Meta:
         indexes = [
-            models.Index(fields=['user']),
+            models.Index(fields=["user"]),
         ]
 
     def verify_email(self):
@@ -235,41 +251,34 @@ class Profile(models.Model):
             self.rapid_rating = 1200
             self.classical_rating = 1200
             self.save()  # Save the reset ratings
-            
+
             # Get all games for this user with ratings, ordered by date
-            games = Game.objects.filter(
-                user=self.user,
-                date_played__isnull=False
-            ).exclude(
-                white_elo__isnull=True,
-                black_elo__isnull=True
-            ).order_by('date_played')
-            
+            games = (
+                Game.objects.filter(user=self.user, date_played__isnull=False)
+                .exclude(white_elo__isnull=True, black_elo__isnull=True)
+                .order_by("date_played")
+            )
+
             # Filter games based on platform and username
             platform_games = []
-            if self.chesscom_username:
+            if self.chess_com_username:
                 platform_games.extend(
-                    games.filter(
-                        platform='chess.com'
-                    ).filter(
-                        models.Q(white__iexact=self.chesscom_username) |
-                        models.Q(black__iexact=self.chesscom_username)
+                    games.filter(platform="chess.com").filter(
+                        models.Q(white__iexact=self.chess_com_username)
+                        | models.Q(black__iexact=self.chess_com_username)
                     )
                 )
-            
+
             if self.lichess_username:
                 platform_games.extend(
-                    games.filter(
-                        platform='lichess'
-                    ).filter(
-                        models.Q(white__iexact=self.lichess_username) |
-                        models.Q(black__iexact=self.lichess_username)
+                    games.filter(platform="lichess").filter(
+                        models.Q(white__iexact=self.lichess_username) | models.Q(black__iexact=self.lichess_username)
                     )
                 )
-            
+
             # Sort all games by date
             platform_games.sort(key=lambda x: x.date_played)
-            
+
             # Process each game and update ratings
             for game in platform_games:
                 try:
@@ -277,64 +286,62 @@ class Profile(models.Model):
                     time_category = game.get_time_control_category()
                     if not time_category:
                         continue
-                    
+
                     # Determine if user was white or black
                     is_white = False
                     try:
-                        if game.platform == 'chess.com' and self.chesscom_username and game.white:
-                            is_white = game.white.lower() == self.chesscom_username.lower()
-                        elif game.platform == 'lichess' and self.lichess_username and game.white:
+                        if game.platform == "chess.com" and self.chess_com_username and game.white:
+                            is_white = game.white.lower() == self.chess_com_username.lower()
+                        elif game.platform == "lichess" and self.lichess_username and game.white:
                             is_white = game.white.lower() == self.lichess_username.lower()
                     except AttributeError as e:
                         logger.error(f"Error determining player color: {str(e)}")
                         continue
-                    
+
                     # Get the rating from the game
                     rating = game.white_elo if is_white else game.black_elo
-                    
+
                     if rating is not None:
                         # Update the rating for this time category
-                        if time_category == 'bullet':
+                        if time_category == "bullet":
                             self.bullet_rating = rating
-                        elif time_category == 'blitz':
+                        elif time_category == "blitz":
                             self.blitz_rating = rating
-                        elif time_category == 'rapid':
+                        elif time_category == "rapid":
                             self.rapid_rating = rating
-                        elif time_category == 'classical':
+                        elif time_category == "classical":
                             self.classical_rating = rating
-                        
+
                         # Update rating history
                         date = game.date_played.date().isoformat()
                         if not self.rating_history:
                             self.rating_history = {}
-                        
+
                         self.rating_history[date] = {
-                            'bullet': self.bullet_rating,
-                            'blitz': self.blitz_rating,
-                            'rapid': self.rapid_rating,
-                            'classical': self.classical_rating
+                            "bullet": self.bullet_rating,
+                            "blitz": self.blitz_rating,
+                            "rapid": self.rapid_rating,
+                            "classical": self.classical_rating,
                         }
-                        
+
                         # Save after each game to ensure we don't lose progress
                         self.save()
-                        
-                        logger.info(
-                            f"Updated {time_category} rating to {rating} for game on {date}"
-                        )
-                    
+
+                        logger.info(f"Updated {time_category} rating to {rating} for game on {date}")
+
                 except Exception as e:
                     logger.error(f"Error processing game {game.id}: {str(e)}")
                     continue
-            
+
             # Final save to ensure all updates are persisted
             self.save()
-            
+
             logger.info(
                 f"Completed rating updates for user {self.user.username}. "
                 f"Final ratings - Bullet: {self.bullet_rating}, Blitz: {self.blitz_rating}, "
                 f"Rapid: {self.rapid_rating}, Classical: {self.classical_rating}"
             )
-            
+
         except Exception as e:
             logger.error(f"Error updating ratings: {str(e)}")
             raise
@@ -344,29 +351,29 @@ class Profile(models.Model):
         try:
             games = Game.objects.filter(user=self.user)
             stats = {}
-            
+
             # Calculate total games for percentage calculation
             total_games = games.count()
-            
+
             # Process each time control category
-            for time_control in ['bullet', 'blitz', 'rapid', 'classical']:
+            for time_control in ["bullet", "blitz", "rapid", "classical"]:
                 time_control_games = []
                 peak_rating = getattr(self, f"{time_control}_rating", 1200)
                 total_rating = 0
-                
+
                 for game in games:
                     category = game.get_time_control_category()
                     if category == time_control:
                         time_control_games.append(game)
-                        
+
                         # Get player's rating from this game
                         try:
                             is_white = False
-                            if game.platform == 'chess.com' and self.chesscom_username and game.white:
-                                is_white = game.white.lower() == self.chesscom_username.lower()
-                            elif game.platform == 'lichess' and self.lichess_username and game.white:
+                            if game.platform == "chess.com" and self.chess_com_username and game.white:
+                                is_white = game.white.lower() == self.chess_com_username.lower()
+                            elif game.platform == "lichess" and self.lichess_username and game.white:
                                 is_white = game.white.lower() == self.lichess_username.lower()
-                            
+
                             rating = game.white_elo if is_white else game.black_elo
                             if rating is not None:
                                 total_rating += rating
@@ -374,79 +381,81 @@ class Profile(models.Model):
                         except Exception as e:
                             logger.error(f"Error getting rating from game {game.id}: {str(e)}")
                             continue
-                
+
                 if not time_control_games:
                     stats[time_control] = {
-                        'games': 0,
-                        'winRate': 0,
-                        'drawRate': 0,
-                        'lossRate': 0,
-                        'avgRating': getattr(self, f"{time_control}_rating", 1200),
-                        'peakRating': getattr(self, f"{time_control}_rating", 1200),
-                        'wins': 0,
-                        'losses': 0,
-                        'draws': 0
+                        "games": 0,
+                        "winRate": 0,
+                        "drawRate": 0,
+                        "lossRate": 0,
+                        "avgRating": getattr(self, f"{time_control}_rating", 1200),
+                        "peakRating": getattr(self, f"{time_control}_rating", 1200),
+                        "wins": 0,
+                        "losses": 0,
+                        "draws": 0,
                     }
                     continue
-                    
+
                 # Calculate wins, losses, draws
                 wins = losses = draws = 0
                 for game in time_control_games:
                     # Skip if no usernames are linked
-                    if not self.chesscom_username and not self.lichess_username:
+                    if not self.chess_com_username and not self.lichess_username:
                         continue
-                        
+
                     # Determine if user was white or black
                     is_white = False
                     try:
-                        if game.platform == 'chess.com' and self.chesscom_username and game.white:
-                            is_white = game.white.lower() == self.chesscom_username.lower()
-                        elif game.platform == 'lichess' and self.lichess_username and game.white:
+                        if game.platform == "chess.com" and self.chess_com_username and game.white:
+                            is_white = game.white.lower() == self.chess_com_username.lower()
+                        elif game.platform == "lichess" and self.lichess_username and game.white:
                             is_white = game.white.lower() == self.lichess_username.lower()
                     except AttributeError as e:
                         logger.error(
                             f"Error comparing usernames in get_performance_stats: game={game.id}, "
                             f"platform={game.platform}, white={game.white}, black={game.black}, "
-                            f"chesscom_username={self.chesscom_username}, "
+                            f"chess_com_username={self.chess_com_username}, "
                             f"lichess_username={self.lichess_username}. Error: {str(e)}"
                         )
                         continue
-                    
+
                     # Count result
-                    if game.result == 'win':
+                    if game.result == "win":
                         wins += 1
-                    elif game.result == 'loss':
+                    elif game.result == "loss":
                         losses += 1
                     else:
                         draws += 1
-                
+
                 # Calculate percentages
                 total = len(time_control_games)
                 if total > 0:
                     win_rate = round((wins / total) * 100, 2)
                     draw_rate = round((draws / total) * 100, 2)
                     loss_rate = round((losses / total) * 100, 2)
-                    avg_rating = round(total_rating / total) if total_rating > 0 else getattr(self, f"{time_control}_rating", 1200)
-                    
+                    avg_rating = (
+                        round(total_rating / total)
+                        if total_rating > 0
+                        else getattr(self, f"{time_control}_rating", 1200)
+                    )
+
                     stats[time_control] = {
-                        'games': total,
-                        'winRate': win_rate,
-                        'drawRate': draw_rate,
-                        'lossRate': loss_rate,
-                        'avgRating': avg_rating,
-                        'peakRating': peak_rating,
-                        'wins': wins,
-                        'losses': losses,
-                        'draws': draws
+                        "games": total,
+                        "winRate": win_rate,
+                        "drawRate": draw_rate,
+                        "lossRate": loss_rate,
+                        "avgRating": avg_rating,
+                        "peakRating": peak_rating,
+                        "wins": wins,
+                        "losses": losses,
+                        "draws": draws,
                     }
-            
+
             return stats
         except Exception as e:
-            logger.error(
-                f"Error calculating performance stats for user {self.user.username}: {str(e)}", 
-                exc_info=True
-            )
+            logger.error(f"Error calculating performance stats for user {self.user.username}: {str(e)}", exc_info=True)
             return {}
+
 
 @receiver(post_save, sender=User)
 def create_or_save_user_profile(sender: Any, instance: User, created: bool, **kwargs: Any) -> None:
@@ -459,34 +468,27 @@ def create_or_save_user_profile(sender: Any, instance: User, created: bool, **kw
         except Profile.DoesNotExist:
             Profile.objects.get_or_create(user=instance)
 
-    # Remove the old signal handlers
-    try:
-        post_save.disconnect(create_user_profile, sender=User)
-        post_save.disconnect(save_user_profile, sender=User)
-    except Exception:
-        pass
+    # No need to disconnect nonexistent signals
+
 
 def get_default_user():
     """Get or create a default user for legacy data."""
-    return User.objects.get_or_create(username='legacy_user')[0].id
+    return User.objects.get_or_create(username="legacy_user")[0].id
+
 
 class Game(models.Model):
     """Model representing a chess game."""
-    TIME_CONTROL_CHOICES = [
-        ('bullet', 'Bullet'),
-        ('blitz', 'Blitz'),
-        ('rapid', 'Rapid'),
-        ('classical', 'Classical')
-    ]
-    
+
+    TIME_CONTROL_CHOICES = [("bullet", "Bullet"), ("blitz", "Blitz"), ("rapid", "Rapid"), ("classical", "Classical")]
+
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('analyzing', 'Analyzing'),
-        ('analyzed', 'Analyzed'),
-        ('failed', 'Failed'),
+        ("pending", "Pending"),
+        ("analyzing", "Analyzing"),
+        ("analyzed", "Analyzed"),
+        ("failed", "Failed"),
     ]
-    
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='games', default=get_default_user)
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="games", default=get_default_user)
     platform = models.CharField(max_length=20)  # 'chess.com' or 'lichess'
     game_id = models.CharField(max_length=100)
     pgn = models.TextField()
@@ -496,19 +498,21 @@ class Game(models.Model):
     opponent = models.CharField(max_length=100, default="Unknown")
     opening_name = models.CharField(max_length=200, default="Unknown Opening")
     date_played = models.DateTimeField()
-    
+    game_url = models.CharField(max_length=255, null=True, blank=True)  # URL to the game on the platform
+
     # Enhanced fields
-    time_control = models.CharField(max_length=50, default='blitz')
-    time_control_type = models.CharField(max_length=20, choices=TIME_CONTROL_CHOICES, default='blitz')
+    time_control = models.CharField(max_length=50, default="blitz")
+    time_control_type = models.CharField(max_length=20, choices=TIME_CONTROL_CHOICES, default="blitz")
+    time_control_category = models.CharField(max_length=20, choices=TIME_CONTROL_CHOICES, default="blitz")
     eco_code = models.CharField(max_length=3, null=True)  # ECO code for the opening
     opening_played = models.CharField(max_length=200, default="Unknown Opening")
     opening_variation = models.CharField(max_length=200, default="Unknown Variation")
-    opponent_opening = models.CharField(max_length=200, default='Unknown Opponent Opening')
+    opponent_opening = models.CharField(max_length=200, default="Unknown Opponent Opening")
     analysis_version = models.IntegerField(default=1)
     last_analysis_date = models.DateTimeField(null=True)
-    analysis_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    analysis_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     analysis_priority = models.IntegerField(default=0)  # For batch processing
-    
+
     # Existing fields
     analysis = models.JSONField(null=True, blank=True)
     feedback = models.JSONField(null=True, blank=True)  # Store analysis feedback
@@ -516,21 +520,21 @@ class Game(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     white_elo = models.IntegerField(null=True, blank=True)
     black_elo = models.IntegerField(null=True, blank=True)
-    
-    player_color = models.CharField(max_length=5, choices=[('white', 'White'), ('black', 'Black')], default='white')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+
+    player_color = models.CharField(max_length=5, choices=[("white", "White"), ("black", "Black")], default="white")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     analysis_completed_at = models.DateTimeField(null=True, blank=True)
-    
+
     class Meta:
-        db_table = 'games'
-        unique_together = ('user', 'platform', 'game_id')
-        ordering = ['-date_played']
+        db_table = "games"
+        unique_together = ("user", "platform", "game_id")
+        ordering = ["-date_played"]
         indexes = [
-            models.Index(fields=['user', 'platform']),
-            models.Index(fields=['date_played']),
-            models.Index(fields=['analysis_status']),
-            models.Index(fields=['time_control_type']),
-            models.Index(fields=['eco_code']),
+            models.Index(fields=["user", "platform"]),
+            models.Index(fields=["date_played"]),
+            models.Index(fields=["analysis_status"]),
+            models.Index(fields=["time_control_type"]),
+            models.Index(fields=["eco_code"]),
         ]
 
     def __str__(self) -> str:
@@ -543,39 +547,40 @@ class Game(models.Model):
             time_category = self.get_time_control_category()
             if time_category:
                 self.time_control = time_category
-                
+                self.time_control_category = time_category  # Populate the new field
+
             super().save(*args, **kwargs)
-            
+
             # Rating update logic commented out for now
             # if not hasattr(self, 'user') or not self.user:
             #     logger.debug("Skipping rating update: no user associated with game")
             #     return
-            
+
             # try:
             #     profile = self.user.profile
             #     if not profile:
             #         logger.debug("Skipping rating update: no profile found for user")
             #         return
-                
+
             #     # Check if this game belongs to the user's linked account
             #     is_users_game = False
-                
+
             #     # Handle chess.com games
-            #     if self.platform == 'chess.com' and profile.chesscom_username:
+            #     if self.platform == 'chess.com' and profile.chess_com_username:
             #         try:
             #             if self.white and self.black:  # Ensure usernames exist
             #                 white_lower = self.white.lower()
             #                 black_lower = self.black.lower()
-            #                 username_lower = profile.chesscom_username.lower()
-            #                 is_users_game = (white_lower == username_lower or 
+            #                 username_lower = profile.chess_com_username.lower()
+            #                 is_users_game = (white_lower == username_lower or
             #                                black_lower == username_lower)
             #         except AttributeError as e:
             #             logger.error(
             #                 f"Error comparing chess.com usernames: white={self.white}, "
-            #                 f"black={self.black}, username={profile.chesscom_username}. "
+            #                 f"black={self.black}, username={profile.chess_com_username}. "
             #                 f"Error: {str(e)}"
             #             )
-                
+
             #     # Handle lichess games
             #     elif self.platform == 'lichess' and profile.lichess_username:
             #         try:
@@ -583,7 +588,7 @@ class Game(models.Model):
             #                 white_lower = self.white.lower()
             #                 black_lower = self.black.lower()
             #                 username_lower = profile.lichess_username.lower()
-            #                 is_users_game = (white_lower == username_lower or 
+            #                 is_users_game = (white_lower == username_lower or
             #                                black_lower == username_lower)
             #         except AttributeError as e:
             #             logger.error(
@@ -591,13 +596,13 @@ class Game(models.Model):
             #                 f"black={self.black}, username={profile.lichess_username}. "
             #                 f"Error: {str(e)}"
             #             )
-                
+
             #     if is_users_game:
             #         # Determine if user was white or black
             #         is_white = False
             #         try:
-            #             if self.platform == 'chess.com' and profile.chesscom_username and self.white:
-            #                 is_white = self.white.lower() == profile.chesscom_username.lower()
+            #             if self.platform == 'chess.com' and profile.chess_com_username and self.white:
+            #                 is_white = self.white.lower() == profile.chess_com_username.lower()
             #             elif self.platform == 'lichess' and profile.lichess_username and self.white:
             #                 is_white = self.white.lower() == profile.lichess_username.lower()
             #         except AttributeError as e:
@@ -606,10 +611,10 @@ class Game(models.Model):
             #                 f"platform={self.platform}, error={str(e)}"
             #             )
             #             return
-                    
+
             #         # Get the user's rating from this game
             #         rating = self.white_elo if is_white else self.black_elo
-                    
+
             #         if rating is not None:
             #             # Update the rating using the profile's update_rating method
             #             profile.update_rating(time_category, rating)
@@ -624,7 +629,7 @@ class Game(models.Model):
             #             )
             # except Exception as e:
             #     logger.error(
-            #         f"Error updating rating for game {self.id}: {str(e)}", 
+            #         f"Error updating rating for game {self.id}: {str(e)}",
             #         exc_info=True
             #     )
         except Exception as e:
@@ -635,11 +640,11 @@ class Game(models.Model):
         """Determine the time control category of the game."""
         try:
             # First check if we already have a time_control field set
-            if self.time_control and self.time_control in ['bullet', 'blitz', 'rapid', 'classical']:
+            if self.time_control and self.time_control in ["bullet", "blitz", "rapid", "classical"]:
                 return self.time_control
-                
+
             # Extract total time in minutes
-            if self.platform == 'chess.com':
+            if self.platform == "chess.com":
                 # Try TimeControl tag first
                 time_pattern = r'\[TimeControl "(\d+)(?:\+(\d+))?"'
                 match = re.search(time_pattern, self.pgn)
@@ -653,18 +658,18 @@ class Game(models.Model):
                     event_match = re.search(event_pattern, self.pgn, re.IGNORECASE)
                     if event_match:
                         event = event_match.group(0).lower()
-                        if 'bullet' in event:
-                            return 'bullet'
-                        elif 'blitz' in event:
-                            return 'blitz'
-                        elif 'rapid' in event:
-                            return 'rapid'
-                        elif 'classical' in event:
-                            return 'classical'
+                        if "bullet" in event:
+                            return "bullet"
+                        elif "blitz" in event:
+                            return "blitz"
+                        elif "rapid" in event:
+                            return "rapid"
+                        elif "classical" in event:
+                            return "classical"
                     return None
             else:  # lichess
                 # Try direct time control pattern
-                time_pattern = r'(?:TimeControl |^)(\d+)\+(\d+)'
+                time_pattern = r"(?:TimeControl |^)(\d+)\+(\d+)"
                 match = re.search(time_pattern, self.pgn)
                 if match:
                     base_minutes = int(match.group(1))
@@ -676,25 +681,25 @@ class Game(models.Model):
                     event_match = re.search(event_pattern, self.pgn, re.IGNORECASE)
                     if event_match:
                         event = event_match.group(0).lower()
-                        if 'bullet' in event:
-                            return 'bullet'
-                        elif 'blitz' in event:
-                            return 'blitz'
-                        elif 'rapid' in event:
-                            return 'rapid'
-                        elif 'classical' in event:
-                            return 'classical'
+                        if "bullet" in event:
+                            return "bullet"
+                        elif "blitz" in event:
+                            return "blitz"
+                        elif "rapid" in event:
+                            return "rapid"
+                        elif "classical" in event:
+                            return "classical"
                     return None
-            
+
             # Categorize based on total time
             if total_minutes < 3:
-                return 'bullet'
+                return "bullet"
             elif total_minutes < 10:
-                return 'blitz'
+                return "blitz"
             elif total_minutes < 30:
-                return 'rapid'
+                return "rapid"
             else:
-                return 'classical'
+                return "classical"
         except Exception as e:
             logger.error(f"Error determining time control category: {str(e)}")
             return None
@@ -719,83 +724,111 @@ class Game(models.Model):
         """Get the game result from a specific player's perspective."""
         if not username:
             return None
-            
+
         if self.white.lower() == username.lower():
-            if self.result == '1-0':
-                return 'win'
-            elif self.result == '0-1':
-                return 'loss'
-            elif self.result == '1/2-1/2':
-                return 'draw'
+            if self.result == "1-0":
+                return "win"
+            elif self.result == "0-1":
+                return "loss"
+            elif self.result == "1/2-1/2":
+                return "draw"
         elif self.black.lower() == username.lower():
-            if self.result == '1-0':
-                return 'loss'
-            elif self.result == '0-1':
-                return 'win'
-            elif self.result == '1/2-1/2':
-                return 'draw'
+            if self.result == "1-0":
+                return "loss"
+            elif self.result == "0-1":
+                return "win"
+            elif self.result == "1/2-1/2":
+                return "draw"
         return None
 
+
 class GameAnalysis(models.Model):
-    """Model representing a detailed game analysis."""
-    game = models.OneToOneField(Game, on_delete=models.CASCADE)
-    
-    # Enhanced fields
-    metrics = models.JSONField(default=dict)
-    phase_metrics = models.JSONField(default=dict)  # Opening, middlegame, endgame
-    time_metrics = models.JSONField(default=dict)
-    tactical_metrics = models.JSONField(default=dict)
-    positional_metrics = models.JSONField(default=dict)
-    feedback = models.JSONField(default=dict)
-    time_control_feedback = models.JSONField(default=dict)
-    study_plan = models.JSONField(default=dict)
-    cache_key = models.CharField(max_length=100, unique=True, default='default_cache_key')
-    analysis_metadata = models.JSONField(default=dict)  # Version, settings used, etc.
-    
+    """Analysis results for a chess game."""
+
+    game = models.OneToOneField("Game", on_delete=models.CASCADE, related_name="gameanalysis")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    # Store overall analysis statistics
+    accuracy_white = models.FloatField(null=True, blank=True)
+    accuracy_black = models.FloatField(null=True, blank=True)
+    
+    # If metrics field is causing errors because it doesn't exist in the database schema,
+    # we'll provide a property that safely returns metrics data from the analysis_data
+    
+    # Store the detailed analysis as JSON
+    analysis_data = models.JSONField(default=dict, blank=True)
+    
+    # Store the AI-generated feedback
+    feedback = models.TextField(blank=True, null=True)
+    
     class Meta:
-        db_table = 'game_analysis'
+        verbose_name = "Game Analysis"
+        verbose_name_plural = "Game Analyses"
         indexes = [
-            models.Index(fields=['cache_key']),
-            models.Index(fields=['created_at']),
+            models.Index(fields=["game"]),
+            models.Index(fields=["created_at"]),
         ]
 
-    def __str__(self) -> str:
-        return f"Analysis for {self.game}"
+    @property
+    def metrics(self):
+        """Safely get metrics from analysis_data."""
+        if not hasattr(self, 'analysis_data') or not self.analysis_data:
+            return {}
+        return self.analysis_data.get('metrics', {})
+    
+    @property
+    def moves(self):
+        """Get analyzed moves from analysis data."""
+        if not hasattr(self, 'analysis_data') or not self.analysis_data:
+            return []
+        return self.analysis_data.get('moves', [])
+    
+    @property 
+    def evaluation(self):
+        """Get game evaluation from analysis data."""
+        if not hasattr(self, 'analysis_data') or not self.analysis_data:
+            return {}
+        return self.analysis_data.get('evaluation', {})
+    
+    def __str__(self):
+        return f"Analysis for Game {self.game_id} - Created: {self.created_at.strftime('%Y-%m-%d')}"
+
 
 class AnalysisCache(models.Model):
     """Model to track cache usage and implement eviction policies."""
+
     key = models.CharField(max_length=100, primary_key=True)
     size_bytes = models.IntegerField()
     last_accessed = models.DateTimeField(auto_now=True)
     priority = models.IntegerField(default=0)
     expires_at = models.DateTimeField()
-    
+
     class Meta:
-        db_table = 'analysis_cache'
+        db_table = "analysis_cache"
         indexes = [
-            models.Index(fields=['last_accessed']),
-            models.Index(fields=['priority']),
-            models.Index(fields=['expires_at']),
+            models.Index(fields=["last_accessed"]),
+            models.Index(fields=["priority"]),
+            models.Index(fields=["expires_at"]),
         ]
+
 
 class Transaction(models.Model):
     """Model representing a credit transaction."""
+
     TRANSACTION_TYPES = [
-        ('purchase', 'Purchase'),
-        ('usage', 'Usage'),
-        ('refund', 'Refund'),
+        ("purchase", "Purchase"),
+        ("usage", "Usage"),
+        ("refund", "Refund"),
     ]
-    
+
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('completed', 'Completed'),
-        ('failed', 'Failed'),
-        ('refunded', 'Refunded'),
+        ("pending", "Pending"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+        ("refunded", "Refunded"),
     ]
-    
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -809,16 +842,91 @@ class Transaction(models.Model):
         return f"{self.transaction_type} - {self.credits} credits for {self.user.username}"
 
     class Meta:
-        db_table = 'transactions'
+        db_table = "transactions"
+
 
 class BatchAnalysis(models.Model):
     """Model representing a batch analysis of multiple games."""
+
     name = models.CharField(max_length=100)
     description = models.TextField()
-    games = models.ManyToManyField(Game, related_name='batch_analyses')
+    games = models.ManyToManyField(Game, related_name="batch_analyses")
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=20, default='pending')  # e.g., 'pending', 'completed'
+    status = models.CharField(max_length=20, default="pending")  # e.g., 'pending', 'completed'
 
     def __str__(self):
         return self.name
+
+
+class SubscriptionTier(models.Model):
+    """Model representing a subscription tier."""
+
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField()
+    features = models.JSONField(default=list)
+    credits_per_period = models.IntegerField(default=0)
+    period_length = models.IntegerField(default=30)  # in days
+    is_active = models.BooleanField(default=True)
+    stripe_price_id = models.CharField(max_length=100, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} (${self.price})"
+
+    class Meta:
+        db_table = "subscription_tiers"
+        ordering = ["price"]
+
+
+class Subscription(models.Model):
+    """Model representing a user subscription."""
+
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("canceled", "Canceled"),
+        ("past_due", "Past Due"),
+        ("trialing", "Trialing"),
+        ("unpaid", "Unpaid"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="subscriptions")
+    tier = models.ForeignKey(SubscriptionTier, on_delete=models.PROTECT)
+    stripe_subscription_id = models.CharField(max_length=100, blank=True, null=True)
+    stripe_customer_id = models.CharField(max_length=100, blank=True, null=True)
+    plan = models.CharField(max_length=100)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
+    start_date = models.DateTimeField(default=timezone.now)
+    end_date = models.DateTimeField(null=True, blank=True)
+    next_billing_date = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    credits_per_period = models.IntegerField(default=0)
+    credits_remaining = models.IntegerField(default=0)
+    last_credit_reset = models.DateTimeField(default=timezone.now)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username}'s {self.plan} subscription"
+
+    def reset_credits(self):
+        """Reset the user's credits based on the subscription tier."""
+        self.credits_remaining = self.credits_per_period
+        self.last_credit_reset = timezone.now()
+        self.save()
+
+    def deduct_credits(self, amount):
+        """Deduct credits from the user's subscription."""
+        if self.credits_remaining >= amount:
+            self.credits_remaining -= amount
+            self.save()
+            return True
+        return False
+
+    class Meta:
+        db_table = "subscriptions"
+        ordering = ["-created_at"]

@@ -27,4 +27,4 @@ module.exports = {
     '!src/index.js',
     '!src/reportWebVitals.js',
   ],
-}; 
+};

@@ -143,4 +143,4 @@ describe('Games Component', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/analysis/1');
     });
   });
-}); 
+});

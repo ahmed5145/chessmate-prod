@@ -112,14 +112,14 @@ const Credits = () => {
           <div
             key={pkg.id}
             className={`rounded-lg shadow-sm divide-y ${
-              isDarkMode 
-                ? 'bg-gray-800 divide-gray-700' 
+              isDarkMode
+                ? 'bg-gray-800 divide-gray-700'
                 : 'divide-gray-200 bg-white'
             } ${
               pkg.popular
                 ? 'border-2 border-indigo-500 relative'
-                : isDarkMode 
-                  ? 'border border-gray-700' 
+                : isDarkMode
+                  ? 'border border-gray-700'
                   : 'border border-gray-200'
             }`}
           >
@@ -196,4 +196,4 @@ const Credits = () => {
   );
 };
 
-export default Credits; 
+export default Credits;

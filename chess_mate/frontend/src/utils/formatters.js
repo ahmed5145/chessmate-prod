@@ -8,12 +8,12 @@ export const formatNumber = (value, precision = 1) => {
     if (typeof value !== 'number' || isNaN(value)) {
         return '0';
     }
-    
+
     // For percentages and scores, round to specified precision
     if (value < 100) {
         return value.toFixed(precision);
     }
-    
+
     // For larger numbers, use no decimal places
     return Math.round(value).toString();
-}; 
+};

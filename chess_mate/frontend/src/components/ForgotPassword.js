@@ -47,8 +47,8 @@ const ForgotPassword = () => {
             isDarkMode ? 'bg-gray-800' : 'bg-white'
           }`} onSubmit={handleSubmit}>
             <div>
-              <label 
-                htmlFor="email" 
+              <label
+                htmlFor="email"
                 className={`block text-sm font-medium ${
                   isDarkMode ? 'text-gray-200' : 'text-gray-700'
                 }`}
@@ -65,8 +65,8 @@ const ForgotPassword = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={`appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
+                    isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white'
                       : 'bg-white border-gray-300 text-gray-900'
                   }`}
                   placeholder="Enter your email"
@@ -79,8 +79,8 @@ const ForgotPassword = () => {
                 type="submit"
                 disabled={loading}
                 className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-                  loading 
-                    ? 'bg-indigo-400 cursor-not-allowed' 
+                  loading
+                    ? 'bg-indigo-400 cursor-not-allowed'
                     : 'bg-indigo-600 hover:bg-indigo-700'
                 } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
                   isDarkMode ? 'focus:ring-offset-gray-800' : ''
@@ -96,4 +96,4 @@ const ForgotPassword = () => {
   );
 };
 
-export default ForgotPassword; 
+export default ForgotPassword;

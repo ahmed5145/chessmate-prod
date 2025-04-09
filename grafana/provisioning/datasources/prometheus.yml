@@ -12,4 +12,4 @@ datasources:
       queryTimeout: "30s"
       httpMethod: "POST"
     secureJsonData: {}
-    version: 1 
+    version: 1

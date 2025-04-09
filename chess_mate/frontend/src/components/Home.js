@@ -52,9 +52,9 @@ const Home = () => {
               key={index}
               onClick={action.action}
               className={`p-6 rounded-xl text-left transition-all duration-200 transform hover:scale-102 hover:shadow-lg
-                ${isDarkMode 
-                  ? 'bg-gray-800 hover:bg-gray-750 text-white' 
-                  : 'bg-white hover:bg-gray-50 text-gray-900'} 
+                ${isDarkMode
+                  ? 'bg-gray-800 hover:bg-gray-750 text-white'
+                  : 'bg-white hover:bg-gray-50 text-gray-900'}
                 border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
             >
               <div className="flex items-center space-x-4">

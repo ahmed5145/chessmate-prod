@@ -11,7 +11,7 @@ The Request Validation Middleware provides automatic validation for API requests
 
 ## How It Works
 
-The middleware intercepts all API requests (`/api/*`) and validates them against predefined schemas. 
+The middleware intercepts all API requests (`/api/*`) and validates them against predefined schemas.
 The validation process includes:
 
 1. **Path matching**: Determine if the request path matches any validation schema

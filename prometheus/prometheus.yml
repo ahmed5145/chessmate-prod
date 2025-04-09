@@ -27,4 +27,4 @@ scrape_configs:
       - targets: ['cadvisor:8080']
         labels:
           environment: 'production'
-          instance: 'ec2-3-133-97-72.us-east-2.compute.amazonaws.com' 
+          instance: 'ec2-3-133-97-72.us-east-2.compute.amazonaws.com'

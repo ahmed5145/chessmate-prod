@@ -3,7 +3,7 @@ import { useTheme } from '../context/ThemeContext';
 
 export const Loader = () => {
   const { isDarkMode } = useTheme();
-  
+
   return (
     <div className="flex items-center justify-center">
       <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${
@@ -13,4 +13,4 @@ export const Loader = () => {
   );
 };
 
-export default Loader; 
+export default Loader;

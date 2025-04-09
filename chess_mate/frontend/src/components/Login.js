@@ -20,9 +20,9 @@ const Login = () => {
 
     try {
       const result = await loginUser(email, password);
-      
+
       if (result.success) {
-        setUser(result.data.profile);
+        setUser(result.user);
         toast.success("Login successful!");
         navigate("/dashboard");
       } else {
@@ -31,7 +31,7 @@ const Login = () => {
       }
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("An unexpected error occurred. Please try again.");
+      toast.error(error.message || "An unexpected error occurred. Please try again.");
       setLoading(false);
     }
   };
@@ -53,10 +53,10 @@ const Login = () => {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      <div className={`mt-8 sm:mx-auto sm:w-full sm:max-w-md ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
         <div className={`py-8 px-4 shadow sm:rounded-lg sm:px-10 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
+          <form onSubmit={handleSubmit} className={`space-y-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div className={`${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <label htmlFor="email" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                 Email address
               </label>
@@ -71,8 +71,8 @@ const Login = () => {
                   autoComplete="email"
                   required
                   className={`block w-full pl-10 sm:text-sm rounded-md ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500' 
+                    isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500'
                       : 'border-gray-300 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500'
                   }`}
                   placeholder="you@example.com"
@@ -98,8 +98,8 @@ const Login = () => {
                   autoComplete="current-password"
                   required
                   className={`block w-full pl-10 sm:text-sm rounded-md ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500' 
+                    isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500'
                       : 'border-gray-300 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500'
                   }`}
                   placeholder="••••••••"

@@ -1,16 +1,22 @@
 """Tests for the error handling module."""
+
 import pytest
+from core.error_handling import (
+    ChessServiceError,
+    CreditLimitError,
+    InvalidOperationError,
+    ResourceNotFoundError,
+    ValidationError,
+    api_error_handler,
+    create_error_response,
+    create_success_response,
+    handle_view_exception,
+)
+from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-from django.contrib.auth.models import User
-
-from core.error_handling import (
-    create_error_response, handle_view_exception, api_error_handler,
-    ChessServiceError, ResourceNotFoundError, InvalidOperationError,
-    CreditLimitError, ValidationError, create_success_response
-)
 
 
 @pytest.fixture
@@ -22,11 +28,7 @@ def api_client():
 @pytest.fixture
 def user():
     """Create a test user."""
-    return User.objects.create_user(
-        username='testuser',
-        email='test@example.com',
-        password='testpassword'
-    )
+    return User.objects.create_user(username="testuser", email="test@example.com", password="testpassword")
 
 
 @pytest.fixture
@@ -46,12 +48,12 @@ class TestErrorHandlingUtilities:
             message="Game not found",
             status_code=status.HTTP_404_NOT_FOUND,
             details={"game_id": 123},
-            request_id="test-request-id"
+            request_id="test-request-id",
         )
-        
+
         assert isinstance(response, JsonResponse)
         assert response.status_code == status.HTTP_404_NOT_FOUND
-        
+
         data = response.json()
         assert data["status"] == "error"
         assert data["code"] == "RES_001"  # resource_not_found code
@@ -63,7 +65,7 @@ class TestErrorHandlingUtilities:
         """Test handling of REST framework APIException."""
         exc = ChessServiceError("Chess.com", "API timeout")
         response = handle_view_exception(exc, "test-request-id")
-        
+
         assert response.status_code == status.HTTP_502_BAD_GATEWAY
         data = response.json()
         assert data["status"] == "error"
@@ -74,7 +76,7 @@ class TestErrorHandlingUtilities:
         """Test handling of generic Python exception."""
         exc = ValueError("Invalid game ID")
         response = handle_view_exception(exc, "test-request-id")
-        
+
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         data = response.json()
         assert data["status"] == "error"
@@ -85,14 +87,12 @@ class TestErrorHandlingUtilities:
         """Test creating a standardized success response."""
         data = {"game_id": 123, "status": "complete"}
         response = create_success_response(
-            data=data,
-            message="Game analysis complete",
-            status_code=status.HTTP_201_CREATED
+            data=data, message="Game analysis complete", status_code=status.HTTP_201_CREATED
         )
-        
+
         assert isinstance(response, JsonResponse)
         assert response.status_code == status.HTTP_201_CREATED
-        
+
         response_data = response.json()
         assert response_data["status"] == "success"
         assert response_data["data"] == data
@@ -114,7 +114,7 @@ class TestCustomExceptions:
         exc = ResourceNotFoundError("Game", 123)
         assert str(exc) == "Game with ID 123 not found"
         assert exc.status_code == status.HTTP_404_NOT_FOUND
-        
+
         # Test without ID
         exc = ResourceNotFoundError("User profile")
         assert str(exc) == "User profile not found"
@@ -135,7 +135,7 @@ class TestCustomExceptions:
         """Test ValidationError exception."""
         errors = [
             {"field": "email", "message": "Invalid email format"},
-            {"field": "password", "message": "Password too short"}
+            {"field": "password", "message": "Password too short"},
         ]
         exc = ValidationError(errors)
         assert exc.status_code == status.HTTP_400_BAD_REQUEST
@@ -156,7 +156,7 @@ def sample_view_function(request, raise_error=False, error_type=None):
             raise ValidationError(errors)
         else:
             raise ValueError("Something went wrong")
-    
+
     return create_success_response({"message": "Success"})
 
 
@@ -165,44 +165,44 @@ class TestErrorHandlerDecorator:
 
     def test_successful_view(self):
         """Test decorator on a successful view function."""
-        request = type('Request', (), {'request_id': 'test-id'})()
+        request = type("Request", (), {"request_id": "test-id"})()
         response = sample_view_function(request)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["status"] == "success"
 
     def test_api_exception_view(self):
         """Test decorator handling of API exceptions."""
-        request = type('Request', (), {'request_id': 'test-id'})()
+        request = type("Request", (), {"request_id": "test-id"})()
         response = sample_view_function(request, raise_error=True, error_type="chess_service")
-        
+
         assert response.status_code == status.HTTP_502_BAD_GATEWAY
         assert response.json()["status"] == "error"
         assert "Chess.com" in response.json()["message"]
 
     def test_resource_not_found_view(self):
         """Test decorator handling of ResourceNotFoundError."""
-        request = type('Request', (), {'request_id': 'test-id'})()
+        request = type("Request", (), {"request_id": "test-id"})()
         response = sample_view_function(request, raise_error=True, error_type="resource_not_found")
-        
+
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert response.json()["status"] == "error"
         assert "Game with ID 123 not found" in response.json()["message"]
 
     def test_validation_error_view(self):
         """Test decorator handling of ValidationError."""
-        request = type('Request', (), {'request_id': 'test-id'})()
+        request = type("Request", (), {"request_id": "test-id"})()
         response = sample_view_function(request, raise_error=True, error_type="validation")
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.json()["status"] == "error"
         assert "Validation failed" in str(response.json()["message"])
 
     def test_generic_exception_view(self):
         """Test decorator handling of generic exceptions."""
-        request = type('Request', (), {'request_id': 'test-id'})()
+        request = type("Request", (), {"request_id": "test-id"})()
         response = sample_view_function(request, raise_error=True)
-        
+
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert response.json()["status"] == "error"
-        assert "Something went wrong" in response.json()["message"] 
+        assert "Something went wrong" in response.json()["message"]

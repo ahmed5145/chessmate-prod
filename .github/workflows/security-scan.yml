@@ -16,39 +16,39 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-          
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r chess_mate/requirements.txt
           pip install safety bandit
-          
+
       - name: Check Python dependencies for security vulnerabilities
         run: |
           safety check -r chess_mate/requirements.txt
-          
+
       - name: Run Bandit security linter
         run: |
           bandit -r chess_mate/ -x chess_mate/core/tests/,chess_mate/*/migrations/
-          
+
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-          
+
       - name: Install Node.js dependencies
         run: |
           cd frontend
           npm ci
-          
+
       - name: Run npm audit
         run: |
           cd frontend
           npm audit
-          
+
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.9.0
         with:
           target: 'https://staging.chessmate.com'
           allow_issue_writing: false
-          cmd_options: '-a' 
+          cmd_options: '-a'

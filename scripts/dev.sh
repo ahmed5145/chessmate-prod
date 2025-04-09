@@ -18,4 +18,4 @@ docker-compose up --build
 # The script will wait here while containers are running
 # Press Ctrl+C to stop
 
-echo "Development environment stopped." 
+echo "Development environment stopped."

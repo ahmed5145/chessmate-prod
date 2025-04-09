@@ -1,65 +1,18 @@
 import chess
-import chess.pgn
 import chess.engine
-from django.http import JsonResponse
+import chess.pgn
 from django.conf import settings
+from django.http import JsonResponse
 
-def analyze_game(pgn):
-    # Initialize the chess engine
-    engine = chess.engine.SimpleEngine.popen_uci(settings.STOCKFISH_PATH)
-    # Parse the PGN
-    try:
-        game = chess.pgn.read_game(pgn)
-        if not game:
-            raise ValueError("Invalid PGN format.")
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-    board = game.board()
-
-    analysis = []
-    opening_name = None
-
-    # Iterate through all moves in the game
-    for move in game.mainline_moves():
-        board.push(move)
-        # Check if the game has an opening name
-        if not opening_name:
-            # Extract the opening name if available
-            opening_name = board.opening().name if board.opening() else "Unknown Opening"
-            
-        # Analyze the current position
-        info = engine.analyse(board, chess.engine.Limit(time=0.1))
-        analysis.append({
-            'move': move.uci(),
-            'score': info['score'].relative.score(),  # Centipawn score
-            'depth': info['depth'],
-            'color': "white" if board.turn else "black"
-        })
-
-    engine.quit()
-    return analysis, opening_name
-
-def generate_feedback(analysis, is_white):
-    opening_score = sum([move['score'] for move in analysis[:5]]) / 5
-    inaccuracies = len([move for move in analysis if abs(move['score']) < 50])
-    blunders = len([move for move in analysis if abs(move['score']) > 300])
-    
-    feedback = {
-        'opening': "Strong opening play" if opening_score > 50 else "Needs improvement in openings.",
-        'inaccuracies': f"{inaccuracies} inaccuracies. Try to maintain focus in tactical positions.",
-        'blunders': f"{blunders} blunders. Consider reviewing blundered moves in-depth.",
-        'play_as_white': "Solid play as White" if is_white else "Solid play as Black",
-    }
-    return feedback
 
 def generate_feedback_without_ai(analysis_data, stats):
     """
     Generate structured feedback without using AI.
-    
+
     Args:
         analysis_data (dict): Analysis data from the game
         stats (dict): Statistics about the game
-        
+
     Returns:
         str: Formatted feedback string
     """
@@ -84,7 +37,7 @@ Endgame Technique:
 • Your endgame play {endgame_feedback}
 • Practice suggestion: {endgame_suggestion}
 """
-    
+
     # Opening feedback
     if stats["common_mistakes"].get("mistakes", 0) > 1:
         opening_feedback = "you might benefit from deeper opening preparation"
@@ -137,6 +90,60 @@ Endgame Technique:
         time_feedback=time_feedback,
         time_suggestion=time_suggestion,
         endgame_feedback=endgame_feedback,
-        endgame_suggestion=endgame_suggestion
+        endgame_suggestion=endgame_suggestion,
     )
 
+
+def is_valid_move(move):
+    """
+    Check if a move is valid in algebraic notation.
+
+    Args:
+        move: A string representing a chess move in algebraic notation
+
+    Returns:
+        bool: True if the move appears valid, False otherwise
+    """
+    if not move or not isinstance(move, str):
+        return False
+
+    # Basic validation for algebraic notation
+    if len(move) < 2 or len(move) > 7:
+        return False
+
+    # Handle castling
+    if move in ["O-O", "O-O-O"]:
+        return True
+
+    # Check first character is a valid piece or file
+    valid_pieces = {"K", "Q", "R", "B", "N"}
+    valid_files = {"a", "b", "c", "d", "e", "f", "g", "h"}
+
+    first_char = move[0]
+
+    # If first char is a piece, it must be in valid_pieces
+    if first_char.isupper():
+        if first_char not in valid_pieces:
+            return False
+    # If first char is a file, it must be in valid_files
+    else:
+        if first_char not in valid_files:
+            return False
+
+    # Check if the move contains a valid rank (for destination)
+    contains_valid_rank = False
+    for char in move:
+        if char in "12345678":
+            contains_valid_rank = True
+            break
+
+    if not contains_valid_rank:
+        return False
+
+    # Check for promotion format (e.g., "e8=Q")
+    if "=" in move:
+        parts = move.split("=")
+        if len(parts) != 2 or parts[1] not in valid_pieces:
+            return False
+
+    return True

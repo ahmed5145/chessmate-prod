@@ -162,4 +162,4 @@ export const getThemeHover = (isDarkMode, type = 'primary') => {
   };
 
   return isDarkMode ? hover[type].dark : hover[type].light;
-}; 
+};

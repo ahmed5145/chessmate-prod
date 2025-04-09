@@ -8,7 +8,7 @@
             try {
                 // Get the current URL
                 const url = window.location.href;
-                
+
                 // Make the API call to verify the email
                 const response = await fetch(url, {
                     method: 'GET',
@@ -16,20 +16,20 @@
                         'Accept': 'application/json'
                     }
                 });
-                
+
                 const data = await response.json();
-                
+
                 // Redirect to the appropriate page
                 if (data.redirect_url) {
                     window.location.href = data.redirect_url;
                 } else {
                     // Fallback to error page if no redirect URL
-                    window.location.href = '/email/verification_error.html';
+                    window.location.href = '/email/verification_failed.html';
                 }
             } catch (error) {
                 console.error('Verification error:', error);
                 // Redirect to error page on any error
-                window.location.href = '/email/verification_error.html';
+                window.location.href = '/email/verification_failed.html';
             }
         }
 
@@ -43,4 +43,4 @@
         <p>Please wait while we verify your email address.</p>
     </div>
 </body>
-</html> 
+</html>

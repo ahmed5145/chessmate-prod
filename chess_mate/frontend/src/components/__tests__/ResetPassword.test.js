@@ -139,4 +139,4 @@ describe("ResetPassword Component", () => {
     expect(screen.getByText("Resetting password...")).toBeInTheDocument();
     expect(submitButton).toBeDisabled();
   });
-}); 
+});

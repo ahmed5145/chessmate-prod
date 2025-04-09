@@ -97,7 +97,7 @@
   .stats-grid {
     @apply grid-cols-1;
   }
-  
+
   .stat-item {
     @apply text-center;
   }
@@ -198,4 +198,4 @@
 
 .light .error-message {
   @apply bg-red-50;
-} 
+}

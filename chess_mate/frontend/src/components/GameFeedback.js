@@ -39,12 +39,12 @@ const GameFeedback = ({ gameId }) => {
         setLoading(true);
         setError(null);
         const data = await fetchGameFeedback(gameId);
-        
+
         if (!data) {
           setError("No feedback data available");
           return;
         }
-        
+
         setFeedback(data);
       } catch (err) {
         console.error("Feedback fetch error:", err);
@@ -116,9 +116,9 @@ const GameFeedback = ({ gameId }) => {
 
   const renderMetrics = () => {
     if (!feedback?.analysis_results?.summary) return null;
-    
+
     const { overall, phases, tactics, time_management } = feedback.analysis_results.summary;
-    
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -129,7 +129,7 @@ const GameFeedback = ({ gameId }) => {
             <p>Blunders: {overall.blunders}</p>
           </div>
         </div>
-        
+
         <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <h4 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Tactics</h4>
           <div className="space-y-2">
@@ -138,7 +138,7 @@ const GameFeedback = ({ gameId }) => {
             <p>Missed: {tactics.missed}</p>
           </div>
         </div>
-        
+
         <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <h4 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Time Management</h4>
           <div className="space-y-2">
@@ -152,8 +152,8 @@ const GameFeedback = ({ gameId }) => {
 
   const renderFeedback = () => {
     if (!feedback?.feedback) return null;
-    
-    const { 
+
+    const {
         source,
         strengths,
         weaknesses,
@@ -171,7 +171,7 @@ const GameFeedback = ({ gameId }) => {
     return (
         <div className="space-y-6">
             {renderFeedbackSource(source)}
-            
+
             {/* Strengths and Weaknesses */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {renderFeedbackSection("Strengths", strengths, <CheckCircle className="text-green-500" />)}

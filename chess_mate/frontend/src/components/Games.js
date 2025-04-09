@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Filter, Search, ChevronLeft, ChevronRight, Swords, CheckCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { analyzeSpecificGame, checkAnalysisStatus, fetchGameAnalysis, fetchUserGames } from '../services/apiRequests';
+import { checkAnalysisStatus, fetchGameAnalysis, fetchUserGames } from '../services/apiRequests';
+import { checkMultipleAnalysisStatuses, analyzeSpecificGame } from '../services/gameAnalysisService';
 import { useTheme } from '../context/ThemeContext';
 import { Box, CircularProgress, Typography, Card, CardContent, Grid } from '@mui/material';
 import { formatDate } from '../utils/dateUtils';
+import { checkAuthStatus } from '../services/authService';
 
 const Games = () => {
   const [games, setGames] = useState([]);
@@ -23,7 +25,7 @@ const Games = () => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [gamesPerPage] = useState(10);
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, isAuthenticated } = useTheme();
   const navigate = useNavigate();
 
   // Filter and sort games
@@ -64,7 +66,7 @@ const Games = () => {
   const startIndex = (currentPage - 1) * gamesPerPage;
   const endIndex = startIndex + gamesPerPage;
   const currentGames = filteredAndSortedGames.slice(startIndex, endIndex);
-  
+
   // Generate page numbers array
   const pageNumbers = [];
   for (let i = 1; i <= totalPages; i++) {
@@ -76,103 +78,177 @@ const Games = () => {
     setCurrentPage(1);
   }, [searchTerm, filters, sortConfig]);
 
-  // Polling interval for analysis status (5 seconds)
-  const POLLING_INTERVAL = 5000;
+  // Polling interval for analysis status (10 seconds)
+  const POLLING_INTERVAL = 10000;
 
   useEffect(() => {
     loadGames();
   }, []);
 
-  useEffect(() => {
-    // Set up polling for games with pending analysis
-    const pollingIntervals = {};
+  // Helper function to determine if a game should be polled
+  const shouldPollGame = (game) => {
+    // Don't poll if we don't have a game ID
+    if (!game.id) return false;
+    
+    // Only poll games that are explicitly marked for analysis and in a pending state
+    const isPending = game.analysis_status === 'pending' || game.status === 'pending';
+    
+    // Don't poll games that are already analyzed, have errors, or marked as not_analyzed
+    const isAnalyzedOrError = game.analysis_status === 'analyzed' || 
+                             game.analysis_status === 'error' ||
+                             game.analysis_status === 'not_analyzed' ||
+                             game.status === 'analyzed' ||
+                             game.status === 'error' ||
+                             game.status === 'not_analyzed';
+                             
+    return isPending && !isAnalyzedOrError;
+  };
 
-    games.forEach(game => {
-      if (game.analysis_status === 'pending' && !pollingIntervals[game.id]) {
-        pollingIntervals[game.id] = setInterval(async () => {
-          try {
-            const status = await checkAnalysisStatus(game.id);
-            
+  // Set up polling for games with pending analysis
+  useEffect(() => {
+    // Clear any existing polling intervals
+    if (window._batchPollingInterval) {
+      clearInterval(window._batchPollingInterval);
+      window._batchPollingInterval = null;
+    }
+    
+    // Get all games that need polling
+    const gamesToPoll = games.filter(shouldPollGame);
+    
+    if (gamesToPoll.length === 0) {
+      console.log('No games need polling');
+      return;
+    }
+    
+    console.log(`Setting up batch polling for ${gamesToPoll.length} games`);
+    
+    // Set error count tracking
+    const errorCounts = {};
+    gamesToPoll.forEach(game => {
+      errorCounts[game.id] = 0;
+    });
+    
+    // Set up a single interval to check all games at once
+    window._batchPollingInterval = setInterval(async () => {
+      try {
+        // Get all game IDs that still need polling
+        // Re-filter the games array to check if state has been updated
+        const currentGamesToCheck = games.filter(shouldPollGame).map(game => game.id);
+        
+        if (currentGamesToCheck.length === 0) {
+          console.log('No more games need polling, clearing interval');
+          clearInterval(window._batchPollingInterval);
+          window._batchPollingInterval = null;
+          return;
+        }
+        
+        // Check all games at once
+        const statuses = await checkMultipleAnalysisStatuses(currentGamesToCheck);
+        
+        // Track if any game state was updated
+        let stateUpdated = false;
+        
+        // Process each status
+        Object.entries(statuses).forEach(([gameId, status]) => {
+          gameId = parseInt(gameId); // Convert string ID to number if needed
+          
+          // Update status in state
             setAnalysisStatus(prev => ({
               ...prev,
-              [game.id]: status
-            }));
-
-            if (status === 'completed') {
-              // Clear the polling interval
-              clearInterval(pollingIntervals[game.id]);
-              delete pollingIntervals[game.id];
-
-              // Fetch the analysis results
-              const analysis = await fetchGameAnalysis(game.id);
-              setGames(prev => prev.map(g => 
-                g.id === game.id ? { ...g, analysis } : g
+            [gameId]: status
+          }));
+          
+          // Process status and update games accordingly
+          if (status.status === 'COMPLETED' || status.status === 'ERROR' || 
+              status.status === 'AUTH_ERROR' || status.status === 'FAILED') {
+            
+            if (status.status === 'COMPLETED') {
+              toast.success(`Analysis completed for game ${gameId}`);
+              
+              // Update the games list with the completed analysis
+              setGames(prev => prev.map(g =>
+                g.id === gameId ? { ...g, analysis_status: 'analyzed', analysis: status.analysis } : g
               ));
-
-              toast.success('Analysis completed!');
-            } else if (status === 'failed') {
-              // Clear the polling interval
-              clearInterval(pollingIntervals[game.id]);
-              delete pollingIntervals[game.id];
-
-              toast.error('Analysis failed. Please try again.');
+              stateUpdated = true;
+            } else if (status.status === 'ERROR' || status.status === 'FAILED') {
+              // Don't show error toast for every game
+              console.warn(`Analysis failed for game ${gameId}: ${status.message}`);
+              
+              // Update game status to reflect failure
+              setGames(prev => prev.map(g => 
+                g.id === gameId ? { ...g, analysis_status: 'error' } : g
+              ));
+              stateUpdated = true;
             }
-          } catch (error) {
-            console.error(`Error checking analysis status for game ${game.id}:`, error);
-            // Don't clear the interval on network errors, let it retry
-            if (error.response?.status === 404 || error.response?.status === 400) {
-              clearInterval(pollingIntervals[game.id]);
-              delete pollingIntervals[game.id];
-              toast.error('Analysis failed. Please try again.');
+            
+            // Reset error count
+            errorCounts[gameId] = 0;
+          } else if (status.status === 'PENDING' && status.message?.includes('not started')) {
+            // Increment error count for games with no analysis
+            errorCounts[gameId] = (errorCounts[gameId] || 0) + 1;
+            
+            if (errorCounts[gameId] >= 3) {
+              console.log(`Game ${gameId} has no analysis after 3 checks, marking as not_analyzed`);
+              
+              // Update game status to prevent future polling
+              setGames(prev => {
+                const updatedGames = prev.map(g => 
+                  g.id === gameId ? { ...g, analysis_status: 'not_analyzed' } : g
+                );
+                return updatedGames;
+              });
+              stateUpdated = true;
+              
+              // Also remove from error counts to avoid processing it again
+              delete errorCounts[gameId];
             }
           }
-        }, POLLING_INTERVAL);
+        });
+        
+        // If state was updated, make sure we check if we should still be polling at all
+        if (stateUpdated) {
+          // Re-check if any games still need polling
+          setTimeout(() => {
+            const remainingGames = games.filter(shouldPollGame);
+            if (remainingGames.length === 0) {
+              console.log('No more games need polling after state update, clearing interval');
+              clearInterval(window._batchPollingInterval);
+              window._batchPollingInterval = null;
+            }
+          }, 100); // Small delay to ensure state has updated
+        }
+      } catch (error) {
+        console.error('Error in batch polling:', error);
       }
-    });
-
-    // Cleanup intervals
+    }, POLLING_INTERVAL);
+    
+    // Cleanup on unmount
     return () => {
-      Object.values(pollingIntervals).forEach(interval => clearInterval(interval));
+      if (window._batchPollingInterval) {
+        clearInterval(window._batchPollingInterval);
+        window._batchPollingInterval = null;
+      }
     };
   }, [games]);
 
   const loadGames = async () => {
+    setLoading(true);
     try {
-      const gamesData = await fetchUserGames();
-      console.log('Games response:', gamesData);
-      
-      // Ensure gamesData is an array
-      if (!Array.isArray(gamesData)) {
-        console.error('Invalid games data format:', gamesData);
+      const gamesResponse = await fetchUserGames();
+      // Handle ViewSet response format which has results array
+      if (gamesResponse.results) {
+        console.log('Games response:', gamesResponse.results);
+        setGames(gamesResponse.results);
+      } else if (Array.isArray(gamesResponse)) {
+        console.log('Games response:', gamesResponse);
+        setGames(gamesResponse);
+      } else {
+        console.log('Games response:', []);
         setGames([]);
-        toast.error('Error loading games: Invalid data format');
-        return;
       }
-
-      const processedGames = gamesData.map(game => {
-        // Convert ISO date string to local date string
-        const date = new Date(game.date_played);
-        const localDate = date.toLocaleDateString();
-        
-        // Ensure all required fields have default values
-        return {
-          ...game,
-          opponent: game.opponent || 'Unknown',
-          opening_name: game.opening_name,
-          date_played: localDate,
-          result: game.result || 'unknown',
-          status: game.status || 'not_analyzed',
-          white_elo: game.white_elo || null,
-          black_elo: game.black_elo || null,
-          time_control: game.time_control || 'unknown'
-        };
-      });
-
-      setGames(processedGames);
     } catch (error) {
-      console.error('Error fetching games:', error);
+      console.error('Error loading games:', error);
       toast.error(error.message || 'Failed to load games');
-      setGames([]);
     } finally {
       setLoading(false);
     }
@@ -180,23 +256,68 @@ const Games = () => {
 
   const handleAnalyzeGame = async (gameId) => {
     try {
-      const toastId = `analysis-${gameId}`;
-      toast.loading('Starting analysis...', { id: toastId });
-
-      await analyzeSpecificGame(gameId);
+      // Check authentication
+      const isLoggedIn = await checkAuthStatus();
+      if (!isLoggedIn) {
+        toast.error('Please login to analyze games');
+        navigate('/login');
+        return;
+      }
       
-      toast.success('Analysis started!', { id: toastId });
+      // Create unique toast ID for this analysis
+      const toastId = `analyze-game-${gameId}`;
       
-      // Navigate to the game analysis page with the correct URL
-      navigate(`/game/${gameId}/analysis`);
+      // Show loading toast with more descriptive message
+      toast.loading('Starting game analysis...', {
+        id: toastId,
+        position: 'top-center',
+        closeOnClick: false,
+        draggable: false,
+        duration: 3000, // Auto close after 3 seconds as we're navigating away
+      });
 
+      // Start the analysis in the background and navigate immediately
+      try {
+        // Fire and forget the analysis request - we'll navigate to analysis page regardless
+        analyzeSpecificGame(gameId)
+          .then(() => {
+            // If successful, dismiss the loading toast and show success toast
+            toast.dismiss(toastId);
+            toast.success('Analysis started! Redirecting to analysis page...', {
+              id: `${toastId}-success`,
+              duration: 2000
+            });
+          })
+          .catch(error => {
+            console.error('Error starting analysis (background):', error);
+            // Only show error if we haven't navigated away yet
+            toast.dismiss(toastId);
+            toast.error('Error starting analysis. Please try again.', {
+              id: `${toastId}-error`,
+              duration: 3000
+            });
+          });
+        
+        // Navigate to the analysis page immediately
+        console.log(`Navigating to analysis page for game ${gameId}`);
+        navigate(`/game/${gameId}/analysis`);
+      } catch (error) {
+        console.error('Error starting analysis:', error);
+        toast.dismiss(toastId);
+        toast.error('Failed to start analysis. Please try again.', {
+          id: `${toastId}-error`,
+          duration: 3000
+        });
+      }
     } catch (error) {
-      console.error('Error starting analysis:', error);
-      toast.error(error.message || 'Failed to start analysis');
+      console.error('Error in handleAnalyzeGame:', error);
+      toast.error('An unexpected error occurred. Please try again.');
     }
   };
 
   const getResultBadgeColor = (result, isDarkMode) => {
+    if (!result) return isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800';
+    
     const lowerResult = result.toLowerCase();
     switch (lowerResult) {
       case 'win':
@@ -208,6 +329,11 @@ const Games = () => {
       default:
         return isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const formatGameResult = (result) => {
+    if (!result) return 'UNKNOWN';
+    return result.toUpperCase();
   };
 
   if (loading) {
@@ -256,8 +382,8 @@ const Games = () => {
               <Link
                 to="/profile"
                 className={`inline-flex items-center px-6 py-3 border text-base font-medium rounded-md w-full justify-center ${
-                  isDarkMode 
-                    ? 'border-gray-700 text-gray-300 hover:bg-gray-700' 
+                  isDarkMode
+                    ? 'border-gray-700 text-gray-300 hover:bg-gray-700'
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -284,8 +410,8 @@ const Games = () => {
           <Link
             to="/fetch-games"
             className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white
-              ${isDarkMode 
-                ? 'bg-indigo-600 hover:bg-indigo-700' 
+              ${isDarkMode
+                ? 'bg-indigo-600 hover:bg-indigo-700'
                 : 'bg-indigo-600 hover:bg-indigo-700'}`}
           >
             Import Games
@@ -303,8 +429,8 @@ const Games = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search games..."
             className={`pl-10 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm h-10
-              ${isDarkMode 
-                ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400' 
+              ${isDarkMode
+                ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400'
                 : 'border-gray-300 text-gray-900 placeholder-gray-500'}`}
           />
         </div>
@@ -314,8 +440,8 @@ const Games = () => {
             value={filters.analyzed}
             onChange={(e) => setFilters({ ...filters, analyzed: e.target.value })}
             className={`pl-10 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm h-10
-              ${isDarkMode 
-                ? 'bg-gray-800 border-gray-700 text-white' 
+              ${isDarkMode
+                ? 'bg-gray-800 border-gray-700 text-white'
                 : 'border-gray-300 text-gray-900'}`}
           >
             <option value="all">All Games</option>
@@ -377,15 +503,15 @@ const Games = () => {
                           {game.opening_name || 'Unknown Opening'}
                         </td>
                         <td className={`whitespace-nowrap px-3 py-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
-                          {game.date_played}
+                          {new Date(game.date_played).toLocaleDateString()}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm">
-                          <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getResultBadgeColor(game.result, isDarkMode)}`}>
-                            {game.result}
+                          <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getResultBadgeColor(game.result || 'unknown', isDarkMode)}`}>
+                            {formatGameResult(game.result)}
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm">
-                          {game.status === 'analyzed' ? (
+                          {(game.status === 'analyzed' || game.analysis_status === 'analyzed') ? (
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                               ${isDarkMode ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800'}`}>
                               Analyzed
@@ -393,7 +519,7 @@ const Games = () => {
                           ) : (
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                               ${isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'}`}>
-                              Not Analyzed
+                              {game.analysis_status || game.status || 'Pending'}
                             </span>
                           )}
                         </td>
@@ -419,8 +545,8 @@ const Games = () => {
                 <Link
                   to="/fetch-games"
                   className={`mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white
-                    ${isDarkMode 
-                      ? 'bg-indigo-600 hover:bg-indigo-700' 
+                    ${isDarkMode
+                      ? 'bg-indigo-600 hover:bg-indigo-700'
                       : 'bg-indigo-600 hover:bg-indigo-700'}`}
                 >
                   Import Games
@@ -439,13 +565,13 @@ const Games = () => {
             onClick={() => setCurrentPage(currentPage - 1)}
             disabled={currentPage === 1}
             className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${
-              isDarkMode 
+              isDarkMode
                 ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
             } ${
-              currentPage === 1 
-                ? isDarkMode 
-                  ? 'cursor-not-allowed opacity-50' 
+              currentPage === 1
+                ? isDarkMode
+                  ? 'cursor-not-allowed opacity-50'
                   : 'cursor-not-allowed opacity-50'
                 : ''
             }`}
@@ -456,13 +582,13 @@ const Games = () => {
             onClick={() => setCurrentPage(currentPage + 1)}
             disabled={currentPage === totalPages}
             className={`relative ml-3 inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${
-              isDarkMode 
+              isDarkMode
                 ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
             } ${
-              currentPage === totalPages 
-                ? isDarkMode 
-                  ? 'cursor-not-allowed opacity-50' 
+              currentPage === totalPages
+                ? isDarkMode
+                  ? 'cursor-not-allowed opacity-50'
                   : 'cursor-not-allowed opacity-50'
                 : ''
             }`}
@@ -484,13 +610,13 @@ const Games = () => {
                 onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 1}
                 className={`relative inline-flex items-center rounded-l-md px-2 py-2 ${
-                  isDarkMode 
+                  isDarkMode
                     ? 'bg-gray-800 text-gray-400 border-gray-700 hover:bg-gray-700'
                     : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-50'
                 } ${
-                  currentPage === 1 
-                    ? isDarkMode 
-                      ? 'cursor-not-allowed opacity-50' 
+                  currentPage === 1
+                    ? isDarkMode
+                      ? 'cursor-not-allowed opacity-50'
                       : 'cursor-not-allowed opacity-50'
                     : ''
                 }`}
@@ -512,8 +638,8 @@ const Games = () => {
                         ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                         : 'bg-white text-gray-900 hover:bg-gray-50'
                   } ${
-                    isDarkMode 
-                      ? 'border-gray-700' 
+                    isDarkMode
+                      ? 'border-gray-700'
                       : 'border-gray-300'
                   }`}
                 >
@@ -524,13 +650,13 @@ const Games = () => {
                 onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
                 className={`relative inline-flex items-center rounded-r-md px-2 py-2 ${
-                  isDarkMode 
+                  isDarkMode
                     ? 'bg-gray-800 text-gray-400 border-gray-700 hover:bg-gray-700'
                     : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-50'
                 } ${
-                  currentPage === totalPages 
-                    ? isDarkMode 
-                      ? 'cursor-not-allowed opacity-50' 
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? 'cursor-not-allowed opacity-50'
                       : 'cursor-not-allowed opacity-50'
                     : ''
                 }`}
@@ -546,4 +672,4 @@ const Games = () => {
   );
 };
 
-export default Games; 
+export default Games;

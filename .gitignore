@@ -10,6 +10,7 @@ __pycache__/
 
 # Virtual Environment
 venv/
+venv311/
 .env
 .venv
 env/
@@ -94,4 +95,3 @@ deploy_script.sh
 *.bak
 *.swp
 *~
-

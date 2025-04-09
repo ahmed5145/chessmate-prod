@@ -69,19 +69,19 @@ ChartJS.register(
 const ProgressBar = ({ current, total, startTime }) => {
   const progress = total > 0 ? Math.round((current / total) * 100) : 0;
   const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
-  
+
   return (
     <Box sx={{ width: '100%', mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
         <Typography variant="body2">Progress: {progress}%</Typography>
         <Typography variant="body2">Time Elapsed: {formatTime(elapsedTime)}</Typography>
       </Box>
-      <Box sx={{ 
-        width: '100%', 
-        height: 8, 
+      <Box sx={{
+        width: '100%',
+        height: 8,
         bgcolor: 'background.paper',
         borderRadius: 1,
-        position: 'relative' 
+        position: 'relative'
       }}>
         <Box sx={{
           width: `${progress}%`,
@@ -142,20 +142,20 @@ const BatchAnalysisResults = () => {
     const pollStatus = async () => {
       try {
         const response = await checkBatchAnalysisStatus(taskId);
-        
+
         if (!response) {
           setError('Failed to fetch analysis status');
           return true;
         }
 
-        const { 
-          state = 'PENDING', 
-          meta = {}, 
-          completed_games = [], 
-          failed_games = [], 
-          aggregate_metrics = null 
+        const {
+          state = 'PENDING',
+          meta = {},
+          completed_games = [],
+          failed_games = [],
+          aggregate_metrics = null
         } = response;
-        
+
         setStatus(state);
           setMeta(prevMeta => ({
             ...prevMeta,
@@ -176,7 +176,7 @@ const BatchAnalysisResults = () => {
         if (completed_games.length > 0) {
           setResults(completed_games);
         }
-        
+
         if (failed_games.length > 0) {
           setFailedGames(failed_games);
         }
@@ -270,25 +270,25 @@ const BatchAnalysisResults = () => {
                 <Typography variant="h6" gutterBottom>Statistics per Game</Typography>
                 <List>
                   <ListItem>
-                    <ListItemText 
+                    <ListItemText
                       primary="Blunders"
                       secondary={`${((overall.blunders || 0) / results.length).toFixed(1)} per game`}
                     />
                   </ListItem>
                   <ListItem>
-                    <ListItemText 
+                    <ListItemText
                       primary="Mistakes"
                       secondary={`${((overall.mistakes || 0) / results.length).toFixed(1)} per game`}
                     />
                   </ListItem>
                   <ListItem>
-                    <ListItemText 
+                    <ListItemText
                       primary="Inaccuracies"
                       secondary={`${((overall.inaccuracies || 0) / results.length).toFixed(1)} per game`}
                     />
                   </ListItem>
                   <ListItem>
-                    <ListItemText 
+                    <ListItemText
                       primary="Average Moves"
                       secondary={`${((overall.total_moves || 0) / results.length).toFixed(1)} moves`}
                     />
@@ -333,7 +333,7 @@ const BatchAnalysisResults = () => {
                   .slice(0, 5)
                   .map(([move, frequency]) => (
                     <ListItem key={move}>
-                      <ListItemText 
+                      <ListItemText
                         primary={move}
                         secondary={`${frequency.toFixed(1)}% of games`}
                       />
@@ -357,25 +357,25 @@ const BatchAnalysisResults = () => {
           <Typography variant="h5" gutterBottom>Time Management</Typography>
           <List>
             <ListItem>
-              <ListItemText 
+              <ListItemText
                 primary="Average Time per Move"
                 secondary={`${(timeMetrics.avg_time_per_move || 0).toFixed(1)} seconds`}
               />
             </ListItem>
             <ListItem>
-              <ListItemText 
+              <ListItemText
                 primary="Time Pressure Mistakes"
                 secondary={`${((timeMetrics.time_pressure_mistakes || 0) / results.length).toFixed(1)} per game`}
               />
             </ListItem>
             <ListItem>
-              <ListItemText 
+              <ListItemText
                 primary="Early Game Time Usage"
                 secondary={`${(timeMetrics.early_game_time || 0).toFixed(1)}% of total time`}
               />
             </ListItem>
             <ListItem>
-              <ListItemText 
+              <ListItemText
                 primary="Endgame Time Usage"
                 secondary={`${(timeMetrics.endgame_time || 0).toFixed(1)}% of total time`}
               />
@@ -426,7 +426,7 @@ const BatchAnalysisResults = () => {
         <Typography variant="subtitle1" gutterBottom>
           {results.length} games analyzed • {failedGames.length} failed
         </Typography>
-        
+
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
           <Tabs value={currentTab} onChange={handleTabChange}>
             <Tab label="Overall Performance" />
@@ -447,4 +447,4 @@ const BatchAnalysisResults = () => {
   );
 };
 
-export default BatchAnalysisResults; 
+export default BatchAnalysisResults;

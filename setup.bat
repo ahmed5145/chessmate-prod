@@ -57,4 +57,4 @@ if /i "%create_superuser%"=="Y" (
 echo.
 echo Setup complete! You can now run the development server with:
 echo cd chess_mate
-echo python manage.py runserver 
+echo python manage.py runserver

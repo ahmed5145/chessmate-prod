@@ -198,4 +198,4 @@ describe("UserProfile Component", () => {
     expect(screen.getByText("Saving...")).toBeInTheDocument();
     expect(saveButton).toBeDisabled();
   });
-}); 
+});

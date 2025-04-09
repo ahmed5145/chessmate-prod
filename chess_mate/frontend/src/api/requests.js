@@ -4,17 +4,17 @@ import api from './index';
 export const loginUser = async (credentials) => {
     try {
         localStorage.removeItem('tokens');
-        
+
         const response = await api.post('/api/login/', credentials);
         const { tokens, message } = response.data;
-        
+
         if (!tokens?.access || !tokens?.refresh) {
             throw new Error('Invalid response from server');
         }
-        
+
         localStorage.setItem('tokens', JSON.stringify(tokens));
         api.defaults.headers.common['Authorization'] = `Bearer ${tokens.access}`;
-        
+
         return { message: message || 'Login successful!', tokens };
     } catch (error) {
         throw error.response?.data || new Error("Login failed");
@@ -50,12 +50,12 @@ export const fetchUserGames = async () => {
         console.log('Fetching user games...');
         const response = await api.get("/api/games/");
         console.log('Games response:', response.data);
-        
+
         if (!Array.isArray(response.data)) {
             console.error('Invalid response format:', response.data);
             return [];
         }
-        
+
         return response.data;
     } catch (error) {
         console.error('Error fetching games:', error);
@@ -75,11 +75,11 @@ export const fetchExternalGames = async (platform, username, gameType) => {
             game_type: effectiveGameType,
             num_games: 10
         });
-        
+
         if (response.data.error) {
             throw new Error(response.data.error);
         }
-        
+
         console.log('Fetch games response:', response.data);
         return response.data;
     } catch (error) {
@@ -216,4 +216,4 @@ export const analyzeSpecificGame = async (gameId) => {
         }
         throw new Error(error.response?.data?.error || "Failed to analyze game. Please try again.");
     }
-}; 
+};

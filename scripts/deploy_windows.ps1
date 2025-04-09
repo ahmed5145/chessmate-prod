@@ -23,23 +23,23 @@ try {
     # Remove inheritance
     $acl = Get-Acl $KeyPath
     $acl.SetAccessRuleProtection($true, $false)
-    
+
     # Remove all existing permissions
     $acl.Access | ForEach-Object {
         $acl.RemoveAccessRule($_)
     }
-    
+
     # Add new permission for current user
     $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
     $fileSystemRights = [System.Security.AccessControl.FileSystemRights]::Read
     $type = [System.Security.AccessControl.AccessControlType]::Allow
-    
+
     $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($identity, $fileSystemRights, $type)
     $acl.AddAccessRule($rule)
-    
+
     # Apply the new ACL
     Set-Acl -Path $KeyPath -AclObject $acl
-    
+
     Write-Host "Successfully set permissions on key file" -ForegroundColor Green
 }
 catch {
@@ -119,4 +119,4 @@ $scriptContent = [System.IO.File]::ReadAllText($tempScriptPath)
 # Clean up
 Remove-Item $tempScriptPath
 
-Write-Host "Deployment completed!" -ForegroundColor Green 
+Write-Host "Deployment completed!" -ForegroundColor Green

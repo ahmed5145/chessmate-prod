@@ -47,4 +47,4 @@ sudo systemctl restart nginx
 # Setup SSL certificate
 sudo certbot --nginx -d yourdomain.com --non-interactive --agree-tos --email your@email.com
 
-echo "Deployment completed successfully!" 
+echo "Deployment completed successfully!"

@@ -58,4 +58,4 @@ RUN mkdir -p /usr/share/nginx/html && \
     chmod -R 755 /usr/share/nginx/html
 
 # Start nginx
-CMD ["nginx", "-g", "daemon off;"] 
+CMD ["nginx", "-g", "daemon off;"]

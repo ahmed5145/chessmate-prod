@@ -1,102 +1,217 @@
-from functools import wraps
-from typing import Callable, Any, Optional
-from django.http import JsonResponse
-from django.core.exceptions import ImproperlyConfigured
-from .rate_limiter import RateLimiter
+import functools
+import json
 import logging
-from django.views.decorators.csrf import csrf_exempt
+import time
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, TypeVar, Union, cast
+
+from django.core.cache import cache
+from django.core.exceptions import ImproperlyConfigured
+from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import rotate_token
-from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.request import Request
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.exceptions import AuthenticationFailed
 
 logger = logging.getLogger(__name__)
 
-try:
-    rate_limiter = RateLimiter()
-except ImproperlyConfigured as e:
-    logger.error(f"Failed to initialize rate limiter: {str(e)}")
-    rate_limiter = None
+# Type variable for the decorated function
+F = TypeVar("F", bound=Callable[..., Any])
 
-def rate_limit(endpoint_type: str = 'DEFAULT') -> Callable:
+
+def rate_limit(endpoint_type: str = "DEFAULT") -> Callable[[F], F]:
     """
-    Rate limiting decorator for views.
-    
+    Decorator to apply rate limiting to a view.
+    This is a simplified decorator that delegates to the RateLimitMiddleware for actual enforcement.
+
     Args:
-        endpoint_type: Type of endpoint to get rate limit config for (e.g., 'AUTH', 'ANALYSIS')
-        
-    Returns:
-        Decorated view function
-    """
-    def decorator(view_func: Callable) -> Callable:
-        @wraps(view_func)
-        def _wrapped_view(request: Any, *args: Any, **kwargs: Any) -> Any:
-            if not rate_limiter:
-                logger.warning("Rate limiter not initialized, skipping rate limit check")
-                return view_func(request, *args, **kwargs)
+        endpoint_type: Type of endpoint to limit (DEFAULT, ANALYSIS, GAMES, etc.)
 
-            if not request.user.is_authenticated:
-                return view_func(request, *args, **kwargs)
-            
-            # Create a unique key for this user and endpoint
-            rate_limit_key = f"rate_limit:{request.user.id}:{request.path}"
-            
-            # Check if rate limited
-            try:
-                if rate_limiter.is_rate_limited(rate_limit_key, endpoint_type):
-                    remaining_time = rate_limiter.get_reset_time(rate_limit_key)
-                    logger.warning(f"Rate limit exceeded for user {request.user.id} on endpoint {request.path}")
-                    return JsonResponse({
-                        'error': 'Rate limit exceeded',
-                        'message': f'Please try again in {remaining_time} seconds',
-                        'reset_time': remaining_time
-                    }, status=429)
-            except Exception as e:
-                logger.error(f"Error checking rate limit: {str(e)}")
-                # Continue with the request on rate limit errors
-                return view_func(request, *args, **kwargs)
-            
-            try:
-                # Get the response from the view
-                response = view_func(request, *args, **kwargs)
-                
-                # Add rate limit headers to response
-                remaining = rate_limiter.get_remaining_requests(rate_limit_key, endpoint_type)
-                reset_time = rate_limiter.get_reset_time(rate_limit_key)
-                
-                config = rate_limiter.get_rate_limit_config(endpoint_type)
-                response['X-RateLimit-Limit'] = str(config['MAX_REQUESTS'])
-                response['X-RateLimit-Remaining'] = str(remaining)
-                response['X-RateLimit-Reset'] = str(reset_time)
-                
-                return response
-            except Exception as e:
-                logger.error(f"Error in rate limited view: {str(e)}")
-                return view_func(request, *args, **kwargs)
-                
-        return _wrapped_view
-    return decorator 
+    Returns:
+        The decorated function
+    """
+
+    def decorator(view_func: F) -> F:
+        @wraps(view_func)
+        def wrapped_view(request: Any, *args: Any, **kwargs: Any) -> Any:
+            # Store the endpoint_type for the RateLimitMiddleware
+            request.rate_limit_endpoint_type = endpoint_type  # type: ignore
+
+            # Proceed with the view
+            return view_func(request, *args, **kwargs)
+
+        return cast(F, wrapped_view)
+
+    return decorator
+
 
 def auth_csrf_exempt(view_func):
     """
-    Decorator that exempts auth views from CSRF protection but ensures
-    CSRF token is rotated after successful authentication.
+    Enhanced CSRF exempt decorator that still maintains CSRF protection for authenticated users.
+    This is a more secure version of Django's csrf_exempt that only exempts unauthenticated requests.
+
+    For authenticated users, full CSRF protection is enforced.
+    For anonymous users, CSRF is exempted to support API clients that don't have access to the CSRF token.
+    Always exempts OPTIONS requests for CORS preflight compatibility.
+    Also exempts requests with Bearer token authentication, used for JWT auth.
     """
+
     @wraps(view_func)
-    @csrf_exempt
     def wrapped_view(request, *args, **kwargs):
-        response = view_func(request, *args, **kwargs)
-        
-        # Only rotate token for successful auth (status code 2xx)
-        if 200 <= response.status_code < 300:
-            rotate_token(request)
+        # If this is an OPTIONS request (CORS preflight), exempt CSRF
+        if request.method == "OPTIONS":
+            csrf_exempt_view = csrf_exempt(view_func)
+            return csrf_exempt_view(request, *args, **kwargs)
             
-            # If the response is JSON, we need to ensure it's converted to HttpResponse
-            if not isinstance(response, HttpResponse):
-                response = HttpResponse(
-                    response.content,
-                    content_type=response.get('Content-Type', 'application/json'),
-                    status=response.status_code
-                )
-        
+        # Check for Bearer token auth - exempt CSRF for API clients using JWT
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if auth_header and auth_header.startswith('Bearer '):
+            csrf_exempt_view = csrf_exempt(view_func)
+            return csrf_exempt_view(request, *args, **kwargs)
+            
+        # If the user is authenticated with session (not API), enforce CSRF
+        if hasattr(request, "user") and request.user.is_authenticated:
+            # Use the view function directly, without CSRF exemption
+            return view_func(request, *args, **kwargs)
+
+        # For anonymous users, apply CSRF exemption
+        csrf_exempt_view = csrf_exempt(view_func)
+        return csrf_exempt_view(request, *args, **kwargs)
+
+    return wrapped_view
+
+
+def track_request_time(view_func: F) -> F:
+    """
+    Decorator to track request time and log it.
+
+    Args:
+        view_func: The view function to decorate
+
+    Returns:
+        The decorated function
+    """
+
+    @wraps(view_func)
+    def wrapped_view(request: Any, *args: Any, **kwargs: Any) -> Any:
+        start_time = time.time()
+
+        # Call the view function
+        response = view_func(request, *args, **kwargs)
+
+        # Calculate and log request time
+        request_time = time.time() - start_time
+        logger.info(
+            f"Request time: {request_time:.4f}s for {request.method} {request.path}",
+            extra={
+                "request_time": request_time,
+                "request_method": request.method,
+                "request_path": request.path,
+                "request_id": getattr(request, "request_id", None),
+            },
+        )
+
+        # Add request time to response headers
+        if hasattr(response, "headers"):
+            response["X-Request-Time"] = f"{request_time:.4f}s"
+
         return response
+
+    return cast(F, wrapped_view)
+
+
+def validate_request(
+    required_fields: Optional[List[str]] = None,
+    optional_fields: Optional[List[str]] = None,
+    required_get_params: Optional[List[str]] = None,
+    optional_get_params: Optional[List[str]] = None,
+) -> Callable[[F], F]:
+    """
+    Decorator to validate request fields.
+
+    Args:
+        required_fields: List of required fields in request body (for POST/PUT)
+        optional_fields: List of optional fields in request body (for POST/PUT)
+        required_get_params: List of required GET parameters (for GET)
+        optional_get_params: List of optional GET parameters (for GET)
+
+    Returns:
+        The decorated function
+    """
+
+    def decorator(view_func: F) -> F:
+        @wraps(view_func)
+        def wrapped_view(request: Any, *args: Any, **kwargs: Any) -> Any:
+            errors = []
+
+            # Check if it's a GET request
+            if request.method == "GET" and required_get_params:
+                for param in required_get_params:
+                    if not request.GET.get(param):
+                        errors.append({"field": param, "message": f"Required GET parameter missing: {param}"})
+
+            # Check if it's a POST/PUT request with JSON body
+            elif request.method in ["POST", "PUT", "PATCH"] and required_fields:
+                # Try to parse JSON body
+                try:
+                    if request.body:
+                        data = json.loads(request.body)
+
+                        # Validate required fields
+                        for field in required_fields:
+                            if field not in data:
+                                errors.append({"field": field, "message": f"Required field missing: {field}"})
+                except json.JSONDecodeError:
+                    errors.append({"field": "body", "message": "Invalid JSON format in request body"})
+
+            # If there are validation errors, return error response
+            if errors:
+                logger.warning(f"Validation failed for {request.path}: {errors}")
+                return JsonResponse({"status": "error", "message": "Validation failed", "errors": errors}, status=400)
+
+            # No validation errors, proceed with the view
+            return view_func(request, *args, **kwargs)
+
+        return cast(F, wrapped_view)
+
+    return decorator
+
+
+def api_login_required(view_func: F) -> F:
+    """
+    Decorator for API views that checks that the user is logged in via JWT.
+    More suitable for REST API views than the standard login_required.
+    """
+    @functools.wraps(view_func)
+    def wrapped_view(request, *args, **kwargs):
+        # Try to authenticate with JWT
+        try:
+            jwt_auth = JWTAuthentication()
+            user_auth_tuple = jwt_auth.authenticate(request)
+            if user_auth_tuple:
+                user, _ = user_auth_tuple
+                request.user = user
+                # User is authenticated, proceed with the view
+                return view_func(request, *args, **kwargs)
+            
+            # No valid JWT token found, return 401
+            return JsonResponse(
+                {"status": "error", "message": "Authentication required"}, 
+                status=401
+            )
+            
+        except AuthenticationFailed:
+            # Invalid token
+            return JsonResponse(
+                {"status": "error", "message": "Invalid or expired token"}, 
+                status=401
+            )
+        except Exception as e:
+            logger.error(f"Error in api_login_required: {str(e)}", exc_info=True)
+            return JsonResponse(
+                {"status": "error", "message": "Authentication error"}, 
+                status=401
+            )
     
-    return wrapped_view 
+    return cast(F, wrapped_view)

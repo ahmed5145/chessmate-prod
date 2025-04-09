@@ -37,7 +37,7 @@ describe('Login Component', () => {
   test('handles successful login', async () => {
     const mockResponse = {
       ok: true,
-      json: () => Promise.resolve({ 
+      json: () => Promise.resolve({
         access: 'fake-access-token',
         refresh: 'fake-refresh-token'
       }),
@@ -109,4 +109,4 @@ describe('Login Component', () => {
       expect(mockNavigate).not.toHaveBeenCalled();
     });
   });
-}); 
+});

@@ -15,4 +15,4 @@ python "%~dp0backup_db.py" >> "%BACKUP_LOG%" 2>&1
 REM Deactivate virtual environment
 if exist "%~dp0..\.venv\Scripts\deactivate.bat" (
     call "%~dp0..\.venv\Scripts\deactivate.bat"
-) 
+)

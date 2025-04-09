@@ -56,7 +56,7 @@ def get_game(request, game_id):
     game = Game.objects.filter(id=game_id).first()
     if not game:
         raise ResourceNotFoundError("Game", game_id)
-    
+
     # Process the game...
     return create_success_response({
         "id": game.id,
@@ -178,4 +178,4 @@ The log level depends on the error type:
 
 - HTTP 500 errors: ERROR level
 - HTTP 400-499 errors: WARNING level
-- Validation errors: INFO level 
+- Validation errors: INFO level

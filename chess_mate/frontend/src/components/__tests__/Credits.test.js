@@ -131,4 +131,4 @@ describe('Credits Component', () => {
 
     expect(screen.getByText(/200 credits/i)).toBeInTheDocument();
   });
-}); 
+});

@@ -31,4 +31,4 @@ RUN useradd -m -u 1000 chessmate && \
 USER chessmate
 
 # Command to run
-CMD ["python", "-m", "run_worker"] 
+CMD ["python", "-m", "run_worker"]

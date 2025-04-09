@@ -31,4 +31,4 @@ echo "Running migrations..."
 python manage.py migrate --noinput
 
 # Execute the passed command
-exec "$@" 
+exec "$@"

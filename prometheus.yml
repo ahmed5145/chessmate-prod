@@ -18,4 +18,4 @@ scrape_configs:
   - job_name: 'django'
     static_configs:
       - targets: ['web:8000']
-    metrics_path: '/metrics' 
+    metrics_path: '/metrics'

@@ -50,7 +50,7 @@ const PhaseAnalysis = ({ phase, data, isDarkMode }) => (
 
 const GameAnalysisResults = ({ analysisData }) => {
     const { isDarkMode } = useTheme();
-    
+
     if (!analysisData) {
         return (
             <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
@@ -65,12 +65,12 @@ const GameAnalysisResults = ({ analysisData }) => {
     const analysisResults = analysisData.analysis_results || {};
     const summary = analysisResults.summary || {};
     const feedback = analysisData.feedback || {};
-    
+
     // Extract metrics
     const overall = summary.overall || {};
     const phases = summary.phases || {};
     const timeManagement = summary.time_management || {};
-    
+
     // Format metrics for display
     const displayMetrics = {
         accuracy: formatNumber(overall.accuracy || 0),
@@ -177,4 +177,4 @@ const GameAnalysisResults = ({ analysisData }) => {
   );
 };
 
-export default GameAnalysisResults; 
+export default GameAnalysisResults;

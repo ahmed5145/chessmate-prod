@@ -4,10 +4,10 @@ import { analyzeBatchGames, checkBatchAnalysisStatus, fetchUserGames } from '../
 import { useTheme } from '../context/ThemeContext';
 import { UserContext } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
-import { 
-  BarChart2, 
-  AlertCircle, 
-  Clock, 
+import {
+  BarChart2,
+  AlertCircle,
+  Clock,
   CheckCircle,
   Coins,
   Filter,
@@ -61,7 +61,7 @@ const BatchAnalysis = () => {
         // Get the state and meta information
         const state = response?.state?.toUpperCase();
         const meta = response?.meta || {};
-        
+
         switch (state) {
           case 'SUCCESS':
             setIsAnalyzing(false);
@@ -69,9 +69,9 @@ const BatchAnalysis = () => {
             setProgressPercent(100);
             if (toastId) toast.dismiss(toastId);
             toast.success('Analysis completed!');
-            navigate(`/batch-analysis/results/${taskId}`, { 
+            navigate(`/batch-analysis/results/${taskId}`, {
               replace: true,
-              state: { 
+              state: {
                 taskId,
                 results: response.completed_games,
                 failedGames: response.failed_games,
@@ -79,7 +79,7 @@ const BatchAnalysis = () => {
               }
             });
             return true;
-            
+
           case 'FAILURE':
             setIsAnalyzing(false);
             clearInterval(intervalId);
@@ -92,7 +92,7 @@ const BatchAnalysis = () => {
             setCurrentProgress(meta.current || 0);
             setTotalGames(meta.total || 0);
             return true;
-            
+
           case 'PROGRESS':
           case 'STARTED':
           case 'PENDING':
@@ -104,7 +104,7 @@ const BatchAnalysis = () => {
                 setTotalGames(total);
                 const percent = Math.round((current / total) * 100);
                 setProgressPercent(isNaN(percent) ? 0 : percent);
-                
+
                 // Update loading toast with current progress message
                 const progressMessage = meta.message || `Analyzing game ${current} of ${total}`;
                 if (toastId) {
@@ -115,7 +115,7 @@ const BatchAnalysis = () => {
               }
             }
             return false;
-            
+
           default:
             console.warn('Unknown state:', state);
             if (meta) {
@@ -163,7 +163,7 @@ const BatchAnalysis = () => {
       timer = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         setElapsedTime(elapsed);
-        
+
         // Update estimated time based on current progress
         if (currentProgress > 0) {
           const timePerGame = elapsed / currentProgress;
@@ -192,9 +192,9 @@ const BatchAnalysis = () => {
       setProgressPercent(0);
       setCurrentProgress(0);
       setStartTime(Date.now());
-      
+
       const response = await analyzeBatchGames(numGames, selectedTimeControl, includeAnalyzed);
-      
+
       if (response?.task_id) {
         setTaskId(response.task_id);
         setTotalGames(response.total_games || numGames);
@@ -226,10 +226,10 @@ const BatchAnalysis = () => {
         const parts = timeControl.split('+');
         const baseTime = parseInt(parts[0]);
         const increment = parts.length > 1 ? parseInt(parts[1]) : 0;
-        
+
         // Calculate total time for first 40 moves
         const totalTime = baseTime + (increment * 40);
-        
+
         // Categorize based on total time
         if (totalTime < 180) return 'bullet';  // 3 minutes
         if (totalTime < 600) return 'blitz';   // 10 minutes
@@ -246,17 +246,17 @@ const BatchAnalysis = () => {
     };
 
     const gameTimeControl = getTimeControlCategory(game.time_control);
-    
+
     // Filter by time control if not 'all'
     if (selectedTimeControl !== 'all' && gameTimeControl !== selectedTimeControl) {
       return false;
     }
-    
+
     // Filter by analysis status if needed
     if (!includeAnalyzed && game.analysis) {
       return false;
     }
-    
+
     return true;
   });
 
@@ -279,7 +279,7 @@ const BatchAnalysis = () => {
             Analyze multiple games at once to get insights into your playing patterns (maximum 50 games).
           </p>
         </div>
-        
+
         {/* Credits Info */}
         {/*
         <div className={`mb-8 p-4 rounded-lg ${
@@ -314,7 +314,7 @@ const BatchAnalysis = () => {
           <h2 className={`text-lg font-medium mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Analysis Options
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Number of Games */}
             <div>
@@ -331,8 +331,8 @@ const BatchAnalysis = () => {
                   min="1"
                   max="50"
                   className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
+                    isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white'
                       : 'border-gray-300 text-gray-900'
                   }`}
                   value={numGames}
@@ -364,8 +364,8 @@ const BatchAnalysis = () => {
               <select
                 id="timeControl"
                 className={`mt-1 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
+                  isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white'
                     : 'border-gray-300 text-gray-900'
                 }`}
                 value={selectedTimeControl}

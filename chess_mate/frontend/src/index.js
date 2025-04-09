@@ -19,7 +19,12 @@ const SentryApp = () => (
         fallback={<div className="error-boundary">An error has occurred</div>}
         showDialog
     >
-        <BrowserRouter>
+        <BrowserRouter
+            future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true
+            }}
+        >
             <ThemeProvider>
                 <UserProvider>
                     <App />

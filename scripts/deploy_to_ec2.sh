@@ -85,4 +85,4 @@ ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$EC2_USER@$EC2_HOST" << 'EOF'
     sudo systemctl status nginx --no-pager
 EOF
 
-echo -e "${GREEN}Deployment completed!${NC}" 
+echo -e "${GREEN}Deployment completed!${NC}"

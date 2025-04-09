@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
+import {
   ChevronRight,
   Trophy,
   Target,
@@ -45,7 +45,7 @@ import {
 const StatCard = ({ title, value, icon: Icon, trend, color = 'indigo' }) => {
   const { isDarkMode } = useTheme();
   const trendColor = trend > 0 ? 'text-green-500' : trend < 0 ? 'text-red-500' : 'text-gray-500';
-  
+
   return (
     <div className={`p-6 rounded-xl transition-all duration-200 hover:scale-[1.02] ${
       isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
@@ -72,7 +72,7 @@ const StatCard = ({ title, value, icon: Icon, trend, color = 'indigo' }) => {
 const ProgressChart = ({ data, title }) => {
   const { isDarkMode } = useTheme();
   const maxValue = Math.max(...data.map(d => d.value));
-  
+
   return (
     <div className={`p-6 rounded-xl ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'} shadow-lg`}>
       <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -104,7 +104,7 @@ const ProgressChart = ({ data, title }) => {
 
 const AchievementCard = ({ achievement }) => {
   const { isDarkMode } = useTheme();
-  
+
   return (
     <div className={`p-2 rounded-lg ${
       isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
@@ -126,7 +126,7 @@ const AchievementCard = ({ achievement }) => {
             {achievement.name}
           </h4>
           <div className="w-full bg-gray-200 dark:bg-gray-700 h-1 rounded-full mt-1">
-            <div 
+            <div
               className="bg-indigo-500 h-1 rounded-full transition-all duration-300"
               style={{ width: `${(achievement.progress / achievement.target) * 100}%` }}
             />
@@ -145,7 +145,7 @@ const AchievementsSection = ({ achievements }) => {
   const { isDarkMode } = useTheme();
   const [showModal, setShowModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  
+
   // Group achievements by category
   const categories = {
     games: {
@@ -178,7 +178,7 @@ const AchievementsSection = ({ achievements }) => {
   // Calculate total achievements and completed achievements
   const totalAchievements = achievements.length;
   const completedAchievements = achievements.filter(a => a.completed).length;
-  
+
   const AchievementModal = () => (
     <div className={`fixed inset-0 z-50 overflow-y-auto ${showModal ? 'block' : 'hidden'}`}>
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -199,22 +199,22 @@ const AchievementsSection = ({ achievements }) => {
                   <button
                     onClick={() => setShowModal(false)}
                     className={`rounded-md p-2 ${
-                      isDarkMode 
-                        ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-300' 
+                      isDarkMode
+                        ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-300'
                         : 'hover:bg-gray-100 text-gray-500 hover:text-gray-600'
                     }`}
                   >
                     <XCircle className="h-5 w-5" />
                   </button>
                 </div>
-                
+
                 <div className="mt-4 space-y-4">
                   {selectedCategory ? (
                     categories[selectedCategory].items.map((achievement, index) => (
-                      <div 
+                      <div
                         key={index}
                         className={`p-4 rounded-lg ${
-                          isDarkMode 
+                          isDarkMode
                             ? achievement.completed ? 'bg-gray-700' : 'bg-gray-750'
                             : achievement.completed ? 'bg-gray-50' : 'bg-gray-100'
                         }`}
@@ -246,7 +246,7 @@ const AchievementsSection = ({ achievements }) => {
                               {achievement.description}
                             </p>
                             <div className="w-full bg-gray-200 dark:bg-gray-600 h-1.5 rounded-full mt-2">
-                              <div 
+                              <div
                                 className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300"
                                 style={{ width: `${(achievement.progress / achievement.target) * 100}%` }}
                               />
@@ -261,7 +261,7 @@ const AchievementsSection = ({ achievements }) => {
                         key={key}
                         onClick={() => setSelectedCategory(key)}
                         className={`w-full p-4 rounded-lg text-left transition-all duration-200 ${
-                          isDarkMode 
+                          isDarkMode
                             ? 'hover:bg-gray-700'
                             : 'hover:bg-gray-50'
                         }`}
@@ -299,7 +299,7 @@ const AchievementsSection = ({ achievements }) => {
       </div>
     </div>
   );
-  
+
   return (
     <div className={`p-6 rounded-xl ${
       isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
@@ -319,8 +319,8 @@ const AchievementsSection = ({ achievements }) => {
             setShowModal(true);
           }}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            isDarkMode 
-              ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+            isDarkMode
+              ? 'bg-gray-700 hover:bg-gray-600 text-white'
               : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
           }`}
         >
@@ -331,7 +331,7 @@ const AchievementsSection = ({ achievements }) => {
       {/* Progress Overview */}
       <div className="mb-4">
         <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full">
-          <div 
+          <div
             className="bg-indigo-500 h-2 rounded-full transition-all duration-300"
             style={{ width: `${(completedAchievements / totalAchievements) * 100}%` }}
           />
@@ -376,7 +376,7 @@ const AchievementsSection = ({ achievements }) => {
                 </div>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-600 h-1.5 rounded-full">
-                <div 
+                <div
                   className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300"
                   style={{ width: `${(completed / total) * 100}%` }}
                 />
@@ -416,48 +416,48 @@ const RatingChart = ({ ratingHistory, isDarkMode }) => {
         <ResponsiveContainer width="100%" height="100%">
           <RechartsLineChart data={ratingHistory}>
             <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#e5e7eb'} />
-            <XAxis 
-              dataKey="date" 
+            <XAxis
+              dataKey="date"
               stroke={isDarkMode ? '#9CA3AF' : '#4B5563'}
               tick={{ fill: isDarkMode ? '#9CA3AF' : '#4B5563' }}
             />
-            <YAxis 
+            <YAxis
               stroke={isDarkMode ? '#9CA3AF' : '#4B5563'}
               tick={{ fill: isDarkMode ? '#9CA3AF' : '#4B5563' }}
             />
-            <Tooltip 
-              contentStyle={{ 
+            <Tooltip
+              contentStyle={{
                 backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF',
                 border: `1px solid ${isDarkMode ? '#374151' : '#E5E7EB'}`,
                 color: isDarkMode ? '#F3F4F6' : '#111827'
               }}
             />
             <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="bullet" 
-              stroke="#EF4444" 
+            <Line
+              type="monotone"
+              dataKey="bullet"
+              stroke="#EF4444"
               name="Bullet"
               dot={false}
             />
-            <Line 
-              type="monotone" 
-              dataKey="blitz" 
-              stroke="#F59E0B" 
+            <Line
+              type="monotone"
+              dataKey="blitz"
+              stroke="#F59E0B"
               name="Blitz"
               dot={false}
             />
-            <Line 
-              type="monotone" 
-              dataKey="rapid" 
-              stroke="#10B981" 
+            <Line
+              type="monotone"
+              dataKey="rapid"
+              stroke="#10B981"
               name="Rapid"
               dot={false}
             />
-            <Line 
-              type="monotone" 
-              dataKey="classical" 
-              stroke="#3B82F6" 
+            <Line
+              type="monotone"
+              dataKey="classical"
+              stroke="#3B82F6"
               name="Classical"
               dot={false}
             />
@@ -531,37 +531,48 @@ const Profile = () => {
       setLoading(true);
       const data = await fetchProfileData();
       setProfileData(data);
-      
+
       // Format rating history data
-      if (data.rating_history) {
+      if (data.rating_history && Object.keys(data.rating_history).length > 0) {
         const formattedHistory = Object.entries(data.rating_history).map(([date, ratings]) => ({
           date: new Date(date).toLocaleDateString(),
-          bullet: ratings.bullet,
-          blitz: ratings.blitz,
-          rapid: ratings.rapid,
-          classical: ratings.classical
+          bullet: ratings?.bullet || 1200,
+          blitz: ratings?.blitz || 1200,
+          rapid: ratings?.rapid || 1200,
+          classical: ratings?.classical || 1200
         }));
         setRatingHistory(formattedHistory);
+      } else {
+        // Set default empty history with proper structure
+        setRatingHistory([]);
       }
 
-      // Format performance stats
+      // Format performance stats with defaults
       if (data.performance_stats) {
         setPerformanceStats(data.performance_stats);
+      } else {
+        // Set default performance stats
+        setPerformanceStats({
+          bullet: { games: 0, winRate: 0, drawRate: 0, lossRate: 0 },
+          blitz: { games: 0, winRate: 0, drawRate: 0, lossRate: 0 },
+          rapid: { games: 0, winRate: 0, drawRate: 0, lossRate: 0 },
+          classical: { games: 0, winRate: 0, drawRate: 0, lossRate: 0 }
+        });
       }
-      } catch (error) {
+    } catch (error) {
       console.error('Error loading profile data:', error);
       setError('Failed to load profile data');
       toast.error('Failed to load profile data');
-      } finally {
-        setLoading(false);
-      }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLinkAccount = async (platform) => {
     try {
       setLinking(true);
       const username = platform === 'chess.com' ? newUsernames.chesscom : newUsernames.lichess;
-      
+
       if (!username) {
         toast.error('Please enter a username');
         return;
@@ -644,11 +655,15 @@ const Profile = () => {
     return null;
   }
 
+  // Safe access to time control distribution with defaults
+  const defaultDistribution = { bullet: 0, blitz: 0, rapid: 0, classical: 0 };
+  const timeControlDistribution = profileData.time_control_distribution || defaultDistribution;
+  
   const timeControlData = [
-    { label: 'Bullet', value: profileData.time_control_distribution.bullet },
-    { label: 'Blitz', value: profileData.time_control_distribution.blitz },
-    { label: 'Rapid', value: profileData.time_control_distribution.rapid },
-    { label: 'Classical', value: profileData.time_control_distribution.classical }
+    { label: 'Bullet', value: timeControlDistribution.bullet || 0 },
+    { label: 'Blitz', value: timeControlDistribution.blitz || 0 },
+    { label: 'Rapid', value: timeControlDistribution.rapid || 0 },
+    { label: 'Classical', value: timeControlDistribution.classical || 0 }
   ];
 
   return (
@@ -685,19 +700,19 @@ const Profile = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <StatCard
             title="Total Games"
-            value={profileData.total_games}
+            value={profileData.total_games || 0}
             icon={Layout}
             color="purple"
           />
           <StatCard
             title="Win Rate"
-            value={`${profileData.win_rate}%`}
+            value={`${profileData.win_rate || 0}%`}
             icon={Trophy}
             color="green"
           />
           <StatCard
             title="Credits"
-            value={profileData.credits}
+            value={profileData.credits || 0}
             icon={Coins}
             color="yellow"
           />
@@ -709,7 +724,7 @@ const Profile = () => {
             data={timeControlData}
             title="Time Control Distribution"
           />
-          
+
           {/* Achievements Section */}
           <div className={`p-6 rounded-xl ${
             isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
@@ -718,7 +733,7 @@ const Profile = () => {
               Achievements
             </h3>
             <div className="space-y-4">
-              <AchievementsSection achievements={profileData.achievements} />
+              <AchievementsSection achievements={profileData.achievements || []} />
               </div>
             </div>
           </div>
@@ -755,8 +770,8 @@ const Profile = () => {
                       value={newUsernames.chesscom || ''}
                       onChange={(e) => setNewUsernames(prev => ({ ...prev, chesscom: e.target.value }))}
                       className={`block w-full sm:w-64 px-3 py-2 text-sm rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
-                        isDarkMode 
-                          ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        isDarkMode
+                          ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                           : 'border-gray-300 text-gray-900 placeholder-gray-500'
                       }`}
                     />
@@ -798,8 +813,8 @@ const Profile = () => {
                       value={newUsernames.lichess || ''}
                       onChange={(e) => setNewUsernames(prev => ({ ...prev, lichess: e.target.value }))}
                       className={`block w-full sm:w-64 px-3 py-2 text-sm rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
-                        isDarkMode 
-                          ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        isDarkMode
+                          ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                           : 'border-gray-300 text-gray-900 placeholder-gray-500'
                       }`}
                     />
@@ -809,7 +824,7 @@ const Profile = () => {
                     >
                       Link Account
                     </button>
-              </div>
+                  </div>
                 )}
               </div>
               {profileData.lichess_username && (
@@ -823,4 +838,4 @@ const Profile = () => {
   );
 };
 
-export default Profile; 
+export default Profile;

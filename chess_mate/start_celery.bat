@@ -1,34 +1,30 @@
 @echo off
+setlocal enabledelayedexpansion
+
 echo Starting Celery worker...
 
-:: Set environment variables
-set PYTHONPATH=%~dp0
+:: Set environment variables for Windows
 set DJANGO_SETTINGS_MODULE=chess_mate.settings
+set PYTHONPATH=%CD%
 set FORKED_BY_MULTIPROCESSING=1
 
-:: Echo configuration for debugging
-echo PYTHONPATH: %PYTHONPATH%
-echo DJANGO_SETTINGS_MODULE: %DJANGO_SETTINGS_MODULE%
-
 :: Create logs directory if it doesn't exist
-if not exist "logs" mkdir logs
+if not exist logs mkdir logs
 
-:: Start Celery worker with optimized Windows settings
-celery -A chess_mate worker ^
+:: Start Celery worker with Windows-specific settings
+python -m celery -A chess_mate worker ^
     --pool=solo ^
-    --loglevel=info ^
-    -Q default,analysis,batch_analysis ^
+    --loglevel=INFO ^
     --concurrency=1 ^
-    --task-events ^
-    --without-gossip ^
-    --without-mingle ^
-    --without-heartbeat ^
-    -Ofair ^
+    --max-tasks-per-child=1 ^
+    --max-memory-per-child=200000 ^
+    --events ^
     --logfile=logs/celery.log ^
-    >> logs/celery_output.log 2>&1
+    --pidfile=celery.pid
 
-:: If Celery exits with an error, pause to see the error message
 if errorlevel 1 (
-    echo Celery worker failed to start. Check logs/celery_output.log for details.
-    pause
+    echo Failed to start Celery worker
+    exit /b 1
 )
+
+echo Celery worker started successfully

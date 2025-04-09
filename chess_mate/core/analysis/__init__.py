@@ -4,18 +4,18 @@ This module provides functionality for analyzing chess games, calculating metric
 and generating feedback.
 """
 
-__version__ = '1.0.0'
+__version__ = "1.0.0"
 
-from .stockfish_analyzer import StockfishAnalyzer
-from .metrics_calculator import MetricsCalculator
 from .feedback_generator import FeedbackGenerator
-from .position_evaluator import PositionEvaluator
+from .metrics_calculator import MetricsCalculator
 from .pattern_analyzer import PatternAnalyzer
+from .position_evaluator import PositionEvaluator
+from .stockfish_analyzer import StockfishAnalyzer
 
 __all__ = [
-    'StockfishAnalyzer',
-    'MetricsCalculator',
-    'FeedbackGenerator',
-    'PositionEvaluator',
-    'PatternAnalyzer',
-] 
+    "StockfishAnalyzer",
+    "MetricsCalculator",
+    "FeedbackGenerator",
+    "PositionEvaluator",
+    "PatternAnalyzer",
+]

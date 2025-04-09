@@ -7,4 +7,4 @@ const navigation = [
     icon: BarChart,
     current: pathname === '/batch-analysis'
   },
-] 
+]

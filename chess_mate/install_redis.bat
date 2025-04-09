@@ -58,4 +58,4 @@ if errorlevel 1 (
 
 echo Redis is installed and running!
 echo Installation complete.
-pause 
+pause

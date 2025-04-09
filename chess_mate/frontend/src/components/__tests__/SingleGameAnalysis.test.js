@@ -163,4 +163,4 @@ describe('SingleGameAnalysis', () => {
     userEvent.click(screen.getByText('Overview'));
     expect(screen.getByText('Game Statistics')).toBeInTheDocument();
   });
-}); 
+});

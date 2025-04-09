@@ -98,26 +98,26 @@
         <div class="header">
             <h1>Welcome to ChessMate!</h1>
         </div>
-        
+
         <div class="content">
             <p class="welcome-message">Hello {{ user.username }},</p>
-            
+
             <p>Thank you for joining ChessMate! To start analyzing your chess games and improving your skills, please verify your email address by clicking the button below:</p>
-            
+
             <div style="text-align: center;">
                 <a href="{{ verification_url }}" class="button">Verify Email Address</a>
             </div>
-            
+
             <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
             <div class="verification-link">
                 {{ verification_url }}
             </div>
-            
+
             <p><strong>Note:</strong> This verification link will expire in 7 days.</p>
-            
+
             <p>If you did not create an account with ChessMate, please ignore this email.</p>
         </div>
-        
+
         <div class="footer">
             <p>This is an automated email. Please do not reply to this message.</p>
             <p>&copy; 2024 ChessMate. All rights reserved.</p>
@@ -125,4 +125,4 @@
         <div class="chess-pattern"></div>
     </div>
 </body>
-</html> 
+</html>

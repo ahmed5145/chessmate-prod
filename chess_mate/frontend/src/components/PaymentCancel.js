@@ -36,4 +36,4 @@ const PaymentCancel = () => {
   );
 };
 
-export default PaymentCancel; 
+export default PaymentCancel;

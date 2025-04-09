@@ -100,7 +100,7 @@ button:active:not(:disabled) {
   .grid-cols-1 {
     gap: 1rem;
   }
-  
+
   .px-6 {
     padding-left: 1rem;
     padding-right: 1rem;
@@ -113,7 +113,7 @@ button:active:not(:disabled) {
     box-shadow: none !important;
     border: 1px solid #e5e7eb;
   }
-  
+
   button {
     display: none;
   }
@@ -133,36 +133,36 @@ button:active:not(:disabled) {
     background-color: #1f2937;
     color: #f3f4f6;
   }
-  
+
   .text-gray-900 {
     color: #f3f4f6;
   }
-  
+
   .text-gray-600 {
     color: #d1d5db;
   }
-  
+
   .border-gray-200 {
     border-color: #374151;
   }
-  
+
   .bg-gray-50 {
     background-color: #111827;
   }
-  
+
   .text-gray-500 {
     color: #9ca3af;
   }
-  
+
   .hover\:bg-gray-50:hover {
     background-color: #374151;
   }
-  
+
   .bg-blue-50 {
     background-color: rgba(59, 130, 246, 0.1);
   }
-  
+
   .bg-green-50 {
     background-color: rgba(16, 185, 129, 0.1);
   }
-} 
+}

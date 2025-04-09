@@ -1,248 +1,255 @@
-import pytest
-from unittest.mock import patch, MagicMock
-from django.test import TestCase, override_settings
-from django.core.cache import cache
-from django.utils import timezone
-from datetime import datetime
-from core.game_analyzer import GameAnalyzer
-from core.models import Game, Profile
-from django.contrib.auth.models import User
-import chess.pgn
-import chess.engine
-import io
+"""Tests for the GameAnalyzer class."""
+
 import json
-from openai import OpenAI
+from unittest.mock import MagicMock, patch
 
-# Test settings
-TEST_SETTINGS = {
-    'TEST_MODE': False,  # Set to False to allow OpenAI client initialization
-    'OPENAI_API_KEY': 'test-key',
-    'OPENAI_MODEL': 'gpt-3.5-turbo',
-    'OPENAI_MAX_TOKENS': 500,
-    'OPENAI_TEMPERATURE': 0.7,
-    'OPENAI_RATE_LIMIT': {
-        'max_requests': 50,
-        'window_seconds': 3600,
-        'min_interval': 0.5,
-    },
-    'OPENAI_CACHE_KEY': 'test_openai_rate_limit',
-    'OPENAI_CACHE_TIMEOUT': 3600,
-    'STOCKFISH_PATH': 'stockfish'  # Mock path for tests
-}
+import pytest
+from core.game_analyzer import GameAnalyzer
+from core.models import Game, GameAnalysis, Profile, User
 
-@override_settings(**TEST_SETTINGS)
-class TestGameAnalyzer(TestCase):
-    def setUp(self):
-        # Clear cache before each test
-        cache.clear()
-        
-        # Create test user
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
-        )
-        
-        # Create or get user profile
-        self.profile, _ = Profile.objects.get_or_create(
-            user=self.user,
-            defaults={'credits': 10}
-        )
-        
-        # Create a test game with proper PGN format
-        self.game = Game.objects.create(
-            user=self.user,
-            platform='chess.com',
-            game_id='test123',
-            pgn="""[Event "Test Game"]
-[Site "Chess.com"]
-[Date "2024.01.15"]
-[White "TestUser"]
-[Black "Opponent"]
+
+@pytest.fixture
+def test_user(db):
+    """Create a test user with profile."""
+    user = User.objects.create(username="testuser", email="test@example.com")
+    profile = Profile.objects.create(user=user, chess_com_username="testuser", lichess_username="testuser", credits=100)
+    return user
+
+
+@pytest.fixture
+def test_game(db, test_user):
+    """Create a test game."""
+    return Game.objects.create(
+        user=test_user,
+        platform="lichess",
+        white="testuser",
+        black="opponent",
+        pgn="""
+[Event "Test Game"]
+[Site "https://lichess.org"]
+[White "testuser"]
+[Black "opponent"]
 [Result "1-0"]
-[WhiteElo "1500"]
-[BlackElo "1450"]
-[TimeControl "600"]
 
-1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 O-O 8. c3 d6 9. h3 Na5 10. Bc2 c5 11. d4 Qc7 12. Nbd2 cxd4 13. cxd4 Nc6 14. Nb3 a5 15. Be3 a4 16. Nbd2 Bd7 1-0""",
-            white="TestUser",
-            black="Opponent",
-            result="1-0",
-            date_played=timezone.now()
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 8. c3 O-O
+9. h3 Nb8 10. d4 Nbd7 11. c4 c6 12. Nc3 exd4 13. Nxd4 Nc5 14. Bc2 Qb6 1-0
+""",
+        result="1-0",
+    )
+
+
+@pytest.mark.django_db
+class TestGameAnalyzer:
+    """Tests for the GameAnalyzer class."""
+
+    def setup_method(self):
+        """Set up test data and mocks."""
+        # Mock the StockfishAnalyzer
+        self.stockfish_patch = patch("core.analysis.stockfish_analyzer.StockfishAnalyzer")
+        self.mock_stockfish_class = self.stockfish_patch.start()
+        self.mock_stockfish = MagicMock()
+        self.mock_stockfish_class.get_instance.return_value = self.mock_stockfish
+
+        # Mock the FeedbackGenerator
+        self.feedback_patch = patch("core.analysis.feedback_generator.FeedbackGenerator")
+        self.mock_feedback_class = self.feedback_patch.start()
+        self.mock_feedback = MagicMock()
+        self.mock_feedback_class.return_value = self.mock_feedback
+
+        # Mock TaskManager
+        self.task_manager_patch = patch("core.task_manager.TaskManager")
+        self.mock_task_manager_class = self.task_manager_patch.start()
+        self.mock_task_manager = MagicMock()
+        self.mock_task_manager_class.return_value = self.mock_task_manager
+
+        # Mock OpenAI
+        self.openai_patch = patch("core.game_analyzer.OpenAI")
+        self.mock_openai_class = self.openai_patch.start()
+        self.mock_openai = MagicMock()
+        self.mock_openai_class.return_value = self.mock_openai
+
+        # Set up expected results
+        self.analysis_result = {
+            "moves": {
+                "1": {"move": "e4", "eval": 0.3, "best_move": "e4"},
+                "2": {"move": "e5", "eval": 0.2, "best_move": "e5"},
+            },
+            "summary": {
+                "accuracy": 95.5,
+                "best_move_count": 10,
+                "inaccuracies": 1,
+                "mistakes": 0,
+                "blunders": 0,
+            },
+        }
+
+        self.feedback_result = {
+            "summary": {
+                "evaluation": "Strong play with minimal errors",
+                "strengths": ["Solid opening", "Good tactical awareness"],
+                "weaknesses": ["Time management"],
+            },
+            "improvement_plan": {
+                "tactics": "Practice tactical puzzles",
+                "openings": "Study Ruy Lopez variations",
+                "endgames": "Focus on rook endgames",
+            },
+        }
+
+        # Configure mocks to return expected results
+        self.mock_stockfish.analyze_game.return_value = self.analysis_result
+        self.mock_feedback.generate_feedback.return_value = self.feedback_result
+
+    def teardown_method(self):
+        """Clean up patches."""
+        self.stockfish_patch.stop()
+        self.feedback_patch.stop()
+        self.task_manager_patch.stop()
+        self.openai_patch.stop()
+
+    def test_initialization(self):
+        """Test that GameAnalyzer is initialized correctly."""
+        analyzer = GameAnalyzer()
+
+        # Check that dependencies were properly initialized
+        self.mock_stockfish_class.get_instance.assert_called_once()
+        self.mock_feedback_class.assert_called_once()
+        self.mock_task_manager_class.assert_called_once()
+        self.mock_openai_class.assert_called_once()
+
+        # Check that dependencies are properly assigned
+        assert analyzer.engine == self.mock_stockfish
+        assert analyzer.feedback_generator == self.mock_feedback
+        assert analyzer.task_manager == self.mock_task_manager
+
+    def test_analyze_game_with_ai(self, test_game):
+        """Test analyzing a game with AI feedback."""
+        analyzer = GameAnalyzer()
+
+        # Call the method
+        result = analyzer.analyze_game(test_game, depth=20, use_ai=True)
+
+        # Check that the engine was called correctly
+        self.mock_stockfish.analyze_game.assert_called_once_with(test_game.pgn, depth=20)
+
+        # Check that the feedback generator was called correctly
+        self.mock_feedback.generate_feedback.assert_called_once()
+
+        # Check the result
+        assert result["analysis"] == self.analysis_result
+        assert result["feedback"] == self.feedback_result
+
+    def test_analyze_game_without_ai(self, test_game):
+        """Test analyzing a game without AI feedback."""
+        analyzer = GameAnalyzer()
+
+        # Call the method
+        result = analyzer.analyze_game(test_game, depth=20, use_ai=False)
+
+        # Check that the engine was called
+        self.mock_stockfish.analyze_game.assert_called_once()
+
+        # Check that the feedback generator was not called
+        self.mock_feedback.generate_feedback.assert_not_called()
+
+        # Check the result
+        assert result["analysis"] == self.analysis_result
+        assert "feedback" not in result
+
+    def test_analyze_game_handles_errors(self, test_game):
+        """Test that analyze_game handles errors gracefully."""
+        # Configure the engine to raise an exception
+        self.mock_stockfish.analyze_game.side_effect = Exception("Test error")
+
+        analyzer = GameAnalyzer()
+
+        # Call the method
+        result = analyzer.analyze_game(test_game)
+
+        # Check the result
+        assert "error" in result
+        assert "Test error" in result["error"]
+
+    def test_save_analysis(self, test_game):
+        """Test saving analysis results to the database."""
+        analyzer = GameAnalyzer()
+
+        # Call the method
+        analysis = analyzer.save_analysis(test_game, self.analysis_result, self.feedback_result)
+
+        # Check that a GameAnalysis was created with the correct data
+        assert isinstance(analysis, GameAnalysis)
+        assert analysis.game == test_game
+        assert analysis.moves_analysis == self.analysis_result["moves"]
+        assert analysis.summary == self.analysis_result["summary"]
+        assert analysis.feedback == self.feedback_result
+
+        # Verify it was saved to the database
+        saved_analysis = GameAnalysis.objects.get(game=test_game)
+        assert saved_analysis == analysis
+
+    def test_get_analysis_existing(self, test_game):
+        """Test retrieving analysis for a game that has already been analyzed."""
+        # Create an analysis record
+        analysis = GameAnalysis.objects.create(
+            game=test_game,
+            moves_analysis=self.analysis_result["moves"],
+            summary=self.analysis_result["summary"],
+            feedback=self.feedback_result,
         )
 
-        # Mock analysis results
-        self.mock_analysis_results = {
-            'moves': [
-                {
-                    'move': 'e4',
-                    'evaluation': 0.3,
-                    'depth': 20,
-                    'best_move': 'd4',
-                    'position_after': 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1'
-                }
-            ],
-            'summary': {
-                'accuracy': 85.5,
-                'best_moves': 12,
-                'good_moves': 8,
-                'mistakes': 2,
-                'blunders': 0
-            },
-            'evaluation': {
-                'overall': 0.5,
-                'opening': 0.3,
-                'middlegame': 0.6,
-                'endgame': 0.4
-            },
-            'timestamp': '2024-02-24T16:00:00Z'
-        }
+        analyzer = GameAnalyzer()
 
-    @patch('core.game_analyzer.OpenAI')
-    @patch('chess.engine.SimpleEngine.popen_uci')
-    def test_game_analysis_with_rate_limiting(self, mock_engine, mock_openai):
-        """Test game analysis with OpenAI integration."""
-        # Set up mock engine
-        mock_engine_instance = MagicMock()
-        mock_engine_instance.analyse.return_value = {
-            "score": chess.engine.PovScore(chess.engine.Cp(100), chess.WHITE),
-            "depth": 20,
-            "time": 0.5
-        }
-        mock_engine.return_value = mock_engine_instance
-        
-        # Set up mock OpenAI client
-        mock_openai_instance = MagicMock()
-        mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(
-                message=MagicMock(
-                    content=json.dumps({
-                        "overall": {
-                            "accuracy": 85,
-                            "evaluation": "Strong performance",
-                            "personalized_comment": "Good understanding of the position"
-                        },
-                        "phases": {
-                            "opening": {
-                                "analysis": "Good opening play",
-                                "suggestions": ["Consider e4 variations"]
-                            },
-                            "middlegame": {
-                                "analysis": "Solid positional play",
-                                "suggestions": ["Focus on piece coordination"]
-                            },
-                            "endgame": {
-                                "analysis": "Efficient conversion",
-                                "suggestions": ["Practice basic endgames"]
-                            }
-                        },
-                        "improvement": {
-                            "focus_areas": ["Opening theory", "Tactical awareness"],
-                            "exercises": ["Basic tactics", "Endgame studies"]
-                        }
-                    })
-                )
-            )
-        ]
-        mock_openai_instance.chat.completions.create.return_value = mock_response
-        mock_openai.return_value = mock_openai_instance
-        
-        # Initialize analyzer with mocked components
-        self.analyzer = GameAnalyzer()
-        self.analyzer.engine = mock_engine_instance
-        self.analyzer.openai_client = mock_openai_instance
-        
-        # Mock the rate limiter
-        with patch('core.rate_limiter.RateLimiter.check_rate_limit') as mock_check_rate_limit:
-            mock_check_rate_limit.return_value = True
+        # Call the method
+        result = analyzer.get_analysis(test_game)
 
-            # Analyze the game
-            analysis_results = self.analyzer.analyze_single_game(self.game)
+        # Check the result
+        assert result is not None
+        assert result["analysis"]["moves"] == self.analysis_result["moves"]
+        assert result["analysis"]["summary"] == self.analysis_result["summary"]
+        assert result["feedback"] == self.feedback_result
 
-            # Verify analysis results
-            self.assertTrue(analysis_results['analysis_complete'])
-            self.assertTrue(len(analysis_results['analysis_results']['moves']) > 0, "No moves were analyzed")
-            self.assertIn('feedback', analysis_results)
+    def test_get_analysis_nonexistent(self, test_game):
+        """Test retrieving analysis for a game that hasn't been analyzed."""
+        analyzer = GameAnalyzer()
 
-    @patch('core.game_analyzer.OpenAI')
-    @patch('chess.engine.SimpleEngine.popen_uci')
-    def test_personalized_feedback(self, mock_engine, mock_openai):
-        """Test that feedback is personalized based on player profile."""
-        # Set up mock engine
-        mock_engine_instance = MagicMock()
-        mock_engine_instance.analyse.return_value = {
-            "score": chess.engine.PovScore(chess.engine.Cp(100), chess.WHITE),
-            "depth": 20,
-            "time": 0.5
-        }
-        mock_engine.return_value = mock_engine_instance
-        
-        # Set up mock OpenAI client
-        mock_openai_instance = MagicMock()
-        mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(
-                message=MagicMock(
-                    content=json.dumps({
-                        "overall": {
-                            "accuracy": 85,
-                            "evaluation": "Strong performance for your rating level (1500)",
-                            "personalized_comment": "Your play shows improvement in positional understanding"
-                        },
-                        "phases": {
-                            "opening": {
-                                "analysis": "Good handling of the Ruy Lopez",
-                                "suggestions": ["For your rating level, consider studying key Ruy Lopez positions"]
-                            },
-                            "middlegame": {
-                                "analysis": "Solid positional play, appropriate for your rating",
-                                "suggestions": ["Focus on piece coordination", "Study typical Ruy Lopez middlegame plans"]
-                            },
-                            "endgame": {
-                                "analysis": "Efficient conversion showing good technique",
-                                "suggestions": ["Practice basic endgames", "Study rook endgames"]
-                            }
-                        },
-                        "improvement": {
-                            "focus_areas": ["Ruy Lopez theory", "Positional play", "Endgame technique"],
-                            "exercises": ["1400-1600 tactical exercises", "Basic endgame studies"]
-                        }
-                    })
-                )
-            )
-        ]
-        mock_openai_instance.chat.completions.create.return_value = mock_response
-        mock_openai.return_value = mock_openai_instance
-        
-        # Initialize analyzer with mocked components
-        self.analyzer = GameAnalyzer()
-        self.analyzer.engine = mock_engine_instance
-        self.analyzer.openai_client = mock_openai_instance
-        
-        # Update profile with rating history
-        self.profile.rating_history = {
-            'rapid': {
-                '2024-01': 1500,
-                '2023-12': 1450
-            }
-        }
-        self.profile.save()
-        
-        # Mock the rate limiter
-        with patch('core.rate_limiter.RateLimiter.check_rate_limit') as mock_check_rate_limit:
-            mock_check_rate_limit.return_value = True
+        # Call the method
+        result = analyzer.get_analysis(test_game)
 
-            # Analyze the game
-            analysis_results = self.analyzer.analyze_single_game(self.game)
+        # Check the result
+        assert result is None
 
-            # Verify analysis results
-            self.assertTrue(analysis_results['analysis_complete'])
-            self.assertTrue(len(analysis_results['analysis_results']['moves']) > 0, "No moves were analyzed")
-            self.assertIn('feedback', analysis_results)
+    def test_analyze_batch_games(self, test_game, test_user):
+        """Test analyzing multiple games in batch."""
+        # Create a second game
+        game2 = Game.objects.create(
+            user=test_user,
+            platform="chess.com",
+            white="testuser",
+            black="opponent2",
+            pgn='[Event "Test Game 2"]\n1. d4 d5 2. c4 e6',
+            result="draw",
+        )
 
-    def tearDown(self):
-        # Clean up
-        cache.clear()
-        if hasattr(self, 'analyzer'):
-            self.analyzer.cleanup()
+        analyzer = GameAnalyzer()
+
+        # Mock analyze_game to track calls and return predetermined results
+        with patch.object(analyzer, "analyze_game") as mock_analyze_game:
+            mock_analyze_game.side_effect = [
+                {"analysis": self.analysis_result, "feedback": self.feedback_result},
+                {"analysis": {"summary": {"accuracy": 85.0}}, "feedback": {}},
+            ]
+
+            # Call the method
+            results = analyzer.analyze_batch_games([test_game, game2], depth=20, use_ai=True)
+
+            # Check that analyze_game was called for each game
+            assert mock_analyze_game.call_count == 2
+            mock_analyze_game.assert_any_call(test_game, depth=20, use_ai=True)
+            mock_analyze_game.assert_any_call(game2, depth=20, use_ai=True)
+
+            # Check the results
+            assert len(results) == 2
+            assert results[0]["analysis"] == self.analysis_result
+            assert results[0]["feedback"] == self.feedback_result
+            assert results[1]["analysis"]["summary"]["accuracy"] == 85.0

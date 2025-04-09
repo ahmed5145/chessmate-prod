@@ -214,16 +214,16 @@
     .error-message {
         color: #fca5a5;
     }
-    
+
     .retry-button {
         background-color: #2563eb;
     }
-    
+
     .retry-button:hover {
         background-color: #1d4ed8;
     }
-    
+
     .retry-button:focus {
         outline-color: #3b82f6;
     }
-} 
+}

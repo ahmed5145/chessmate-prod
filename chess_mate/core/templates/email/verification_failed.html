@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification Failed - ChessMate</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+        .logo span {
+            color: #4a5568;
+        }
+        h1 {
+            color: #e53e3e;
+            margin-top: 0;
+        }
+        .content {
+            padding: 0 20px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #4299e1;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .button:hover {
+            background-color: #3182ce;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 14px;
+            color: #718096;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .error-icon {
+            font-size: 48px;
+            color: #e53e3e;
+            margin-bottom: 20px;
+        }
+        .message {
+            background-color: #fff5f5;
+            border-left: 4px solid #e53e3e;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 0;
+                width: 100%;
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Chess<span>Mate</span></div>
+        </div>
+        
+        <div class="content">
+            <div style="text-align: center;">
+                <div class="error-icon">❌</div>
+                <h1>Verification Failed</h1>
+            </div>
+            
+            <p>We were unable to verify your email address.</p>
+            
+            <div class="message">
+                {{ message }}
+            </div>
+            
+            <p>Here are a few things you can try:</p>
+            <ul>
+                <li>Check if you clicked the correct link from your email</li>
+                <li>Try copying and pasting the entire URL into your browser</li>
+                <li>Request a new verification email from your account settings</li>
+                <li>Contact support if you continue to experience issues</li>
+            </ul>
+            
+            <p style="text-align: center;">
+                <a href="/" class="button">Go to Homepage</a>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>ChessMate - Your AI-powered chess analysis assistant</p>
+            <p>If you need assistance, please contact support at support@chessmate.com</p>
+        </div>
+    </div>
+</body>
+</html> 

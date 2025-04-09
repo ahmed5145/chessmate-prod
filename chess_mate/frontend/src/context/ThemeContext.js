@@ -16,7 +16,7 @@ export const ThemeProvider = ({ children }) => {
   useEffect(() => {
     // Update local storage when theme changes
     localStorage.setItem('darkMode', isDarkMode);
-    
+
     // Update document class for global styles
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -42,4 +42,4 @@ export const useTheme = () => {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
-}; 
+};

@@ -123,4 +123,4 @@ All endpoints except /api/register/ and /api/login/ require authentication via B
 
 ```
 Authorization: Bearer <access_token>
-``` 
+```

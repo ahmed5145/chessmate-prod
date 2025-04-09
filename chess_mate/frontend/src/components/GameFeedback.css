@@ -57,7 +57,7 @@
   .feedback-container {
     padding: 1rem;
   }
-  
+
   .grid {
     gap: 1rem;
   }
@@ -132,4 +132,3 @@ button:disabled {
 .feedback-container::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
-  

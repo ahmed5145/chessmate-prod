@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  LogOut, 
-  Menu, 
-  X, 
-  Sun, 
+import {
+  LogOut,
+  Menu,
+  X,
+  Sun,
   Moon,
   Home,
   LayoutDashboard,
@@ -65,15 +65,15 @@ const Navbar = () => {
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-200
-      ${isDarkMode 
-        ? 'bg-gray-900 border-b border-gray-800' 
+      ${isDarkMode
+        ? 'bg-gray-900 border-b border-gray-800'
         : 'bg-white border-b border-gray-200'}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link 
-              to={isLoggedIn ? "/dashboard" : "/"} 
+            <Link
+              to={isLoggedIn ? "/dashboard" : "/"}
               className={`flex items-center space-x-2 text-xl font-bold ${
                 isDarkMode ? 'text-white hover:text-primary-300' : 'text-gray-900 hover:text-primary-600'
               } transition-colors duration-200`}
@@ -97,7 +97,7 @@ const Navbar = () => {
                 </span>
               </Link>
             )}
-            
+
             {navLinks.map(({ to, icon, text, highlight }) => (
               <Link
                 key={to}
@@ -235,4 +235,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar; 
+export default Navbar;

@@ -77,7 +77,7 @@ import { useTheme } from '../context/ThemeContext';
 
 const Component = () => {
   const { isDarkMode, toggleDarkMode } = useTheme();
-  
+
   return (
     <div className={isDarkMode ? 'dark' : 'light'}>
       {/* Component content */}
@@ -162,4 +162,4 @@ Theme-related tests should cover:
 3. Manual theme toggling
 4. Component rendering in both themes
 5. Transition animations
-6. Accessibility compliance 
+6. Accessibility compliance
