@@ -1,201 +1,207 @@
 # ChessMate Testing Guide
 
-This document outlines the testing approach for the ChessMate project, including how to run tests and how the testing infrastructure is organized.
+This guide provides comprehensive information on testing the ChessMate application, including unit tests, integration tests, and end-to-end tests.
 
-## Testing Structure
+## Test Environments
 
-The ChessMate testing framework uses a unified approach that includes:
+ChessMate supports multiple test environments:
 
-1. **Standalone Tests**: Python tests that don't require Django and can run independently.
-2. **Django Tests**: Tests that require the Django framework and database integration.
-
-All tests use pytest as the test runner, with common fixtures available to both test types through a consolidated conftest.py configuration.
-
-## Setup
-
-Before running tests, you need to install the ChessMate package in development mode:
-
-```bash
-# Install in development mode
-python install_dev.py
-```
+- **Development**: Default environment for local testing
+- **CI**: Used in continuous integration pipeline
+- **Staging**: For pre-production testing
 
 ## Running Tests
 
-### Unified Test Runner
+### Quick Start
 
-We provide a single test runner script (`run_tests.py`) that can run all types of tests:
-
-```bash
-# Run standalone tests
-python run_tests.py --standalone
-
-# Run Django tests
-python run_tests.py --django
-
-# Run a specific test path
-python run_tests.py --path chess_mate/core/tests/test_auth_views.py
-
-# Run all tests (default)
-python run_tests.py
-```
-
-### Additional Options
-
-The test runner accepts several options to control test execution:
-
-- `--verbose` or `-v`: Increase verbosity (can be used multiple times, e.g., `-vv`)
-- `--coverage`: Generate coverage report
-- `--html`: Generate HTML coverage report
-- `--fail-under PERCENTAGE`: Fail if coverage is under the specified percentage (default: 80%)
-- `--keep-db`: Keep the test database between runs
-
-Example:
+To run all tests:
 
 ```bash
-# Run all tests with coverage report and fail if coverage is below 90%
-python run_tests.py --coverage --fail-under 90 --html
+cd chess_mate
+python manage.py test
 ```
 
-## Test Directory Structure
+### Running Specific Test Suites
 
+```bash
+# Run only unit tests
+python manage.py test tests.unit
+
+# Run only integration tests
+python manage.py test tests.integration
+
+# Run only API tests
+python manage.py test tests.api
+
+# Run only a specific test case
+python manage.py test tests.unit.test_analysis.TestMoveQuality
 ```
-ChessMate/
-├── conftest.py                      # Root conftest with universal fixtures
-├── run_tests.py                     # Unified test runner
-├── pytest.ini                       # Global pytest configuration
-│
-├── standalone_tests/                # Tests that run without Django
-│   ├── __init__.py                  # Package marker
-│   ├── conftest.py                  # Standalone-specific fixtures
-│   ├── test_move_validation.py      # Tests for chess move validation
-│   ├── test_move_validation_parameterized.py  # Parameterized tests
-│   └── test_cache_mock.py           # Tests for Redis caching
-│
-└── chess_mate/
-    └── core/
-        └── tests/                   # Django-integrated tests
-            ├── __init__.py          # Package marker
-            ├── test_auth_views.py   # Tests for authentication views
-            ├── test_game_views.py   # Tests for game management
-            └── ...                  # Other Django test modules
+
+### Test with Coverage
+
+```bash
+coverage run --source='.' manage.py test
+coverage report
+```
+
+For HTML coverage report:
+
+```bash
+coverage html
+# Then open htmlcov/index.html in your browser
+```
+
+## API Testing Tools
+
+### Authentication Test Tool
+
+The `check_authentication.py` script provides a comprehensive way to test API authentication:
+
+```bash
+python check_authentication.py
+```
+
+Options:
+- `--base-url`: API base URL (default: http://localhost:8000)
+- `--username`: Test username
+- `--password`: Test password
+- `--verbose`: Enable verbose output
+- `--test`: Specific test to run (choices: all, register, login, basic, simple, profile, refresh)
+
+### JWT Token Debugging
+
+The `jwt_debug.py` tool helps debug JWT token issues:
+
+```bash
+python jwt_debug.py --token YOUR_JWT_TOKEN
+```
+
+Options:
+- `--token`: JWT token to analyze
+- `--auth-header`: Authorization header containing the token
+- `--create-test`: Create a test token
+- `--user-id`: User ID for test token
+- `--username`: Username for test token
+- `--expiry`: Expiry in days for test token
+
+### API Test Suite
+
+```bash
+python test_api.py --use-basic-profile --verbose
+```
+
+## Frontend Testing
+
+### Jest Tests
+
+```bash
+cd frontend
+npm test
+```
+
+### Cypress E2E Tests
+
+```bash
+cd frontend
+npm run cypress:open  # Interactive mode
+npm run cypress:run   # Headless mode
 ```
 
 ## Writing Tests
 
-### Standalone Tests
+### Backend Test Guidelines
 
-Place standalone tests in the `standalone_tests/` directory:
+1. **Test Structure**: Use Django's TestCase class or pytest fixtures
+2. **Isolation**: Each test should be isolated and not depend on other tests
+3. **Mocking**: Use mocks for external services (e.g., Stockfish, OpenAI)
+4. **Database**: Use in-memory SQLite for test performance
 
-```python
-# standalone_tests/test_example.py
-import pytest
-
-def test_something():
-    assert 1 + 1 == 2
-```
-
-### Django Tests
-
-Place Django-integrated tests in the `chess_mate/core/tests/` directory:
+Example test class:
 
 ```python
-# chess_mate/core/tests/test_example.py
-import pytest
 from django.test import TestCase
+from chess_mate.core.analysis.metrics_calculator import MetricsCalculator
 
-# Using pytest with django_db marker
-@pytest.mark.django_db
-def test_database_operation():
-    # Test with database access
-    pass
-
-# Using Django's TestCase
-class ExampleTestCase(TestCase):
-    def test_something(self):
-        # Test with Django TestCase
-        pass
+class TestMetricsCalculator(TestCase):
+    def setUp(self):
+        # Setup test data
+        self.calculator = MetricsCalculator()
+        
+    def test_calculate_move_quality(self):
+        # Test move quality calculation
+        result = self.calculator.calculate_move_quality(...)
+        self.assertEqual(result['accuracy'], 85)
 ```
 
-## Test Fixtures
+### Frontend Test Guidelines
 
-### Universal Fixtures
+1. **Component Tests**: Test each React component in isolation
+2. **Redux Tests**: Test reducers, actions, and selectors separately
+3. **Integration Tests**: Test component interactions
+4. **E2E Tests**: Use Cypress for critical user flows
 
-These fixtures are available in both standalone and Django tests:
+Example Jest test:
 
-- `redis_mock`: A mock Redis client for testing caching
-- `cache_mock`: A simple cache implementation using the Redis mock
-- `mock_user`: A dictionary representing a user
-- `mock_game`: A dictionary representing a game
+```javascript
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import GameAnalysis from '../components/GameAnalysis';
 
-### Django-specific Fixtures
+test('renders game analysis component', () => {
+  render(<GameAnalysis gameId={123} />);
+  const analysisElement = screen.getByTestId('game-analysis');
+  expect(analysisElement).toBeInTheDocument();
+});
+```
 
-These fixtures are only available in Django tests:
+## Performance Testing
 
-- `client`: Django test client
-- `django_user_model`: The User model
-- `test_user`: A test user instance
-- `test_superuser`: A test superuser instance
-- `authenticated_client`: Client logged in as a regular user
-- `admin_client`: Client logged in as an admin user
-- `test_game`: A Game model instance
-- `test_profile`: A Profile model instance
-
-### Standalone-specific Fixtures
-
-These fixtures are only available in standalone tests:
-
-- `sample_pgn`: Sample PGN data for chess tests
-
-## Test Coverage
-
-We aim for 80%+ test coverage across all modules. Check coverage with:
+The `load_test.py` script can be used to test API performance:
 
 ```bash
-python run_tests.py --coverage --html
+python load_test.py --endpoint /api/v1/games/ --method GET --users 50 --duration 60
 ```
 
-This will generate an HTML coverage report in the `htmlcov/` directory.
+## Integration with CI/CD
 
-## Continuous Integration
+ChessMate uses GitHub Actions for CI/CD. The pipeline runs:
+1. Unit tests
+2. Integration tests
+3. Linters
+4. Security checks
+5. Coverage reports
 
-Tests are automatically run on our CI/CD pipeline using GitHub Actions.
+See `.github/workflows/ci.yml` for details.
 
-## Best Practices
+## Test Data
 
-1. **Use Descriptive Names**: Name your test functions and classes clearly to indicate what they're testing.
+### Fixture Data
 
-2. **Test One Thing at a Time**: Each test should focus on testing a single function or feature.
+Sample data for testing is available in `tests/fixtures/`:
+- `games.json`: Sample chess games for testing
+- `users.json`: Sample user accounts
+- `analysis.json`: Sample analysis results
 
-3. **Use Fixtures**: Use fixtures for common setup rather than duplicating code.
+### Test Database
 
-4. **Parameterize Common Tests**: Use `@pytest.mark.parametrize` for tests that should run with multiple inputs.
+To use the test database:
 
-5. **Prefer pytest Assertions**: Use pytest's built-in assertions for better error messages.
+```bash
+python manage.py testserver tests/fixtures/games.json
+```
 
-6. **Mock External Dependencies**: Use mocks for external services and APIs.
-
-7. **Test Edge Cases**: Don't just test the happy path - test error conditions and edge cases.
-
-## Troubleshooting
+## Troubleshooting Tests
 
 ### Common Issues
 
-1. **Import Errors**: Ensure your Python path is set correctly. The test runner handles this automatically.
+1. **Database Connection Issues**:
+   - Ensure test database permissions are set correctly
+   - Use in-memory SQLite for isolation
 
-2. **Database Errors**: If you get database errors, use the `--keep-db` flag to prevent test database recreation.
+2. **Test Timeouts**:
+   - Mock long-running operations like Stockfish analysis
+   - Use the `@pytest.mark.slow` decorator for slow tests
 
-3. **Django Settings**: Make sure the Django settings module is properly set for tests.
-
-4. **Missing Dependencies**: Ensure all test dependencies are installed:
-   ```bash
-   pip install pytest pytest-django pytest-cov pytest-mock fakeredis
-   ```
-
-### Getting Help
-
-If you encounter issues with the test suite, consult the following resources:
-
-- [pytest Documentation](https://docs.pytest.org/)
-- [Django Testing Documentation](https://docs.djangoproject.com/en/stable/topics/testing/)
-- [pytest-django Documentation](https://pytest-django.readthedocs.io/)
+3. **Inconsistent Results**:
+   - Check for test interdependencies
+   - Reset the test database between test classes
