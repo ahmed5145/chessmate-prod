@@ -47,7 +47,7 @@ jobs:
           npm audit
 
       - name: Run OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.9.0
+        uses: zaproxy/action-baseline@v0.14.0
         with:
           target: 'https://staging.chessmate.com'
           allow_issue_writing: false
