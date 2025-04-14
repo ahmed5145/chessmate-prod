@@ -14,7 +14,7 @@ gunicorn==21.2.0
 whitenoise==6.5.0
 
 # Database and Cache
-psycopg2-binary==2.9.7
+psycopg2-binary==2.9.10
 redis==4.6.0
 hiredis==2.2.3
 
