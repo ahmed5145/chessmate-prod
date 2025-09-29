@@ -32,7 +32,7 @@ Pillow==10.0.1
 stripe==6.5.0
 
 # API Documentation
-drf-yasg==1.21.7
+drf-yasg==1.21.11
 
 # Testing
 pytest==7.4.2
