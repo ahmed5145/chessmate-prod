@@ -94,7 +94,7 @@ jobs:
         python run_tests.py --coverage --html --fail-under 80
 
     - name: Upload Coverage Report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       with:
         name: coverage-report-python${{ matrix.python-version }}
         path: htmlcov/
@@ -133,7 +133,7 @@ jobs:
         npm test -- --watchAll=false --coverage
 
     - name: Upload Coverage Report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       with:
         name: coverage-report-frontend
         path: frontend/coverage/
