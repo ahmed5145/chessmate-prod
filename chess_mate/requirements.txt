@@ -38,7 +38,7 @@ drf-yasg==1.21.7
 pytest==7.4.2
 pytest-django==4.5.2
 pytest-mock==3.12.0
-pytest-cov==4.1.0
+pytest-cov==7.0.0
 pytest-xdist==3.5.0
 pytest-sugar==1.0.0
 pytest-timeout==2.2.0
