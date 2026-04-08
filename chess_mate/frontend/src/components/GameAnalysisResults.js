@@ -147,6 +147,22 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
     const moveQuality = summary.move_quality || metrics.move_quality || analysisResults.move_quality || {};
     const phases = summary.phases || metrics.phases || analysisResults.phases || {};
     const timeManagement = summary.time_management || analysisResults.time_management || {};
+    const hasMoveTimeData = rawMoves.some((move) => {
+        const candidate = move.time_spent ?? move.time ?? move.clock;
+        const parsed = Number(candidate);
+        return Number.isFinite(parsed) && parsed > 0;
+    });
+
+    const hasComputedTimeMetrics = [
+        timeManagement.time_management_score,
+        timeManagement.time_pressure_percentage,
+        timeManagement.average_time,
+        timeManagement.avg_time_per_move
+    ].some((value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed > 0;
+    });
+    const showTimeAsUnavailable = !hasMoveTimeData && !hasComputedTimeMetrics;
 
     // Format metrics for display
     const displayMetrics = {
@@ -181,6 +197,11 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
         )
     };
 
+    if (showTimeAsUnavailable) {
+        displayMetrics.timeManagement = 'N/A';
+        displayMetrics.timePressure = 'N/A';
+    }
+
     return (
         <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
             {/* Overall Stats */}
@@ -199,13 +220,13 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
                 />
                 <StatItem
                     label="Time Management"
-                    value={`${displayMetrics.timeManagement}%`}
+                    value={displayMetrics.timeManagement === 'N/A' ? 'N/A' : `${displayMetrics.timeManagement}%`}
                     icon={FaClock}
                     isDarkMode={isDarkMode}
                 />
                 <StatItem
                     label="Time Pressure"
-                    value={`${displayMetrics.timePressure}%`}
+                    value={displayMetrics.timePressure === 'N/A' ? 'N/A' : `${displayMetrics.timePressure}%`}
                     icon={FaHourglassHalf}
                     isDarkMode={isDarkMode}
                 />

@@ -863,8 +863,15 @@ class StockfishAnalyzer:
                 else:
                     eval_change = eval_before - eval_after
                 
-                # Classify move
-                classification = self._classify_move(eval_change)
+                # Classify move with best-move and mate-aware context.
+                best_move = position_before.get("pv", [])[0] if position_before.get("pv") else None
+                classification = self._classify_move(
+                    eval_change,
+                    eval_before=eval_before,
+                    eval_after=eval_after,
+                    played_move=move.uci(),
+                    best_move=best_move,
+                )
                 
                 # Store the analysis
                 analyzed_move = {
@@ -876,7 +883,7 @@ class StockfishAnalyzer:
                     'eval_after': eval_after,
                     'eval_change': eval_change,
                     'classification': classification,
-                    'best_move': position_before.get("pv", [])[0] if position_before.get("pv") else None,
+                    'best_move': best_move,
                     'best_line': position_before.get("pv", [])[:5] if position_before.get("pv") else [],
                     'position': position_before.get("fen", board.fen()),
                     'time': 0,  # Placeholder for actual time data
@@ -893,7 +900,7 @@ class StockfishAnalyzer:
             logger.error(f"Error analyzing PGN game: {str(e)}")
             raise AnalysisError(f"Failed to analyze PGN game: {str(e)}")
         
-    def _classify_move(self, eval_change):
+    def _classify_move(self, eval_change, eval_before=None, eval_after=None, played_move=None, best_move=None):
         """
         Classify a move based on evaluation change.
         
@@ -911,6 +918,25 @@ class StockfishAnalyzer:
         # Analyzer outputs are sometimes in pawns and sometimes in centipawns.
         # Normalize to centipawns so classification thresholds stay consistent.
         eval_change_cp = raw_change * 100.0 if abs(raw_change) <= 20.0 else raw_change
+
+        # Mate band: eval scores near +/-1000 are forced-mate representations.
+        in_mate_band_after = False
+        in_mate_band_before = False
+        try:
+            in_mate_band_after = eval_after is not None and abs(float(eval_after)) >= 900.0
+            in_mate_band_before = eval_before is not None and abs(float(eval_before)) >= 900.0
+        except (TypeError, ValueError):
+            in_mate_band_after = False
+            in_mate_band_before = False
+
+        # If the played move matches engine best move and does not worsen sharply,
+        # avoid classifying it as neutral.
+        if played_move and best_move and played_move == best_move and eval_change_cp >= -50:
+            if in_mate_band_after and (not in_mate_band_before or raw_change > 0):
+                return "excellent_move"
+            if eval_change_cp >= 100:
+                return "excellent_move"
+            return "good_move"
 
         if eval_change_cp < -300:
             return "blunder"

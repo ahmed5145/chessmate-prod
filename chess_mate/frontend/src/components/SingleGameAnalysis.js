@@ -285,6 +285,7 @@ const SingleGameAnalysis = () => {
   const hasExceededMaxRetries = useRef(false);
   const hasAttemptedDirectFetch = useRef(false);
   const hasAttemptedRecovery = useRef(false);
+  const isFetchingAnalysisRef = useRef(false);
   const pollingErrorCount = useRef(0);
   const analysisCompleted = useRef(false);
   const timeoutIds = useRef([]);
@@ -293,6 +294,7 @@ const SingleGameAnalysis = () => {
   // Poll for analysis status
   const pollForAnalysisStatus = async () => {
     if (!gameId) return;
+    if (analysisCompleted.current || isFetchingAnalysisRef.current) return;
     
     try {
       setPollingFailed(false);
@@ -460,6 +462,11 @@ const SingleGameAnalysis = () => {
 
   // Function to fetch analysis data
   const fetchAnalysisData = async () => {
+    if (isFetchingAnalysisRef.current) {
+      return false;
+    }
+
+    isFetchingAnalysisRef.current = true;
     setLoadingMessage('Retrieving analysis results...');
     try {
       const data = await fetchGameAnalysis(gameId);
@@ -471,6 +478,7 @@ const SingleGameAnalysis = () => {
                 setLoading(false);
         // Remove from localStorage to prevent future false "completed" states
         localStorage.removeItem(`analysis_complete_${gameId}`);
+        isFetchingAnalysisRef.current = false;
         return false;
       }
       
@@ -487,17 +495,20 @@ const SingleGameAnalysis = () => {
         analysisCompleted.current = true;
         // Mark as complete in localStorage to avoid unnecessary API calls
         localStorage.setItem(`analysis_complete_${gameId}`, 'true');
+        isFetchingAnalysisRef.current = false;
         return true;
                 } else {
         console.warn('Retrieved data structure is invalid:', data);
         setAnalysisError('The analysis data structure is invalid or incomplete. Please try again.');
                     setLoading(false);
+        isFetchingAnalysisRef.current = false;
         return false;
             }
         } catch (error) {
       console.error('Error fetching analysis data:', error);
       setAnalysisError(error.message || 'Failed to load analysis data');
             setLoading(false);
+      isFetchingAnalysisRef.current = false;
       return false;
     }
   };
@@ -521,6 +532,7 @@ const SingleGameAnalysis = () => {
       pollingErrorCount.current = 0;
       hasExceededMaxRetries.current = false;
       analysisCompleted.current = false;
+      isFetchingAnalysisRef.current = false;
       
       // Clear all existing intervals and timeouts
       clearAllIntervals();

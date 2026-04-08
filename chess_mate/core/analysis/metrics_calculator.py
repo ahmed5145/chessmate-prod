@@ -1144,6 +1144,7 @@ class MetricsCalculator:
         """Calculate overall game metrics with enhanced validation."""
         try:
             total_moves = len(moves)
+            move_quality = MetricsCalculator._calculate_move_quality(moves)
             mistakes = sum(
                 1
                 for m in moves
@@ -1165,18 +1166,23 @@ class MetricsCalculator:
             quality_moves = sum(
                 1
                 for m in moves
-                if (
-                    float(m.get("evaluation_improvement", m.get("eval_change", 0.0))) > 50.0
-                    or MetricsCalculator._normalized_classification(m) in {"good", "excellent"}
-                )
+                if m.get("is_best", False)
+                or MetricsCalculator._normalized_classification(m) in {"good", "excellent"}
             )
 
-            # Calculate overall accuracy with perspective
-            accuracy = MetricsCalculator._calculate_accuracy(moves)
+            # Keep overall accuracy consistent with move_quality accuracy shown in UI.
+            accuracy = float(move_quality.get("accuracy", 0.0))
             consistency = MetricsCalculator._calculate_consistency(moves)
 
             # Calculate critical positions
-            critical_positions = sum(1 for m in moves if m.get("is_critical", False))
+            critical_positions = sum(
+                1
+                for m in moves
+                if (
+                    m.get("is_critical", False)
+                    or float(m.get("evaluation_drop", max(0.0, -float(m.get("eval_change", 0.0))))) >= 1.0
+                )
+            )
 
             # Calculate average position quality
             position_quality = (

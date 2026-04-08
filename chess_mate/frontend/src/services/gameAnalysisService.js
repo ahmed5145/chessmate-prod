@@ -7,6 +7,7 @@ const CACHE_TTL = 3600 * 1000; // 1 hour in milliseconds
 const ANALYSIS_START_DEDUP_WINDOW_MS = 15000;
 const inFlightAnalysisStarts = new Map();
 const recentAnalysisStarts = new Map();
+const inFlightAnalysisFetches = new Map();
 
 // Initialize IndexedDB
 const initDB = () => {
@@ -286,6 +287,12 @@ const simulateProgressResponse = (gameId) => {
 }
 
 export const fetchGameAnalysis = async (gameId, retry = 0) => {
+    const dedupKey = String(gameId);
+    if (inFlightAnalysisFetches.has(dedupKey)) {
+        return inFlightAnalysisFetches.get(dedupKey);
+    }
+
+    const requestPromise = (async () => {
     // Check if we have a stored error for this game analysis
     const storedError = localStorage.getItem(`analysis_error_${gameId}`);
     if (storedError && retry === 0) {
@@ -421,7 +428,13 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
             ai_feedback: null,
             isComplete: false
         };
+    } finally {
+        inFlightAnalysisFetches.delete(dedupKey);
     }
+    })();
+
+    inFlightAnalysisFetches.set(dedupKey, requestPromise);
+    return requestPromise;
 };
 
 // Helper function to normalize metrics data
