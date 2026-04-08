@@ -898,15 +898,24 @@ class StockfishAnalyzer:
         Returns:
             Classification string
         """
-        if eval_change < -300:
+        try:
+            raw_change = float(eval_change)
+        except (TypeError, ValueError):
+            return "neutral"
+
+        # Analyzer outputs are sometimes in pawns and sometimes in centipawns.
+        # Normalize to centipawns so classification thresholds stay consistent.
+        eval_change_cp = raw_change * 100.0 if abs(raw_change) <= 20.0 else raw_change
+
+        if eval_change_cp < -300:
             return "blunder"
-        elif eval_change < -100:
+        elif eval_change_cp < -100:
             return "mistake"
-        elif eval_change < -50:
+        elif eval_change_cp < -50:
             return "inaccuracy"
-        elif eval_change > 100:
-            return "good_move"
-        elif eval_change > 300:
+        elif eval_change_cp > 300:
             return "excellent_move"
+        elif eval_change_cp > 100:
+            return "good_move"
         else:
             return "neutral"
