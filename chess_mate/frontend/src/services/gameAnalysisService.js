@@ -281,13 +281,29 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
         // Check if we got a valid response with data
         if (response.data && Object.keys(response.data).length > 0) {
             console.log(`Analysis data received for game ${gameId}:`, response.data);
+            const payload = response.data;
+
+            const hasMetrics = !!payload.metrics || !!payload.analysis_results;
+            const hasMoves =
+                (Array.isArray(payload.moves) && payload.moves.length > 0) ||
+                (Array.isArray(payload.movesAnalysis) && payload.movesAnalysis.length > 0);
+
+            const normalizedPayload = {
+                ...payload,
+                analysis_results: payload.analysis_results || {
+                    summary: payload.metrics || {},
+                    moves: payload.moves || payload.movesAnalysis || []
+                },
+                metrics: payload.metrics || payload.analysis_results?.summary || {},
+                moves: payload.moves || payload.movesAnalysis || []
+            };
             
             // If we have a valid analysis, mark it as complete in localStorage
-            if (response.data.metrics && response.data.movesAnalysis) {
+            if (hasMetrics && hasMoves) {
                 localStorage.setItem(`analysis_complete_${gameId}`, 'true');
                 localStorage.removeItem(`analysis_error_${gameId}`);
                 return {
-                    ...response.data,
+                    ...normalizedPayload,
                     isComplete: true
                 };
             }
@@ -329,7 +345,7 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
             
             // Return the data as is if it doesn't match our expected format
             return {
-                ...response.data,
+                ...normalizedPayload,
                 isComplete: false
             };
         }

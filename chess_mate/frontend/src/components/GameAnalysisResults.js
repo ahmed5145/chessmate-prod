@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { formatNumber } from '../utils/formatters';
-import { FaChessKnight, FaClock, FaChartLine, FaExclamationTriangle, FaHourglassHalf } from 'react-icons/fa';
+import { FaClock, FaChartLine, FaExclamationTriangle, FaHourglassHalf } from 'react-icons/fa';
 
 const StatItem = ({ label, value, icon: Icon, isDarkMode }) => (
     <div className={`flex items-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
@@ -62,14 +62,15 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
         );
     }
 
-    // Extract data from the normalized structure
+    // Support both legacy and normalized backend response shapes.
     const analysisResults = resolvedAnalysisData.analysis_results || {};
-    const summary = analysisResults.summary || analysisResults || {};
-    const feedback = resolvedAnalysisData.feedback || {};
+    const metrics = resolvedAnalysisData.metrics || {};
+    const summary = analysisResults.summary || metrics || analysisResults || {};
+    const feedback = resolvedAnalysisData.feedback || resolvedAnalysisData.ai_feedback || {};
 
     // Extract metrics
     const overall = summary.overall || {};
-        const phases = summary.phases || analysisResults.phases || {};
+    const phases = summary.phases || metrics.phases || analysisResults.phases || {};
     const timeManagement = summary.time_management || analysisResults.time_management || {};
 
     // Format metrics for display
