@@ -938,6 +938,11 @@ class StockfishAnalyzer:
                 return "excellent_move"
             return "good_move"
 
+        # Reduce neutral over-classification when the move is explicitly not best
+        # and loses a meaningful amount of evaluation.
+        if played_move and best_move and played_move != best_move and eval_change_cp <= -25:
+            return "inaccuracy"
+
         if eval_change_cp < -300:
             return "blunder"
         elif eval_change_cp < -100:
