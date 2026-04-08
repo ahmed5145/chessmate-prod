@@ -49,6 +49,9 @@ class BaseAnalysisTask(Task):
 
     abstract = True
 
+    def run(self, *args, **kwargs):
+        raise NotImplementedError("BaseAnalysisTask is abstract and must be subclassed")
+
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Handle task failure."""
         logger.error(f"Task {task_id} failed: {str(exc)}", exc_info=einfo)
@@ -321,61 +324,6 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True):
         }
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, autoretry_for=(Exception,), retry_backoff=True)
-def batch_analyze_games_task(self, game_ids: List[int], depth: int = 20, use_ai: bool = True) -> Dict[str, Any]:
-    """Analyze multiple games in batch."""
-    task_manager = TaskManager()
-    game_analyzer = GameAnalyzer()
-
-    try:
-        # Validate batch size
-        if len(game_ids) > settings.MAX_BATCH_SIZE:
-            raise ValidationError(f"Batch size exceeds limit of {settings.MAX_BATCH_SIZE}")
-
-        # Create batch task entry
-        batch_id = task_manager.create_task(
-            task_type=TaskManager.TYPE_BATCH_ANALYSIS,
-            parameters={"game_ids": game_ids, "depth": depth, "use_ai": use_ai},
-        )
-
-        # Use the analyze_batch method from GameAnalyzer
-        results = game_analyzer.analyze_batch(game_ids, depth, use_ai)
-
-        # Update batch task status
-        task_manager.update_task_status(task_id=batch_id, status=TaskManager.STATUS_COMPLETED, result=results)
-
-        return results
-
-    except Exception as e:
-        # Update task status if task was created
-        try:
-            if "batch_id" in locals():
-                task_manager.update_task_status(task_id=batch_id, status=TaskManager.STATUS_FAILED, error=str(e))
-        except Exception as update_err:
-            logger.error(f"Failed to update batch task status: {str(update_err)}")
-
-        raise TaskError(f"Batch analysis failed: {str(e)}")
-
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, autoretry_for=(Exception,), retry_backoff=True)
-def cleanup_expired_tasks(self) -> Dict[str, Any]:
-    """Clean up expired tasks."""
-    task_manager = TaskManager()
-
-    try:
-        # Get expired tasks
-        expired_tasks = task_manager.get_expired_tasks()
-
-        # Clean up each task
-        for task_id in expired_tasks:
-            task_manager.cleanup_task(task_id)
-
-        return {"status": "success", "cleaned_tasks": len(expired_tasks)}
-
-    except Exception as e:
-        raise TaskError(f"Task cleanup failed: {str(e)}")
-
-
 @shared_task(base=BaseAnalysisTask)
 def cleanup_analysis_cache() -> None:
     """Clean up analysis cache."""
@@ -470,7 +418,7 @@ def batch_analyze_games_task(self, game_ids: List[int], depth: int = 20, use_ai:
             )
 
             # Launch subtask for each game
-            subtask = analyze_game_task.delay(game_id, depth, use_ai)
+            subtask = analyze_game_task.delay(game_id=game_id, depth=depth, use_ai=use_ai)
 
             # Wait for result (in a real implementation, this would be more asynchronous)
             subtask_result = subtask.get(timeout=1800)  # 30 minute timeout per game

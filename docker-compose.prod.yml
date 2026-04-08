@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfile
       args:
         - NODE_ENV=production
+    env_file:
+      - ./chess_mate/frontend/.env
     environment:
       - NODE_ENV=production
       - NODE_OPTIONS=--max_old_space_size=512
@@ -28,6 +30,8 @@ services:
       dockerfile: Dockerfile
     command: gunicorn chess_mate.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120
     restart: unless-stopped
+    env_file:
+      - .env.prod
     volumes:
       - ./chess_mate:/app/chess_mate
       - static_volume:/app/chess_mate/staticfiles
@@ -36,9 +40,8 @@ services:
     expose:
       - 8000
     environment:
-      - REDIS_URL=redis://default:VfjkF0I0LZfuFehoU17U7C14d5IV3ysp@redis-16246.c275.us-east-1-4.ec2.redns.redis-cloud.com:16246
-      - CELERY_BROKER_URL=redis://default:VfjkF0I0LZfuFehoU17U7C14d5IV3ysp@redis-16246.c275.us-east-1-4.ec2.redns.redis-cloud.com:16246
-      - CELERY_RESULT_BACKEND=redis://default:VfjkF0I0LZfuFehoU17U7C14d5IV3ysp@redis-16246.c275.us-east-1-4.ec2.redns.redis-cloud.com:16246
+      - ENVIRONMENT=production
+      - DEBUG=False
     depends_on:
       - celery
       - frontend
@@ -51,13 +54,14 @@ services:
       dockerfile: Dockerfile
     command: celery -A chess_mate worker --loglevel=info
     restart: unless-stopped
+    env_file:
+      - .env.prod
     volumes:
       - ./chess_mate:/app/chess_mate
       - ./logs:/app/chess_mate/logs
     environment:
-      - REDIS_URL=redis://default:VfjkF0I0LZfuFehoU17U7C14d5IV3ysp@redis-16246.c275.us-east-1-4.ec2.redns.redis-cloud.com:16246
-      - CELERY_BROKER_URL=redis://default:VfjkF0I0LZfuFehoU17U7C14d5IV3ysp@redis-16246.c275.us-east-1-4.ec2.redns.redis-cloud.com:16246
-      - CELERY_RESULT_BACKEND=redis://default:VfjkF0I0LZfuFehoU17U7C14d5IV3ysp@redis-16246.c275.us-east-1-4.ec2.redns.redis-cloud.com:16246
+      - ENVIRONMENT=production
+      - DEBUG=False
     networks:
       - chessmate_network
 
@@ -104,8 +108,9 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+    env_file:
+      - .env.prod
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
     ports:
       - "3000:3000"

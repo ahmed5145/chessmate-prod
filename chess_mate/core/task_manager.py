@@ -51,18 +51,30 @@ class TaskManager:
     TYPE_IMPORT = "import"
     TYPE_EXPORT = "export"
 
+    # Backward-compatible status aliases used in older code paths/tests.
+    STATUS_PENDING = TASK_STATUS_PENDING
+    STATUS_STARTED = TASK_STATUS_STARTED
+    STATUS_COMPLETED = TASK_STATUS_SUCCESS
+    STATUS_SUCCESS = TASK_STATUS_SUCCESS
+    STATUS_FAILED = TASK_STATUS_FAILURE
+    STATUS_FAILURE = TASK_STATUS_FAILURE
+    STATUS_RETRY = TASK_STATUS_RETRY
+    STATUS_REVOKED = TASK_STATUS_REVOKED
+
     # Cache key prefixes
     TASK_KEY_PREFIX = "task:"
     GAME_TASK_KEY_PREFIX = "game_task:"
 
     # Default task timeout (1 hour)
     DEFAULT_TASK_TIMEOUT = 3600
+    DEFAULT_MAX_IN_MEMORY_TASKS = 5000
 
     def __init__(self, redis_client=None):
         """Initialize the task manager with default configuration."""
         self.tasks: Dict[str, Dict[str, Any]] = {}
         self.game_tasks: Dict[str, str] = {}
         self.task_timeout = getattr(settings, "TASK_TIMEOUT", self.DEFAULT_TASK_TIMEOUT)
+        self.max_in_memory_tasks = int(getattr(settings, "MAX_IN_MEMORY_TASKS", self.DEFAULT_MAX_IN_MEMORY_TASKS))
         
         # Initialize redis client
         if redis_client is not None:
@@ -72,6 +84,37 @@ class TaskManager:
         
         if self.redis_client is None:
             logger.warning("Redis connection not available, using in-memory storage only")
+
+    def _prune_in_memory_tasks(self) -> int:
+        """Prune oldest in-memory task entries when cache exceeds configured bounds."""
+        overflow = len(self.tasks) - self.max_in_memory_tasks
+        if overflow <= 0:
+            return 0
+
+        sortable: List[tuple[str, str]] = []
+        for task_id, task_info in self.tasks.items():
+            updated_at = str(task_info.get("updated_at", ""))
+            sortable.append((task_id, updated_at))
+
+        # Oldest timestamps first.
+        sortable.sort(key=lambda item: item[1])
+        to_remove = [task_id for task_id, _ in sortable[:overflow]]
+
+        for task_id in to_remove:
+            task_info = self.tasks.pop(task_id, None)
+            if not task_info:
+                continue
+
+            game_id = task_info.get("game_id")
+            if game_id is not None:
+                game_id_str = str(game_id)
+                if self.game_tasks.get(game_id_str) == task_id:
+                    self.game_tasks.pop(game_id_str, None)
+
+        logger.warning(
+            f"Pruned {len(to_remove)} in-memory task records to enforce MAX_IN_MEMORY_TASKS={self.max_in_memory_tasks}"
+        )
+        return len(to_remove)
 
     def register_task(
         self, task_id: str, task_type: str, user_id: Optional[int] = None, game_id: Optional[int] = None
@@ -99,6 +142,7 @@ class TaskManager:
 
         # Store in memory
         self.tasks[task_id] = task_info
+        self._prune_in_memory_tasks()
 
         # If game_id is provided, store mapping in memory immediately
         if game_id is not None:
@@ -157,6 +201,7 @@ class TaskManager:
 
         # Store in memory
         self.tasks[task_id] = task_info
+        self._prune_in_memory_tasks()
 
         # Store in Redis if available
         if self.redis_client is not None:
@@ -253,6 +298,7 @@ class TaskManager:
             
             # Update in-memory cache
             self.tasks[task_id] = task_info
+            self._prune_in_memory_tasks()
 
             # Then update Redis if available
             if self.redis_client is not None:
@@ -433,6 +479,41 @@ class TaskManager:
                 logger.error(f"Error cleaning up task {task_id}: {str(e)}")
 
         return cleaned_count
+
+    def get_expired_tasks(self, expiry_hours: int = 24) -> List[str]:
+        """Return IDs of tasks older than the expiry window."""
+        expiry_time = datetime.now() - timedelta(hours=expiry_hours)
+        expired: List[str] = []
+        for task_id, task_info in self.tasks.items():
+            try:
+                updated_at = datetime.fromisoformat(task_info.get("updated_at", "2000-01-01"))
+                if updated_at < expiry_time:
+                    expired.append(task_id)
+            except Exception:
+                continue
+        return expired
+
+    def cleanup_task(self, task_id: str) -> bool:
+        """Remove a task and associated mappings from memory/Redis."""
+        removed = False
+        task_info = self.tasks.pop(task_id, None)
+        if task_info is not None:
+            removed = True
+            game_id = task_info.get("game_id")
+            if game_id is not None:
+                game_id_str = str(game_id)
+                if self.game_tasks.get(game_id_str) == task_id:
+                    self.game_tasks.pop(game_id_str, None)
+
+        if self.redis_client is not None:
+            try:
+                self.redis_client.delete(f"{self.TASK_KEY_PREFIX}{task_id}")
+                if task_info and task_info.get("game_id") is not None:
+                    self.redis_client.delete(f"{self.GAME_TASK_KEY_PREFIX}{task_info.get('game_id')}")
+            except Exception:
+                pass
+
+        return removed
 
     def _validate_task_id(self, task_id: Any) -> Optional[str]:
         """
@@ -784,6 +865,7 @@ class TaskManager:
 
         # Store in memory
         self.tasks[task_id] = task_info
+        self._prune_in_memory_tasks()
         
         # If game_id is provided, store the mapping
         if game_id is not None:

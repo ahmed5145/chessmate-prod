@@ -17,6 +17,7 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
 from django.core.validators import validate_email
+from django.db import transaction
 from django.db.utils import IntegrityError
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
@@ -183,24 +184,25 @@ def register_view(request):
 
     # Create user
     try:
-        user = User.objects.create_user(
-            username=username, email=email, password=password, is_active=True  # User is active but email not verified
-        )
-
-        # Create profile - only necessary if signal isn't working
-        try:
-            # Check if profile was already created by the signal
-            profile = Profile.objects.get(user=user)
-            logger.info(f"Profile already exists for user {username}, created by signal")
-        except Profile.DoesNotExist:
-            # Create profile manually if not already created by signal
-            logger.warning(f"Profile not created by signal for user {username}, creating manually")
-            profile = Profile.objects.create(
-                user=user,
-                email_verified=True,  # Set to True since verification is being skipped in development
-                email_verification_token=EmailVerificationToken.generate_token(),
-                email_verification_sent_at=timezone.now(),
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=username, email=email, password=password, is_active=True  # User is active but email not verified
             )
+
+            # Create profile - only necessary if signal isn't working
+            try:
+                # Check if profile was already created by the signal
+                profile = Profile.objects.get(user=user)
+                logger.info(f"Profile already exists for user {username}, created by signal")
+            except Profile.DoesNotExist:
+                # Create profile manually if not already created by signal
+                logger.warning(f"Profile not created by signal for user {username}, creating manually")
+                profile = Profile.objects.create(
+                    user=user,
+                    email_verified=True,  # Set to True since verification is being skipped in development
+                    email_verification_token=EmailVerificationToken.generate_token(),
+                    email_verification_sent_at=timezone.now(),
+                )
 
         # Send verification email (commenting out for local testing/development)
         """

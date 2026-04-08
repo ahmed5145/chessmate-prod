@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import F
 from django.http import HttpRequest, JsonResponse
 from django.utils import timezone
 from rest_framework import status
@@ -372,11 +373,6 @@ def add_credits(request):
         
         user = request.user
 
-        try:
-            profile = Profile.objects.get(user=user)
-        except Profile.DoesNotExist:
-            profile = Profile.objects.create(user=user)
-
         credit_plan = request.data.get("plan")
 
         if credit_plan not in CREDIT_VALUES:
@@ -385,11 +381,14 @@ def add_credits(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Add credits to profile
+        # Add credits atomically to avoid race conditions on concurrent requests.
         credit_amount = CREDIT_VALUES[credit_plan]
-        profile.credits += credit_amount
-        profile.last_credit_purchase = timezone.now()
-        profile.save()
+        with transaction.atomic():
+            profile, _ = Profile.objects.select_for_update().get_or_create(user=user)
+            profile.credits = F("credits") + credit_amount
+            profile.last_credit_purchase = timezone.now()
+            profile.save(update_fields=["credits", "last_credit_purchase"])
+            profile.refresh_from_db(fields=["credits"])
 
         # Return updated profile
         return create_success_response(
@@ -650,9 +649,9 @@ def create_subscription(request):
                 )
 
                 # Credit user's account
-                profile = Profile.objects.get(user=user)
-                profile.credits += tier.credits_per_period
-                profile.save()
+                profile, _ = Profile.objects.select_for_update().get_or_create(user=user)
+                profile.credits = F("credits") + tier.credits_per_period
+                profile.save(update_fields=["credits"])
 
                 return create_success_response(
                     data={
@@ -775,17 +774,18 @@ def handle_subscription_payment(event):
         try:
             subscription = Subscription.objects.get(stripe_subscription_id=subscription_id, is_active=True)
 
-            # Extend subscription end date and reset credits
-            subscription.end_date = timezone.now() + timedelta(days=subscription.tier.period_length)
-            subscription.next_billing_date = subscription.end_date
-            subscription.credits_remaining = subscription.credits_per_period
-            subscription.last_credit_reset = timezone.now()
-            subscription.save()
+            with transaction.atomic():
+                # Extend subscription end date and reset credits
+                subscription.end_date = timezone.now() + timedelta(days=subscription.tier.period_length)
+                subscription.next_billing_date = subscription.end_date
+                subscription.credits_remaining = subscription.credits_per_period
+                subscription.last_credit_reset = timezone.now()
+                subscription.save()
 
-            # Add credits to user's account
-            profile = Profile.objects.get(user=subscription.user)
-            profile.credits += subscription.credits_per_period
-            profile.save()
+                # Add credits to user's account
+                profile = Profile.objects.select_for_update().get(user=subscription.user)
+                profile.credits = F("credits") + subscription.credits_per_period
+                profile.save(update_fields=["credits"])
 
             logger.info(f"Subscription {subscription_id} renewed successfully")
         except Subscription.DoesNotExist:

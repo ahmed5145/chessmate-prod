@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider } from './contexts/ThemeContext';
 import { UserProvider } from './contexts/UserContext';
 import { initSentry } from './utils/sentry';
 import * as Sentry from "@sentry/react";
@@ -25,11 +24,9 @@ const SentryApp = () => (
                 v7_relativeSplatPath: true
             }}
         >
-            <ThemeProvider>
-                <UserProvider>
-                    <App />
-                </UserProvider>
-            </ThemeProvider>
+            <UserProvider>
+                <App />
+            </UserProvider>
         </BrowserRouter>
     </Sentry.ErrorBoundary>
 );

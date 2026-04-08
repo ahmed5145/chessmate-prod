@@ -4,6 +4,23 @@ import api from '../services/api';
 
 const UserContext = createContext();
 
+const parseStoredTokens = (storedValue) => {
+  if (!storedValue) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(storedValue);
+    if (parsed && typeof parsed === 'object') {
+      return parsed;
+    }
+  } catch (error) {
+    // Fall through and treat the value as a raw access token.
+  }
+
+  return { access: storedValue };
+};
+
 export const UserProvider = ({ children }) => {
   const [credits, setCredits] = useState(0);
   const [user, setUser] = useState(null);
@@ -18,7 +35,12 @@ export const UserProvider = ({ children }) => {
       }
 
       // Set authorization header
-      const { access } = JSON.parse(tokens);
+      const parsedTokens = parseStoredTokens(tokens);
+      const access = parsedTokens?.access;
+      if (!access) {
+        setIsLoading(false);
+        return;
+      }
       api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
       // Fetch profile data
@@ -45,7 +67,9 @@ export const UserProvider = ({ children }) => {
       const tokens = localStorage.getItem('tokens');
       if (!tokens) return;
 
-      const { access } = JSON.parse(tokens);
+      const parsedTokens = parseStoredTokens(tokens);
+      const access = parsedTokens?.access;
+      if (!access) return;
       api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
       const profileData = await getUserProfile();
