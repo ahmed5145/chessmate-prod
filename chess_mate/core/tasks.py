@@ -68,7 +68,7 @@ class BaseAnalysisTask(Task):
         super().after_return(status, retval, task_id, args, kwargs, einfo)
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, name="chess_mate.core.tasks.analyze_game_task")
 def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True):
     """
     Analyze a chess game in a background Celery task.
@@ -322,6 +322,12 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True):
             "error": error_message,
             "game_id": game_id
         }
+
+
+@shared_task(name="core.tasks.analyze_game_task")
+def analyze_game_task_legacy_name(game_id, user_id=None, depth=20, use_ai=True):
+    """Backward-compatible alias for legacy task name in queued messages."""
+    return analyze_game_task.run(game_id=game_id, user_id=user_id, depth=depth, use_ai=use_ai)
 
 
 @shared_task(base=BaseAnalysisTask)

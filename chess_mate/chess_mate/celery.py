@@ -33,7 +33,10 @@ app.conf.task_queues = (
 
 # Configure task routing
 app.conf.task_routes = {
+    "chess_mate.core.tasks.analyze_game_task": {"queue": "analysis"},
     "core.tasks.analyze_game_task": {"queue": "analysis"},
+    "chess_mate.core.tasks.batch_analyze_games_task": {"queue": "batch_analysis"},
+    "core.tasks.batch_analyze_games_task": {"queue": "batch_analysis"},
     "core.tasks.analyze_batch_games_task": {"queue": "batch_analysis"},
     "core.tasks.*": {"queue": "default"},
 }
