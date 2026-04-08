@@ -558,6 +558,14 @@ class TaskManager:
         """
         if not task_id and not game_id:
             return self._default_status("INVALID", "No task_id or game_id provided", 0)
+
+        # Backward-compatibility: some call sites accidentally pass game_id as
+        # the first positional arg (task_id). Numeric IDs are treated as game IDs.
+        if task_id and game_id is None:
+            normalized_task_id = str(task_id)
+            if normalized_task_id.isdigit():
+                game_id = normalized_task_id
+                task_id = None
             
         # If only game_id is provided, try to get task_id for that game
         original_task_id = task_id

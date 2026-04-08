@@ -679,8 +679,8 @@ def get_task_status(request, game_id=None):
     try:
         # If game_id is provided in the URL path, use that
         if game_id:
-            # Get task status using the game_id directly
-            task_info = task_manager.get_task_status(game_id)
+            # Resolve by game ID, not positional task_id.
+            task_info = task_manager.get_task_status(game_id=game_id)
             
             if not task_info:
                 # No task found for this game
@@ -844,7 +844,7 @@ def batch_get_analysis_status(request):
         for game_id in game_ids:
             try:
                 # First check if there's a task for this game
-                task_info = task_manager.get_task_status(game_id)
+                task_info = task_manager.get_task_status(game_id=game_id)
                 
                 if task_info:
                     # Task exists, return its status
@@ -972,7 +972,7 @@ def get_game_analysis(request, game_id):
             
         except GameAnalysis.DoesNotExist:
             # Check task status to see if analysis is in progress
-            task_info = task_manager.get_task_status(game_id)
+            task_info = task_manager.get_task_status(game_id=game_id)
             if task_info and task_info.get('status') in ['STARTED', 'PROCESSING', 'PROGRESS', 'IN_PROGRESS']:
                 return JsonResponse({
                     "status": "in_progress",
