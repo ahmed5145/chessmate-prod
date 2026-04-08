@@ -8,7 +8,7 @@ services:
       args:
         - NODE_ENV=production
     env_file:
-      - ./chess_mate/frontend/.env
+      - .env.prod
     environment:
       - NODE_ENV=production
       - NODE_OPTIONS=--max_old_space_size=512
