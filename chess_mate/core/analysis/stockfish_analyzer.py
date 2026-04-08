@@ -185,7 +185,7 @@ class StockfishAnalyzer:
                 return self._create_neutral_evaluation("No score in analysis result")
 
             # Convert score to float value
-            score_value = self._convert_score(score)
+            score_value = self._convert_score(score, board)
 
             # Calculate position metrics
             position_metrics = self.position_evaluator.evaluate_position(board)
@@ -207,7 +207,7 @@ class StockfishAnalyzer:
             logger.error(f"Error analyzing position: {str(e)}")
             return self._create_neutral_evaluation(str(e))
 
-    def _convert_score(self, score):
+    def _convert_score(self, score, board: Optional[chess.Board] = None):
         """Convert Stockfish evaluation to a standardized score format with improved robustness."""
         try:
             # Handle None or empty score
@@ -217,12 +217,15 @@ class StockfishAnalyzer:
                 
             # Handle PovScore objects (python-chess >= 1.0.0)
             if isinstance(score, chess.engine.PovScore):
+                # Normalize to white perspective so evaluations are comparable across consecutive plies.
+                white_score = score.white()
+
                 # Handle mate score
-                if score.is_mate():
-                    # Check if score.relative has the 'moves' attribute
-                    if hasattr(score.relative, 'moves') and score.relative.moves is not None:
+                if white_score.is_mate():
+                    # Check if white_score has the 'moves' attribute
+                    if hasattr(white_score, 'moves') and white_score.moves is not None:
                         # Handle mate score with 'moves' attribute
-                        moves = score.relative.moves
+                        moves = white_score.moves
                         # Return a high value for checkmate, scaled by number of moves to mate
                         # Positive for winning, negative for losing
                         sign = 1 if moves > 0 else -1
@@ -230,11 +233,13 @@ class StockfishAnalyzer:
                         return sign * (1000.0 - min(abs(moves), 20))
                     else:
                         # Fallback for other mate score representations
-                        return float('inf') if score.relative.score() > 0 else float('-inf')
+                        mate_cp = white_score.score(mate_score=100000)
+                        return float(mate_cp) / 100.0 if mate_cp is not None else 0.0
                         
                 # Handle regular centipawn score
                 try:
-                    return float(score.relative.score()) / 100.0  # Convert centipawns to pawns
+                    cp = white_score.score()
+                    return float(cp) / 100.0 if cp is not None else 0.0  # Convert centipawns to pawns
                 except (ValueError, TypeError, AttributeError) as e:
                     logger.error(f"Error converting PovScore centipawns: {e}")
                     return 0.0

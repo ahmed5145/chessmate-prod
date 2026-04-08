@@ -531,6 +531,18 @@ def analyze_game(request, game_id=None):
         
         # Call analyze_game_safely with the correct parameters
         result = analyze_game_safely(game_id, request.user.id, depth, use_ai)
+
+        # If analysis is already running/completed and a task exists, return a non-error response.
+        if result.get("status") == "already_running":
+            return Response(
+                {
+                    "status": "already_running",
+                    "message": result.get("message", "Analysis task already exists"),
+                    "task_id": result.get("task_id"),
+                    "game_id": game.id,
+                },
+                status=status.HTTP_200_OK,
+            )
         
         # Check if analysis was successful
         if result.get("status") != "success":

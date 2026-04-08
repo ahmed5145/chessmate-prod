@@ -290,7 +290,7 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {moves.slice(0, 25).map((move, idx) => (
+                                {moves.map((move, idx) => (
                                     <tr key={`${move.moveNumber}-${move.san}-${idx}`} className={isDarkMode ? 'border-t border-gray-700' : 'border-t border-gray-200'}>
                                         <td className="py-2 pr-4">{move.moveNumber}</td>
                                         <td className="py-2 pr-4 font-medium">{move.san}</td>
