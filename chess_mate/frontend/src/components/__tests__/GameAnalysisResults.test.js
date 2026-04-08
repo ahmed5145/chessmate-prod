@@ -71,4 +71,36 @@ describe('GameAnalysisResults', () => {
     expect(screen.getByText('Qh5')).toBeInTheDocument();
     expect(screen.getByText('mistake')).toBeInTheDocument();
   });
+
+  it('applies cyan and dark blue badges for brilliant and great move', () => {
+    const analysisData = {
+      metrics: {
+        overall: { accuracy: 90, mistakes: 0 },
+      },
+      moves: [
+        {
+          move_number: 15,
+          san: 'Qxh7+',
+          classification: 'brilliant',
+          eval_change: 1.9,
+        },
+        {
+          move_number: 16,
+          san: 'Rf1',
+          classification: 'great move',
+          eval_change: 0.8,
+        },
+      ],
+    };
+
+    render(<GameAnalysisResults analysisData={analysisData} />);
+
+    const brilliantBadge = screen.getByText('brilliant');
+    const greatMoveBadge = screen.getByText('great move');
+
+    expect(brilliantBadge.className).toContain('bg-cyan-100');
+    expect(brilliantBadge.className).toContain('text-cyan-700');
+    expect(greatMoveBadge.className).toContain('bg-blue-900');
+    expect(greatMoveBadge.className).toContain('text-blue-100');
+  });
 });

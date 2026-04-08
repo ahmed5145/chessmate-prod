@@ -51,6 +51,13 @@ const PhaseAnalysis = ({ phase, data, isDarkMode }) => (
 const getClassificationBadgeClass = (classification, isDarkMode) => {
     const value = String(classification || 'neutral').toLowerCase();
 
+    if (value === 'brilliant') {
+        return isDarkMode ? 'bg-cyan-900 text-cyan-300' : 'bg-cyan-100 text-cyan-700';
+    }
+    if (value === 'great' || value === 'great move') {
+        return isDarkMode ? 'bg-blue-950 text-blue-300' : 'bg-blue-900 text-blue-100';
+    }
+
     if (value === 'best' || value === 'excellent') {
         return isDarkMode ? 'bg-emerald-900 text-emerald-300' : 'bg-emerald-100 text-emerald-700';
     }
