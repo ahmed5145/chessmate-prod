@@ -682,37 +682,35 @@ def create_subscription(request):
 @api_error_handler
 @invalidate_cache_for(key_prefix="user_profile")
 def cancel_subscription(request):
-    """
-    Cancel the user's active subscription.
-    """
+    """Cancel the user's active subscription."""
     try:
         # Import here to avoid circular imports
         from .models import Subscription
-        
+
         user = request.user
 
-        # Get user's active subscription
+        # Get user's active subscription and update it atomically.
         try:
-            subscription = Subscription.objects.get(user=user, is_active=True)
+            with transaction.atomic():
+                subscription = Subscription.objects.select_for_update().get(user=user, is_active=True)
+
+                # Cancel subscription in Stripe
+                stripe.Subscription.modify(
+                    subscription.stripe_subscription_id,
+                    cancel_at_period_end=True,
+                )
+
+                # Update local subscription
+                subscription.status = "canceled"
+                subscription.cancel_at_period_end = True
+                subscription.save(update_fields=["status", "cancel_at_period_end"])
+
+                return create_success_response(
+                    data={"subscription_id": subscription.stripe_subscription_id, "status": "canceled"},
+                    message="Subscription cancelled successfully",
+                )
         except Subscription.DoesNotExist:
             return Response({"error": "No active subscription found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Cancel subscription in Stripe
-        try:
-            # Cancel in Stripe
-            stripe.Subscription.modify(
-                subscription.stripe_subscription_id,
-                cancel_at_period_end=True,
-            )
-
-            # Update local subscription
-            subscription.status = "canceled"
-            subscription.save()
-
-            return create_success_response(
-                data={"subscription_id": subscription.stripe_subscription_id, "status": "canceled"},
-                message="Subscription successfully canceled",
-            )
         except Exception as e:
             if hasattr(e, 'stripe_error'):
                 logger.error(f"Stripe error: {str(e)}")
@@ -813,15 +811,16 @@ def handle_subscription_canceled(event):
 
         # Find matching subscription in database
         try:
-            subscription = Subscription.objects.get(stripe_subscription_id=subscription_id, is_active=True)
+            with transaction.atomic():
+                subscription = Subscription.objects.select_for_update().get(stripe_subscription_id=subscription_id, is_active=True)
 
-            # Mark subscription as inactive
-            subscription.is_active = False
-            subscription.status = "canceled"
-            subscription.end_date = timezone.now()
-            subscription.save()
+                # Mark subscription as inactive
+                subscription.is_active = False
+                subscription.status = "canceled"
+                subscription.end_date = timezone.now()
+                subscription.save(update_fields=["is_active", "status", "end_date"])
 
-            logger.info(f"Subscription {subscription_id} canceled successfully")
+                logger.info(f"Subscription {subscription_id} canceled successfully")
         except Subscription.DoesNotExist:
             logger.warning(f"Subscription {subscription_id} not found for cancellation")
         except Exception as e:
