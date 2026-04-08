@@ -48,10 +48,11 @@ const PhaseAnalysis = ({ phase, data, isDarkMode }) => (
     </div>
 );
 
-const GameAnalysisResults = ({ analysisData }) => {
+const GameAnalysisResults = ({ analysisData, analysis }) => {
     const { isDarkMode } = useTheme();
+    const resolvedAnalysisData = analysisData || analysis;
 
-    if (!analysisData) {
+    if (!resolvedAnalysisData) {
         return (
             <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
                 <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -62,14 +63,14 @@ const GameAnalysisResults = ({ analysisData }) => {
     }
 
     // Extract data from the normalized structure
-    const analysisResults = analysisData.analysis_results || {};
-    const summary = analysisResults.summary || {};
-    const feedback = analysisData.feedback || {};
+    const analysisResults = resolvedAnalysisData.analysis_results || {};
+    const summary = analysisResults.summary || analysisResults || {};
+    const feedback = resolvedAnalysisData.feedback || {};
 
     // Extract metrics
     const overall = summary.overall || {};
-    const phases = summary.phases || {};
-    const timeManagement = summary.time_management || {};
+    const phases = summary.phases || analysisResults.phases || {};
+    const timeManagement = summary.time_management || analysisResults.time_management || {};
 
     // Format metrics for display
     const displayMetrics = {

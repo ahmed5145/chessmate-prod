@@ -552,11 +552,80 @@ export const fetchGameAnalysis = async (gameId) => {
         }
 
         // Check if we have the metrics directly or in a nested structure
-        const metrics = analysisData.metrics || analysisData;
+        const metrics = analysisData.metrics || analysisData.analysis_results?.summary || analysisData.analysis_results || analysisData;
         const moves = analysisData.moves || analysisData.analysis_results?.moves || [];
+
+        const normalizeMove = (move) => ({
+            move_number: Number(move.move_number) || 0,
+            move: move.move || '',
+            san: move.san || '',
+            is_white: Boolean(move.is_white),
+            classification: move.classification || 'neutral',
+            eval_before: Number(move.eval_before) || 0,
+            eval_after: Number(move.eval_after) || 0,
+            eval_change: Number(move.eval_change) || 0,
+            best_move: move.best_move || null,
+            best_line: Array.isArray(move.best_line) ? move.best_line : [],
+            position: move.position || '',
+            time: Number(move.time) || 0
+        });
+
+        const normalizedMoves = Array.isArray(moves) ? moves.map(normalizeMove) : [];
+
+        const moveHighlights = normalizedMoves.reduce((accumulator, move) => {
+            const absoluteChange = Math.abs(move.eval_change);
+
+            if (move.eval_change > 0) {
+                accumulator.strengths.push(`Move ${move.move_number}: ${move.san || move.move} improved the position by ${move.eval_change.toFixed(2)}.`);
+            }
+
+            if (move.eval_change < -0.5) {
+                accumulator.weaknesses.push(`Move ${move.move_number}: ${move.san || move.move} dropped evaluation by ${Math.abs(move.eval_change).toFixed(2)}.`);
+            }
+
+            if (absoluteChange > 1) {
+                accumulator.criticalMoments.push(`Move ${move.move_number}: ${move.san || move.move} changed the evaluation by ${move.eval_change.toFixed(2)}.`);
+            }
+
+            return accumulator;
+        }, {
+            strengths: [],
+            weaknesses: [],
+            criticalMoments: []
+        });
+
+        const feedback = response.data.feedback || analysisData.feedback || {
+            strengths: moveHighlights.strengths.slice(0, 8),
+            weaknesses: moveHighlights.weaknesses.slice(0, 8),
+            critical_moments: moveHighlights.criticalMoments.slice(0, 8),
+            suggestions: [
+                'Review the largest evaluation swings to identify recurring mistakes.',
+                'Compare your played move with the suggested best move at the critical positions.',
+                'Study the opening, middlegame, and endgame metrics to spot phase-specific trends.'
+            ]
+        };
+
+        const summary = metrics.overall || metrics.metrics?.overall ? metrics : {
+            overall: metrics.overall || {},
+            move_quality: metrics.move_quality || {},
+            time_management: metrics.time_management || {},
+            phases: metrics.phases || { opening: {}, middlegame: {}, endgame: {} },
+            tactics: metrics.tactics || {},
+            advantage: metrics.advantage || {},
+            resourcefulness: metrics.resourcefulness || {},
+            metadata: metrics.metadata || {
+                is_white: true,
+                total_moves: normalizedMoves.length,
+                opening_length: 0,
+                middlegame_length: 0,
+                endgame_length: 0
+            }
+        };
+
+        const responseMoves = normalizedMoves.length > 0 ? normalizedMoves : [];
         
         // Verify we have valid data - either moves or metrics must be present
-        if (!metrics && (!moves || moves.length === 0)) {
+        if (!summary && responseMoves.length === 0) {
             console.warn('No valid analysis data found');
             return { error: 'No analysis data found' };
         }
@@ -566,50 +635,11 @@ export const fetchGameAnalysis = async (gameId) => {
             analysis_complete: true,
             status: analysisData.status || 'complete',
             analysis_results: {
-                moves: moves,
-                overall: {
-                    accuracy: metrics.overall?.accuracy || metrics.move_quality?.accuracy || 0,
-                    mistakes: metrics.overall?.mistakes || metrics.move_quality?.mistakes || 0,
-                    blunders: metrics.overall?.blunders || metrics.move_quality?.blunders || 0,
-                    inaccuracies: metrics.overall?.inaccuracies || metrics.move_quality?.inaccuracies || 0,
-                    avg_centipawn_loss: metrics.overall?.avg_centipawn_loss || 0,
-                    moves_count: metrics.overall?.total_moves || metrics.metadata?.total_moves || 0
-                },
-                phases: {
-                    opening: {
-                        accuracy: metrics.phases?.opening?.accuracy || 0,
-                        moves_count: metrics.phases?.opening?.moves_count || 0,
-                        time_management: metrics.phases?.opening?.time_management || {}
-                    },
-                    middlegame: metrics.phases?.middlegame || {},
-                    endgame: metrics.phases?.endgame || {}
-                },
-                tactics: {
-                    missed: metrics.tactics?.missed || 0,
-                    successful: metrics.tactics?.successful || 0,
-                    success_rate: metrics.tactics?.success_rate || 0,
-                    opportunities: metrics.tactics?.opportunities || 0,
-                    tactical_score: metrics.tactics?.tactical_score || 0,
-                    pattern_recognition: metrics.tactics?.pattern_recognition || 0
-                },
-                positional: {
-                    king_safety: metrics.positional?.king_safety || 0,
-                    center_control: metrics.positional?.center_control || 0,
-                    pawn_structure: metrics.positional?.pawn_structure || 0,
-                    piece_activity: metrics.positional?.piece_activity || 0,
-                    space_advantage: metrics.positional?.space_advantage || 0
-                },
-                time_management: {
-                    average_time: metrics.time_management?.average_time || 0,
-                    time_variance: metrics.time_management?.time_variance || 0,
-                    time_consistency: metrics.time_management?.time_consistency || 0,
-                    time_pressure_moves: metrics.time_management?.time_pressure_moves || 0,
-                    time_pressure_percentage: metrics.time_management?.time_pressure_percentage || 0
-                },
-                advantage: metrics.advantage || {},
-                resourcefulness: metrics.resourcefulness || {}
+                summary,
+                moves: responseMoves,
+                metrics: metrics
             },
-            feedback: response.data.feedback || analysisData.feedback || {}
+            feedback
         };
 
         console.log('Transformed data:', transformedData);

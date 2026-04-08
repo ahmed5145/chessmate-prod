@@ -790,7 +790,7 @@ const SingleGameAnalysis = () => {
           (analysisData.positions && analysisData.positions.length > 0) || 
           (analysisData.metrics && Object.keys(analysisData.metrics).length > 0)
         ) ? (
-          <GameAnalysisResults analysis={analysisData} isDarkMode={isDarkMode} />
+          <GameAnalysisResults analysisData={analysisData} isDarkMode={isDarkMode} />
         ) : (
           <NoDataError 
             gameId={gameId}
