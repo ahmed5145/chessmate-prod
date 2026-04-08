@@ -69,7 +69,7 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
 
     // Extract metrics
     const overall = summary.overall || {};
-    const phases = summary.phases || analysisResults.phases || {};
+        const phases = summary.phases || analysisResults.phases || {};
     const timeManagement = summary.time_management || analysisResults.time_management || {};
 
     // Format metrics for display
