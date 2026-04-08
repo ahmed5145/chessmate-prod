@@ -100,6 +100,21 @@ const pickNumber = (...values) => {
     return 0;
 };
 
+const pickAccuracy = (overallAccuracy, moveQualityAccuracy, ...fallbacks) => {
+    const overallParsed = Number(overallAccuracy);
+    const moveQualityParsed = Number(moveQualityAccuracy);
+
+    if (Number.isFinite(overallParsed) && overallParsed > 0) {
+        return overallParsed;
+    }
+
+    if (Number.isFinite(moveQualityParsed) && moveQualityParsed > 0) {
+        return moveQualityParsed;
+    }
+
+    return pickNumber(overallAccuracy, moveQualityAccuracy, ...fallbacks);
+};
+
 const GameAnalysisResults = ({ analysisData, analysis }) => {
     const { isDarkMode } = useTheme();
     const resolvedAnalysisData = analysisData || analysis;
@@ -129,17 +144,24 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
 
     // Extract metrics
     const overall = summary.overall || {};
+    const moveQuality = summary.move_quality || metrics.move_quality || analysisResults.move_quality || {};
     const phases = summary.phases || metrics.phases || analysisResults.phases || {};
     const timeManagement = summary.time_management || analysisResults.time_management || {};
 
     // Format metrics for display
     const displayMetrics = {
         accuracy: formatNumber(
-            pickNumber(overall.accuracy, overall.accuracy_score, summary.accuracy)
+            pickAccuracy(
+                overall.accuracy,
+                moveQuality.accuracy,
+                overall.accuracy_score,
+                summary.accuracy
+            )
         ),
         mistakes: formatNumber(
             pickNumber(
                 overall.mistakes,
+                moveQuality.mistakes,
                 overall.total_mistakes,
                 pickNumber(overall.blunders, 0) + pickNumber(overall.inaccuracies, 0)
             )

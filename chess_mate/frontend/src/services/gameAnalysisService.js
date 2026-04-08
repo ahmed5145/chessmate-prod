@@ -4,6 +4,9 @@ import { API_URL } from '../config';
 
 const API_BASE_URL = API_URL;
 const CACHE_TTL = 3600 * 1000; // 1 hour in milliseconds
+const ANALYSIS_START_DEDUP_WINDOW_MS = 15000;
+const inFlightAnalysisStarts = new Map();
+const recentAnalysisStarts = new Map();
 
 // Initialize IndexedDB
 const initDB = () => {
@@ -58,25 +61,53 @@ const getCachedAnalysis = async (gameId) => {
 };
 
 export const analyzeSpecificGame = async (gameId) => {
-    try {
-        const response = await api.post(`/api/v1/games/${gameId}/analyze/`);
-        console.log('Analysis started response:', response.data);
-        
-        // Return with consistent structure
-        return {
-            success: true,
-            task_id: response.data.task_id || response.data.id,
-            status: response.data.status || 'started',
-            message: response.data.message || 'Analysis started',
-            redirect: false // Explicitly indicate no redirect
-        };
-    } catch (error) {
-        console.error('Error starting analysis:', error);
-        if (error.response?.status === 401) {
-            throw { auth_error: true, message: 'Authentication required' };
-        }
-        throw error.response?.data?.error || error.message || 'Failed to start analysis';
+    const numericGameId = Number(gameId);
+    const dedupKey = Number.isFinite(numericGameId) ? String(numericGameId) : String(gameId);
+    const now = Date.now();
+
+    const cachedStart = recentAnalysisStarts.get(dedupKey);
+    if (cachedStart && (now - cachedStart.timestamp) < ANALYSIS_START_DEDUP_WINDOW_MS) {
+        console.log(`Skipping duplicate analysis start for game ${dedupKey} within dedup window`);
+        return { ...cachedStart.response, deduplicated: true };
     }
+
+    if (inFlightAnalysisStarts.has(dedupKey)) {
+        console.log(`Reusing in-flight analysis start request for game ${dedupKey}`);
+        return inFlightAnalysisStarts.get(dedupKey);
+    }
+
+    const requestPromise = (async () => {
+        try {
+            const response = await api.post(`/api/v1/games/${gameId}/analyze/`);
+            console.log('Analysis started response:', response.data);
+
+            const normalizedResponse = {
+                success: true,
+                task_id: response.data.task_id || response.data.id,
+                status: response.data.status || 'started',
+                message: response.data.message || 'Analysis started',
+                redirect: false // Explicitly indicate no redirect
+            };
+
+            recentAnalysisStarts.set(dedupKey, {
+                timestamp: Date.now(),
+                response: normalizedResponse
+            });
+
+            return normalizedResponse;
+        } catch (error) {
+            console.error('Error starting analysis:', error);
+            if (error.response?.status === 401) {
+                throw { auth_error: true, message: 'Authentication required' };
+            }
+            throw error.response?.data?.error || error.message || 'Failed to start analysis';
+        } finally {
+            inFlightAnalysisStarts.delete(dedupKey);
+        }
+    })();
+
+    inFlightAnalysisStarts.set(dedupKey, requestPromise);
+    return requestPromise;
 };
 
 export const checkAnalysisStatus = async (gameId) => {
@@ -618,6 +649,10 @@ export const checkMultipleAnalysisStatuses = async (gameIds) => {
 export const restartAnalysis = async (gameId) => {
     try {
         console.log(`Force restarting analysis for game ${gameId}`);
+        const numericGameId = Number(gameId);
+        const dedupKey = Number.isFinite(numericGameId) ? String(numericGameId) : String(gameId);
+        recentAnalysisStarts.delete(dedupKey);
+        inFlightAnalysisStarts.delete(dedupKey);
         
         // First clear any cached completion markers
         localStorage.removeItem(`analysis_complete_${gameId}`);

@@ -96,6 +96,23 @@ describe('GameAnalysisResults', () => {
     expect(screen.getByText('11.1%')).toBeInTheDocument();
   });
 
+  it('uses move_quality accuracy when overall accuracy is zero', () => {
+    const analysisData = {
+      metrics: {
+        overall: { accuracy: 0, mistakes: 0 },
+        move_quality: { accuracy: 100, mistakes: 0 },
+        time_management: { time_management_score: 0, time_pressure_percentage: 0 },
+      },
+      moves: [
+        { move_number: 1, san: 'd4', classification: 'good', eval_change: 0.11 },
+      ],
+    };
+
+    render(<GameAnalysisResults analysisData={analysisData} />);
+
+    expect(screen.getByText('100%')).toBeInTheDocument();
+  });
+
   it('applies cyan and dark blue badges for brilliant and great move', () => {
     const analysisData = {
       metrics: {
