@@ -72,6 +72,30 @@ describe('GameAnalysisResults', () => {
     expect(screen.getByText('mistake')).toBeInTheDocument();
   });
 
+  it('prefers top-level metrics over stale analysis_results summary values', () => {
+    const analysisData = {
+      metrics: {
+        overall: { accuracy: 77.4, mistakes: 3 },
+        time_management: { time_management_score: 64.2, time_pressure_percentage: 11.1 },
+      },
+      analysis_results: {
+        summary: {
+          overall: { accuracy: 0, mistakes: 0 },
+          time_management: { time_management_score: 0, time_pressure_percentage: 0 },
+        },
+      },
+      moves: [
+        { move_number: 1, san: 'd4', classification: 'good', eval_change: 0.11 },
+      ],
+    };
+
+    render(<GameAnalysisResults analysisData={analysisData} />);
+
+    expect(screen.getByText('77.4%')).toBeInTheDocument();
+    expect(screen.getByText('64.2%')).toBeInTheDocument();
+    expect(screen.getByText('11.1%')).toBeInTheDocument();
+  });
+
   it('applies cyan and dark blue badges for brilliant and great move', () => {
     const analysisData = {
       metrics: {

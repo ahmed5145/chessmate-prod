@@ -8,8 +8,10 @@ from django.conf import settings
 from django.utils import timezone
 
 from .tasks import analyze_game_task
+from .task_manager import TaskManager
 
 logger = logging.getLogger(__name__)
+task_manager = TaskManager()
 
 # Define constants to avoid settings dependency
 DEFAULT_ANALYSIS_DEPTH = 20
@@ -52,12 +54,31 @@ def analyze_game_safely(game_id, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use
                 "game_id": game_id,
                 "timestamp": timezone.now().isoformat()
             }
+
+        # Avoid duplicate task enqueue for the same game.
+        active_tasks = task_manager.get_active_tasks_for_game(game_id)
+        if active_tasks:
+            existing_task_id = active_tasks[0]
+            logger.warning(f"Found existing task {existing_task_id} for game {game_id}")
+            return {
+                "status": "already_running",
+                "message": "Analysis already in progress",
+                "task_id": existing_task_id,
+                "game_id": game_id,
+                "timestamp": timezone.now().isoformat()
+            }
             
         # Start a new analysis task
         try:
             # Pass only parameters that the task accepts: game_id, depth, use_ai
             task = analyze_game_task.delay(game_id, depth=depth, use_ai=use_ai)
             task_id = task.id
+            task_manager.register_task(
+                task_id=task_id,
+                task_type=TaskManager.TYPE_ANALYSIS,
+                user_id=user_id,
+                game_id=game_id,
+            )
         except Exception as task_error:
             logger.error(f"Failed to create task for game {game_id}: {str(task_error)}", exc_info=True)
             return {

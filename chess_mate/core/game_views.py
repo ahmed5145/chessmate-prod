@@ -701,7 +701,7 @@ def get_task_status(request, game_id=None):
             return JsonResponse({
                 "status": "success", 
                 "task": {
-                    "id": task_info.get("id", ""),
+                    "id": task_info.get("id") or task_info.get("task_id", ""),
                     "status": task_info.get("status", "UNKNOWN"),
                     "progress": task_info.get("progress", 0),
                     "message": task_info.get("message", "Analyzing game..."),

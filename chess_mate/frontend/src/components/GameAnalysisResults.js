@@ -90,6 +90,16 @@ const normalizeMove = (move) => {
     };
 };
 
+const pickNumber = (...values) => {
+    for (const value of values) {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) {
+            return parsed;
+        }
+    }
+    return 0;
+};
+
 const GameAnalysisResults = ({ analysisData, analysis }) => {
     const { isDarkMode } = useTheme();
     const resolvedAnalysisData = analysisData || analysis;
@@ -107,7 +117,8 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
     // Support both legacy and normalized backend response shapes.
     const analysisResults = resolvedAnalysisData.analysis_results || {};
     const metrics = resolvedAnalysisData.metrics || {};
-    const summary = analysisResults.summary || metrics || analysisResults || {};
+    const hasMetrics = metrics && Object.keys(metrics).length > 0;
+    const summary = hasMetrics ? metrics : (analysisResults.summary || analysisResults || {});
     const feedback = resolvedAnalysisData.feedback || resolvedAnalysisData.ai_feedback || {};
     const rawMoves =
         resolvedAnalysisData.moves ||
@@ -123,10 +134,29 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
 
     // Format metrics for display
     const displayMetrics = {
-        accuracy: formatNumber(overall.accuracy || 0),
-        mistakes: formatNumber(overall.mistakes || 0),
-        timeManagement: formatNumber(timeManagement.time_management_score || 0),
-        timePressure: formatNumber(timeManagement.time_pressure_percentage || 0)
+        accuracy: formatNumber(
+            pickNumber(overall.accuracy, overall.accuracy_score, summary.accuracy)
+        ),
+        mistakes: formatNumber(
+            pickNumber(
+                overall.mistakes,
+                overall.total_mistakes,
+                pickNumber(overall.blunders, 0) + pickNumber(overall.inaccuracies, 0)
+            )
+        ),
+        timeManagement: formatNumber(
+            pickNumber(
+                timeManagement.time_management_score,
+                overall.time_management_score,
+                summary.time_management_score
+            )
+        ),
+        timePressure: formatNumber(
+            pickNumber(
+                timeManagement.time_pressure_percentage,
+                summary.time_pressure_percentage
+            )
+        )
     };
 
     return (
