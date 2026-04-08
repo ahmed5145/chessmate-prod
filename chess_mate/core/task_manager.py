@@ -12,7 +12,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union, cast
 
-from celery.result import AsyncResult  # type: ignore
+from celery.result import AsyncResult
 from django.conf import settings
 from redis.exceptions import RedisError  # type: ignore
 from redis import Redis
@@ -100,6 +100,12 @@ class TaskManager:
         # Store in memory
         self.tasks[task_id] = task_info
 
+        # If game_id is provided, store mapping in memory immediately
+        if game_id is not None:
+            game_id_str = str(game_id)
+            self.game_tasks[game_id_str] = task_id
+            logger.debug(f"Mapped game {game_id} to task {task_id} in memory")
+
         # Store in Redis if available
         if self.redis_client is not None:
             try:
@@ -110,16 +116,17 @@ class TaskManager:
                     self.task_timeout,
                     json.dumps(task_info)
                 )
+                logger.debug(f"Stored task {task_id} in Redis")
 
                 # If game_id is provided, store a mapping from game to task
-                if game_id:
+                if game_id is not None:
                     game_task_key = f"{self.GAME_TASK_KEY_PREFIX}{game_id}"
                     self.redis_client.setex(
                         game_task_key,
                         self.task_timeout,
                         task_id
                     )
-                    self.game_tasks[str(game_id)] = task_id
+                    logger.debug(f"Stored game {game_id} to task {task_id} mapping in Redis")
             except Exception as e:
                 logger.error(f"Error registering task {task_id} in Redis: {str(e)}")
         else:
@@ -180,209 +187,169 @@ class TaskManager:
         self,
         task_id: str,
         status: str,
-        progress: Optional[int] = None,
-        message: Optional[str] = None,
-        result: Optional[Any] = None,
+        progress: int = 0,
+        message: str = "",
+        data: Optional[Dict[str, Any]] = None,
         error: Optional[str] = None,
-    ) -> None:
+        result: Optional[Dict[str, Any]] = None,
+    ) -> bool:
         """
         Update the status of a task.
 
         Args:
-            task_id: The ID of the Celery task
-            status: New status of the task
-            progress: Current progress percentage (0-100)
-            message: Status message
-            result: Optional result data
-            error: Error message if any
-        """
-        # Get existing task info
-        task_info = self.get_task_info(task_id)
-        if not task_info:
-            logger.warning(f"Attempted to update unknown task: {task_id}, creating new task record")
-            task_info = {"id": task_id}
-
-        # Update task info
-        if status:
-            task_info["status"] = status
-            # If task is complete, ensure progress is 100%
-            if status == TASK_STATUS_SUCCESS:
-                progress = 100
-                if not message:
-                    message = "Task completed successfully"
-                
-        if progress is not None:
-            task_info["progress"] = progress
-        if message:
-            task_info["message"] = message
-        if result is not None:
-            task_info["result"] = result
-        if error:
-            task_info["error"] = error
-
-        task_info["updated_at"] = datetime.now().isoformat()
-
-        # Store in memory
-        self.tasks[task_id] = task_info
-
-        # Store in Redis with retry for resilience
-        if self.redis_client is not None:
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
-                    serialized_task = json.dumps(task_info)
-                    
-                    # Ensure timeout is an integer and positive
-                    timeout = max(1, int(self.task_timeout))
-                    
-                    # Set the key with TTL
-                    result = self.redis_client.setex(
-                        task_key,
-                        timeout,
-                        serialized_task
-                    )
-                    
-                    if not result:
-                        logger.warning(f"Redis setex returned False for task {task_id} (attempt {attempt+1}/{max_retries})")
-                        if attempt < max_retries - 1:
-                            time.sleep(0.1 * (attempt + 1))  # Exponential backoff
-                            continue
-                    
-                    # Verify the data was stored correctly
-                    try:
-                        stored_data = self.redis_client.get(task_key)
-                        if not stored_data:
-                            logger.warning(f"Verification check failed - Task data not found in Redis after write for {task_id} (attempt {attempt+1}/{max_retries})")
-                            if attempt < max_retries - 1:
-                                time.sleep(0.1 * (attempt + 1))
-                                continue
-                        else:
-                            # Data successfully stored and verified
-                            # If this is a task completion (SUCCESS or FAILURE status),
-                            # set a longer timeout to ensure it stays in Redis longer
-                            if status in [TASK_STATUS_SUCCESS, TASK_STATUS_FAILURE, TASK_STATUS_REVOKED]:
-                                try:
-                                    # Set a longer TTL for completed tasks (3x normal timeout)
-                                    self.redis_client.expire(task_key, timeout * 3)
-                                    
-                                    # Also update the game->task mapping with the same extended TTL
-                                    game_id = task_info.get("game_id")
-                                    if game_id:
-                                        game_task_key = f"{self.GAME_TASK_KEY_PREFIX}{game_id}"
-                                        self.redis_client.setex(
-                                            game_task_key,
-                                            timeout * 3,
-                                            task_id
-                                        )
-                                except Exception as e:
-                                    logger.error(f"Error extending TTL for completed task {task_id}: {str(e)}")
-                            
-                            # Success, break the retry loop
-                            logger.debug(f"Task {task_id} status updated to {status} (progress: {progress}%)")
-                            break
-                    except Exception as e:
-                        logger.error(f"Error verifying Redis data for task {task_id}: {str(e)}")
-                        if attempt < max_retries - 1:
-                            time.sleep(0.1 * (attempt + 1))
-                            continue
-                        # On last attempt, continue without verification
-                except RedisError as e:
-                    logger.warning(f"Redis error updating task {task_id} (attempt {attempt+1}/{max_retries}): {str(e)}")
-                    if attempt < max_retries - 1:
-                        time.sleep(0.1 * (attempt + 1))
-                        continue
-                except Exception as e:
-                    logger.error(f"Unexpected error updating task {task_id} in Redis: {str(e)}")
-                    break  # Exit loop on other errors
-        else:
-            logger.warning(f"Redis not available, task {task_id} status updated in memory only")
-
-        # Special handling for task completion
-        if status in [TASK_STATUS_SUCCESS, TASK_STATUS_FAILURE, TASK_STATUS_REVOKED]:
-            logger.info(f"Task {task_id} completed with status {status} and progress {progress}%")
-            # Log extra details for completed tasks
-            if status == TASK_STATUS_SUCCESS:
-                logger.info(f"Task {task_id} completed successfully: {message}")
-            elif status == TASK_STATUS_FAILURE:
-                logger.error(f"Task {task_id} failed: {error}")
-            elif status == TASK_STATUS_REVOKED:
-                logger.warning(f"Task {task_id} was revoked: {message}")
-
-    def get_task_info(self, task_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get information about a task.
-
-        Args:
-            task_id: The ID of the Celery task
+            task_id: The task ID
+            status: The new status
+            progress: The progress percentage (0-100)
+            message: Optional status message
+            data: Optional data associated with the task
+            error: Optional error message
+            result: Optional result data when task completes
 
         Returns:
-            Task information dictionary or None if not found
+            True if update was successful, False otherwise
         """
         try:
-            # First check in-memory cache
-            if task_id in self.tasks:
-                return self.tasks[task_id]
+            if not task_id:
+                logger.warning("Cannot update task status: No task ID provided")
+                return False
 
-            # Then check Redis
+            # Create task info to store
+            updated_at = datetime.now().isoformat()
+            task_info = {
+                "id": task_id,
+                "status": status,
+                "progress": progress,
+                "message": message,
+                "updated_at": updated_at,
+            }
+
+            if data:
+                task_info["data"] = data
+            if error:
+                task_info["error"] = error
+            if result:
+                task_info["result"] = result
+
+            # Validate progress value
+            if not isinstance(progress, (int, float)) or progress < 0 or progress > 100:
+                logger.warning(f"Invalid progress value {progress} for task {task_id}, setting to 0")
+                task_info["progress"] = 0
+
+            # First update memory cache, which is faster and always available
+            previous_info = self.tasks.get(task_id, None)
+            if previous_info:
+                # Check if this update represents progress compared to the previous state
+                prev_progress = previous_info.get("progress", 0)
+                prev_status = previous_info.get("status", "")
+                
+                # Log the update with appropriate level based on whether it's progress or regression
+                if progress >= prev_progress and status != TASK_STATUS_FAILURE:
+                    logger.info(f"Updating task {task_id}: {prev_status} ({prev_progress}%) -> {status} ({progress}%) - {message}")
+                else:
+                    # This could be a duplicate or out-of-order update, log as debug
+                    logger.debug(f"Updating task {task_id} with possibly older info: {prev_status} ({prev_progress}%) -> {status} ({progress}%) - {message}")
+            else:
+                logger.info(f"Creating new task status for {task_id}: {status} ({progress}%) - {message}")
+            
+            # Update in-memory cache
+            self.tasks[task_id] = task_info
+
+            # Then update Redis if available
             if self.redis_client is not None:
                 try:
                     task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
-                    data = self.redis_client.get(task_key)
-                    if data:
-                        # Ensure data is bytes before decoding
-                        if isinstance(data, bytes):
-                            data_str = data.decode('utf-8')
-                        else:
-                            data_str = str(data)
-                        
-                        try:
-                            task_info = json.loads(data_str)
-                            # Update in-memory cache
-                            self.tasks[task_id] = task_info
-                            return task_info
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Error decoding task info for {task_id}: {str(e)}")
-                            return None
-                except Exception as e:
-                    logger.error(f"Redis error getting task info for {task_id}: {str(e)}")
-                    # Continue with Celery check as fallback
-
-            # If not found, check Celery task status as a fallback
-            try:
-                celery_task = AsyncResult(task_id)
-                if celery_task.state:
-                    # Create basic task info from Celery
-                    task_info = {
-                        "id": task_id,
-                        "status": celery_task.state,
-                        "result": celery_task.result,
-                        "updated_at": datetime.now().isoformat(),
-                    }
-
-                    # Update in-memory cache
-                    self.tasks[task_id] = task_info
+                    # Set with timeout to auto-expire old tasks
+                    self.redis_client.setex(
+                        task_key,
+                        self.task_timeout,
+                        json.dumps(task_info)
+                    )
+                    logger.debug(f"Updated Redis task status for {task_id}")
                     
-                    # Try to update Redis if available
-                    if self.redis_client is not None:
-                        try:
-                            task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
-                            self.redis_client.setex(
-                                task_key,
-                                self.task_timeout,
-                                json.dumps(task_info)
-                            )
-                        except Exception as e:
-                            logger.error(f"Redis error updating task info for {task_id}: {str(e)}")
+                    # Verify the update was written to Redis by reading it back
+                    try:
+                        data = self.redis_client.get(task_key)
+                        if data:
+                            if isinstance(data, bytes):
+                                data_str = data.decode('utf-8')
+                            else:
+                                data_str = str(data)
+                            redis_task_info = json.loads(data_str)
+                            logger.debug(f"Verified Redis write for task {task_id}: {redis_task_info.get('status', 'UNKNOWN')}, {redis_task_info.get('progress', 0)}%")
+                    except Exception as e:
+                        logger.warning(f"Could not verify Redis write for task {task_id}: {str(e)}")
+                except RedisError as e:
+                    error_msg = f"Redis error updating task status for {task_id}: {str(e)}"
+                    logger.warning(error_msg)
+                    # Continue execution since memory cache was updated successfully
+                except Exception as e:
+                    error_msg = f"Error updating Redis for task {task_id}: {str(e)}"
+                    logger.error(error_msg)
+            
+            # If task is in terminal state (SUCCESS/FAILURE), perform cleanup
+            if status in [TASK_STATUS_SUCCESS, TASK_STATUS_FAILURE]:
+                logger.debug(f"Task {task_id} reached terminal state: {status}")
+                # Keep task info in memory for a short time for status checks
+                # But will eventually be cleaned up by the cleanup_expired_tasks method
+            
+            return True
+            
+        except Exception as e:
+            error_msg = f"Error updating task status for {task_id}: {str(e)}"
+            logger.error(error_msg)
+            return False
 
-                    return task_info
+    def get_task_info(self, task_id: Optional[str]) -> Optional[Dict[str, Any]]:
+        """
+        Get information about a task from Redis or in-memory cache.
+
+        Args:
+            task_id: ID of the task, can be None
+
+        Returns:
+            Task info dictionary or None if not found or invalid task_id
+        """
+        if not task_id:
+            logger.debug("get_task_info called with empty task_id")
+            return None
+
+        # Type check - ensure we have a string task_id
+        if not isinstance(task_id, str):
+            try:
+                task_id = str(task_id)
+                logger.warning(f"get_task_info received non-string task_id, converted {task_id} to string")
             except Exception as e:
-                logger.error(f"Error checking Celery task status for {task_id}: {str(e)}")
+                logger.error(f"Failed to convert task_id to string: {e}")
                 return None
 
+        # Try to get from memory cache first
+        task_info = self.tasks.get(task_id)
+        
+        # Try to get from Redis if available
+        try:
+            if self.redis_client is not None:
+                redis_key = f"{self.TASK_KEY_PREFIX}{task_id}"
+                task_data = self.redis_client.get(redis_key)
+                if task_data:
+                    try:
+                        # Handle bytes data from Redis
+                        if isinstance(task_data, bytes):
+                            redis_info = json.loads(task_data.decode('utf-8'))
+                        else:
+                            redis_info = json.loads(str(task_data))
+                            
+                        # If we have memory info, merge with Redis data (preferring Redis)
+                        if task_info:
+                            task_info = {**task_info, **redis_info}
+                        else:
+                            task_info = redis_info
+                    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                        logger.error(f"Error decoding Redis data for task {task_id}: {str(e)}")
         except Exception as e:
-            logger.error(f"Error getting task info for {task_id}: {str(e)}")
-            return None
+            logger.error(f"Error getting task info from Redis for {task_id}: {str(e)}")
+            # Continue with memory cache data only
+
+        return task_info
 
     def get_task_for_game(self, game_id: Union[int, str]) -> Optional[str]:
         """
@@ -394,102 +361,8 @@ class TaskManager:
         Returns:
             Task ID or None if no task is found
         """
-        try:
-            # Convert to string for consistent lookup
-            game_id_str = str(game_id)
-            
-            # First check in-memory cache
-            if game_id_str in self.game_tasks:
-                task_id = self.game_tasks[game_id_str]
-                logger.debug(f"Found task ID {task_id} for game {game_id} in memory cache")
-                return task_id
-            
-            # Try in Redis
-            if self.redis_client is not None:
-                # Check both formats of the key for compatibility with older versions
-                for game_key in [
-                    f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}",
-                    f"game_task:{game_id_str}",
-                    f"game:{game_id_str}:task"
-                ]:
-                    try:
-                        task_id = self.redis_client.get(game_key)
-                        if task_id:
-                            # Convert bytes to string if needed
-                            if isinstance(task_id, bytes):
-                                task_id = task_id.decode('utf-8')
-                            
-                            # Cache in memory for future lookups
-                            self.game_tasks[game_id_str] = task_id
-                            logger.debug(f"Found task ID {task_id} for game {game_id} in Redis using key {game_key}")
-                            return task_id
-                    except Exception as e:
-                        logger.error(f"Redis error getting task ID for game {game_id} with key {game_key}: {str(e)}")
-            
-            # Additional lookup by scanning tasks for this game_id
-            for task_id, task_info in self.tasks.items():
-                if task_info.get("game_id") == game_id or str(task_info.get("game_id", "")) == game_id_str:
-                    logger.debug(f"Found task ID {task_id} for game {game_id} by scanning tasks")
-                    
-                    # Cache the mapping for future lookups
-                    self.game_tasks[game_id_str] = task_id
-                    
-                    # Also store in Redis if available
-                    if self.redis_client is not None:
-                        try:
-                            game_task_key = f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}"
-                            self.redis_client.setex(
-                                game_task_key,
-                                self.task_timeout,
-                                task_id
-                            )
-                        except Exception as e:
-                            logger.error(f"Redis error storing task ID for game {game_id}: {str(e)}")
-                    
-                    return task_id
-            
-            # If we have Redis, scan through all task keys as a last resort
-            if self.redis_client is not None:
-                try:
-                    # This is expensive, but a last resort
-                    for key in self.redis_client.scan_iter(f"{self.TASK_KEY_PREFIX}*"):
-                        try:
-                            key_str = key.decode('utf-8') if isinstance(key, bytes) else key
-                            task_data = self.redis_client.get(key)
-                            if task_data:
-                                try:
-                                    task_info = json.loads(task_data.decode('utf-8') if isinstance(task_data, bytes) else task_data)
-                                    if task_info.get("game_id") == game_id or str(task_info.get("game_id", "")) == game_id_str:
-                                        task_id = task_info.get("id") or key_str.replace(self.TASK_KEY_PREFIX, "")
-                                        
-                                        # Cache for future lookups
-                                        self.game_tasks[game_id_str] = task_id
-                                        
-                                        # Store mapping in Redis
-                                        game_task_key = f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}"
-                                        self.redis_client.setex(
-                                            game_task_key,
-                                            self.task_timeout,
-                                            task_id
-                                        )
-                                        
-                                        logger.debug(f"Found task ID {task_id} for game {game_id} by scanning Redis tasks")
-                                        return task_id
-                                except (json.JSONDecodeError, UnicodeDecodeError) as e:
-                                    logger.error(f"Error decoding task data from Redis for key {key_str}: {str(e)}")
-                                    # Skip this key and continue with the next one
-                        except Exception as e:
-                            logger.error(f"Error processing Redis key {key}: {str(e)}")
-                            # Skip this key and continue with the next one
-                except Exception as e:
-                    logger.error(f"Error scanning Redis for tasks: {str(e)}")
-            
-            logger.debug(f"No task found for game {game_id}")
-            return None
-            
-        except Exception as e:
-            logger.error(f"Error in get_task_for_game for game {game_id}: {str(e)}")
-            return None
+        # Use the implementation from _get_task_id_for_game for backward compatibility
+        return self._get_task_id_for_game(game_id)
 
     def cancel_task(self, task_id: str) -> bool:
         """
@@ -561,136 +434,173 @@ class TaskManager:
 
         return cleaned_count
 
-    def get_task_status(self, game_id: Union[int, str]) -> Optional[Dict[str, Any]]:
+    def _validate_task_id(self, task_id: Any) -> Optional[str]:
         """
-        Get the status of a task associated with a game.
+        Validate that a task_id is in the correct format for a Celery task.
 
         Args:
-            game_id: The ID of the game
+            task_id: The task ID to validate
 
         Returns:
-            Task status information or None if no task is found
+            Validated task ID as string if valid, None otherwise
         """
-        try:
-            # Get task ID associated with the game
-            task_id = self.get_task_for_game(game_id)
-            if not task_id:
-                logger.debug(f"No task ID found for game {game_id}")
-                return {"status": "not_found", "message": "No analysis task found"}
+        if not task_id:
+            return None
 
-            logger.debug(f"Retrieved task ID {task_id} for game {game_id}")
-
-            # Get task info from memory cache first
-            task_info = None
-            if task_id in self.tasks:
-                task_info = self.tasks[task_id]
-                if task_info is not None:
-                    logger.debug(f"Found task {task_id} in memory cache: {task_info.get('status', 'UNKNOWN')}, {task_info.get('progress', 0)}%")
-                
-            # If not in memory cache, try Redis
-            if task_info is None and self.redis_client is not None:
-                try:
-                    task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
-                    data = self.redis_client.get(task_key)
-                    if data:
-                        try:
-                            if isinstance(data, bytes):
-                                data_str = data.decode('utf-8')
-                            else:
-                                data_str = str(data)
-                            task_info = json.loads(data_str)
-                            # Update in-memory cache
-                            self.tasks[task_id] = task_info
-                            if task_info is not None:
-                                logger.debug(f"Found task {task_id} in Redis: {task_info.get('status', 'UNKNOWN')}, {task_info.get('progress', 0)}%")
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Error decoding task info for {task_id}: {str(e)}")
-                except Exception as e:
-                    logger.error(f"Redis error getting task info for {task_id}: {str(e)}")
-
-            # If still not found, check with Celery directly as last resort
-            if task_info is None:
-                try:
-                    celery_task = AsyncResult(task_id)
-                    task_state = celery_task.state
-                    logger.debug(f"Celery task {task_id} state from AsyncResult: {task_state}")
-                    
-                    if task_state:
-                        # Create basic task info from Celery
-                        task_info = {
-                            "id": task_id,
-                            "status": task_state,
-                            "progress": 100 if task_state == TASK_STATUS_SUCCESS else 0,
-                            "message": f"Task status from Celery: {task_state}",
-                            "updated_at": datetime.now().isoformat(),
-                        }
-                        
-                        # Update in-memory cache
-                        self.tasks[task_id] = task_info
-                        
-                        # Try to update Redis
-                        if self.redis_client is not None:
-                            try:
-                                task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
-                                self.redis_client.setex(
-                                    task_key,
-                                    self.task_timeout,
-                                    json.dumps(task_info)
-                                )
-                                logger.debug(f"Updated Redis with Celery task status for {task_id}")
-                            except Exception as e:
-                                logger.error(f"Redis error updating task info for {task_id}: {str(e)}")
-                except Exception as e:
-                    logger.error(f"Error checking Celery task state for {task_id}: {str(e)}")
-
-            # If task info is now available, check if it's stale
-            if task_info is not None:
-                # Check if task status is stale (task is STARTED but hasn't updated in more than 30 seconds)
-                if task_info.get("status") == TASK_STATUS_STARTED:
-                    try:
-                        updated_at = datetime.fromisoformat(task_info.get("updated_at", "2000-01-01"))
-                        staleness = datetime.now() - updated_at
-                        logger.debug(f"Task {task_id} staleness: {staleness.total_seconds()} seconds")
-                        
-                        if staleness > timedelta(seconds=30):
-                            # Task might be stale - check with Celery directly
-                            try:
-                                celery_task = AsyncResult(task_id)
-                                logger.debug(f"Checking potentially stale task {task_id} with Celery, state: {celery_task.state}")
-                                
-                                if celery_task.state == TASK_STATUS_SUCCESS:
-                                    # Update Redis with SUCCESS status
-                                    logger.info(f"Updating stale task {task_id} from STARTED to SUCCESS based on Celery state")
-                                    self.update_task_status(
-                                        task_id=task_id,
-                                        status=TASK_STATUS_SUCCESS,
-                                        progress=100,
-                                        message="Task completed successfully (status updated from Celery)",
-                                    )
-                                    # Refresh task_info
-                                    task_info = self.get_task_info(task_id)
-                            except Exception as e:
-                                logger.warning(f"Error checking Celery task state for stale task {task_id}: {str(e)}")
-                    except Exception as e:
-                        logger.warning(f"Error checking task staleness for {task_id}: {str(e)}")
-                
-                # Return task_info directly, don't wrap it in another response object
-                if task_info is not None:
-                    logger.debug(f"Returning task info for {task_id}: {task_info.get('status', 'UNKNOWN')}, {task_info.get('progress', 0)}%")
-                    return task_info
+        # Convert to string if needed
+        if not isinstance(task_id, str):
+            try:
+                task_id = str(task_id)
+            except Exception:
+                logger.error(f"Failed to convert task_id {task_id} to string")
+                return None
+        
+        # Most Celery task IDs are UUIDs or have a specific format
+        # Game IDs are typically numeric, so we can use that as a simple check
+        if task_id.isdigit():
+            logger.warning(f"Task ID {task_id} appears to be a numeric ID (possibly a game ID), not a valid Celery task ID")
+            return None
             
-            # If we get here, no task info was found
-            logger.debug(f"No task info found for task {task_id}")
-            return {"status": "not_found", "message": "No analysis task found"}
+        # More sophisticated validation could be done here if needed
+        return task_id
+
+    def get_task_status(self, task_id: Optional[str] = None, game_id: Optional[Union[int, str]] = None) -> Dict[str, Any]:
+        """
+        Get status of a task by task_id or game_id.
+        
+        Args:
+            task_id: ID of task to check (optional if game_id provided)
+            game_id: ID of game to find task for (optional if task_id provided)
+            
+        Returns:
+            Dictionary with status information
+        """
+        if not task_id and not game_id:
+            return self._default_status("INVALID", "No task_id or game_id provided", 0)
+            
+        # If only game_id is provided, try to get task_id for that game
+        original_task_id = task_id
+        if not task_id and game_id:
+            task_id = self._get_task_id_for_game(game_id)
+            if not task_id:
+                # Pass the game_id to the default status so it's included in the response
+                return self._default_status("PENDING", f"No task found for game {game_id}", 0, None, game_id)
+        
+        # Get task info from cache - must provide valid task_id string
+        if task_id:
+            task_info = self.get_task_info(task_id)
+        else:
+            task_info = None
+        
+        # If no task info found, check if we can get status directly from Celery
+        # Only check Celery if we have a valid task_id (not a game_id)
+        if not task_info and task_id:
+            # Validate that task_id is suitable for AsyncResult
+            validated_task_id = self._validate_task_id(task_id)
+            if validated_task_id:
+                try:
+                    # Try to get status directly from Celery
+                    celery_task = AsyncResult(validated_task_id)
+                    celery_status = celery_task.status
+                    
+                    # If Celery reports the task is done but we don't have info, create a default response
+                    if celery_status in [TASK_STATUS_SUCCESS, TASK_STATUS_FAILURE]:
+                        progress = 100 if celery_status == TASK_STATUS_SUCCESS else 0
+                        message = "Task completed" if celery_status == TASK_STATUS_SUCCESS else "Task failed"
+                        return self._default_status(celery_status, message, progress, task_id, game_id)
+                        
+                except Exception as e:
+                    logger.error(f"Error checking Celery status for task {task_id}: {str(e)}")
+                    # Continue with default status
+        
+        # If still no task info found, return default pending status
+        if not task_info:
+            # Pass the task_id to the default status so it's included in the response
+            return self._default_status("PENDING", f"Task {original_task_id or task_id} not found or not started", 0, task_id, game_id)
+            
+        # Extract status information from task_info
+        status = task_info.get('status', 'PENDING')
+        message = task_info.get('message', '')
+        progress = task_info.get('progress', 0)
+        
+        # Ensure progress is consistent with status
+        if status == TASK_STATUS_SUCCESS and progress < 100:
+            logger.warning(f"Task {task_id} has SUCCESS status but progress is only {progress}%, adjusting to 100%")
+            progress = 100
+        
+        # Return properly formatted status dictionary
+        return {
+            'status': status,
+            'message': message,
+            'progress': progress,
+            'task_id': task_id,
+            'metadata': task_info.get('metadata', {})
+        }
+        
+    def _default_status(self, status: str, message: str, progress: int, task_id: Optional[str] = None, game_id: Optional[Union[int, str]] = None) -> Dict[str, Any]:
+        """Helper to create consistent status responses"""
+        return {
+            'status': status,
+            'message': message,
+            'progress': progress,
+            'task_id': task_id,
+            'game_id': game_id,
+            'metadata': {}
+        }
+
+    def _is_newer_task_info(self, info1, info2):
+        """
+        Determine which task info is newer based on timestamps and progress.
+        
+        Args:
+            info1: First task info dictionary
+            info2: Second task info dictionary
+            
+        Returns:
+            True if info1 is newer than info2, False otherwise
+        """
+        # If either is missing updated_at, use progress as the determinant
+        if "updated_at" not in info1 or "updated_at" not in info2:
+            return info1.get("progress", 0) > info2.get("progress", 0)
+            
+        # Compare timestamps
+        try:
+            time1 = datetime.fromisoformat(info1["updated_at"])
+            time2 = datetime.fromisoformat(info2["updated_at"])
+            
+            # If timestamps are very close (within 1 second), prefer the one with higher progress
+            if abs((time1 - time2).total_seconds()) < 1:
+                return info1.get("progress", 0) >= info2.get("progress", 0)
                 
-        except RedisError as e:
-            error_msg = f"Redis error in get_task_status for game {game_id}: {str(e)}"
-            logger.warning(error_msg)
-            return {"status": "error", "message": "Task status unavailable due to cache error"}
-        except Exception as e:
-            error_msg = f"Error getting task status for game {game_id}: {str(e)}"
-            logger.error(error_msg)
-            return {"status": "error", "message": f"Error retrieving task status: {str(e)}"}
+            return time1 > time2
+        except (ValueError, TypeError):
+            # If we can't parse the timestamps, fall back to progress comparison
+            return info1.get("progress", 0) > info2.get("progress", 0)
+            
+    def _is_task_info_stale(self, task_info):
+        """
+        Check if task info appears to be stale (hasn't been updated recently)
+        
+        Args:
+            task_info: Task info dictionary with updated_at timestamp
+            
+        Returns:
+            True if task info appears stale, False otherwise
+        """
+        if "updated_at" not in task_info:
+            return False
+            
+        try:
+            # Configure stale threshold in seconds
+            self.STALE_THRESHOLD_SECONDS = 60  # Consider task stale if no updates in 60 seconds
+            
+            update_time = datetime.fromisoformat(task_info["updated_at"])
+            now = datetime.now()
+            seconds_since_update = (now - update_time).total_seconds()
+            
+            return seconds_since_update > self.STALE_THRESHOLD_SECONDS
+        except (ValueError, TypeError):
+            return False
 
     def get_task_status_by_id(self, task_id: str) -> Dict[str, Any]:
         """
@@ -704,17 +614,12 @@ class TaskManager:
         """
         task_info = self.get_task_info(task_id)
         if not task_info:
-            # Check with Celery directly
-            try:
-                celery_task = AsyncResult(task_id)
+            # Return default status instead of checking Celery
                 return {
-                    "status": celery_task.state,
-                    "result": celery_task.result if celery_task.ready() and celery_task.successful() else None,
-                    "error": str(celery_task.result) if celery_task.ready() and not celery_task.successful() else None,
-                }
-            except Exception as e:
-                logger.error(f"Error getting Celery task status for {task_id}: {str(e)}")
-                return {"status": "UNKNOWN", "error": "Task not found"}
+                "status": "PENDING",
+                "message": "Task not found or not started",
+                "progress": 0
+            }
 
         return task_info
 
@@ -794,9 +699,9 @@ class TaskManager:
         # Try to find more in Redis (for tasks not in memory)
         if self.redis_client is not None:
             try:
-                # TODO: Implement this
-                # This would require scanning Redis which might be inefficient
-                # In a real-world scenario, we would need a user-to-tasks index
+            # TODO: Implement this
+            # This would require scanning Redis which might be inefficient
+            # In a real-world scenario, we would need a user-to-tasks index
                 pass
             except Exception as e:
                 logger.error(f"Error getting user tasks for user {user_id}: {str(e)}")
@@ -933,3 +838,47 @@ class TaskManager:
                             time.sleep(retry_delay)
 
         return task_id
+
+    def _get_task_id_for_game(self, game_id: Union[int, str]) -> Optional[str]:
+        """
+        Get the task ID associated with a game.
+
+        Args:
+            game_id: ID of the game
+
+        Returns:
+            Task ID or None if no task is found
+        """
+        try:
+            # Convert to string for consistent lookup
+            game_id_str = str(game_id)
+            
+            # First check in-memory cache
+            if game_id_str in self.game_tasks:
+                task_id = self.game_tasks[game_id_str]
+                logger.debug(f"Found task ID {task_id} for game {game_id} in memory cache")
+                return task_id
+            
+            # Try in Redis
+            if self.redis_client is not None:
+                game_key = f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}"
+                try:
+                    task_id = self.redis_client.get(game_key)
+                    if task_id:
+                        # Convert bytes to string if needed
+                        if isinstance(task_id, bytes):
+                            task_id = task_id.decode('utf-8')
+                        
+                        # Cache in memory for future lookups
+                        self.game_tasks[game_id_str] = task_id
+                        logger.debug(f"Found task ID {task_id} for game {game_id} in Redis")
+                        return task_id
+                except Exception as e:
+                    logger.error(f"Redis error getting task ID for game {game_id}: {str(e)}")
+            
+            logger.debug(f"No task found for game {game_id}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error in _get_task_id_for_game for game {game_id}: {str(e)}")
+            return None

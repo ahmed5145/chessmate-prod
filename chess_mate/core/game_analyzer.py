@@ -238,10 +238,33 @@ class GameAnalyzer:
                     
                     # Call with a single argument (the combined analysis result)
                     feedback = self.feedback_generator.generate_feedback(analysis_data)
+                    
+                    # Update progress after successful feedback generation
+                    if progress_callback:
+                        progress_callback(85, "AI feedback generated successfully")
+                        
+                    if task_id and self.task_manager:
+                        self.task_manager.update_task_status(
+                            task_id=task_id,
+                            status="PROCESSING",
+                            progress=85,
+                            message="AI feedback generated successfully"
+                        )
                 except Exception as e:
                     logger.error(f"Error generating AI feedback: {str(e)}")
-                    # Continue without AI feedback
+                    # Continue without AI feedback but update progress
                     feedback = {"error": f"Failed to generate AI feedback: {str(e)}"}
+                    
+                    if progress_callback:
+                        progress_callback(85, "Skipping AI feedback due to error")
+                        
+                    if task_id and self.task_manager:
+                        self.task_manager.update_task_status(
+                            task_id=task_id,
+                            status="PROCESSING",
+                            progress=85,
+                            message="Skipping AI feedback due to error"
+                        )
             
             if progress_callback:
                 progress_callback(90, "Saving analysis results")

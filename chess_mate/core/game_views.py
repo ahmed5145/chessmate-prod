@@ -179,17 +179,65 @@ class GameViewSet(viewsets.ModelViewSet):
         """Get analysis status for a game."""
         try:
             game = self.get_object()
-            task_info = task_manager.get_task_status(game.id)
+            
+            # First check if we already have a complete analysis in the database
+            try:
+                analysis = GameAnalysis.objects.get(game_id=game.id)
+                if analysis.analysis_data and analysis.analysis_data.get('status') == 'complete':
+                    return Response({
+                        "status": "SUCCESS",
+                        "message": "Analysis completed",
+                        "progress": 100
+                    })
+            except GameAnalysis.DoesNotExist:
+                # No completed analysis exists, continue with task status
+                pass
+            
+            # Get task status for the game (passing game_id instead of task_id)
+            task_info = task_manager.get_task_status(game_id=game.id)
+            
+            # Log what we got from the task manager for debugging
+            logger.debug(f"Raw task info for game {game.id}: {task_info}")
 
             if not task_info:
-                return Response({"status": "not_found", "message": "No analysis task found"})
-
-            return Response(task_info)
+                return Response({
+                    "status": "not_found", 
+                    "message": "No analysis task found",
+                    "progress": 0
+                })
+            
+            # Check specific case for error status
+            if task_info.get("status") == "ERROR" or task_info.get("status") == "FAILURE":
+                return Response({
+                    "status": "ERROR",
+                    "message": task_info.get("message", "Analysis failed"),
+                    "error": task_info.get("error", "Unknown error"),
+                    "progress": task_info.get("progress", 0)
+                })
+            
+            # Build a standardized response format
+            response_data = {
+                "status": task_info.get("status", "UNKNOWN").upper(),
+                "progress": task_info.get("progress", 0),
+                "message": task_info.get("message", "Checking analysis status..."),
+                "task_id": task_info.get("task_id"),  # Include actual task_id in the response
+                "task": {
+                    "id": task_info.get("task_id", ""),
+                    "status": task_info.get("status", "UNKNOWN").upper(),
+                    "progress": task_info.get("progress", 0),
+                    "message": task_info.get("message", "Checking analysis status...")
+                }
+            }
+            
+            return Response(response_data)
 
         except Exception as e:
-            return create_error_response(
-                error_type="external_service_error", message=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"Error checking analysis status: {str(e)}", exc_info=True)
+            return Response({
+                "status": "ERROR",
+                "message": f"Error retrieving analysis status: {str(e)}",
+                "progress": 0
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=["get"])
     def search(self, request) -> Response:
@@ -646,6 +694,9 @@ def get_task_status(request, game_id=None):
             if 'task' in task_info:
                 return JsonResponse(task_info)
             
+            # Log the actual task info for debugging
+            logger.debug(f"Raw task info for game {game_id}: {task_info}")
+            
             # Otherwise wrap it in a response with a 'task' key for frontend compatibility
             return JsonResponse({
                 "status": "success", 
@@ -668,14 +719,17 @@ def get_task_status(request, game_id=None):
 
             # Get task status
             task_info = task_manager.get_task_status_by_id(task_id)
+
+            # Log the actual task info for debugging
+            logger.debug(f"Raw task info for task {task_id}: {task_info}")
             
             # Wrap the task info in a response with a 'task' key for frontend compatibility
             return JsonResponse({
-                "status": "success", 
-                "task": {
-                    "id": task_id,
+            "status": "success",
+            "task": {
+                "id": task_id,
                     "status": task_info.get("status", "UNKNOWN"),
-                    "progress": task_info.get("progress", 0),
+                "progress": task_info.get("progress", 0),
                     "message": task_info.get("message", "Analyzing game..."),
                     "error": task_info.get("error", None)
                 }
@@ -895,15 +949,49 @@ def get_game_analysis(request, game_id):
         try:
             analysis = GameAnalysis.objects.get(game_id=game_id)
             
-            # Return the analysis data
-            return JsonResponse(analysis.analysis_data)
+            # Check if analysis is complete
+            if analysis.analysis_data.get('status') != 'complete':
+                logger.info(f"Analysis for game {game_id} is not complete yet")
+                return JsonResponse({
+                    "status": "in_progress",
+                    "message": "Analysis is still in progress",
+                    "progress": analysis.analysis_data.get('progress', 0)
+                })
+            
+            # Format the response in a consistent structure expected by the frontend
+            response_data = {
+                "status": "complete",
+                "metrics": analysis.metrics,
+                "moves": analysis.moves,
+                "completed_at": analysis.analysis_data.get('completed_at', ''),
+                "engine_version": analysis.analysis_data.get('engine_version', '')
+            }
+            
+            # Return the analysis data with a consistent structure
+            return JsonResponse(response_data)
             
         except GameAnalysis.DoesNotExist:
-            return JsonResponse({}, status=200)
+            # Check task status to see if analysis is in progress
+            task_info = task_manager.get_task_status(game_id)
+            if task_info and task_info.get('status') in ['STARTED', 'PROCESSING', 'PROGRESS', 'IN_PROGRESS']:
+                return JsonResponse({
+                    "status": "in_progress",
+                    "message": "Analysis is in progress",
+                    "progress": task_info.get('progress', 0)
+                })
+            
+            return JsonResponse({
+                "status": "not_found",
+                "message": "No analysis found for this game"
+            })
         except Exception as e:
             logger.error(f"Error retrieving game analysis: {str(e)}", exc_info=True)
-            # Return an empty object rather than an error for better UX
-            return JsonResponse({}, status=200)
+            # Return structured error for better frontend handling
+            return JsonResponse({
+                "status": "error",
+                "message": f"Error retrieving analysis: {str(e)}",
+                "error": str(e)
+            })
 
     except Exception as e:
         return handle_api_error(e, "Error retrieving game analysis")

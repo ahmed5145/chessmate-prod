@@ -68,68 +68,161 @@ class BaseAnalysisTask(Task):
 @shared_task(bind=True)
 def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True):
     """
-    Task to analyze a chess game and generate insights.
-
+    Analyze a chess game in a background Celery task.
+    
     Args:
-        self: Task instance
+        self: Celery task instance
         game_id: ID of the game to analyze
-        user_id: ID of the user who requested the analysis (unused)
-        depth: Depth for the engine analysis
-        use_ai: Whether to use AI to enhance the analysis
-
+        user_id: ID of the user who requested the analysis
+        depth: Stockfish analysis depth
+        use_ai: Whether to generate AI feedback
+        
     Returns:
-        Dict containing analysis results and status
+        Dict with analysis results or error information
     """
+    # Get the Celery task ID
     task_id = self.request.id
     logger.info(f"[{task_id}] Analyze game task started for game {game_id}")
-
-    # Initialize task manager
+    
+    # Initialize the task manager
     task_manager = TaskManager()
     
-    # First, check if there's already an active task for this game
-    existing_tasks = task_manager.get_active_tasks_for_game(game_id)
-    if existing_tasks and existing_tasks[0] != task_id:
-        logger.warning(f"[{task_id}] Found existing task {existing_tasks[0]} for game {game_id}")
-        # Return existing task ID
-        return {
-            "status": "already_running",
-            "message": "Analysis already in progress",
-            "task_id": existing_tasks[0],
-            "game_id": game_id
-        }
-
-    # Get the game from the database
+    # Check if there's already an active task for this game
+    active_tasks = task_manager.get_active_tasks_for_game(game_id)
+    if active_tasks:
+        existing_task_id = active_tasks[0]
+        if existing_task_id != task_id:
+            logger.warning(f"[{task_id}] Found existing task {existing_task_id} for game {game_id}")
+            return {
+                "status": "already_running",
+                "message": "Analysis already in progress",
+                "task_id": existing_task_id,
+                "game_id": game_id
+            }
+    
+    # Create task entry in task manager with the Celery task ID
+    task_manager.create_task(
+        task_id=task_id,  # Use the actual Celery task ID
+        game_id=game_id,
+        user_id=user_id,
+        task_type=task_manager.TYPE_ANALYSIS,
+        parameters={"depth": depth, "use_ai": use_ai}
+    )
+    
+    # Also create our internal task ID and create a mapping to the Celery task ID
+    internal_task_id = f"analysis_{int(time.time())}_{os.urandom(4).hex()}"
+    logger.info(f"[{task_id}] Created internal task ID {internal_task_id} for game {game_id}")
+    
+    # Store both mappings - from game_id to both task IDs
+    if task_manager.redis_client:
+        try:
+            # Map game to Celery task ID
+            game_task_key = f"{task_manager.GAME_TASK_KEY_PREFIX}{game_id}"
+            task_manager.redis_client.setex(
+                game_task_key,
+                task_manager.task_timeout,
+                task_id
+            )
+            
+            # Store Celery task ID to internal task ID mapping
+            celery_to_internal_key = f"celery_to_internal:{task_id}"
+            task_manager.redis_client.setex(
+                celery_to_internal_key,
+                task_manager.task_timeout,
+                internal_task_id
+            )
+            
+            # Store internal task ID to Celery task ID mapping
+            internal_to_celery_key = f"internal_to_celery:{internal_task_id}"
+            task_manager.redis_client.setex(
+                internal_to_celery_key,
+                task_manager.task_timeout,
+                task_id
+            )
+            
+            logger.debug(f"[{task_id}] Created mappings between Celery task ID and internal task ID {internal_task_id}")
+        except Exception as e:
+            logger.error(f"[{task_id}] Error creating task ID mappings: {str(e)}")
+    
     logger.info(f"[{task_id}] Retrieving game {game_id}")
+    
     try:
+        # Get the game object
         game = Game.objects.get(id=game_id)
     except Game.DoesNotExist:
         logger.error(f"[{task_id}] Game {game_id} not found")
-        return {
-            "status": "error",
-            "message": f"Game {game_id} not found",
-            "error": f"Game {game_id} not found"
-        }
+        task_manager.update_task_status(
+            task_id=task_id,
+            status="FAILURE",
+            message=f"Game {game_id} not found",
+            error=f"Game with ID {game_id} does not exist"
+        )
+        return {"status": "error", "message": f"Game {game_id} not found", "game_id": game_id}
+    except Exception as e:
+        logger.error(f"[{task_id}] Error retrieving game {game_id}: {str(e)}")
+        task_manager.update_task_status(
+            task_id=task_id,
+            status="FAILURE",
+            message=f"Error retrieving game {game_id}",
+            error=str(e)
+        )
+        return {"status": "error", "message": f"Error: {str(e)}", "game_id": game_id}
+    
+    # Mark game as being analyzed in the database
+    try:
+        game.analysis_status = "in_progress"
+        game.save(update_fields=["analysis_status"])
+    except Exception as e:
+        logger.error(f"[{task_id}] Error updating game status: {str(e)}")
+        # Continue even if we can't update game status
 
-    # Create a task entry
-    logger.info(f"[{task_id}] Creating task entry for game {game_id}")
-    task_manager.create_task(game_id=game_id, task_type=task_manager.TYPE_ANALYSIS)
-
+    # Refresh cache for this game
+    try:
+        cache_delete(f"game_{game.id}")
+    except Exception as e:
+        logger.warning(f"[{task_id}] Cache invalidation error: {str(e)}")
+    
     # Initialize progress tracker
     def update_progress(progress, message=None):
         """Update task progress."""
         logger.debug(f"[{task_id}] Progress update: {progress}%")
+        # Ensure progress is an integer
+        try:
+            progress_int = int(progress)
+        except (ValueError, TypeError):
+            progress_int = 0
+        
+        # Ensure progress is within bounds
+        progress_int = max(0, min(100, progress_int))
+
+        # Update task status
         task_manager.update_task_status(
             task_id=task_id,
             status="PROCESSING",
-            progress=progress,
+            progress=progress_int,
             message=message
         )
+        
         # Also update the game's analysis status
         try:
-            game.analysis_status = f"in_progress:{progress}"
+            status_text = f"in_progress:{progress_int}"
+            if progress_int >= 100:
+                status_text = "completed"
+            
+            game.analysis_status = status_text
             game.save(update_fields=["analysis_status"])
         except Exception as e:
             logger.error(f"[{task_id}] Error updating game status: {str(e)}")
+            
+        # Send a signal to Celery to update task state
+        self.update_state(
+            state="PROGRESS",
+            meta={
+                'progress': progress_int,
+                'message': message or f"Analysis in progress: {progress_int}%",
+                'game_id': game_id
+            }
+        )
 
     try:
         # Create game analyzer

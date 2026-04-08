@@ -128,7 +128,6 @@ def get_redis_connection() -> Optional["Redis"]:  # type: ignore
                 retry_on_timeout=True,
                 decode_responses=True,
                 health_check_interval=30,
-                connection_pool_class=redis.connection.BlockingConnectionPool,
                 max_connections=getattr(settings, "REDIS_MAX_CONNECTIONS", 100),
             )
             # Test connection

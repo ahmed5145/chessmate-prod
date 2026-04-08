@@ -131,11 +131,14 @@ export const checkAnalysisStatus = async (gameId) => {
         // Handle standard response with task wrapper
         if (data && data.task) {
             const taskData = data.task;
+            console.log(`Detailed task data for game ${gameId}:`, taskData);
+            
             const status = taskData.status?.toUpperCase() || 'UNKNOWN';
+            const progressValue = taskData.progress !== undefined ? Number(taskData.progress) : 0;
             
             // Store progress in localStorage
-            if (taskData.progress !== undefined) {
-                localStorage.setItem(`last_known_progress_${gameId}`, taskData.progress);
+            if (progressValue > 0) {
+                localStorage.setItem(`last_known_progress_${gameId}`, progressValue);
                 localStorage.setItem(`last_progress_update_${gameId}`, Date.now());
             }
             
@@ -163,10 +166,19 @@ export const checkAnalysisStatus = async (gameId) => {
                 };
             }
             
+            // Handle processing status
+            if (status === 'PROCESSING') {
+                return {
+                    status: 'PROCESSING',
+                    progress: progressValue,
+                    message: taskData.message || 'Analyzing game...'
+                };
+            }
+            
             // For other statuses
             return {
                 status: status,
-                progress: taskData.progress || 0,
+                progress: progressValue,
                 message: taskData.message || 'Analyzing game...'
             };
         }
@@ -189,7 +201,17 @@ export const checkAnalysisStatus = async (gameId) => {
             }
         }
         
+        // Check for a 'not_found' status specifically
+        if (data && data.status === 'not_found') {
+            return {
+                status: 'PENDING',
+                progress: 0,
+                message: data.message || 'Analysis task not found'
+            };
+        }
+        
         // Fallback to unknown status
+        console.warn('Unexpected response format:', data);
         return {
             status: 'UNKNOWN',
             progress: 0,
@@ -199,7 +221,7 @@ export const checkAnalysisStatus = async (gameId) => {
         console.error('Error checking analysis status:', error);
         return {
             status: 'ERROR',
-            error: error.message,
+            error: error.message || 'Error checking status',
             progress: 0
         };
     }

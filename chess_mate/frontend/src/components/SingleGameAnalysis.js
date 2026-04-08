@@ -475,11 +475,12 @@ const SingleGameAnalysis = () => {
       }
       
       // Verify we have valid data
-      if (data && (
-        (data.moves && data.moves.length > 0) || 
-        (data.positions && data.positions.length > 0) || 
-        (data.metrics && Object.keys(data.metrics).length > 0)
-      )) {
+      const hasMoves = data.moves?.length > 0 || 
+                      data.analysis_results?.moves?.length > 0;
+      const hasMetrics = data.metrics || 
+                        (data.analysis_results && Object.keys(data.analysis_results).length > 0);
+      
+      if (data && (hasMoves || hasMetrics)) {
         console.log('Analysis data retrieved successfully:', data);
         setAnalysisData(data);
                     setLoading(false);
@@ -488,36 +489,14 @@ const SingleGameAnalysis = () => {
         localStorage.setItem(`analysis_complete_${gameId}`, 'true');
         return true;
                 } else {
-        console.warn('Received empty or invalid analysis data:', data);
-        // If data is empty but we haven't exceeded max retries, don't show error yet
-        if (!hasExceededMaxRetries.current) {
-          // Remove from localStorage to prevent future false "completed" states
-          localStorage.removeItem(`analysis_complete_${gameId}`);
-          return false;
-        }
-        // Remove from localStorage
-        localStorage.removeItem(`analysis_complete_${gameId}`);
-        throw new Error('No valid analysis data available. The analysis may have failed.');
+        console.warn('Retrieved data structure is invalid:', data);
+        setAnalysisError('The analysis data structure is invalid or incomplete. Please try again.');
+                    setLoading(false);
+        return false;
             }
         } catch (error) {
-      console.error('Error fetching game analysis:', error);
-      
-      // Check if it's an authentication error
-      if (error.auth_error) {
-        setAuthError(true);
-        return false;
-      }
-      
-      // If Redis is unavailable, the data might not be accessible yet
-      // Continue polling rather than showing an error
-      if (!hasExceededMaxRetries.current) {
-        console.log('Fetch failed but continuing polling attempts');
-        return false;
-      }
-      
-      // Remove from localStorage to prevent future false "completed" states
-      localStorage.removeItem(`analysis_complete_${gameId}`);
-      setAnalysisError(error.message || 'We encountered an error fetching your analysis.');
+      console.error('Error fetching analysis data:', error);
+      setAnalysisError(error.message || 'Failed to load analysis data');
             setLoading(false);
       return false;
     }

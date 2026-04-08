@@ -51,7 +51,7 @@ class MetricsCalculator:
             # Check if we have any moves to analyze
             if not moves:
                 return MetricsCalculator._get_default_metrics()
-                
+
             # Identify the player (white or black)
             is_white = moves[0].get("is_white", True)
             
@@ -100,11 +100,11 @@ class MetricsCalculator:
             
             # Compile all metrics with consistent structure
             metrics = {
-                "overall": overall_metrics,
+                    "overall": overall_metrics,
                 "move_quality": move_quality,
                 "time_management": time_management,
                 "consistency": consistency,
-                "phases": phase_metrics,
+                    "phases": phase_metrics,
                 "tactics": tactical_metrics,
                 "advantage": advantage_metrics,
                 "resourcefulness": resourcefulness_metrics,
@@ -138,7 +138,7 @@ class MetricsCalculator:
                             validated_metrics[section][key] = float(value)
             
             return validated_metrics
-            
+
         except Exception as e:
             logger.error(f"Error calculating game metrics: {str(e)}")
             # Return default metrics with error information
@@ -582,8 +582,8 @@ class MetricsCalculator:
             time_variations = [abs(t - avg_time) for t in times]
             avg_variation = sum(time_variations) / max(1.0, float(len(time_variations)))
             time_consistency = max(0.0, 100.0 - (avg_variation / max(1.0, avg_time) * 100.0))
-            
-        # Calculate final score
+
+            # Calculate final score
         streak_score = (sum(quality_streaks) / max(1.0, float(len(moves)))) * 100.0 if quality_streaks else 0.0
         error_score = max(0.0, 100.0 - (mistakes_in_window / max(1.0, float(len(moves))) * 100.0))
         cluster_score = max(0.0, 100.0 - (mistake_clusters / max(1.0, float(len(moves))) * 100.0))

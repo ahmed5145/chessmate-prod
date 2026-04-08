@@ -48,10 +48,10 @@ chess_mate/           # Main Django application directory
 
 For comprehensive installation instructions, see our [Installation Guide](INSTALLATION.md).
 
-```bash
+   ```bash
 # Clone the repository
 git clone https://github.com/yourusername/chessmate.git
-cd chessmate
+   cd chessmate
 
 # Setup and run (Windows)
 setup_windows.bat
@@ -60,8 +60,8 @@ run_development.bat
 # Setup and run (Linux/Mac)
 pip install -e ".[dev]"
 ./setup.sh
-python manage.py runserver
-```
+     python manage.py runserver
+     ```
 
 ## Documentation
 
