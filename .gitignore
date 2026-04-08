@@ -82,6 +82,12 @@ dump.rdb
 *.rdb
 redis_data/
 
+# Celery runtime state
+chess_mate/celery_state.dat
+chess_mate/celery_state.bak
+chess_mate/celery_state.dir
+chess_mate/celery.pid
+
 # System
 .DS_Store
 Thumbs.db
