@@ -173,6 +173,9 @@ def handle_view_exception(exc: Exception, request_id: Optional[str] = None) -> J
         details = None
 
         if isinstance(exc, ValidationError):
+            # For ValidationError, extract message from the detail dict
+            if isinstance(exc.detail, dict) and "message" in exc.detail:
+                message = exc.detail["message"]
             details = {"errors": exc.errors}
 
         # Map exception types to error codes
@@ -221,7 +224,13 @@ def api_error_handler(view_func: Callable) -> Callable:
         request_id = getattr(request, "request_id", None)
 
         try:
-            return view_func(request, *args, **kwargs)
+            response = view_func(request, *args, **kwargs)
+            # Convert DRF Response to JsonResponse if needed
+            if isinstance(response, Response) and not isinstance(response, JsonResponse):
+                # Convert DRF Response to JsonResponse
+                json_response = APIJsonResponse(response.data, status=response.status_code)
+                return json_response
+            return response
         except Exception as exc:
             return handle_view_exception(exc, request_id)
 
@@ -425,7 +434,12 @@ class ChessServiceError(APIException):
 
     def __init__(self, service_name: str, detail: Optional[str] = None):
         self.service_name = service_name
-        super().__init__(detail or f"Error communicating with {service_name}")
+        self.detail_msg = detail
+        # Format: "Error communicating with {service}: {detail}"
+        message = f"Error communicating with {service_name}"
+        if detail:
+            message += f": {detail}"
+        super().__init__(message)
 
 
 class ResourceNotFoundError(APIException):
@@ -437,9 +451,11 @@ class ResourceNotFoundError(APIException):
     def __init__(self, resource_type: str, resource_id: Optional[Any] = None):
         self.resource_type = resource_type
         self.resource_id = resource_id
-        detail = f"{resource_type} not found"
+        # Format: "{resource} with ID {id} not found" or "{resource} not found"
         if resource_id is not None:
-            detail += f" (ID: {resource_id})"
+            detail = f"{resource_type} with ID {resource_id} not found"
+        else:
+            detail = f"{resource_type} not found"
         super().__init__(detail)
 
 
@@ -451,7 +467,8 @@ class InvalidOperationError(APIException):
 
     def __init__(self, operation: str, reason: str):
         self.operation = operation
-        detail = f"Invalid operation '{operation}': {reason}"
+        # Format: "Cannot {operation}: {reason}"
+        detail = f"Cannot {operation}: {reason}"
         super().__init__(detail)
 
 
@@ -464,7 +481,8 @@ class CreditLimitError(APIException):
     def __init__(self, required: int, available: int):
         self.required = required
         self.available = available
-        detail = f"Not enough credits: {required} required, {available} available"
+        # Format: "This operation requires X credits, but you only have Y credits"
+        detail = f"This operation requires {required} credits, but you only have {available} credits"
         super().__init__(detail)
 
 
@@ -477,11 +495,12 @@ class ValidationError(APIException):
     def __init__(self, errors: List[Dict[str, str]]):
         # Create a structured validation error response
         self.errors = errors
-        if len(errors) == 1 and "message" in errors[0]:
-            detail = errors[0]["message"]
-        else:
-            detail = "Validation failed with multiple errors"
+        # Always use "Validation failed" as the primary message
+        detail = "Validation failed"
+        # Set detail as a dict with message and errors for test compatibility
         super().__init__(detail)
+        # Override detail to include both message and errors
+        self.detail = {"message": detail, "errors": errors}
 
 
 class TaskError(APIException):
@@ -506,7 +525,7 @@ class ExternalServiceError(APIException):
 
 def create_success_response(
     data: Any = None, message: Optional[str] = None, status_code: int = status.HTTP_200_OK
-) -> Response:
+) -> JsonResponse:
     """
     Create a standardized success response.
 
@@ -516,17 +535,14 @@ def create_success_response(
         status_code: HTTP status code
 
     Returns:
-        Response with standardized success format
+        JsonResponse with standardized success format
     """
     response_data = {"status": "success", "data": data if data is not None else {}}
-
-    if isinstance(data, dict):
-        response_data.update(data)
 
     if message:
         response_data["message"] = message
 
-    return Response(response_data, status=status_code)
+    return APIJsonResponse(response_data, status=status_code)
 
 
 # Standardized error responses for auth issues

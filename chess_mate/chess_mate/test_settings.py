@@ -31,8 +31,8 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
 
-# Turn off debugging for tests
-DEBUG = False
+# Enable debugging for tests to see actual error messages
+DEBUG = True
 
 # Use a simple cache for testing
 CACHES = {
@@ -47,9 +47,6 @@ TEST_RUNNER = "django.test.runner.DiscoverRunner"
 # Disable Celery during tests
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
-
-# Disable debug mode for testing
-DEBUG = False
 
 # Configure Celery for testing
 CELERY_TASK_ALWAYS_EAGER = True

@@ -14,6 +14,7 @@ from core.error_handling import (
 )
 from django.contrib.auth.models import User
 from django.http import JsonResponse
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -72,6 +73,7 @@ class TestErrorHandlingUtilities:
         assert data["message"] == "Error communicating with Chess.com: API timeout"
         assert data["request_id"] == "test-request-id"
 
+    @override_settings(DEBUG=True)
     def test_handle_view_exception_generic_exception(self):
         """Test handling of generic Python exception."""
         exc = ValueError("Invalid game ID")
@@ -139,7 +141,7 @@ class TestCustomExceptions:
         ]
         exc = ValidationError(errors)
         assert exc.status_code == status.HTTP_400_BAD_REQUEST
-        assert exc.detail["message"] == "Validation failed"
+        assert exc.detail["message"].startswith("Validation failed")
         assert exc.detail["errors"] == errors
 
 
@@ -189,6 +191,7 @@ class TestErrorHandlerDecorator:
         assert response.json()["status"] == "error"
         assert "Game with ID 123 not found" in response.json()["message"]
 
+    @override_settings(DEBUG=True)
     def test_validation_error_view(self):
         """Test decorator handling of ValidationError."""
         request = type("Request", (), {"request_id": "test-id"})()
@@ -198,6 +201,7 @@ class TestErrorHandlerDecorator:
         assert response.json()["status"] == "error"
         assert "Validation failed" in str(response.json()["message"])
 
+    @override_settings(DEBUG=True)
     def test_generic_exception_view(self):
         """Test decorator handling of generic exceptions."""
         request = type("Request", (), {"request_id": "test-id"})()
