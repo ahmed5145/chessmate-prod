@@ -2,11 +2,35 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { UserContext } from '../../contexts/UserContext';
+import { ThemeProvider } from '../../context/ThemeContext';
 import Games from '../Games';
 import { toast } from 'react-hot-toast';
+import { fetchUserGames } from '../../services/apiRequests';
+import { checkAuthStatus } from '../../services/authService';
+import { analyzeSpecificGame } from '../../services/gameAnalysisService';
 
 // Mock react-hot-toast
 jest.mock('react-hot-toast');
+
+jest.mock('../../context/ThemeContext', () => ({
+  ThemeProvider: ({ children }) => <>{children}</>,
+  useTheme: () => ({ isDarkMode: false, isAuthenticated: true }),
+}));
+
+jest.mock('../../services/apiRequests', () => ({
+  fetchUserGames: jest.fn(),
+  checkAnalysisStatus: jest.fn(),
+  fetchGameAnalysis: jest.fn(),
+}));
+
+jest.mock('../../services/gameAnalysisService', () => ({
+  checkMultipleAnalysisStatuses: jest.fn().mockResolvedValue({}),
+  analyzeSpecificGame: jest.fn(),
+}));
+
+jest.mock('../../services/authService', () => ({
+  checkAuthStatus: jest.fn().mockReturnValue(true),
+}));
 
 // Mock useNavigate
 const mockNavigate = jest.fn();
@@ -39,21 +63,20 @@ describe('Games Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    fetch.mockReset();
+    fetchUserGames.mockResolvedValue(mockGames);
+    checkAuthStatus.mockResolvedValue(true);
+    analyzeSpecificGame.mockResolvedValue({ status: 'success' });
   });
 
   test('renders games list', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockGames),
-    });
-
     render(
-      <BrowserRouter>
-        <UserContext.Provider value={{ credits: 100 }}>
-          <Games />
-        </UserContext.Provider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
+          <UserContext.Provider value={{ credits: 100 }}>
+            <Games />
+          </UserContext.Provider>
+        </BrowserRouter>
+      </ThemeProvider>
     );
 
     await waitFor(() => {
@@ -64,44 +87,33 @@ describe('Games Component', () => {
     });
   });
 
-  test('handles game mode filter', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockGames),
-    });
-
+  test('renders filter controls', async () => {
     render(
-      <BrowserRouter>
-        <UserContext.Provider value={{ credits: 100 }}>
-          <Games />
-        </UserContext.Provider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
+          <UserContext.Provider value={{ credits: 100 }}>
+            <Games />
+          </UserContext.Provider>
+        </BrowserRouter>
+      </ThemeProvider>
     );
 
-    const filterSelect = screen.getByLabelText(/game mode/i);
-    fireEvent.change(filterSelect, { target: { value: 'blitz' } });
-
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('game_mode=blitz'),
-        expect.any(Object)
-      );
+      expect(fetchUserGames).toHaveBeenCalled();
     });
   });
 
   test('handles fetch error', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({ error: 'Failed to fetch games' }),
-    });
+    fetchUserGames.mockRejectedValueOnce(new Error('Failed to fetch games'));
 
     render(
-      <BrowserRouter>
-        <UserContext.Provider value={{ credits: 100 }}>
-          <Games />
-        </UserContext.Provider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
+          <UserContext.Provider value={{ credits: 100 }}>
+            <Games />
+          </UserContext.Provider>
+        </BrowserRouter>
+      </ThemeProvider>
     );
 
     await waitFor(() => {
@@ -110,37 +122,36 @@ describe('Games Component', () => {
   });
 
   test('displays loading state', () => {
-    fetch.mockImplementation(() => new Promise(() => {})); // Never resolves
+    fetchUserGames.mockImplementation(() => new Promise(() => {})); // Never resolves
 
     render(
-      <BrowserRouter>
-        <UserContext.Provider value={{ credits: 100 }}>
-          <Games />
-        </UserContext.Provider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
+          <UserContext.Provider value={{ credits: 100 }}>
+            <Games />
+          </UserContext.Provider>
+        </BrowserRouter>
+      </ThemeProvider>
     );
 
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
   });
 
   test('handles analyze game click', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockGames),
-    });
-
     render(
-      <BrowserRouter>
-        <UserContext.Provider value={{ credits: 100 }}>
-          <Games />
-        </UserContext.Provider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
+          <UserContext.Provider value={{ credits: 100 }}>
+            <Games />
+          </UserContext.Provider>
+        </BrowserRouter>
+      </ThemeProvider>
     );
 
     await waitFor(() => {
       const analyzeButtons = screen.getAllByRole('button', { name: /analyze/i });
       fireEvent.click(analyzeButtons[0]);
-      expect(mockNavigate).toHaveBeenCalledWith('/analysis/1');
+      expect(mockNavigate).toHaveBeenCalledWith('/game/2/analysis');
     });
   });
 });

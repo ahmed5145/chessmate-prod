@@ -95,7 +95,10 @@ def pytest_sessionstart(session):
 
 # Model fixtures - these depend on models being properly imported
 try:
-    from chess_mate.core.models import Game, Profile
+    try:
+        from core.models import Game, Profile
+    except (ImportError, ModuleNotFoundError):
+        from chess_mate.core.models import Game, Profile
 
     @pytest.fixture
     def test_game(db, test_user):
