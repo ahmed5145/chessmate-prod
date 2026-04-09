@@ -14,10 +14,18 @@ on:
         - staging
         - production
 
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+    env:
+      DEPLOY_ENV: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+      HEALTHCHECK_URL: ${{ vars.HEALTHCHECK_URL || secrets.HEALTHCHECK_URL || '' }}
 
     steps:
     - uses: actions/checkout@v6
@@ -128,11 +136,21 @@ jobs:
 
     - name: Post-deployment checks
       run: |
-        echo "Deployment completed for environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}"
+        echo "Deployment completed for environment: $DEPLOY_ENV"
         echo "Running post-deployment checks..."
+        if [ -z "$HEALTHCHECK_URL" ]; then
+          echo "HEALTHCHECK_URL is not configured; skipping health check."
+          exit 0
+        fi
 
-        # Add your health check logic here
-        # For example, checking if the API is responding
-        # curl --fail --silent --output /dev/null https://api.chessmate.com/health
+        for i in {1..10}; do
+          if curl -fsS "$HEALTHCHECK_URL" >/dev/null; then
+            echo "Post-deployment health check passed"
+            exit 0
+          fi
+          echo "Health check attempt $i failed; retrying in 10s..."
+          sleep 10
+        done
 
-        echo "Post-deployment checks completed successfully."
+        echo "Post-deployment health check failed after retries"
+        exit 1

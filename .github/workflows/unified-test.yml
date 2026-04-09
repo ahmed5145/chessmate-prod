@@ -12,10 +12,15 @@ on:
       - '**.md'
       - 'docs/**'
 
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend-tests:
     name: Backend Tests - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -110,6 +115,7 @@ jobs:
   frontend-tests:
     name: Frontend Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
     - name: Checkout Code
@@ -148,6 +154,7 @@ jobs:
   linting:
     name: Code Quality & Security Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
     - name: Checkout Code
       uses: actions/checkout@v6
@@ -221,6 +228,7 @@ jobs:
   security-scan:
     name: Security Scanning
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [backend-tests, frontend-tests]
     steps:
     - name: Checkout Code
@@ -250,6 +258,7 @@ jobs:
   health-check:
     name: Health Check Test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [backend-tests, frontend-tests]
     steps:
     - name: Checkout Code
@@ -275,8 +284,17 @@ jobs:
     - name: Start Server in Background
       run: |
         cd chess_mate
-        python manage.py runserver &
-        sleep 5  # Let the server start up
+        nohup python manage.py runserver 0.0.0.0:8000 > /tmp/chessmate-server.log 2>&1 &
+        for i in {1..20}; do
+          if curl -fsS http://localhost:8000/health/ >/dev/null; then
+            echo "Server is ready"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "Server failed to start in time"
+        tail -n 200 /tmp/chessmate-server.log || true
+        exit 1
 
     - name: Test Health Check Endpoint
       run: |
