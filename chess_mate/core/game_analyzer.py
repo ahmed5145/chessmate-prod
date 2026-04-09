@@ -62,7 +62,7 @@ class GameAnalyzer:
     def __init__(self, stockfish_path: Optional[str] = None):
         """Initialize the game analyzer with Stockfish engine and OpenAI client."""
         try:
-            self.engine_analyzer = StockfishAnalyzer()
+            self.engine = StockfishAnalyzer.get_instance()
             self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
             self.feedback_generator = FeedbackGenerator()
             self.metrics_calculator = MetricsCalculator()
@@ -79,8 +79,8 @@ class GameAnalyzer:
     def cleanup(self):
         """Cleanup resources."""
         try:
-            if hasattr(self, "engine_analyzer"):
-                self.engine_analyzer.cleanup()
+            if hasattr(self, "engine"):
+                self.engine.cleanup()
                 logger.info("Successfully cleaned up Stockfish analyzer")
         except Exception as e:
             logger.error("Error cleaning up game analyzer: %s", str(e))
@@ -265,7 +265,7 @@ class GameAnalyzer:
             if progress_callback:
                 progress_callback(20, "Analyzing moves with Stockfish")
                 
-            analyzed_moves = self.engine_analyzer.analyze_pgn_game(
+            analyzed_moves = self.engine.analyze_pgn_game(
                 pgn, depth=depth, callback=lambda p, m: progress_callback(20 + int(p * 0.5), m) if progress_callback else None
             )
             
@@ -377,7 +377,7 @@ class GameAnalyzer:
             analysis_data['metrics'] = metrics
             analysis_data['status'] = 'complete'
             analysis_data['completed_at'] = timezone.now().isoformat()
-            analysis_data['engine_version'] = self.engine_analyzer.get_engine_version()
+            analysis_data['engine_version'] = self.engine.get_engine_version()
             
             analysis_result.analysis_data = analysis_data
             analysis_result.feedback = feedback.get('feedback', '') if isinstance(feedback, dict) else str(feedback)
@@ -505,7 +505,7 @@ class GameAnalyzer:
                 "game_id": game.id,
                     "analysis_depth": depth,
                     "analysis_timestamp": timezone.now().isoformat(),
-                    "engine_version": self.engine_analyzer.get_engine_version()
+                    "engine_version": self.engine.get_engine_version()
                 }
             }
 
@@ -604,13 +604,13 @@ class GameAnalyzer:
                 move = chess.Move.from_uci(move_uci)
 
                 # Analyze position before move
-                position_before = self.engine_analyzer.analyze_position(board, depth)
+                position_before = self.engine.analyze_position(board, depth)
 
                 # Apply move
                 board.push(move)
 
                 # Analyze position after move
-                position_after = self.engine_analyzer.analyze_position(board, depth)
+                position_after = self.engine.analyze_position(board, depth)
 
                 # Calculate evaluation change
                 eval_before = position_before.get("score", 0)
@@ -671,7 +671,7 @@ class GameAnalyzer:
                 board = chess.Board(fen)
 
                 # Analyze position
-                analysis = self.engine_analyzer.analyze_position(board, depth)
+                analysis = self.engine.analyze_position(board, depth)
 
                 # Store result
                 result = {
@@ -760,3 +760,70 @@ class GameAnalyzer:
                 results[game_id] = {"error": str(e)}
 
         return results
+
+    def analyze_batch_games(self, games: List[Game], depth: int = 20, use_ai: bool = True) -> List[Dict[str, Any]]:
+        """
+        Backward-compatible wrapper for analyzing a batch of Game objects.
+        
+        Args:
+            games: List of Game objects to analyze
+            depth: Analysis depth
+            use_ai: Whether to use AI feedback
+            
+        Returns:
+            List of analysis results
+        """
+        game_ids = [game.id for game in games]
+        results_by_id = self.analyze_batch(game_ids, depth=depth, use_ai=use_ai)
+        # Convert dict results to list maintaining order
+        return [results_by_id.get(game_id, {}) for game_id in game_ids]
+
+    def save_analysis(self, game: Game, analysis_result: Dict[str, Any], feedback_result: Dict[str, Any]) -> GameAnalysis:
+        """
+        Save analysis results to the database.
+        
+        Args:
+            game: The Game object
+            analysis_result: Analysis results from engine
+            feedback_result: Feedback from AI
+            
+        Returns:
+            GameAnalysis object
+        """
+        # Extract moves from analysis result
+        moves = analysis_result.get("moves", [])
+        summary = analysis_result.get("summary", {})
+        
+        # Create or update analysis
+        analysis = GameAnalysis.objects.update_or_create(
+            game=game,
+            defaults={
+                "moves_analysis": moves,
+                "summary": summary,
+                "feedback": feedback_result,
+            }
+        )[0]
+        
+        return analysis
+
+    def get_analysis(self, game: Game) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve analysis results for a game.
+        
+        Args:
+            game: The Game object
+            
+        Returns:
+            Dict with 'analysis' and 'feedback' keys, or None if not found
+        """
+        try:
+            analysis = GameAnalysis.objects.get(game=game)
+            return {
+                "analysis": {
+                    "moves": analysis.moves_analysis,
+                    "summary": analysis.summary,
+                },
+                "feedback": analysis.feedback,
+            }
+        except GameAnalysis.DoesNotExist:
+            return None

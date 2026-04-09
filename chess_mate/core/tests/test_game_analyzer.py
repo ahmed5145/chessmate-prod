@@ -44,20 +44,26 @@ class TestGameAnalyzer:
 
     def setup_method(self):
         """Set up test data and mocks."""
-        # Mock the StockfishAnalyzer
-        self.stockfish_patch = patch("core.analysis.stockfish_analyzer.StockfishAnalyzer")
+        # Mock the StockfishAnalyzer - patch where it's imported/used, not where it's defined
+        self.stockfish_patch = patch("core.game_analyzer.StockfishAnalyzer")
         self.mock_stockfish_class = self.stockfish_patch.start()
         self.mock_stockfish = MagicMock()
         self.mock_stockfish_class.get_instance.return_value = self.mock_stockfish
 
-        # Mock the FeedbackGenerator
-        self.feedback_patch = patch("core.analysis.feedback_generator.FeedbackGenerator")
+        # Mock the FeedbackGenerator - patch where it's imported/used
+        self.feedback_patch = patch("core.game_analyzer.FeedbackGenerator")
         self.mock_feedback_class = self.feedback_patch.start()
         self.mock_feedback = MagicMock()
         self.mock_feedback_class.return_value = self.mock_feedback
 
-        # Mock TaskManager
-        self.task_manager_patch = patch("core.task_manager.TaskManager")
+        # Mock MetricsCalculator - patch where it's imported/used
+        self.metrics_patch = patch("core.game_analyzer.MetricsCalculator")
+        self.mock_metrics_class = self.metrics_patch.start()
+        self.mock_metrics = MagicMock()
+        self.mock_metrics_class.return_value = self.mock_metrics
+
+        # Mock TaskManager - patch where it's imported/used
+        self.task_manager_patch = patch("core.game_analyzer.TaskManager")
         self.mock_task_manager_class = self.task_manager_patch.start()
         self.mock_task_manager = MagicMock()
         self.mock_task_manager_class.return_value = self.mock_task_manager
@@ -104,6 +110,7 @@ class TestGameAnalyzer:
         """Clean up patches."""
         self.stockfish_patch.stop()
         self.feedback_patch.stop()
+        self.metrics_patch.stop()
         self.task_manager_patch.stop()
         self.openai_patch.stop()
 

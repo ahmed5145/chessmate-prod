@@ -41,6 +41,13 @@ class StockfishAnalyzer:
                     atexit.register(cls._instance.cleanup)
         return cls._instance
 
+    @classmethod
+    def get_instance(cls):
+        """Get the singleton instance of StockfishAnalyzer."""
+        if cls._instance is None:
+            cls()  # Trigger __new__ and __init__
+        return cls._instance
+
     def __init__(self):
         """Initialize the analyzer."""
         self.position_evaluator = PositionEvaluator()
