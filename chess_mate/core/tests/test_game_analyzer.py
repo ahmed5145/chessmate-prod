@@ -197,11 +197,13 @@ class TestGameAnalyzer:
 
     def test_get_analysis_existing(self, test_game):
         """Test retrieving analysis for a game that has already been analyzed."""
-        # Create an analysis record
+        # Create an analysis record - use analysis_data field, not properties
         analysis = GameAnalysis.objects.create(
             game=test_game,
-            moves_analysis=self.analysis_result["moves"],
-            summary=self.analysis_result["summary"],
+            analysis_data={
+                "moves": self.analysis_result["moves"],
+                "summary": self.analysis_result["summary"],
+            },
             feedback=self.feedback_result,
         )
 

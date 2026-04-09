@@ -790,16 +790,11 @@ class GameAnalyzer:
         Returns:
             GameAnalysis object
         """
-        # Extract moves from analysis result
-        moves = analysis_result.get("moves", [])
-        summary = analysis_result.get("summary", {})
-        
-        # Create or update analysis
+        # Create or update analysis - store data in analysis_data JSONField
         analysis = GameAnalysis.objects.update_or_create(
             game=game,
             defaults={
-                "moves_analysis": moves,
-                "summary": summary,
+                "analysis_data": analysis_result,
                 "feedback": feedback_result,
             }
         )[0]
