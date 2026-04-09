@@ -12,8 +12,11 @@ import sys
 import uuid
 from typing import Any, Dict
 
-import psutil
 import redis
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 # Django imports
 from django.conf import settings
@@ -120,16 +123,23 @@ def health_check(request):
     except Exception as exc:
         redis_info = {"status": "error", "error": str(exc)}
 
-    memory = psutil.virtual_memory()
-    total_gb = round(memory.total / 1_000_000_000, 1)
-    available_gb = round(memory.available / 1_000_000_000, 1)
-    usage_percent = round(((memory.total - memory.available) / memory.total) * 100, 1) if memory.total else 0.0
+    if psutil is not None:
+        memory = psutil.virtual_memory()
+        total_gb = round(memory.total / 1_000_000_000, 1)
+        available_gb = round(memory.available / 1_000_000_000, 1)
+        usage_percent = round(((memory.total - memory.available) / memory.total) * 100, 1) if memory.total else 0.0
+        cpu_usage = psutil.cpu_percent()
+    else:
+        total_gb = 0.0
+        available_gb = 0.0
+        usage_percent = 0.0
+        cpu_usage = 0.0
 
     payload = {
         "database": {"status": "ok" if db_ok else "error", **({} if db_ok else {"error": db_message})},
         "redis": redis_info,
         "system": {
-            "cpu_usage": psutil.cpu_percent(),
+            "cpu_usage": cpu_usage,
             "memory": {
                 "total_gb": total_gb,
                 "available_gb": available_gb,
