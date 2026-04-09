@@ -15,10 +15,13 @@ from pathlib import Path
 
 import pytest
 
-# Add the project root to the Python path for relative imports
+# Add both the repository root and app package root to the Python path.
 project_root = os.path.dirname(os.path.abspath(__file__))
+app_root = os.path.join(project_root, "chess_mate")
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+if app_root not in sys.path:
+    sys.path.insert(0, app_root)
 
 # -------------------------------------------------------------------------------
 # Django Configuration
@@ -37,7 +40,7 @@ def pytest_configure(config):
     print("Setting up Django test environment")
     # Set up Django environment
     os.environ.setdefault("TESTING", "True")
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.test_settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.chess_mate.test_settings")
 
     # Try to set up Django
     try:

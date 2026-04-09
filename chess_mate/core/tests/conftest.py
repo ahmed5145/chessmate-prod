@@ -24,7 +24,7 @@ if app_root not in sys.path:
 
 # Try to configure Django for testing
 try:
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.test_settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.chess_mate.test_settings")
     django.setup()
 except ImportError:
     pass

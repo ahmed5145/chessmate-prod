@@ -12,6 +12,7 @@ Models:
 
 import logging
 import re
+import uuid
 from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import User
@@ -544,6 +545,9 @@ class Game(models.Model):
     def save(self, *args, **kwargs):
         """Override save to handle rating updates."""
         try:
+            if not self.game_id:
+                self.game_id = uuid.uuid4().hex
+
             # Get time control category before saving
             time_category = self.get_time_control_category()
             if time_category:
