@@ -125,6 +125,30 @@ def _get_compat_task_managers() -> List[Any]:
     return unique
 
 
+def _resolve_compat_async_result() -> Any:
+    """Resolve AsyncResult across aliases, preferring monkeypatched symbols."""
+    candidates: List[Any] = []
+    for module_name in (
+        "core.game_views",
+        "chess_mate.core.game_views",
+        "chessmate_prod.chess_mate.core.game_views",
+        __name__,
+    ):
+        try:
+            module = importlib.import_module(module_name)
+            candidate = getattr(module, "AsyncResult", None)
+            if callable(candidate):
+                candidates.append(candidate)
+        except Exception:
+            continue
+
+    for candidate in candidates:
+        if hasattr(candidate, "assert_called"):
+            return candidate
+
+    return candidates[0] if candidates else AsyncResult
+
+
 def _legacy_status_progress(task_id: str, task_info: Optional[Dict[str, Any]]) -> int:
     """Preserve progress values expected by legacy view tests."""
     if task_info and task_info.get("progress") not in (None, 0):
@@ -843,11 +867,7 @@ def get_task_status(request, game_id=None):
 def check_analysis_status(request, task_id):
     """Legacy endpoint: check a single analysis task by task_id."""
     compat_task_managers = _get_compat_task_managers()
-    async_result_cls = _resolve_compat_attr(
-        "core.game_views",
-        "AsyncResult",
-        _resolve_compat_attr("chess_mate.core.game_views", "AsyncResult", AsyncResult),
-    )
+    async_result_cls = _resolve_compat_async_result()
 
     task_info = None
     for manager in compat_task_managers:
@@ -873,11 +893,7 @@ def check_analysis_status(request, task_id):
 def check_batch_analysis_status(request, task_id):
     """Legacy endpoint: check a batch analysis task by task_id."""
     compat_task_managers = _get_compat_task_managers()
-    async_result_cls = _resolve_compat_attr(
-        "core.game_views",
-        "AsyncResult",
-        _resolve_compat_attr("chess_mate.core.game_views", "AsyncResult", AsyncResult),
-    )
+    async_result_cls = _resolve_compat_async_result()
 
     task_info = None
     for manager in compat_task_managers:

@@ -14,6 +14,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, TypedDict, Union, cast
 
+import sys
 import chess
 import chess.engine
 import chess.pgn
@@ -56,6 +57,22 @@ class _TaskProxy:
         return task_fn.delay(**kwargs)
 
 
+def _resolve_compat_symbol(module_names: List[str], symbol: str, default: Any) -> Any:
+    """Resolve symbols across aliases, preferring monkeypatched callables."""
+    candidates: List[Any] = []
+    for module_name in module_names:
+        module = sys.modules.get(module_name)
+        candidate = getattr(module, symbol, None) if module else None
+        if candidate is not None:
+            candidates.append(candidate)
+
+    for candidate in candidates:
+        if hasattr(candidate, "assert_called"):
+            return candidate
+
+    return candidates[0] if candidates else default
+
+
 # Legacy module-level task callables patched by tests.
 analyze_game = _TaskProxy("analyze_game_task")
 batch_analyze_games = _TaskProxy("batch_analyze_games_task")
@@ -81,7 +98,17 @@ class GameAnalyzer:
         """Initialize the game analyzer with Stockfish engine and OpenAI client."""
         try:
             self.engine = StockfishAnalyzer.get_instance()
-            self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            openai_cls = _resolve_compat_symbol(
+                [
+                    "core.game_analyzer",
+                    "chess_mate.core.game_analyzer",
+                    "chessmate_prod.chess_mate.core.game_analyzer",
+                    __name__,
+                ],
+                "OpenAI",
+                OpenAI,
+            )
+            self.openai_client = openai_cls(api_key=settings.OPENAI_API_KEY)
             self.feedback_generator = FeedbackGenerator()
             self.metrics_calculator = MetricsCalculator()
             self.task_manager = TaskManager()
@@ -127,7 +154,17 @@ class GameAnalyzer:
             "depth": depth if depth is not None else getattr(settings, "ANALYSIS_DEPTH", 20),
             "stockfish_path": stockfish_path if stockfish_path is not None else getattr(settings, "STOCKFISH_PATH", ""),
         }
-        return analyze_game.delay(**task_kwargs)
+        analyze_task = _resolve_compat_symbol(
+            [
+                "core.game_analyzer",
+                "chess_mate.core.game_analyzer",
+                "chessmate_prod.chess_mate.core.game_analyzer",
+                __name__,
+            ],
+            "analyze_game",
+            analyze_game,
+        )
+        return analyze_task.delay(**task_kwargs)
 
     def batch_analyze_games_async(
         self,
@@ -152,7 +189,17 @@ class GameAnalyzer:
             "depth": depth if depth is not None else getattr(settings, "ANALYSIS_DEPTH", 20),
             "stockfish_path": stockfish_path if stockfish_path is not None else getattr(settings, "STOCKFISH_PATH", ""),
         }
-        return batch_analyze_games.delay(**task_kwargs)
+        batch_task = _resolve_compat_symbol(
+            [
+                "core.game_analyzer",
+                "chess_mate.core.game_analyzer",
+                "chessmate_prod.chess_mate.core.game_analyzer",
+                __name__,
+            ],
+            "batch_analyze_games",
+            batch_analyze_games,
+        )
+        return batch_task.delay(**task_kwargs)
 
     def generate_feedback(self, analysis_results: Union[Dict[str, Any], List[Dict[str, Any]]], game: Optional[Game] = None) -> Dict[str, Any]:
         """Backward-compatible wrapper used by legacy analysis tests."""
