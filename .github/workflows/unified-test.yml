@@ -108,7 +108,7 @@ jobs:
         path: htmlcov/
 
     - name: Upload Coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v6
       with:
         files: ./coverage.xml
         flags: backend,python${{ matrix.python-version }}
@@ -148,7 +148,7 @@ jobs:
         path: chess_mate/frontend/coverage/
 
     - name: Upload Coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v6
       with:
         files: ./chess_mate/frontend/coverage/coverage-final.json
         flags: frontend
