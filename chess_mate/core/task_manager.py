@@ -19,6 +19,7 @@ from redis import Redis
 
 from .cache import CACHE_BACKEND_REDIS, cache_delete, cache_get, cache_set
 from .redis_connection import get_redis_connection
+from .error_handling import ResourceNotFoundError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,8 @@ class TaskManager:
     with Redis-based persistence for task information to survive application restarts.
     """
 
+    _instance: Optional["TaskManager"] = None
+
     # Task types
     TYPE_ANALYSIS = "analysis"
     TYPE_BATCH_ANALYSIS = "batch_analysis"
@@ -56,6 +59,7 @@ class TaskManager:
     # Backward-compatible status aliases used in older code paths/tests.
     STATUS_PENDING = TASK_STATUS_PENDING
     STATUS_STARTED = TASK_STATUS_STARTED
+    STATUS_RUNNING = "RUNNING"
     STATUS_COMPLETED = TASK_STATUS_SUCCESS
     STATUS_SUCCESS = TASK_STATUS_SUCCESS
     STATUS_FAILED = TASK_STATUS_FAILURE
@@ -68,10 +72,17 @@ class TaskManager:
     # Cache key prefixes
     TASK_KEY_PREFIX = "task:"
     GAME_TASK_KEY_PREFIX = "game_task:"
+    USER_TASK_KEY_PREFIX = "user_tasks:"
+    BATCH_KEY_PREFIX = "batch_task:"
 
     # Default task timeout (1 hour)
     DEFAULT_TASK_TIMEOUT = 3600
     DEFAULT_MAX_IN_MEMORY_TASKS = 5000
+
+    def __new__(cls, *args: Any, **kwargs: Any):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self, redis_client=None):
         """Initialize the task manager with default configuration."""
@@ -88,6 +99,15 @@ class TaskManager:
         
         if self.redis_client is None:
             logger.warning("Redis connection not available, using in-memory storage only")
+
+    def _cache_get_value(self, key: str) -> Any:
+        return cache_get(key, backend_name=CACHE_BACKEND_REDIS)
+
+    def _cache_set_value(self, key: str, value: Any) -> bool:
+        return bool(cache_set(key, value, timeout=self.task_timeout, backend_name=CACHE_BACKEND_REDIS))
+
+    def _cache_delete_value(self, key: str) -> bool:
+        return bool(cache_delete(key, backend_name=CACHE_BACKEND_REDIS))
 
     def _prune_in_memory_tasks(self) -> int:
         """Prune oldest in-memory task entries when cache exceeds configured bounds."""
@@ -154,6 +174,21 @@ class TaskManager:
             self.game_tasks[game_id_str] = task_id
             logger.debug(f"Mapped game {game_id} to task {task_id} in memory")
 
+        # Store in cache/Redis-compatible path for legacy tests
+        task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
+        self._cache_set_value(task_key, task_info)
+
+        if game_id is not None:
+            game_task_key = f"{self.GAME_TASK_KEY_PREFIX}{game_id}"
+            self._cache_set_value(game_task_key, task_id)
+
+        if user_id is not None:
+            user_key = f"{self.USER_TASK_KEY_PREFIX}{user_id}"
+            existing = self._cache_get_value(user_key) or []
+            if task_id not in existing:
+                existing.append(task_id)
+            self._cache_set_value(user_key, existing)
+
         # Store in Redis if available
         if self.redis_client is not None:
             try:
@@ -207,6 +242,19 @@ class TaskManager:
         self.tasks[task_id] = task_info
         self._prune_in_memory_tasks()
 
+        # Legacy-compatible cache keys
+        batch_key = f"{self.BATCH_KEY_PREFIX}{task_id}"
+        self._cache_set_value(batch_key, task_info)
+        for game_id in game_ids:
+            self._cache_set_value(f"{self.GAME_TASK_KEY_PREFIX}{game_id}", task_id)
+
+        if user_id is not None:
+            user_key = f"{self.USER_TASK_KEY_PREFIX}{user_id}"
+            existing = self._cache_get_value(user_key) or []
+            if task_id not in existing:
+                existing.append(task_id)
+            self._cache_set_value(user_key, existing)
+
         # Store in Redis if available
         if self.redis_client is not None:
             try:
@@ -234,8 +282,9 @@ class TaskManager:
 
     def update_task_status(
         self,
-        task_id: str,
-        status: str,
+        task_id: Optional[str] = None,
+        game_id: Optional[Union[int, str]] = None,
+        status: str = TASK_STATUS_PENDING,
         progress: int = 0,
         message: str = "",
         data: Optional[Dict[str, Any]] = None,
@@ -258,9 +307,16 @@ class TaskManager:
             True if update was successful, False otherwise
         """
         try:
-            if not task_id:
-                logger.warning("Cannot update task status: No task ID provided")
-                return False
+            if not task_id and game_id is None:
+                raise ValidationError("task_id or game_id is required")
+
+            if not task_id and game_id is not None:
+                task_id = self._get_task_id_for_game(game_id)
+                if not task_id:
+                    raise ResourceNotFoundError(f"No task found for game {game_id}")
+
+            if task_id is None:
+                raise ValidationError("task_id is required")
 
             # Create task info to store
             updated_at = datetime.now().isoformat()
@@ -285,7 +341,9 @@ class TaskManager:
                 task_info["progress"] = 0
 
             # First update memory cache, which is faster and always available
-            previous_info = self.tasks.get(task_id, None)
+            previous_info = self.tasks.get(task_id, None) or self._cache_get_value(f"{self.TASK_KEY_PREFIX}{task_id}")
+            if not previous_info:
+                raise ResourceNotFoundError(f"Task {task_id} not found")
             if previous_info:
                 # Check if this update represents progress compared to the previous state
                 prev_progress = previous_info.get("progress", 0)
@@ -301,8 +359,17 @@ class TaskManager:
                 logger.info(f"Creating new task status for {task_id}: {status} ({progress}%) - {message}")
             
             # Update in-memory cache
+            if previous_info:
+                merged_info = {**previous_info, **task_info}
+            else:
+                merged_info = task_info
+
+            task_info = merged_info
             self.tasks[task_id] = task_info
             self._prune_in_memory_tasks()
+
+            # Keep legacy cache representation in sync.
+            self._cache_set_value(f"{self.TASK_KEY_PREFIX}{task_id}", task_info)
 
             # Then update Redis if available
             if self.redis_client is not None:
@@ -344,10 +411,24 @@ class TaskManager:
             
             return True
             
+        except (ValidationError, ResourceNotFoundError):
+            raise
         except Exception as e:
             error_msg = f"Error updating task status for {task_id}: {str(e)}"
             logger.error(error_msg)
             return False
+
+    def get_task(self, task_id: str) -> Dict[str, Any]:
+        task = self._cache_get_value(f"{self.TASK_KEY_PREFIX}{task_id}") or self.tasks.get(task_id)
+        if not task:
+            raise ResourceNotFoundError(f"Task {task_id} not found")
+        return task
+
+    def get_existing_task(self, game_id: Union[int, str]) -> Dict[str, Any]:
+        task_id = self.get_task_for_game(game_id)
+        if not task_id:
+            raise ResourceNotFoundError(f"No task found for game {game_id}")
+        return self.get_task(task_id)
 
     def get_task_info(self, task_id: Optional[str]) -> Optional[Dict[str, Any]]:
         """
@@ -372,8 +453,8 @@ class TaskManager:
                 logger.error(f"Failed to convert task_id to string: {e}")
                 return None
 
-        # Try to get from memory cache first
-        task_info = self.tasks.get(task_id)
+        # Try to get from memory/cache first
+        task_info = self.tasks.get(task_id) or self._cache_get_value(f"{self.TASK_KEY_PREFIX}{task_id}")
         
         # Try to get from Redis if available
         try:
@@ -398,6 +479,25 @@ class TaskManager:
         except Exception as e:
             logger.error(f"Error getting task info from Redis for {task_id}: {str(e)}")
             # Continue with memory cache data only
+
+        if not task_info:
+            return None
+
+        # Overlay latest Celery state for compatibility with tests and polling callers.
+        try:
+            async_result = AsyncResult(task_id)
+            state = async_result.state
+            if state and state != task_info.get("status"):
+                task_info["status"] = state
+                if state == TASK_STATUS_SUCCESS:
+                    task_info["progress"] = 100
+                    task_info["result"] = async_result.result
+                elif state == TASK_STATUS_FAILURE:
+                    task_info["error"] = str(async_result.result)
+                self.tasks[task_id] = task_info
+                self._cache_set_value(f"{self.TASK_KEY_PREFIX}{task_id}", task_info)
+        except Exception:
+            pass
 
         return task_info
 
@@ -516,6 +616,11 @@ class TaskManager:
                     self.redis_client.delete(f"{self.GAME_TASK_KEY_PREFIX}{task_info.get('game_id')}")
             except Exception:
                 pass
+
+        # Legacy cache cleanup
+        self._cache_delete_value(f"{self.TASK_KEY_PREFIX}{task_id}")
+        if task_info and task_info.get("game_id") is not None:
+            self._cache_delete_value(f"{self.GAME_TASK_KEY_PREFIX}{task_info.get('game_id')}")
 
         return removed
 
@@ -875,6 +980,7 @@ class TaskManager:
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
             "type": task_type,
+            "game_id": game_id,
         }
 
         # Add optional fields
@@ -893,11 +999,15 @@ class TaskManager:
         # Store in memory
         self.tasks[task_id] = task_info
         self._prune_in_memory_tasks()
+
+        # Store in cache-backed compatibility layer
+        self._cache_set_value(f"{self.TASK_KEY_PREFIX}{task_id}", task_info)
         
         # If game_id is provided, store the mapping
         if game_id is not None:
             game_id_str = str(game_id)
             self.game_tasks[game_id_str] = task_id
+            self._cache_set_value(f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}", task_id)
             
             # Log the mapping
             logger.debug(f"Mapped game {game_id} to task {task_id} in memory")

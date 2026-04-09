@@ -13,7 +13,7 @@ from .health_checks import (
 )
 
 urlpatterns = [
-    path("", health_check_view, name="health_check"),
+    path("", health_check_view, name="health_check_basic"),
     path("detailed/", detailed_health_check_view, name="detailed_health_check"),
     path("readiness/", readiness_check_view, name="readiness_check"),
     path("run-check-task/", run_health_check_task, name="run_health_check_task"),
