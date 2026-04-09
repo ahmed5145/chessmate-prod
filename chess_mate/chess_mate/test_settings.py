@@ -65,6 +65,9 @@ CACHES = {
     },
 }
 
+# Keep sessions independent from cache backend in tests.
+SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
+
 # Mock external service keys
 OPENAI_API_KEY = "test-key"
 STRIPE_SECRET_KEY = "test-stripe-secret-key"

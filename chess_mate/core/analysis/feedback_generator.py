@@ -37,57 +37,59 @@ class FeedbackGenerator:
     def _initialize_openai(self) -> None:
         """Initialize OpenAI client."""
         try:
-            if not hasattr(settings, "OPENAI_API_KEY") or not settings.OPENAI_API_KEY:
+            api_key = getattr(settings, "OPENAI_API_KEY", None)
+            if not api_key:
                 logger.warning("OpenAI API key not found in settings")
                 self.openai_client = None
                 return
 
-                self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
-                logger.info("OpenAI client initialized successfully")
+            self.openai_client = OpenAI(api_key=api_key)
+            logger.info("OpenAI client initialized successfully")
         except Exception as e:
             logger.error(f"Error initializing OpenAI client: {str(e)}")
             self.openai_client = None
 
     def generate_feedback(self, analysis_result: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate feedback based on analysis results."""
+        """Generate feedback from either OpenAI or statistical fallback."""
         try:
-            # Validate metrics
-            if not analysis_result.get('metrics') or not analysis_result['metrics'].get('summary'):
+            # Accept both schemas used across the codebase/tests:
+            # 1) {"overall": ..., "phases": ...}
+            # 2) {"metrics": {"summary": {...}}}
+            game_metrics = analysis_result
+            if isinstance(analysis_result, dict) and isinstance(analysis_result.get("metrics"), dict):
+                summary = analysis_result["metrics"].get("summary")
+                if isinstance(summary, dict):
+                    game_metrics = summary
+
+            if not isinstance(game_metrics, dict) or "overall" not in game_metrics:
                 logger.warning("Invalid metrics provided, using statistical feedback")
-                return self._generate_statistical_feedback(analysis_result)
-                
-            metrics = analysis_result['metrics']['summary']
-            
-            # Generate feedback for each phase
-            opening_feedback = self._generate_opening_feedback(metrics['phases']['opening'])
-            middlegame_feedback = self._generate_middlegame_feedback(metrics['phases']['middlegame'])
-            endgame_feedback = self._generate_endgame_feedback(metrics['phases']['endgame'])
-            
-            # Identify strengths and weaknesses
-            strengths = self._identify_strengths(metrics)
-            weaknesses = self._identify_weaknesses(metrics)
-            
-            # Find critical moments
-            critical_moments = self._find_critical_moments(analysis_result['moves'])
-            
-            # Generate improvement areas
-            improvement_areas = self._generate_improvement_areas(metrics, weaknesses)
-            
-            return {
-                'source': 'ai',
-                'strengths': strengths,
-                'weaknesses': weaknesses,
-                'critical_moments': critical_moments,
-                'improvement_areas': improvement_areas,
-                'opening': opening_feedback,
-                'middlegame': middlegame_feedback,
-                'endgame': endgame_feedback,
-                'metrics': metrics
-            }
+                return self._generate_statistical_feedback({})
+
+            # Prefer AI feedback when client is available.
+            if self.openai_client is not None:
+                prompt = self._generate_analysis_prompt(game_metrics)
+                if prompt:
+                    response = self.openai_client.chat.completions.create(
+                        model=getattr(settings, "OPENAI_MODEL", "gpt-3.5-turbo"),
+                        messages=[
+                            {"role": "system", "content": "You are a chess coach. Return valid JSON only."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        temperature=getattr(settings, "OPENAI_TEMPERATURE", 0.2),
+                    )
+                    content = response.choices[0].message.content if response and response.choices else ""
+                    parsed = self._parse_ai_response(content or "")
+                    if parsed and isinstance(parsed.get("feedback"), dict):
+                        ai_feedback = parsed["feedback"]
+                        ai_feedback["metrics"] = self._calculate_statistical_metrics(game_metrics)
+                        ai_feedback.setdefault("source", "openai")
+                        return ai_feedback
+
+            return self._generate_statistical_feedback(game_metrics)
 
         except Exception as e:
             logger.error(f"Error generating feedback: {str(e)}")
-            return self._generate_statistical_feedback(analysis_result)
+            return self._generate_statistical_feedback(analysis_result if isinstance(analysis_result, dict) else {})
             
     def _generate_statistical_feedback(self, analysis_result: Dict[str, Any]) -> Dict[str, Any]:
         """Generate basic statistical feedback when AI feedback generation fails."""
@@ -339,18 +341,41 @@ class FeedbackGenerator:
         return sections
 
     def _parse_ai_response(self, response: str) -> Optional[Dict[str, Any]]:
-        """Parse the AI response and extract structured feedback."""
+        """Parse and validate the AI response payload."""
+        required_feedback_fields = {
+            "source",
+            "strengths",
+            "weaknesses",
+            "critical_moments",
+            "improvement_areas",
+            "opening",
+            "middlegame",
+            "endgame",
+        }
+
+        def _is_valid_payload(payload: Dict[str, Any]) -> bool:
+            if not isinstance(payload, dict):
+                return False
+            feedback = payload.get("feedback")
+            if not isinstance(feedback, dict):
+                return False
+            return required_feedback_fields.issubset(feedback.keys())
+
         try:
-            # First try to parse as JSON directly
+            # First try strict JSON payload parsing.
             try:
-                return json.loads(response)
+                parsed = json.loads(response)
+                if _is_valid_payload(parsed):
+                    return parsed
+                logger.warning("AI JSON response missing required feedback fields")
+                return None
             except json.JSONDecodeError:
                 logger.warning("Response is not valid JSON, attempting to extract sections")
 
-            # Extract sections from text response
+            # Fall back to section extraction for plain-text responses.
             sections = self._extract_sections(response)
             if sections:
-                return {
+                parsed = {
                     "feedback": {
                         "source": "openai",
                         "strengths": sections.get("strengths", []),
@@ -379,6 +404,8 @@ class FeedbackGenerator:
                         },
                     }
                 }
+                if _is_valid_payload(parsed):
+                    return parsed
 
             logger.error(f"Failed to parse AI response: {response[:200]}...")
             return None
