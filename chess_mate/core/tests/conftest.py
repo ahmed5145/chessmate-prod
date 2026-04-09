@@ -93,38 +93,30 @@ def pytest_sessionstart(session):
         pass
 
 
-# Model fixtures - these depend on models being properly imported
-try:
+@pytest.fixture
+def test_game(db, test_user):
+    """Create a test game."""
     try:
-        from core.models import Game, Profile
+        from core.models import Game
     except (ImportError, ModuleNotFoundError):
-        from chess_mate.core.models import Game, Profile
+        pytest.skip("core.models unavailable in this test context")
 
-    @pytest.fixture
-    def test_game(db, test_user):
-        """Create a test game."""
-        return Game.objects.create(
-            user=test_user,
-            platform="lichess",
-            white="testuser",
-            black="opponent",
-            pgn='[Event "Test Game"]\n[Site "https://lichess.org"]\n[White "testuser"]\n[Black "opponent"]\n[Result "1-0"]\n\n1.e4 e5 2.Nf3 Nc6 3.Bb5 a6 4.Ba4 Nf6 5.O-O Be7 6.d3 d6 7.c3 O-O 8.Re1 Nb8 9.Nbd2 Nbd7 10.Nf1 c6 11.Bc2 Qc7 12.Ng3 Re8 13.d4 Bf8 14.Nh4 g6 15.f4 Bg7 16.f5 1-0',
-            result="1-0",
-        )
+    return Game.objects.create(
+        user=test_user,
+        platform="lichess",
+        white="testuser",
+        black="opponent",
+        pgn='[Event "Test Game"]\n[Site "https://lichess.org"]\n[White "testuser"]\n[Black "opponent"]\n[Result "1-0"]\n\n1.e4 e5 2.Nf3 Nc6 3.Bb5 a6 4.Ba4 Nf6 5.O-O Be7 6.d3 d6 7.c3 O-O 8.Re1 Nb8 9.Nbd2 Nbd7 10.Nf1 c6 11.Bc2 Qc7 12.Ng3 Re8 13.d4 Bf8 14.Nh4 g6 15.f4 Bg7 16.f5 1-0',
+        result="1-0",
+    )
 
-    @pytest.fixture
-    def test_profile(db, test_user):
-        """Create a test profile."""
-        return Profile.objects.create(user=test_user, chess_com_username="testuser", lichess_username="testuser")
 
-except (ImportError, ModuleNotFoundError):
-    # If models cannot be imported, create dummy fixtures
-    @pytest.fixture
-    def test_game(db, test_user):
-        """Dummy test game fixture."""
-        return None
+@pytest.fixture
+def test_profile(db, test_user):
+    """Create a test profile."""
+    try:
+        from core.models import Profile
+    except (ImportError, ModuleNotFoundError):
+        pytest.skip("core.models unavailable in this test context")
 
-    @pytest.fixture
-    def test_profile(db, test_user):
-        """Dummy test profile fixture."""
-        return None
+    return Profile.objects.create(user=test_user, chess_com_username="testuser", lichess_username="testuser")
