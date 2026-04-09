@@ -36,7 +36,7 @@ class TestRequestValidationMiddleware:
     def test_valid_request_passes_validation(self, authenticated_client):
         """Test that a valid request passes validation."""
         url = reverse("register")
-        data = {"email": "newuser@example.com", "password": "securepassword123", "username": "newuser"}
+        data = {"email": "newuser@example.com", "password": "Secure.Password.123", "username": "newuser"}
         response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
 
         # Either a 201 CREATED or 400 BAD REQUEST if email already exists,
@@ -79,7 +79,7 @@ class TestRequestValidationMiddleware:
     def test_invalid_email_format(self, authenticated_client):
         """Test that a request with invalid email format is rejected."""
         url = reverse("register")
-        data = {"email": "not_an_email", "password": "securepassword123", "username": "newuser"}  # Invalid email format
+        data = {"email": "not_an_email", "password": "Secure.Password.123", "username": "newuser"}  # Invalid email format
         response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -137,7 +137,7 @@ class TestRequestValidationMiddleware:
     def test_middleware_updates_request_data(self, authenticated_client):
         """Test that the middleware updates the request data after validation."""
         url = reverse("register")
-        data = {"email": "validuser@example.com", "password": "securepassword123", "username": "validuser"}
+        data = {"email": "validuser@example.com", "password": "Secure.Password.123", "username": "validuser"}
         response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
 
         # The request should be processed normally if validation passes

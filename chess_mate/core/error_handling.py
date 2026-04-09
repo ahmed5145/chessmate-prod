@@ -20,6 +20,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import (
     APIException, 
     AuthenticationFailed, 
+    ParseError,
     PermissionDenied, 
     Throttled,
     ValidationError as DRFValidationError
@@ -171,6 +172,9 @@ def handle_view_exception(exc: Exception, request_id: Optional[str] = None) -> J
         error_type = "bad_request"
         message = str(exc.detail)
         details = None
+
+        if isinstance(exc, ParseError):
+            message = "Invalid JSON format"
 
         if isinstance(exc, ValidationError):
             # For ValidationError, extract message from the detail dict
@@ -346,6 +350,10 @@ def exception_handler(exc: Exception, context: Dict[str, Any]) -> JsonResponse:
                 message = str(response.data)
         else:
             message = "An error occurred"
+
+        # Normalize parser errors to the contract expected by tests/clients.
+        if isinstance(exc, ParseError):
+            message = "Invalid JSON format"
 
         # Get request ID if available
         request = context.get("request")

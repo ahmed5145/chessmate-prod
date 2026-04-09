@@ -518,7 +518,6 @@ def get_game(request):
 @permission_classes([IsAuthenticated])
 @auth_csrf_exempt
 @track_request_time
-@validate_request(required_fields=["game_id"])
 @rate_limit(endpoint_type="ANALYSIS")
 def analyze_game(request, game_id=None):
     """Analyze a chess game."""

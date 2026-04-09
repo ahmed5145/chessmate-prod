@@ -160,27 +160,72 @@ def register_view(request):
             errors.append({"field": "email", "message": "Email is required"})
         if not password:
             errors.append({"field": "password", "message": "Password is required"})
-        raise APIValidationError(errors)
+        return Response(
+            {
+                "status": "error",
+                "code": "VAL_001",
+                "message": "Invalid request data",
+                "details": {"errors": errors},
+                "request_id": getattr(request, "request_id", None),
+                "error": "Invalid request data",
+                "errors": errors,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Validate email format
     try:
         validate_email(email)
     except DjangoValidationError as e:
-        raise APIValidationError([{"field": "email", "message": str(e)}])
+        error_message = str(e)
+        return Response(
+            {
+                "status": "error",
+                "message": error_message,
+                "error": error_message,
+                "errors": [{"field": "email", "message": error_message}],
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Check if email already exists
     if User.objects.filter(email=email).exists():
-        raise APIValidationError([{"field": "email", "message": "Email already exists"}])
+        return Response(
+            {
+                "status": "error",
+                "message": "Email already exists",
+                "error": "Email already exists",
+                "errors": [{"field": "email", "message": "Email already exists"}],
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Check if username already exists
     if User.objects.filter(username=username).exists():
-        raise APIValidationError([{"field": "username", "message": "Username already taken"}])
+        return Response(
+            {
+                "status": "error",
+                "message": "Username already taken",
+                "error": "Username already taken",
+                "errors": [{"field": "username", "message": "Username already taken"}],
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Validate password complexity
     try:
         validate_password_complexity(password)
     except DjangoValidationError as e:
-        raise APIValidationError([{"field": "password", "message": str(e)}])
+        error_message = str(e)
+        return Response(
+            {
+                "status": "error",
+                "message": error_message,
+                "error": error_message,
+                "errors": [{"field": "password", "message": error_message}],
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Create user
     try:
@@ -246,15 +291,20 @@ def register_view(request):
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
-        return create_success_response(
+        payload = {
+            "user_id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "access": access_token,
+            "refresh": str(refresh),
+        }
+        return Response(
             {
-                "user_id": user.id,
-                "email": user.email,
-                "username": user.username,
-                "access": access_token,
-                "refresh": str(refresh),
+                "status": "success",
+                "data": payload,
+                **payload,
             },
-            status_code=201,
+            status=status.HTTP_201_CREATED,
         )
 
     except IntegrityError as e:
@@ -345,8 +395,9 @@ def login_view(request):
         logger.debug(f"Generated tokens for user {email}. Access token exists: {bool(access_token)}, Refresh token exists: {bool(refresh_token)}")
 
         # Return success response with user and tokens
-        return create_success_response(
-            data={
+        return Response(
+            {
+                "status": "success",
                 "refresh": refresh_token,
                 "access": access_token,
                 "email": user.email,
@@ -385,7 +436,7 @@ def logout_view(request):
         # Also handle session logout if relevant
         logout(request)
 
-        return create_success_response(message="Logged out successfully")
+        return Response({"status": "success", "message": "Logged out successfully"})
     except Exception as e:
         # Token might be invalid or already blacklisted
         logger.warning(f"Error blacklisting token: {str(e)}")
@@ -406,9 +457,7 @@ def token_refresh_view(request):
         refresh = RefreshToken(refresh_token)
         access_token = str(refresh.access_token)
 
-        return create_success_response(
-            {"access": access_token, "refresh": str(refresh)}  # Optional: return a new refresh token too
-        )
+        return Response({"status": "success", "access": access_token, "refresh": str(refresh)})
 
     except Exception as e:
         logger.error(f"Token refresh error: {str(e)}")
@@ -430,7 +479,9 @@ def request_password_reset(request):
     except User.DoesNotExist:
         # We still return success to prevent email enumeration
         # This is a security measure - don't let attackers know if an email exists
-        return create_success_response({"message": "If an account with this email exists, a password reset link has been sent."})
+        return Response(
+            {"status": "success", "message": "If an account with this email exists, a password reset link has been sent."}
+        )
 
     # Generate password reset token
     token = default_token_generator.make_token(user)
@@ -466,12 +517,12 @@ def request_password_reset(request):
 
         logger.info(f"Password reset email sent to {email}")
 
-        return create_success_response({"message": "Password reset link has been sent to your email."})
+        return Response({"status": "success", "message": "Password reset link has been sent to your email."})
     except Exception as e:
         logger.error(f"Failed to send password reset email: {str(e)}")
         # We don't want to expose that the email exists, so return a success response
-        return create_success_response(
-            {"message": "Password reset link has been sent to your email if an account exists."}
+        return Response(
+            {"status": "success", "message": "Password reset link has been sent to your email if an account exists."}
         )
 
 
@@ -495,13 +546,23 @@ def reset_password(request):
         errors.append({"field": "new_password", "message": "New password is required"})
 
     if errors:
-        raise APIValidationError(errors)
+        return create_error_response(
+            error_type="validation_failed",
+            message="Invalid request data",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            details={"errors": errors},
+        )
 
     # Validate password complexity
     try:
         validate_password_complexity(new_password)
     except DjangoValidationError as e:
-        raise APIValidationError([{"field": "new_password", "message": str(e)}])
+        return create_error_response(
+            error_type="validation_failed",
+            message=str(e),
+            status_code=status.HTTP_400_BAD_REQUEST,
+            details={"errors": [{"field": "new_password", "message": str(e)}]},
+        )
 
     try:
         # Get user from uid
@@ -521,7 +582,7 @@ def reset_password(request):
 
         logger.info(f"Password reset successful for user {user.email}")
 
-        return create_success_response({"message": "Password has been reset successfully."})
+        return Response({"status": "success", "message": "Password has been reset successfully."})
 
     except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
         logger.error(f"Password reset error: {str(e)}")

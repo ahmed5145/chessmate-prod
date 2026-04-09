@@ -111,7 +111,7 @@ class MethodSchema(TypedDict, total=False):
 # Validation schemas defined as a mapping of URL patterns to required fields and their types
 VALIDATION_SCHEMAS: Dict[str, MethodSchema] = {
     # Auth endpoints
-    r"^/api/register/$": {
+    r"^/api(?:/v1)?/register/$": {
         "POST": {
             "required": ["email", "password", "username"],
             "optional": ["first_name", "last_name"],
@@ -122,16 +122,16 @@ VALIDATION_SCHEMAS: Dict[str, MethodSchema] = {
             },
         }
     },
-    r"^/api/login/$": {"POST": {"required": ["email", "password"], "type_validation": {"email": str, "password": str}}},
+    r"^/api(?:/v1)?/login/$": {"POST": {"required": ["email", "password"], "type_validation": {"email": str, "password": str}}},
     # Game endpoints
-    r"^/api/games/\d+/analyze/$": {
+    r"^/api(?:/v1)?/games/\d+/analyze/$": {
         "POST": {
             "optional": ["depth", "lines"],
             "type_validation": {"depth": int, "lines": int},
             "value_validation": {"depth": lambda x: 1 <= x <= 30, "lines": lambda x: 1 <= x <= 5},
         }
     },
-    r"^/api/games/fetch/$": {
+    r"^/api(?:/v1)?/games/fetch/$": {
         "POST": {
             "required": ["platform", "username"],
             "optional": ["time_period", "limit"],
@@ -140,7 +140,7 @@ VALIDATION_SCHEMAS: Dict[str, MethodSchema] = {
         }
     },
     # Profile endpoints
-    r"^/api/profile/update/$": {
+    r"^/api(?:/v1)?/profile/update/$": {
         "PUT": {
             "optional": ["username", "first_name", "last_name", "bio", "chess_com_username", "lichess_username"],
             "type_validation": {
@@ -196,7 +196,15 @@ class ErrorDetail(TypedDict):
 
 
 # Default response for validation errors
-DEFAULT_ERROR_RESPONSE: Dict[str, Any] = {"status": "error", "message": "Invalid request data", "errors": []}
+DEFAULT_ERROR_RESPONSE: Dict[str, Any] = {
+    "status": "error",
+    "code": "VAL_001",
+    "message": "Invalid request data",
+    "details": {"errors": []},
+    "request_id": None,
+    "error": "Invalid request data",
+    "errors": [],
+}
 
 
 class RequestIDMiddleware:
@@ -295,7 +303,7 @@ class RequestValidationMiddleware:
                 try:
                     data = json.loads(request.body)
                 except json.JSONDecodeError as e:
-                    errors.append({"field": "body", "message": "Invalid JSON data", "detail": str(e)})
+                    errors.append({"field": "body", "message": "Invalid JSON format", "detail": str(e)})
                     return False, errors
             else:
                 # Use POST/PUT data as dictionary
@@ -389,6 +397,8 @@ class RequestValidationMiddleware:
         """Create an error response with validation errors."""
         response_data = DEFAULT_ERROR_RESPONSE.copy()
         response_data["errors"] = errors
+        response_data["details"] = {"errors": errors}
+        response_data["request_id"] = str(uuid.uuid4())
         return JsonResponse(response_data, status=status.HTTP_400_BAD_REQUEST)
 
 
