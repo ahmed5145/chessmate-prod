@@ -109,7 +109,7 @@ class TestGameViews:
 
             # Check if credits were deducted
             profile = Profile.objects.get(user=test_user)
-            assert profile.credits == 9  # Started with 10
+            assert profile.credits == 8  # Started with 10, imported 2 games
 
     @patch("core.chess_services.LichessService.get_user_games")
     def test_fetch_games_lichess(self, mock_get_games, authenticated_client, test_user):

@@ -572,6 +572,10 @@ def batch_analyze_games_task(self, game_ids: List[int], depth: int = 20, use_ai:
     return results
 
 
+# Backward-compatible alias for legacy tests expecting this symbol name.
+analyze_batch_games_task = batch_analyze_games_task
+
+
 @shared_task(name="chess_mate.core.tasks.cleanup_task", ignore_result=True)
 def cleanup_task() -> None:
     """

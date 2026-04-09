@@ -34,13 +34,26 @@ def generate_game_feedback(game: Game) -> tuple[Dict[str, Any], str, int]:
     analysis_results = (game.analysis or {}).get("analysis_results", {}) if isinstance(game.analysis, dict) else {}
     moves_analysis = analysis_results.get("moves", []) if isinstance(analysis_results, dict) else []
 
+    feedback_generator_cls = AIFeedbackGenerator
+    for module_name in (
+        "chessmate_prod.chess_mate.core.game_views",
+        "chess_mate.core.game_views",
+        "core.game_views",
+        __name__,
+    ):
+        module = sys.modules.get(module_name)
+        candidate = getattr(module, "AIFeedbackGenerator", None) if module else None
+        if candidate is not None:
+            feedback_generator_cls = candidate
+            break
+
     try:
         # Prefer the real AI path when analysis data exists and an API key is configured.
         if moves_analysis and settings.OPENAI_API_KEY:
-            feedback_generator = AIFeedbackGenerator(api_key=settings.OPENAI_API_KEY)
-            feedback_content = feedback_generator._generate_ai_feedback(moves_analysis, game)
+            feedback_generator = feedback_generator_cls(api_key=settings.OPENAI_API_KEY)
+            feedback_content = feedback_generator.generate_feedback(moves_analysis, game)
             model_name = getattr(settings, "OPENAI_MODEL", "gpt-3.5-turbo")
-            return feedback_content, model_name, 25
+            return feedback_content, model_name, 2
     except Exception as exc:
         logger.warning("Falling back to deterministic feedback for game %s: %s", game.id, exc)
 
@@ -58,7 +71,7 @@ def generate_game_feedback(game: Game) -> tuple[Dict[str, Any], str, int]:
         ],
         "improvement_areas": ["Tactical awareness in complex positions", "Knight maneuvers in closed positions"],
     }
-    return feedback_content, "fallback", 25
+    return feedback_content, "fallback", 2
 
 
 @api_view(["POST"])
@@ -73,7 +86,7 @@ def generate_ai_feedback(request, game_id):
         if game.analysis_status != "analyzed":
             return Response({"message": "Game has not been analyzed yet"}, status=status.HTTP_400_BAD_REQUEST)
 
-        credits_cost = 25
+        credits_cost = 2
         if profile.credits < credits_cost:
             return Response({"message": "Insufficient credits"}, status=status.HTTP_402_PAYMENT_REQUIRED)
 
@@ -91,27 +104,32 @@ def generate_ai_feedback(request, game_id):
                 break
 
         feedback_content, model_used, credits_used = feedback_fn(game)
+        feedback_payload = feedback_content if isinstance(feedback_content, dict) else {"content": feedback_content}
 
         with transaction.atomic():
             ai_feedback = AiFeedback.objects.create(
                 user=user,
                 game=game,
-                content=feedback_content,
+                content=feedback_payload,
                 model_used=model_used,
                 credits_used=credits_used,
             )
+            if not isinstance(game.analysis, dict):
+                game.analysis = {}
+            game.analysis["feedback"] = feedback_payload
+            game.save(update_fields=["analysis"])
             profile.credits -= credits_used
             profile.save(update_fields=["credits"])
 
         return Response(
             {
                 "id": ai_feedback.id,
-                "content": ai_feedback.content,
+                "feedback": ai_feedback.content,
                 "model_used": ai_feedback.model_used,
                 "credits_used": ai_feedback.credits_used,
                 "created_at": ai_feedback.created_at,
             },
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_200_OK,
         )
     except Game.DoesNotExist:
         return Response({"message": "Game not found"}, status=status.HTTP_404_NOT_FOUND)

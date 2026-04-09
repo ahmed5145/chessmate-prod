@@ -19,10 +19,12 @@ urlpatterns = [
     path("fetch/", game_views.import_external_games, name="fetch_games"),
     path("search/", game_views.search_external_player, name="search_external_player"),
     path("<int:game_id>/analyze/", game_views.analyze_game, name="analyze_game"),
-    path("<int:game_id>/analysis/status/", game_views.get_task_status, name="check_analysis_status"),
+    path("<int:game_id>/analysis/status/", game_views.get_task_status, name="game_analysis_status"),
+    path("analysis/status/<str:task_id>/", game_views.check_analysis_status, name="check_analysis_status"),
     path("<int:game_id>/analysis/", game_views.get_game_analysis, name="get_game_analysis"),
     path("batch-analyze/", game_views.batch_analyze_games, name="batch_analyze"),
     path("batch-status/", game_views.batch_get_analysis_status, name="batch_status"),
+    path("batch-status/<str:task_id>/", game_views.check_batch_analysis_status, name="check_batch_analysis_status"),
 ]
 
 # Add router URLs to urlpatterns

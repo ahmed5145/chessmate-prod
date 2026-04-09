@@ -544,6 +544,23 @@ class Game(models.Model):
             models.Index(fields=["eco_code"]),
         ]
 
+    def __init__(self, *args, **kwargs):
+        """Backward-compatible constructor for legacy raw_game_data payloads."""
+        raw_game_data = kwargs.pop("raw_game_data", None)
+        super().__init__(*args, **kwargs)
+        if raw_game_data is not None and not self.analysis:
+            self.analysis = raw_game_data
+
+    @property
+    def raw_game_data(self):
+        """Legacy alias for analysis payload used by older tests."""
+        return self.analysis or {}
+
+    @raw_game_data.setter
+    def raw_game_data(self, value):
+        """Store legacy raw game payload in analysis JSON field."""
+        self.analysis = value
+
     def __str__(self) -> str:
         return f"{self.user.username} vs {self.opponent} ({self.result})"
 

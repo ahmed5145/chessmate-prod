@@ -368,6 +368,10 @@ class ChessComService:
             logger.error(f"Error getting games for {username}: {str(e)}", exc_info=True)
             return []
 
+    def get_user_games(self, username: str, game_type: str = "all", num_games: int = 10) -> List[Dict[str, Any]]:
+        """Backward-compatible alias used by legacy tests."""
+        return self.get_games(username=username, limit=num_games, game_type=game_type)
+
 
 class LichessService:
     """
@@ -688,6 +692,10 @@ class LichessService:
         except Exception as e:
             logger.error(f"Error getting games for {username}: {str(e)}", exc_info=True)
             return []
+
+    def get_user_games(self, username: str, game_type: str = "all", num_games: int = 10) -> List[Dict[str, Any]]:
+        """Backward-compatible alias used by legacy tests."""
+        return self.get_games(username=username, limit=num_games, game_type=game_type)
 
 
 def save_game(game: Dict[str, Any], username: str, user: User) -> Optional[Game]:

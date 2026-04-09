@@ -572,6 +572,10 @@ Focus on actionable feedback that will help improve future performance."""
             logger.error(f"Error generating batch feedback: {str(e)}")
             return self._get_default_feedback()
 
+    def generate_feedback(self, game_analysis: List[Dict[str, Any]], game: Optional[Game] = None) -> Dict[str, Any]:
+        """Backward-compatible alias for callers expecting a public generate_feedback method."""
+        return self._generate_ai_feedback(game_analysis, game)
+
     def _create_batch_analysis_prompt(self, metrics: Dict[str, Any], player_profile: Dict[str, Any]) -> str:
         """Create a prompt for batch analysis."""
         return f"""Analyze the following chess games for player {player_profile.get('username', 'unknown')}:

@@ -159,6 +159,12 @@ class TaskManager:
             user_id: ID of the user who initiated the task (optional)
             game_id: ID of the game associated with the task (optional)
         """
+        # Backward-compatible positional signature:
+        # register_task(task_id, game_id, user_id)
+        if isinstance(task_type, int):
+            game_id = task_type
+            task_type = self.TYPE_ANALYSIS
+
         task_info = {
             "id": task_id,
             "type": task_type,
