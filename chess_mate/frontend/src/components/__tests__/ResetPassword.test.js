@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { BrowserRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import { toast } from "react-toastify";
 import ResetPassword from "../ResetPassword";
 import { resetPassword } from "../../services/apiRequests";
@@ -31,12 +31,15 @@ describe("ResetPassword Component", () => {
     jest.clearAllMocks();
   });
 
-  it("renders the reset password form", () => {
+  const renderWithRouter = () =>
     render(
-      <BrowserRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ResetPassword />
-      </BrowserRouter>
+      </MemoryRouter>
     );
+
+  it("renders the reset password form", () => {
+    renderWithRouter();
 
     expect(screen.getByText("Reset Your Password")).toBeInTheDocument();
     expect(screen.getByLabelText("New Password")).toBeInTheDocument();
@@ -47,11 +50,7 @@ describe("ResetPassword Component", () => {
   it("handles successful password reset", async () => {
     resetPassword.mockResolvedValueOnce({});
 
-    render(
-      <BrowserRouter>
-        <ResetPassword />
-      </BrowserRouter>
-    );
+    renderWithRouter();
 
     const passwordInput = screen.getByLabelText("New Password");
     const confirmPasswordInput = screen.getByLabelText("Confirm New Password");
@@ -79,11 +78,7 @@ describe("ResetPassword Component", () => {
     const mockError = { response: { data: { message: "Invalid token" } } };
     resetPassword.mockRejectedValueOnce(mockError);
 
-    render(
-      <BrowserRouter>
-        <ResetPassword />
-      </BrowserRouter>
-    );
+    renderWithRouter();
 
     const passwordInput = screen.getByLabelText("New Password");
     const confirmPasswordInput = screen.getByLabelText("Confirm New Password");
@@ -102,11 +97,7 @@ describe("ResetPassword Component", () => {
   });
 
   it("shows error when passwords do not match", async () => {
-    render(
-      <BrowserRouter>
-        <ResetPassword />
-      </BrowserRouter>
-    );
+    renderWithRouter();
 
     const passwordInput = screen.getByLabelText("New Password");
     const confirmPasswordInput = screen.getByLabelText("Confirm New Password");
@@ -125,11 +116,7 @@ describe("ResetPassword Component", () => {
       () => new Promise((resolve) => setTimeout(resolve, 100))
     );
 
-    render(
-      <BrowserRouter>
-        <ResetPassword />
-      </BrowserRouter>
-    );
+    renderWithRouter();
 
     const passwordInput = screen.getByLabelText("New Password");
     const confirmPasswordInput = screen.getByLabelText("Confirm New Password");

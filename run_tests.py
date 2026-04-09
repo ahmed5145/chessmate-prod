@@ -48,13 +48,15 @@ def setup_environment():
     # Make sure we're in the right directory
     os.chdir(script_dir)
 
-    # Add the project root and Django app root to PYTHONPATH
+    # Add project paths to PYTHONPATH.
+    # Keep repository root first so `chess_mate.core` resolves correctly
+    # instead of being shadowed by the nested `chess_mate/chess_mate` package.
     app_dir = script_dir / "chess_mate"
     sys.path.insert(0, str(app_dir))
     sys.path.insert(0, str(script_dir))
 
     os.environ["PYTHONPATH"] = (
-        str(app_dir) + os.pathsep + str(script_dir) + os.pathsep + os.environ.get("PYTHONPATH", "")
+        str(script_dir) + os.pathsep + str(app_dir) + os.pathsep + os.environ.get("PYTHONPATH", "")
     )
 
     # Set testing flag

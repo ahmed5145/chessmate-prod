@@ -3,12 +3,11 @@ AI Feedback-related views for the ChessMate application.
 Includes endpoints for generating and retrieving AI-powered game analysis feedback.
 """
 
-import json
 import sys
 
 # Standard library imports
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 # Django imports
 from django.conf import settings
@@ -24,14 +23,27 @@ from rest_framework.response import Response
 from .ai_feedback import AIFeedbackGenerator
 
 # Local application imports
-from .models import AiFeedback, Game, GameAnalysis, Profile
+from .models import AiFeedback, Game, Profile
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
 def generate_game_feedback(game: Game) -> tuple[Dict[str, Any], str, int]:
-    """Generate feedback content, model name, and credit cost for a game."""
+    """Generate high-quality game feedback, with deterministic fallback if AI cannot run."""
+    analysis_results = (game.analysis or {}).get("analysis_results", {}) if isinstance(game.analysis, dict) else {}
+    moves_analysis = analysis_results.get("moves", []) if isinstance(analysis_results, dict) else []
+
+    try:
+        # Prefer the real AI path when analysis data exists and an API key is configured.
+        if moves_analysis and settings.OPENAI_API_KEY:
+            feedback_generator = AIFeedbackGenerator(api_key=settings.OPENAI_API_KEY)
+            feedback_content = feedback_generator._generate_ai_feedback(moves_analysis, game)
+            model_name = getattr(settings, "OPENAI_MODEL", "gpt-3.5-turbo")
+            return feedback_content, model_name, 25
+    except Exception as exc:
+        logger.warning("Falling back to deterministic feedback for game %s: %s", game.id, exc)
+
     feedback_content: Dict[str, Any] = {
         "summary": "You played a strong game overall.",
         "opening_advice": "Your opening was solid, but consider developing your knight earlier.",
@@ -46,7 +58,7 @@ def generate_game_feedback(game: Game) -> tuple[Dict[str, Any], str, int]:
         ],
         "improvement_areas": ["Tactical awareness in complex positions", "Knight maneuvers in closed positions"],
     }
-    return feedback_content, "gpt-4-turbo", 25
+    return feedback_content, "fallback", 25
 
 
 @api_view(["POST"])

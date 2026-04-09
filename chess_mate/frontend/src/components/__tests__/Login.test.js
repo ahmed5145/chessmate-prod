@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import Login from '../Login';
 import { toast } from 'react-hot-toast';
 import { loginUser } from '../../services/apiRequests';
@@ -34,12 +34,15 @@ describe('Login Component', () => {
     jest.clearAllMocks();
   });
 
-  test('renders login form', () => {
+  const renderWithRouter = () =>
     render(
-      <BrowserRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Login />
-      </BrowserRouter>
+      </MemoryRouter>
     );
+
+  test('renders login form', () => {
+    renderWithRouter();
 
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
@@ -52,11 +55,7 @@ describe('Login Component', () => {
       user: { id: 1, email: 'test@example.com' },
     });
 
-    render(
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
-    );
+    renderWithRouter();
 
     fireEvent.change(screen.getByLabelText(/email address/i), {
       target: { value: 'test@example.com' },
@@ -77,11 +76,7 @@ describe('Login Component', () => {
   test('handles login failure', async () => {
     loginUser.mockRejectedValueOnce(new Error('Invalid credentials'));
 
-    render(
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
-    );
+    renderWithRouter();
 
     fireEvent.change(screen.getByLabelText(/email address/i), {
       target: { value: 'wrong@example.com' },

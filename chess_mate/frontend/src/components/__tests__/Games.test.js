@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { UserContext } from '../../contexts/UserContext';
 import { ThemeProvider } from '../../context/ThemeContext';
 import Games from '../Games';
@@ -68,16 +68,19 @@ describe('Games Component', () => {
     analyzeSpecificGame.mockResolvedValue({ status: 'success' });
   });
 
-  test('renders games list', async () => {
+  const renderWithProviders = () =>
     render(
       <ThemeProvider>
-        <BrowserRouter>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <UserContext.Provider value={{ credits: 100 }}>
             <Games />
           </UserContext.Provider>
-        </BrowserRouter>
+        </MemoryRouter>
       </ThemeProvider>
     );
+
+  test('renders games list', async () => {
+    renderWithProviders();
 
     await waitFor(() => {
       expect(screen.getByText(/opponent1/i)).toBeInTheDocument();
@@ -88,15 +91,7 @@ describe('Games Component', () => {
   });
 
   test('renders filter controls', async () => {
-    render(
-      <ThemeProvider>
-        <BrowserRouter>
-          <UserContext.Provider value={{ credits: 100 }}>
-            <Games />
-          </UserContext.Provider>
-        </BrowserRouter>
-      </ThemeProvider>
-    );
+    renderWithProviders();
 
     await waitFor(() => {
       expect(fetchUserGames).toHaveBeenCalled();
@@ -106,15 +101,7 @@ describe('Games Component', () => {
   test('handles fetch error', async () => {
     fetchUserGames.mockRejectedValueOnce(new Error('Failed to fetch games'));
 
-    render(
-      <ThemeProvider>
-        <BrowserRouter>
-          <UserContext.Provider value={{ credits: 100 }}>
-            <Games />
-          </UserContext.Provider>
-        </BrowserRouter>
-      </ThemeProvider>
-    );
+    renderWithProviders();
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Failed to fetch games');
@@ -124,29 +111,13 @@ describe('Games Component', () => {
   test('displays loading state', () => {
     fetchUserGames.mockImplementation(() => new Promise(() => {})); // Never resolves
 
-    render(
-      <ThemeProvider>
-        <BrowserRouter>
-          <UserContext.Provider value={{ credits: 100 }}>
-            <Games />
-          </UserContext.Provider>
-        </BrowserRouter>
-      </ThemeProvider>
-    );
+    renderWithProviders();
 
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
   });
 
   test('handles analyze game click', async () => {
-    render(
-      <ThemeProvider>
-        <BrowserRouter>
-          <UserContext.Provider value={{ credits: 100 }}>
-            <Games />
-          </UserContext.Provider>
-        </BrowserRouter>
-      </ThemeProvider>
-    );
+    renderWithProviders();
 
     await waitFor(() => {
       const analyzeButtons = screen.getAllByRole('button', { name: /analyze/i });
