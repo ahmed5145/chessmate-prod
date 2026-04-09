@@ -77,6 +77,13 @@ aws.yaml
 logs/
 *.log
 
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
 # Redis
 dump.rdb
 *.rdb

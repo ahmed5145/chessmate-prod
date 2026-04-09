@@ -38,12 +38,12 @@ jobs:
 
       - name: Install Node.js dependencies
         run: |
-          cd frontend
+          cd chess_mate/frontend
           npm ci
 
       - name: Run npm audit
         run: |
-          cd frontend
+          cd chess_mate/frontend
           npm audit
 
       - name: Run OWASP ZAP Baseline Scan

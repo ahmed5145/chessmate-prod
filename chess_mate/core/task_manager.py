@@ -30,6 +30,8 @@ TASK_STATUS_FAILURE = "FAILURE"
 TASK_STATUS_REVOKED = "REVOKED"
 TASK_STATUS_RETRY = "RETRY"
 
+TERMINAL_TASK_STATUSES = {TASK_STATUS_SUCCESS, TASK_STATUS_FAILURE, TASK_STATUS_REVOKED}
+
 # Task type constants
 TASK_TYPE_ANALYSIS = "analysis"
 TASK_TYPE_BATCH_ANALYSIS = "batch_analysis"
@@ -60,6 +62,8 @@ class TaskManager:
     STATUS_FAILURE = TASK_STATUS_FAILURE
     STATUS_RETRY = TASK_STATUS_RETRY
     STATUS_REVOKED = TASK_STATUS_REVOKED
+
+    TERMINAL_STATUSES = TERMINAL_TASK_STATUSES
 
     # Cache key prefixes
     TASK_KEY_PREFIX = "task:"
@@ -704,7 +708,7 @@ class TaskManager:
         task_info = self.get_task_info(task_id)
         if not task_info:
             # Return default status instead of checking Celery
-                return {
+            return {
                 "status": "PENDING",
                 "message": "Task not found or not started",
                 "progress": 0
@@ -756,14 +760,29 @@ class TaskManager:
             task_info = self.get_task_info(task_id)
             if not task_info:
                 logger.debug(f"Task {task_id} for game {game_id} not found in task info")
+                self.game_tasks.pop(game_id_str, None)
+                if self.redis_client is not None:
+                    try:
+                        self.redis_client.delete(f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}")
+                    except Exception:
+                        pass
                 return []
             
             # Check if the task is still active (not completed or failed)
             status = task_info.get("status", "UNKNOWN")
             logger.debug(f"Task {task_id} for game {game_id} has status: {status}")
             
-            # Return the task ID regardless of status to prevent duplicates
-            # This ensures we don't create multiple tasks for the same game
+            if status in self.TERMINAL_STATUSES:
+                # Terminal tasks should no longer block new analysis runs.
+                self.game_tasks.pop(game_id_str, None)
+                if self.redis_client is not None:
+                    try:
+                        self.redis_client.delete(f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}")
+                    except Exception:
+                        pass
+                return []
+
+            # Non-terminal task is active and should prevent duplicate enqueue.
             return [task_id]
         except Exception as e:
             logger.error(f"Error in get_active_tasks_for_game for game {game_id}: {str(e)}")

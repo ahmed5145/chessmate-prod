@@ -1,7 +1,7 @@
 """Parameterized tests for utility functions."""
 
 import pytest
-from test_utils_standalone import (
+from standalone_tests.test_utils_standalone import (
     is_valid_move,  # Reuse the function we've already tested
 )
 

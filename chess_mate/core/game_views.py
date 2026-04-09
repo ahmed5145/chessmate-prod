@@ -123,8 +123,43 @@ class GameViewSet(viewsets.ModelViewSet):
             depth = int(request.data.get("depth", 20))
             use_ai = bool(request.data.get("use_ai", True))
 
-            # Create analysis task
-            task = analyze_game_task.delay(game.id, depth, use_ai)
+            lock = None
+            lock_acquired = False
+            if task_manager.redis_client is not None:
+                lock = task_manager.redis_client.lock(f"analysis_lock:game:{game.id}", timeout=15, blocking_timeout=3)
+
+            try:
+                if lock is not None:
+                    lock_acquired = lock.acquire(blocking=True)
+
+                active_tasks = task_manager.get_active_tasks_for_game(game.id)
+                if active_tasks:
+                    existing_task_id = active_tasks[0]
+                    return Response(
+                        {
+                            "status": "already_running",
+                            "message": "Analysis already in progress",
+                            "task_id": existing_task_id,
+                        }
+                    )
+
+                # Create analysis task
+                task = analyze_game_task.delay(game.id, depth, use_ai)
+
+                # Register immediately so follow-up requests see the canonical task.
+                task_manager.register_task(
+                    task_id=task.id,
+                    task_type=TaskManager.TYPE_ANALYSIS,
+                    user_id=request.user.id,
+                    game_id=game.id,
+                )
+
+            finally:
+                if lock is not None and lock_acquired:
+                    try:
+                        lock.release()
+                    except Exception:
+                        logger.debug("Failed to release analysis lock", exc_info=True)
 
             return Response({"status": "success", "message": "Analysis started", "task_id": task.id})
 

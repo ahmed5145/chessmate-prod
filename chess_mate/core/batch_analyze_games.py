@@ -55,38 +55,53 @@ def analyze_game_safely(game_id, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use
                 "timestamp": timezone.now().isoformat()
             }
 
-        # Avoid duplicate task enqueue for the same game.
-        active_tasks = task_manager.get_active_tasks_for_game(game_id)
-        if active_tasks:
-            existing_task_id = active_tasks[0]
-            logger.warning(f"Found existing task {existing_task_id} for game {game_id}")
-            return {
-                "status": "already_running",
-                "message": "Analysis already in progress",
-                "task_id": existing_task_id,
-                "game_id": game_id,
-                "timestamp": timezone.now().isoformat()
-            }
-            
-        # Start a new analysis task
+        lock = None
+        lock_acquired = False
+        if task_manager.redis_client is not None:
+            lock = task_manager.redis_client.lock(f"analysis_lock:game:{game_id}", timeout=15, blocking_timeout=3)
+
         try:
-            # Pass only parameters that the task accepts: game_id, depth, use_ai
-            task = analyze_game_task.delay(game_id, depth=depth, use_ai=use_ai)
-            task_id = task.id
-            task_manager.register_task(
-                task_id=task_id,
-                task_type=TaskManager.TYPE_ANALYSIS,
-                user_id=user_id,
-                game_id=game_id,
-            )
-        except Exception as task_error:
-            logger.error(f"Failed to create task for game {game_id}: {str(task_error)}", exc_info=True)
-            return {
-                "status": "error",
-                "message": f"Task creation failed: {str(task_error)}",
-                "game_id": game_id,
-                "timestamp": timezone.now().isoformat()
-            }
+            if lock is not None:
+                lock_acquired = lock.acquire(blocking=True)
+
+            # Avoid duplicate task enqueue for the same game.
+            active_tasks = task_manager.get_active_tasks_for_game(game_id)
+            if active_tasks:
+                existing_task_id = active_tasks[0]
+                logger.warning(f"Found existing task {existing_task_id} for game {game_id}")
+                return {
+                    "status": "already_running",
+                    "message": "Analysis already in progress",
+                    "task_id": existing_task_id,
+                    "game_id": game_id,
+                    "timestamp": timezone.now().isoformat()
+                }
+
+            # Start a new analysis task
+            try:
+                # Pass only parameters that the task accepts: game_id, depth, use_ai
+                task = analyze_game_task.delay(game_id, depth=depth, use_ai=use_ai)
+                task_id = task.id
+                task_manager.register_task(
+                    task_id=task_id,
+                    task_type=TaskManager.TYPE_ANALYSIS,
+                    user_id=user_id,
+                    game_id=game_id,
+                )
+            except Exception as task_error:
+                logger.error(f"Failed to create task for game {game_id}: {str(task_error)}", exc_info=True)
+                return {
+                    "status": "error",
+                    "message": f"Task creation failed: {str(task_error)}",
+                    "game_id": game_id,
+                    "timestamp": timezone.now().isoformat()
+                }
+        finally:
+            if lock is not None and lock_acquired:
+                try:
+                    lock.release()
+                except Exception:
+                    logger.debug("Failed to release analysis lock", exc_info=True)
         
         logger.info(f"Analysis task {task_id} started for game {game_id}")
         
