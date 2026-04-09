@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -55,7 +55,7 @@ jobs:
           npm audit
 
       - name: Run OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.9.0
+        uses: zaproxy/action-baseline@v0.15.0
         with:
           target: 'https://staging.chessmate.com'
           allow_issue_writing: false
