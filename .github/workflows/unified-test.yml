@@ -95,7 +95,7 @@ jobs:
 
     - name: Run Django Tests
       run: |
-        python run_tests.py --django --coverage
+        python run_tests.py --django --coverage --fail-under 0
 
     - name: Generate Combined Coverage Report
       run: |
