@@ -85,7 +85,7 @@ jobs:
 
     - name: Deploy to Staging Server
       if: ${{ github.event.inputs.environment == 'staging' || github.ref == 'refs/heads/staging' }}
-      uses: appleboy/ssh-action@master
+      uses: appleboy/ssh-action@v1.2.0
       with:
         host: ${{ secrets.STAGING_HOST }}
         username: ${{ secrets.STAGING_USERNAME }}
