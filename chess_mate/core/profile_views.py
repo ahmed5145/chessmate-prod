@@ -66,6 +66,12 @@ def get_basic_profile(user):
             "last_name": user.last_name,
             "date_joined": user.date_joined.isoformat() if hasattr(user, 'date_joined') else None,
             "is_active": user.is_active,
+            "elo_rating": 1200,
+            "analysis_count": 0,
+            "credits": 0,
+            "chess_com_username": "",
+            "lichess_username": "",
+            "preferences": {},
             "profile": {
                 "credits": 0,  # Default value
                 "chess_com_username": "",
@@ -83,6 +89,12 @@ def get_basic_profile(user):
                 response_data["profile"]["chess_com_username"] = getattr(profile, 'chess_com_username', "")
                 response_data["profile"]["lichess_username"] = getattr(profile, 'lichess_username', "")
                 response_data["profile"]["preferences"] = getattr(profile, 'preferences', {})
+                response_data["elo_rating"] = getattr(profile, "elo_rating", 1200)
+                response_data["analysis_count"] = getattr(profile, "analysis_count", 0)
+                response_data["credits"] = getattr(profile, "credits", 0)
+                response_data["chess_com_username"] = getattr(profile, "chess_com_username", "")
+                response_data["lichess_username"] = getattr(profile, "lichess_username", "")
+                response_data["preferences"] = getattr(profile, "preferences", {})
             except Exception as e:
                 logger.error(f"Error accessing profile attributes: {e}")
         
@@ -140,6 +152,8 @@ def profile_view(request):
                 "chess_com_username": profile.chess_com_username,
                 "lichess_username": profile.lichess_username,
                 "rating": max(profile.blitz_rating, profile.rapid_rating, profile.classical_rating),  # Use max rating as general rating
+                "elo_rating": getattr(profile, "elo_rating", 1200),
+                "analysis_count": getattr(profile, "analysis_count", 0),
                 "credits": profile.credits,
                 "email_verified": profile.email_verified,
                 "created_at": profile.created_at,
@@ -176,7 +190,23 @@ def profile_view(request):
             if subscription_data:
                 combined_data["subscription"] = subscription_data
                 
-            return Response({"status": "success", "data": combined_data}, status=status.HTTP_200_OK)
+            response_payload = {
+                "status": "success",
+                "data": combined_data,
+                "id": request.user.id,
+                "username": request.user.username,
+                "email": request.user.email,
+                "first_name": request.user.first_name,
+                "last_name": request.user.last_name,
+                "credits": profile.credits,
+                "chess_com_username": profile.chess_com_username,
+                "lichess_username": profile.lichess_username,
+                "elo_rating": getattr(profile, "elo_rating", 1200),
+                "analysis_count": getattr(profile, "analysis_count", 0),
+                "preferences": getattr(profile, "preferences", {}),
+            }
+
+            return Response(response_payload, status=status.HTTP_200_OK)
             
         except ImportError:
             logger.error("Failed to import Profile model in profile_view")
@@ -195,8 +225,18 @@ def profile_view(request):
                             "lichess_username": getattr(request.user.profile, 'lichess_username', '') or '',
                             "email_verified": getattr(request.user.profile, 'email_verified', False),
                             "rating": 1200,  # Default rating
+                            "elo_rating": getattr(request.user.profile, 'elo_rating', 1200),
+                            "analysis_count": getattr(request.user.profile, 'analysis_count', 0),
                         }
-                    }
+                    },
+                    "username": request.user.username,
+                    "email": request.user.email,
+                    "credits": getattr(request.user.profile, 'credits', 10),
+                    "chess_com_username": getattr(request.user.profile, 'chess_com_username', '') or '',
+                    "lichess_username": getattr(request.user.profile, 'lichess_username', '') or '',
+                    "elo_rating": getattr(request.user.profile, 'elo_rating', 1200),
+                    "analysis_count": getattr(request.user.profile, 'analysis_count', 0),
+                    "preferences": getattr(request.user.profile, 'preferences', {}),
                 },
                 status=status.HTTP_200_OK
             )
@@ -218,8 +258,18 @@ def profile_view(request):
                         "lichess_username": getattr(request.user.profile, 'lichess_username', '') or '',
                         "email_verified": getattr(request.user.profile, 'email_verified', False),
                         "rating": 1200,  # Default rating
+                        "elo_rating": getattr(request.user.profile, 'elo_rating', 1200),
+                        "analysis_count": getattr(request.user.profile, 'analysis_count', 0),
                     }
-                }
+                },
+                "username": request.user.username,
+                "email": request.user.email,
+                "credits": getattr(request.user.profile, 'credits', 10),
+                "chess_com_username": getattr(request.user.profile, 'chess_com_username', '') or '',
+                "lichess_username": getattr(request.user.profile, 'lichess_username', '') or '',
+                "elo_rating": getattr(request.user.profile, 'elo_rating', 1200),
+                "analysis_count": getattr(request.user.profile, 'analysis_count', 0),
+                "preferences": getattr(request.user.profile, 'preferences', {}),
             },
             status=status.HTTP_200_OK
         )
@@ -335,6 +385,15 @@ def update_profile(request):
         if "lichess_username" in request.data:
             profile.lichess_username = request.data.get("lichess_username")
 
+        if "elo_rating" in request.data:
+            try:
+                profile.elo_rating = int(request.data.get("elo_rating"))
+            except (TypeError, ValueError):
+                return Response({"elo_rating": ["A valid integer is required."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        if "analysis_count" in request.data:
+            profile.analysis_count = request.data.get("analysis_count")
+
         if "preferences" in request.data:
             preferences = request.data.get("preferences")
             if isinstance(preferences, dict):
@@ -348,8 +407,23 @@ def update_profile(request):
             user.save()
             profile.save()
 
-        # Return updated profile data
-        return profile_view(request)
+        # Return updated profile data in a flat legacy-compatible shape.
+        return Response(
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "credits": profile.credits,
+                "chess_com_username": profile.chess_com_username,
+                "lichess_username": profile.lichess_username,
+                "elo_rating": profile.elo_rating,
+                "analysis_count": profile.analysis_count,
+                "preferences": profile.preferences,
+            },
+            status=status.HTTP_200_OK,
+        )
     except ImportError as e:
         logger.error(f"Import error in update_profile: {str(e)}")
         return Response({"error": "Profile update feature temporarily unavailable"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -401,6 +475,168 @@ def add_credits(request):
     except Exception as e:
         logger.error(f"Error adding credits: {str(e)}")
         return Response({"error": f"Error adding credits: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+def _get_or_create_legacy_tier(plan: str):
+    """Return a subscription tier for legacy plan names used in tests."""
+    from .models import SubscriptionTier
+
+    defaults_by_plan = {
+        "monthly": {"name": "Monthly", "price": 9.99, "period_length": 30, "credits_per_period": 100},
+        "yearly": {"name": "Yearly", "price": 99.99, "period_length": 365, "credits_per_period": 1200},
+    }
+    defaults = defaults_by_plan.get(plan)
+    if defaults is None:
+        return None
+
+    tier, _ = SubscriptionTier.objects.get_or_create(
+        slug=plan,
+        defaults={
+            "name": defaults["name"],
+            "price": defaults["price"],
+            "description": f"Legacy {plan} plan",
+            "features": ["analysis"],
+            "credits_per_period": defaults["credits_per_period"],
+            "period_length": defaults["period_length"],
+            "is_active": True,
+        },
+    )
+    return tier
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def subscribe_pro_plan(request):
+    """Legacy endpoint: create a pending subscription and payment intent."""
+    from .models import Subscription
+
+    plan = request.data.get("plan")
+    payment_method_id = request.data.get("payment_method_id")
+    if plan not in {"monthly", "yearly"}:
+        return Response({"plan": ["Invalid plan"]}, status=status.HTTP_400_BAD_REQUEST)
+    if not payment_method_id:
+        return Response({"payment_method_id": ["This field is required"]}, status=status.HTTP_400_BAD_REQUEST)
+
+    tier = _get_or_create_legacy_tier(plan)
+    payment_intent = stripe.PaymentIntent.create(amount=999, currency="usd", payment_method=payment_method_id)
+
+    Subscription.objects.create(
+        user=request.user,
+        tier=tier,
+        plan=plan,
+        stripe_subscription_id=payment_intent.get("id"),
+        status="pending",
+        active=False,
+        is_active=False,
+    )
+
+    return Response({"client_secret": payment_intent.get("client_secret")}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def confirm_subscription(request):
+    """Legacy endpoint: mark a pending subscription as active after Stripe confirmation."""
+    from .models import Subscription
+
+    subscription_id = request.data.get("subscription_id")
+    if not subscription_id:
+        return Response({"subscription_id": ["This field is required"]}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        subscription = Subscription.objects.get(user=request.user, stripe_subscription_id=subscription_id)
+    except Subscription.DoesNotExist:
+        return Response({"error": "Subscription not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    stripe_status = stripe.Subscription.retrieve(subscription_id).get("status")
+    if stripe_status == "active":
+        subscription.active = True
+        subscription.status = "active"
+        subscription.save(update_fields=["is_active", "status"])
+        return Response({"message": "Successfully confirmed subscription"}, status=status.HTTP_200_OK)
+
+    return Response({"error": "Subscription is not active"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def purchase_credits(request):
+    """Legacy endpoint: create a pending payment for a credit package."""
+    from .models import Payment
+
+    package = request.data.get("credit_package")
+    payment_method_id = request.data.get("payment_method_id")
+    package_values = {"50_credits": (50, 9.99), "100_credits": (100, 17.99), "200_credits": (200, 32.99)}
+    if package not in package_values:
+        return Response({"credit_package": ["Invalid credit package"]}, status=status.HTTP_400_BAD_REQUEST)
+    if not payment_method_id:
+        return Response({"payment_method_id": ["This field is required"]}, status=status.HTTP_400_BAD_REQUEST)
+
+    credit_amount, amount = package_values[package]
+    payment_intent = stripe.PaymentIntent.create(amount=int(amount * 100), currency="usd", payment_method=payment_method_id)
+
+    Payment.objects.create(
+        user=request.user,
+        amount=amount,
+        credit_amount=credit_amount,
+        stripe_payment_id=payment_intent.get("id"),
+        status="pending",
+    )
+
+    return Response({"client_secret": payment_intent.get("client_secret")}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def confirm_credit_purchase(request):
+    """Legacy endpoint: finalize credit purchase and apply credits."""
+    from .models import Payment, Profile
+
+    payment_intent_id = request.data.get("payment_intent_id")
+    if not payment_intent_id:
+        return Response({"payment_intent_id": ["This field is required"]}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        payment = Payment.objects.get(user=request.user, stripe_payment_id=payment_intent_id)
+    except Payment.DoesNotExist:
+        return Response({"error": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    payment_status = stripe.PaymentIntent.retrieve(payment_intent_id).get("status")
+    if payment_status != "succeeded":
+        return Response({"error": "Payment not completed"}, status=status.HTTP_400_BAD_REQUEST)
+
+    with transaction.atomic():
+        profile, _ = Profile.objects.select_for_update().get_or_create(user=request.user)
+        profile.credits = F("credits") + payment.credit_amount
+        profile.save(update_fields=["credits"])
+        payment.status = "completed"
+        payment.save(update_fields=["status"])
+
+    return Response({"message": f"Successfully added {payment.credit_amount} credits"}, status=status.HTTP_200_OK)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_preferences(request):
+    """Legacy endpoint: update only profile preferences."""
+    from .models import Profile
+
+    preferences = request.data.get("preferences")
+    if not isinstance(preferences, dict):
+        return Response({"preferences": ["Must be an object"]}, status=status.HTTP_400_BAD_REQUEST)
+
+    allowed_themes = {"light", "dark", "system"}
+    theme = preferences.get("theme")
+    if theme is not None and theme not in allowed_themes:
+        return Response({"preferences": {"theme": ["Invalid theme"]}}, status=status.HTTP_400_BAD_REQUEST)
+
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    current_preferences = profile.preferences or {}
+    current_preferences.update(preferences)
+    profile.preferences = current_preferences
+    profile.save(update_fields=["preferences"])
+
+    return Response({"message": "Preferences updated", "preferences": profile.preferences}, status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])

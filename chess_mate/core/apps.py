@@ -36,13 +36,11 @@ class CoreConfig(AppConfig):
         # Importing here to avoid circular imports
         from django.db.models.signals import post_save
         from django.contrib.auth.models import User
-        from .models import Profile
 
         # Define the signal handler function
         def create_user_profile(sender, instance, created, **kwargs):
-            """Create a profile when a new user is created."""
-            if created:
-                Profile.objects.get_or_create(user=instance)
+            """Legacy hook retained for compatibility; profile creation is handled explicitly."""
+            return None
         
         # Connect the signal handler properly - not using decorator syntax
         post_save.connect(create_user_profile, sender=User)

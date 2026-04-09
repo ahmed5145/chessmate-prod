@@ -14,8 +14,8 @@ import pytest
 # Repository root must come first so `chess_mate.core` resolves to
 # `<repo>/chess_mate/core` instead of the nested `chess_mate/chess_mate` package.
 tests_dir = os.path.dirname(__file__)
-app_root = os.path.abspath(os.path.join(tests_dir, "../../../"))
-repo_root = os.path.abspath(os.path.join(tests_dir, "../../../../"))
+app_root = os.path.abspath(os.path.join(tests_dir, "../.."))
+repo_root = os.path.abspath(os.path.join(tests_dir, "../../.."))
 
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
@@ -27,6 +27,17 @@ try:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.test_settings")
     django.setup()
 except ImportError:
+    pass
+
+try:
+    import core as core_package
+    import core.models as core_models
+
+    sys.modules.setdefault("chess_mate.core", core_package)
+    sys.modules.setdefault("chess_mate.core.models", core_models)
+    sys.modules.setdefault("chessmate_prod.chess_mate.core", core_package)
+    sys.modules.setdefault("chessmate_prod.chess_mate.core.models", core_models)
+except Exception:
     pass
 
 

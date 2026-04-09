@@ -25,6 +25,7 @@ python-chess==1.999
 
 # Asynchronous Task Processing
 celery==5.3.4
+tenacity==8.2.3
 
 # Utility Libraries
 python-dotenv==1.0.0

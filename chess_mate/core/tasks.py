@@ -43,6 +43,10 @@ from .task_manager import (
 
 logger = get_task_logger(__name__)
 
+# Legacy aliases expected by older tests and call sites.
+StockfishAnalyzer = GameAnalyzer
+FeedbackGenerator = AIFeedbackGenerator
+
 
 class BaseAnalysisTask(Task):
     """Base class for analysis tasks."""
@@ -546,3 +550,108 @@ def monitor_system_task() -> None:
 
     except Exception as e:
         logger.error(f"Error during system monitoring task: {str(e)}")
+
+
+def analyze_game(
+    game_id: int,
+    user_id: Optional[int] = None,
+    stockfish_path: Optional[str] = None,
+    depth: int = 20,
+    use_ai: bool = True,
+) -> Dict[str, Any]:
+    """Backward-compatible synchronous analysis helper used by legacy tests."""
+    task_manager = TaskManager()
+    try:
+        game = Game.objects.get(id=game_id)
+    except Game.DoesNotExist:
+        task_manager.update_task_status(
+            task_id=f"legacy_{game_id}",
+            status=TASK_STATUS_FAILURE,
+            message="Game not found",
+            error=f"Game {game_id} not found",
+        )
+        return {"status": "error", "error": f"Game not found: {game_id}"}
+
+    task_manager.update_task_status(
+        task_id=f"legacy_{game_id}",
+        status=TASK_STATUS_STARTED,
+        progress=0,
+        message="Starting analysis",
+    )
+
+    try:
+        analyzer = StockfishAnalyzer(stockfish_path)
+        analysis_result = analyzer.analyze_game(game, depth=depth, use_ai=use_ai)
+
+        feedback_result = None
+        if use_ai:
+            feedback_generator = FeedbackGenerator(api_key=getattr(settings, "OPENAI_API_KEY", None))
+            feedback_result = feedback_generator.generate_feedback(analysis_result, game)
+
+        GameAnalysis.objects.update_or_create(
+            game=game,
+            defaults={
+                "analysis_data": {
+                    "status": "complete",
+                    "moves_analysis": analysis_result.get("moves", {}),
+                    "summary": analysis_result.get("summary", {}),
+                    "analysis": analysis_result,
+                },
+                "feedback": feedback_result or {},
+            },
+        )
+
+        task_manager.update_task_status(
+            task_id=f"legacy_{game_id}",
+            status=TASK_STATUS_SUCCESS,
+            progress=100,
+            message="Analysis complete",
+            result={"analysis": analysis_result, "feedback": feedback_result},
+        )
+
+        result: Dict[str, Any] = {"status": "success", "game_id": game_id, "analysis": analysis_result}
+        if use_ai:
+            result["feedback"] = feedback_result
+        return result
+    except Exception as error:
+        task_manager.update_task_status(
+            task_id=f"legacy_{game_id}",
+            status=TASK_STATUS_FAILURE,
+            message="Analysis failed",
+            error=str(error),
+        )
+        return {"status": "error", "error": str(error), "game_id": game_id}
+
+
+def batch_analyze_games(
+    game_ids: List[int],
+    user_id: Optional[int] = None,
+    stockfish_path: Optional[str] = None,
+    depth: int = 20,
+    use_ai: bool = True,
+) -> Dict[str, Any]:
+    """Backward-compatible batch analysis helper used by legacy tests."""
+    if not game_ids:
+        return {"status": "error", "error": "No games specified"}
+
+    results: List[Dict[str, Any]] = []
+    for game_id in game_ids:
+        results.append(
+            analyze_game(
+                game_id=game_id,
+                user_id=user_id,
+                stockfish_path=stockfish_path,
+                depth=depth,
+                use_ai=use_ai,
+            )
+        )
+
+    statuses = {result.get("status") for result in results}
+    if statuses == {"success"}:
+        status_value = "success"
+    elif "success" in statuses:
+        status_value = "partial_success"
+    else:
+        status_value = "error"
+
+    return {"status": status_value, "results": results, "game_ids": game_ids}

@@ -487,7 +487,7 @@ class ExternalServiceError(APIException):
 
 def create_success_response(
     data: Any = None, message: Optional[str] = None, status_code: int = status.HTTP_200_OK
-) -> JsonResponse:
+) -> Response:
     """
     Create a standardized success response.
 
@@ -497,14 +497,17 @@ def create_success_response(
         status_code: HTTP status code
 
     Returns:
-        JsonResponse with standardized success format
+        Response with standardized success format
     """
     response_data = {"status": "success", "data": data if data is not None else {}}
+
+    if isinstance(data, dict):
+        response_data.update(data)
 
     if message:
         response_data["message"] = message
 
-    return JsonResponse(response_data, status=status_code)
+    return Response(response_data, status=status_code)
 
 
 # Standardized error responses for auth issues

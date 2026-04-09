@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 
 # Define cache backends
 CACHE_BACKEND_DEFAULT = "default"  # Django's default cache (memory)
+CACHE_BACKEND_MEMORY = CACHE_BACKEND_DEFAULT  # Backward-compatible alias used by tests
 CACHE_BACKEND_REDIS = "redis"  # Redis cache for persistence
 CACHE_BACKEND_LOCAL = "local"  # Local cache for testing
 
