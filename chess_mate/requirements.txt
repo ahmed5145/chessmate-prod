@@ -5,7 +5,7 @@ Django==4.2.5
 djangorestframework==3.14.0
 django-cors-headers==4.2.0
 django-filter==23.2
-django-storages==1.14.1
+django-storages==1.14.6
 django-redis==5.3.0
 djangorestframework-simplejwt==5.3.0
 
@@ -14,7 +14,7 @@ gunicorn==21.2.0
 whitenoise==6.5.0
 
 # Database and Cache
-psycopg2-binary==2.9.7
+psycopg2-binary==2.9.11
 redis==4.6.0
 hiredis==2.2.3
 rq==1.15.1
@@ -38,7 +38,7 @@ Pillow==10.0.1
 stripe==6.5.0
 
 # API Documentation
-drf-yasg==1.21.7
+drf-yasg==1.21.11
 
 # Testing
 pytest==7.4.2
@@ -48,11 +48,11 @@ pytest-cov==4.1.0
 pytest-xdist==3.5.0
 pytest-sugar==1.0.0
 pytest-timeout==2.2.0
-pytest-env==1.1.0
+pytest-env==1.1.5
 pytest-randomly==3.15.0
 pytest-freezegun==0.4.2
 coverage==7.3.1
-fakeredis==3.0.0
+fakeredis==2.35.0
 
 # Development Tools
 black==23.9.1
