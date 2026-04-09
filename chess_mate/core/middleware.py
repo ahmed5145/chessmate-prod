@@ -397,8 +397,19 @@ class RateLimitMiddleware:
 
     def __init__(self, get_response):
         self.get_response = get_response
-        self.rate_limits = getattr(settings, 'RATE_LIMITS', {})
-        logger.debug(f"Rate limit middleware initialized with {len(self.rate_limits)} endpoint patterns")
+        self.rate_limits = getattr(settings, "RATE_LIMITS", {})
+        self._memory_rate_state: Dict[str, Tuple[int, int]] = {}
+        self.endpoint_patterns = getattr(
+            settings,
+            "RATE_LIMIT_ENDPOINT_PATTERNS",
+            {
+                "AUTH": [r"^/api/login/?$", r"^/api/register/?$"],
+                "GAME": [r"^/api/games/?$", r"^/api/games/.*/?$"],
+                "ANALYSIS": [r"^/api/games/\d+/analyze/?$", r"^/api/analysis/.*/?$"],
+                "DEFAULT": [r"^/api/"],
+            },
+        )
+        logger.debug("Rate limit middleware initialized")
 
     def __call__(self, request):
         """Process the request and apply rate limiting."""
@@ -425,20 +436,25 @@ class RateLimitMiddleware:
 
     def _should_rate_limit(self, path):
         """Determine if the request should be rate limited."""
-        # Check for specific endpoint patterns
-        for pattern in self.rate_limits.get('endpoint_patterns', {}).keys():
+        if not path.startswith("/api/"):
+            return False
+
+        excluded_paths = getattr(settings, "RATE_LIMIT_EXCLUDED_PATHS", [r"^/api/health/?$"])
+        for pattern in excluded_paths:
             if re.search(pattern, path):
-                return True
-        return False
+                return False
+
+        return True
 
     def _get_endpoint_type(self, path):
         """Determine the endpoint type based on the request path."""
-        # Check for specific endpoint patterns
-        for pattern, endpoint_type in self.rate_limits.get('endpoint_patterns', {}).items():
-            if re.search(pattern, path):
-                return endpoint_type
-        
-        # Default endpoint type
+        for endpoint_type, patterns in self.endpoint_patterns.items():
+            if endpoint_type == "DEFAULT":
+                continue
+            for pattern in patterns:
+                if re.search(pattern, path):
+                    return endpoint_type
+
         return "DEFAULT"
 
     def _get_rate_limit_keys(self, request, endpoint_type):
@@ -454,68 +470,100 @@ class RateLimitMiddleware:
         
         return keys
 
+    def _get_primary_rate_limit_key(self, request, endpoint_type):
+        """Build the primary cache key for rate limiting counters."""
+        if hasattr(request, "user") and request.user.is_authenticated:
+            identity = f"user:{request.user.id}"
+        else:
+            identity = f"ip:{request.META.get('REMOTE_ADDR', '127.0.0.1')}"
+        return f"rate_limit:{endpoint_type}:{identity}"
+
     def _get_rate_limit_config(self, endpoint_type):
         """Get rate limit configuration for endpoint type."""
-        # Get configuration from settings
-        config = self.rate_limits.get(endpoint_type, self.rate_limits.get('DEFAULT', {}))
-        
-        # Default values if not specified
-        default_config = {
-            'rate': '100/3600',  # 100 requests per hour
-            'window': 3600,      # 1 hour window
-            'backend': 'default'  # Default cache backend
-        }
-        
-        # Update defaults with configured values
-        default_config.update(config)
-        
+        config_source = getattr(settings, "RATE_LIMIT_CONFIG", None) or getattr(settings, "RATE_LIMIT", None) or {}
+        default_config = {"MAX_REQUESTS": 100, "TIME_WINDOW": 3600}
+        endpoint_config = config_source.get(endpoint_type, config_source.get("DEFAULT", {}))
+        default_config.update(endpoint_config)
         return default_config
+
+    def _is_rate_limited(self, key, endpoint_type):
+        """Return True when request count exceeds endpoint limits."""
+        config = self._get_rate_limit_config(endpoint_type)
+        max_requests = int(config.get("MAX_REQUESTS", 100))
+        time_window = int(config.get("TIME_WINDOW", 3600))
+
+        now = int(time.time())
+        count, first_ts = self._memory_rate_state.get(key, (0, now))
+
+        cached_count = cache.get(key, None)
+        cached_first_ts = cache.get(f"{key}:ts", None)
+        if cached_count is not None:
+            count = int(cached_count)
+        if cached_first_ts is not None:
+            first_ts = int(cached_first_ts)
+
+        if now - first_ts >= time_window:
+            cache.set(key, 1, timeout=time_window)
+            cache.set(f"{key}:ts", now, timeout=time_window)
+            self._memory_rate_state[key] = (1, now)
+            return False
+
+        if count >= max_requests:
+            return True
+
+        ttl = max(1, time_window - max(0, now - first_ts))
+        cache.set(key, count + 1, timeout=ttl)
+        cache.set(f"{key}:ts", first_ts, timeout=ttl)
+        self._memory_rate_state[key] = (count + 1, first_ts)
+        return False
+
+    def _get_remaining_requests(self, key, endpoint_type):
+        """Get remaining requests within the current time window."""
+        config = self._get_rate_limit_config(endpoint_type)
+        max_requests = int(config.get("MAX_REQUESTS", 100))
+        count = int(cache.get(key, 0) or 0)
+        if count == 0 and key in self._memory_rate_state:
+            count = self._memory_rate_state[key][0]
+        return max(0, max_requests - count)
+
+    def _get_reset_time(self, key, endpoint_type):
+        """Get seconds until the current rate limit window resets."""
+        config = self._get_rate_limit_config(endpoint_type)
+        time_window = int(config.get("TIME_WINDOW", 3600))
+        now = int(time.time())
+        first_ts = int(cache.get(f"{key}:ts", now) or now)
+        if first_ts == now and key in self._memory_rate_state:
+            first_ts = self._memory_rate_state[key][1]
+        return max(0, time_window - max(0, now - first_ts))
 
     def _check_rate_limit(self, key_type, identifier, endpoint_type):
         """Check if request exceeds rate limits."""
-        config = self._get_rate_limit_config(endpoint_type)
-        rate = config.get('rate', '100/3600')
-        
-        # Check if rate limited
-        is_limited = limiter.is_rate_limited(key_type, identifier, rate)
-        
-        # Increment counter if not limited
-        if not is_limited:
-            limiter.increment(key_type, identifier, rate)
-        
-        return is_limited
+        key = f"rate_limit:{endpoint_type}:{key_type}:{identifier}"
+        return not self._is_rate_limited(key, endpoint_type)
 
     def _add_rate_limit_headers(self, response, keys, endpoint_type):
         """Add rate limit headers to response."""
-        # Get the most restrictive limit (lowest remaining requests)
-        min_remaining = None
-        
-        for key_type, identifier in keys.items():
-            config = self._get_rate_limit_config(endpoint_type)
-            rate = config.get('rate', '100/3600')
-            
-            # Get remaining requests
-            remaining = limiter.get_remaining(key_type, identifier, rate)
-            
-            # Update minimum remaining
-            if min_remaining is None or remaining < min_remaining:
-                min_remaining = remaining
-        
-        # Add headers if minimum remaining was determined
-        if min_remaining is not None:
-            response['X-RateLimit-Remaining'] = str(min_remaining)
-        
+        key = next((f"rate_limit:{endpoint_type}:{kt}:{identifier}" for kt, identifier in keys.items()), None)
+        if key is None:
+            return response
+
+        config = self._get_rate_limit_config(endpoint_type)
+        response["X-RateLimit-Limit"] = str(config.get("MAX_REQUESTS", 100))
+        response["X-RateLimit-Remaining"] = str(self._get_remaining_requests(key, endpoint_type))
+        response["X-RateLimit-Reset"] = str(self._get_reset_time(key, endpoint_type))
+
         return response
 
     def _rate_limit_response(self, request):
         """Create response for rate-limited requests."""
-        return JsonResponse(
-            {
-                'status': 'error',
-                'code': 'rate_limit_exceeded',
-                'message': 'Rate limit exceeded. Please try again later.'
-            },
-            status=429
+        endpoint_type = self._get_endpoint_type(request.path)
+        key = self._get_primary_rate_limit_key(request, endpoint_type)
+        reset_time = self._get_reset_time(key, endpoint_type)
+        return create_error_response(
+            error_type="rate_limit_exceeded",
+            message=f"Rate limit exceeded. Please try again in {reset_time} seconds.",
+            status_code=429,
+            details={"reset_time": reset_time, "endpoint_type": endpoint_type},
         )
 
 

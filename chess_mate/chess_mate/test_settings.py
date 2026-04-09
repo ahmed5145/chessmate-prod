@@ -168,9 +168,12 @@ STOCKFISH_MOVE_OVERHEAD = 30
 # Silence Django deprecation warnings
 import warnings
 
-from django.utils.deprecation import RemovedInDjango60Warning
+try:
+    from django.utils.deprecation import RemovedInDjango60Warning as _RemovedInDjangoWarning
+except Exception:
+    _RemovedInDjangoWarning = DeprecationWarning
 
-warnings.filterwarnings("ignore", category=RemovedInDjango60Warning)
+warnings.filterwarnings("ignore", category=_RemovedInDjangoWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # OpenAI Settings
@@ -198,3 +201,7 @@ RATE_LIMIT = {
         "TIME_WINDOW": 600,
     },
 }
+
+# Backward-compatible alias used by middleware tests.
+RATE_LIMIT_CONFIG = RATE_LIMIT
+RATE_LIMIT_EXCLUDED_PATHS = [r"^/api/health/?$"]

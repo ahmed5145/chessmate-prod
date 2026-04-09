@@ -5,6 +5,7 @@ Provides standardized error responses, exception handling, and custom exceptions
 """
 
 import functools
+import json
 import logging
 import threading
 import traceback
@@ -106,6 +107,20 @@ ERROR_CODES = {
 }
 
 
+class APIJsonResponse(JsonResponse):
+    """JsonResponse with DRF-like data/json access used by tests."""
+
+    @property
+    def data(self):
+        try:
+            return json.loads(self.content.decode("utf-8"))
+        except Exception:
+            return {}
+
+    def json(self):
+        return self.data
+
+
 def create_error_response(
     error_type: str,
     message: str,
@@ -130,8 +145,9 @@ def create_error_response(
 
     response_data = ERROR_RESPONSE_STRUCTURE.copy()
     response_data.update({"code": error_code, "message": message, "details": details, "request_id": request_id})
+    response_data["error"] = message
 
-    return JsonResponse(response_data, status=status_code)
+    return APIJsonResponse(response_data, status=status_code)
 
 
 def handle_view_exception(exc: Exception, request_id: Optional[str] = None) -> JsonResponse:
@@ -155,6 +171,9 @@ def handle_view_exception(exc: Exception, request_id: Optional[str] = None) -> J
         error_type = "bad_request"
         message = str(exc.detail)
         details = None
+
+        if isinstance(exc, ValidationError):
+            details = {"errors": exc.errors}
 
         # Map exception types to error codes
         if status_code == status.HTTP_401_UNAUTHORIZED:

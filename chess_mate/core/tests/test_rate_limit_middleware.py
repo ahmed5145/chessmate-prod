@@ -217,11 +217,7 @@ class TestRateLimitMiddleware:
             # Set a fake current time to make testing deterministic
             current_time = 1000.0  # 1000 seconds since epoch
 
-            with patch("datetime.datetime.utcnow") as mock_utcnow:
-                # Mock timestamp to return fixed time
-                mock_date = MagicMock()
-                mock_date.timestamp.return_value = current_time
-                mock_utcnow.return_value = mock_date
+            with patch("core.middleware.time.time", return_value=current_time):
 
                 # Reset time should be less than or equal to the window
                 reset_time = middleware._get_reset_time(key, "DEFAULT")
