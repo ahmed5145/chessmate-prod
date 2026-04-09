@@ -235,15 +235,17 @@ jobs:
         severity: 'CRITICAL,HIGH'
         ignore-unfixed: true
 
-    - name: Set up Snyk CLI
-      if: ${{ secrets.SNYK_TOKEN != '' }}
-      uses: snyk/actions/setup@master
-
     - name: Run Repository Security Scan
-      if: ${{ secrets.SNYK_TOKEN != '' }}
-      run: snyk test --severity-threshold=high --all-projects
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      run: |
+        if [ -z "$SNYK_TOKEN" ]; then
+          echo "SNYK_TOKEN is not configured; skipping repository scan."
+          exit 0
+        fi
+        npm install -g snyk
+        snyk auth "$SNYK_TOKEN"
+        snyk test --severity-threshold=high --all-projects
 
   health-check:
     name: Health Check Test
