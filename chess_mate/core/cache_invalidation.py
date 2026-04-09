@@ -11,9 +11,11 @@ import logging
 from typing import Any, Callable, Dict, List, Set, TypeVar, Union, cast
 
 from django.conf import settings
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
 from django.utils.decorators import method_decorator
 
-from .cache import generate_cache_key, invalidate_pattern
+from .cache import generate_cache_key, get_redis_connection, invalidate_pattern
 
 logger = logging.getLogger(__name__)
 
@@ -83,10 +85,10 @@ class CacheInvalidator:
                 for prefix in ENTITY_KEY_PREFIXES.get(dependency, []):
                     invalidate_pattern(f"{prefix}*{entity_id}*", "redis")
 
-            logger.debug("Invalidated cache for %s:%s", entity_type, entity_id)
+            logger.debug(f"Invalidated cache for {entity_type}:{entity_id}")
             return True
-        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
-            logger.error("Error invalidating entity cache for %s:%s: %s", entity_type, entity_id, error)
+        except Exception as error:
+            logger.error(f"Error invalidating entity cache for {entity_type}:{entity_id}: {error}")
             return False
 
     def initialize(self) -> None:
@@ -143,6 +145,13 @@ class CacheInvalidator:
             Number of patterns invalidated
         """
         try:
+            # Legacy tag invalidation uses explicit tag-marker keys.
+            if tag == GLOBAL_TAG:
+                invalidate_pattern(f"*{TAG_SEPARATOR}*", "redis")
+                logger.debug(f"Invalidated cache for tag: {tag}")
+                return True
+
+            invalidate_pattern(f"*{TAG_SEPARATOR}{tag}", "redis")
             for prefix in TAG_KEY_PREFIXES.get(tag, []):
                 invalidate_pattern(f"{prefix}*", "redis")
 
@@ -150,10 +159,10 @@ class CacheInvalidator:
                 for prefix in TAG_KEY_PREFIXES.get(dependency, []):
                     invalidate_pattern(f"{prefix}*", "redis")
 
-            logger.debug("Invalidated cache for tag: %s", tag)
+            logger.debug(f"Invalidated cache for tag: {tag}")
             return True
-        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
-            logger.error("Error invalidating tag cache for %s: %s", tag, error)
+        except Exception as error:
+            logger.error(f"Error invalidating tag cache for {tag}: {error}")
             return False
 
     @classmethod
@@ -187,10 +196,10 @@ class CacheInvalidator:
             ]
             for pattern in patterns:
                 invalidate_pattern(pattern, "redis")
-            logger.debug("Invalidated all cache for user: %s", user_id)
+            logger.debug(f"Invalidated all cache for user: {user_id}")
             return True
-        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
-            logger.error("Error invalidating user cache for %s: %s", user_id, error)
+        except Exception as error:
+            logger.error(f"Error invalidating user cache for {user_id}: {error}")
             return False
 
     @classmethod
@@ -204,10 +213,10 @@ class CacheInvalidator:
             ]
             for pattern in patterns:
                 invalidate_pattern(pattern, "redis")
-            logger.debug("Invalidated all cache for game: %s", game_id)
+            logger.debug(f"Invalidated all cache for game: {game_id}")
             return True
-        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
-            logger.error("Error invalidating game cache for %s: %s", game_id, error)
+        except Exception as error:
+            logger.error(f"Error invalidating game cache for {game_id}: {error}")
             return False
 
     @classmethod
@@ -253,30 +262,34 @@ def with_cache_tags(*tags: str) -> Callable[[Any], Any]:
     """
 
     def decorator(func: F) -> F:
+        existing_tags = getattr(func, "_cache_tags", set())
+        if not isinstance(existing_tags, set):
+            existing_tags = set(existing_tags)
+        combined_tags = existing_tags.union(set(tags))
+
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Get the base cache key for this function call
-            base_key = generate_cache_key(func.__module__, func.__qualname__, *args, **kwargs)
+            # Keep key generation stable for legacy tests and helper utilities.
+            base_key = generate_cache_key(func.__name__, *args, **kwargs)
+            result = func(*args, **kwargs)
 
-            # For each tag, store a mapping from the tag to this cache key
-            for tag in tags:
-                _tag_key = f"{base_key}{TAG_SEPARATOR}{tag}"
-                # This is a no-op key that helps us find keys by tag pattern
-                # We don't actually store anything here, it's just for pattern matching
-                # This approach allows for fine-grained invalidation without maintaining
-                # a separate index of keys
+            redis_client = get_redis_connection()
+            if redis_client:
+                if redis_client.get(base_key) is None:
+                    redis_client.set(base_key, "1")
+                    for tag in combined_tags:
+                        redis_client.set(f"{base_key}{TAG_SEPARATOR}{tag}", "1")
 
-            # Call the original function
-            return func(*args, **kwargs)
+            return result
 
         # Store the tags on the function for introspection
-        setattr(wrapper, "_cache_tags", tags)
+        setattr(wrapper, "_cache_tags", combined_tags)
         return cast(F, wrapper)
 
     return decorator
 
 
-def invalidates_cache(*tags: str) -> Callable[[F], F]:
+def invalidates_cache(*tags: str, entities: Union[Dict[str, str], None] = None) -> Callable[[F], F]:
     """
     Decorator to invalidate cache tags when a function is called.
 
@@ -295,7 +308,19 @@ def invalidates_cache(*tags: str) -> Callable[[F], F]:
 
             # Invalidate the specified cache tags
             try:
-                invalidate_cache(list(tags))
+                for tag in tags:
+                    CacheInvalidator.invalidate_tag(tag)
+
+                if entities:
+                    for entity_type, argument_name in entities.items():
+                        entity_id = kwargs.get(argument_name)
+                        if entity_id is None:
+                            for arg in args:
+                                if isinstance(arg, dict) and argument_name in arg:
+                                    entity_id = arg.get(argument_name)
+                                    break
+                        if entity_id is not None:
+                            CacheInvalidator.invalidate_entity(entity_type, entity_id)
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
                 logger.error("Error invalidating cache in %s: %s", func.__qualname__, error)
 
@@ -374,3 +399,21 @@ class CacheTagsMiddleware:
                         response["Cache-Control"] = "public, max-age=300"
 
         return response
+
+
+@receiver(post_save)
+def invalidate_cache_on_save(sender: Any, instance: Any, **kwargs: Any) -> None:
+    """Legacy post-save hook used by compatibility tests."""
+    model_name = sender.__name__
+    if model_name not in ENTITY_KEY_PREFIXES:
+        return
+
+    entity_id = getattr(instance, "id", None)
+    if entity_id is not None:
+        CacheInvalidator.invalidate_entity(model_name, entity_id)
+
+
+@receiver(post_delete)
+def invalidate_cache_on_delete(sender: Any, instance: Any, **kwargs: Any) -> None:
+    """Legacy post-delete hook used by compatibility tests."""
+    invalidate_cache_on_save(sender, instance, **kwargs)

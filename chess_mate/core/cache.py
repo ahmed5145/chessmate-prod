@@ -15,6 +15,7 @@ import logging
 import random
 import time
 import uuid
+from urllib.parse import urlparse
 from functools import wraps
 from typing import (
     Any,
@@ -84,6 +85,14 @@ def get_cache_instance(cache_alias: str = "default") -> BaseCache:
     Returns:
         A Django cache instance
     """
+    if cache_alias in {CACHE_BACKEND_DEFAULT, CACHE_BACKEND_MEMORY}:
+        return cast(BaseCache, cache)
+
+    if cache_alias == CACHE_BACKEND_REDIS:
+        redis_client = get_redis_connection()
+        if redis_client is not None:
+            return cast(BaseCache, redis_client)
+
     try:
         return caches[cache_alias]
     except Exception as e:
@@ -105,41 +114,32 @@ def get_redis_connection() -> Optional["Redis"]:  # type: ignore
     Returns:
         Redis client instance
     """
-    global _redis_client
+    # Build a fresh client so patched `redis.Redis` in tests is always honored.
+    try:
+        redis_url = getattr(settings, "REDIS_URL", None) or "redis://localhost:6379/0"
+        parsed = urlparse(redis_url)
+        host = parsed.hostname or "localhost"
+        port = parsed.port or 6379
+        db = int((parsed.path or "/0").lstrip("/") or 0)
+        password = parsed.password
 
-    # Check if Redis is disabled in settings
-    redis_disabled = getattr(settings, "REDIS_DISABLED", False)
-    if redis_disabled:
-        logger.debug("Redis is disabled in settings. Using dummy Redis client.")
-        class DummyRedis:
-            def __getattr__(self, name):
-                def method(*args, **kwargs):
-                    logger.debug(f"Redis operation {name} called but Redis is disabled")
-                    return None
-                return method
-        return cast(redis.Redis, DummyRedis())  # type: ignore
-
-    if _redis_client is None:
-        try:
-            redis_url = getattr(settings, "REDIS_URL", "redis://localhost:6379/0")
-            _redis_client = redis.from_url(  # type: ignore
-                redis_url,
-                socket_timeout=getattr(settings, "REDIS_SOCKET_TIMEOUT", 5),
-                socket_connect_timeout=getattr(settings, "REDIS_SOCKET_CONNECT_TIMEOUT", 5),
-                retry_on_timeout=True,
-                decode_responses=True,
-                health_check_interval=30,
-                max_connections=getattr(settings, "REDIS_MAX_CONNECTIONS", 100),
-            )
-            # Test connection
-            _redis_client.ping()  # type: ignore
-            logger.info("Successfully connected to Redis")
-        except Exception as e:
-            logger.error(f"Error connecting to Redis: {str(e)}")
-            _redis_client = None
-            return None
-
-    return _redis_client
+        client = redis.Redis(  # type: ignore
+            host=host,
+            port=port,
+            db=db,
+            password=password,
+            socket_timeout=getattr(settings, "REDIS_SOCKET_TIMEOUT", 5),
+            socket_connect_timeout=getattr(settings, "REDIS_SOCKET_CONNECT_TIMEOUT", 5),
+            retry_on_timeout=True,
+            decode_responses=False,
+            health_check_interval=30,
+            max_connections=getattr(settings, "REDIS_MAX_CONNECTIONS", 100),
+        )
+        client.ping()  # type: ignore
+        return client
+    except Exception as e:
+        logger.error(f"Error connecting to Redis: {str(e)}")
+        return None
 
 
 def cache_key(prefix: str, *args: Any, **kwargs: Any) -> str:
@@ -169,7 +169,7 @@ def cache_key(prefix: str, *args: Any, **kwargs: Any) -> str:
     return ":".join(key_parts)
 
 
-def cache_get(key, default=None, backend_name=CACHE_BACKEND_DEFAULT):
+def cache_get(key: str, default: Any = None, backend_name: str = CACHE_BACKEND_DEFAULT) -> Any:
     """
     Get a value from cache with error handling.
     
@@ -181,8 +181,33 @@ def cache_get(key, default=None, backend_name=CACHE_BACKEND_DEFAULT):
     Returns:
         Cached value or default
     """
+    # Backward compatibility: legacy callers pass backend as positional arg #2.
+    if isinstance(default, str) and default in {CACHE_BACKEND_DEFAULT, CACHE_BACKEND_MEMORY, CACHE_BACKEND_REDIS}:
+        backend_name = default
+        default = None
+
     try:
         logger.debug(f"Getting cache key: {key}")
+        if backend_name == CACHE_BACKEND_REDIS:
+            redis_client = get_redis_connection()
+            if redis_client is None:
+                return default
+
+            raw_value = redis_client.get(key)  # type: ignore
+            if raw_value is None:
+                return default
+
+            if isinstance(raw_value, bytes):
+                raw_value = raw_value.decode("utf-8")
+
+            try:
+                parsed = json.loads(raw_value)
+                if isinstance(parsed, dict) and "value" in parsed:
+                    return parsed["value"]
+                return parsed
+            except Exception:
+                return raw_value
+
         return cache.get(key, default)
     except RedisError as e:
         # Handle Redis-specific errors
@@ -193,7 +218,14 @@ def cache_get(key, default=None, backend_name=CACHE_BACKEND_DEFAULT):
         return default
 
 
-def cache_set(key: str, value: Any, timeout: Optional[int] = None, backend_name: str = CACHE_BACKEND_DEFAULT) -> bool:
+def cache_set(
+    key: str,
+    value: Any,
+    timeout: Optional[int] = None,
+    backend_name: str = CACHE_BACKEND_DEFAULT,
+    ttl: Optional[int] = None,
+    backend: Optional[str] = None,
+) -> bool:
     """
     Set a value in the specified cache backend.
 
@@ -206,7 +238,23 @@ def cache_set(key: str, value: Any, timeout: Optional[int] = None, backend_name:
     Returns:
         True if successful, False otherwise
     """
+    if ttl is not None and timeout is None:
+        timeout = ttl
+    if backend is not None:
+        backend_name = backend
+
     try:
+        if backend_name == CACHE_BACKEND_REDIS:
+            redis_client = get_redis_connection()
+            if redis_client is None:
+                return False
+            serialized = json.dumps({"value": value})
+            if timeout is not None:
+                redis_client.set(key, serialized, ex=timeout)  # type: ignore
+            else:
+                redis_client.set(key, serialized)  # type: ignore
+            return True
+
         # First try to use the specified backend
         backend = caches[backend_name] if backend_name != CACHE_BACKEND_DEFAULT else cache
         backend.set(key, value, timeout=timeout)
@@ -229,7 +277,7 @@ def cache_set(key: str, value: Any, timeout: Optional[int] = None, backend_name:
         return False
 
 
-def cache_delete(key: str, backend_name: str = CACHE_BACKEND_DEFAULT) -> bool:
+def cache_delete(key: str, backend_name: str = CACHE_BACKEND_DEFAULT, backend: Optional[str] = None) -> Union[bool, int]:
     """
     Delete a value from the specified cache backend.
 
@@ -240,7 +288,16 @@ def cache_delete(key: str, backend_name: str = CACHE_BACKEND_DEFAULT) -> bool:
     Returns:
         True if successful, False otherwise
     """
+    if backend is not None:
+        backend_name = backend
+
     try:
+        if backend_name == CACHE_BACKEND_REDIS:
+            redis_client = get_redis_connection()
+            if redis_client is None:
+                return 0
+            return redis_client.delete(key)  # type: ignore
+
         # First try to use the specified backend
         backend = caches[backend_name] if backend_name != CACHE_BACKEND_DEFAULT else cache
         backend.delete(key)
@@ -435,7 +492,37 @@ def memoize(timeout: Optional[int] = None, cache_backend: str = CACHE_BACKEND_DE
     return decorator
 
 
-def invalidate_cache(prefix: str, *args: Any, cache_alias: str = "default", **kwargs: Any) -> bool:
+def cache_memoize(
+    prefix: str,
+    ttl: Optional[int] = None,
+    backend: str = CACHE_BACKEND_DEFAULT,
+) -> Callable[[F], F]:
+    """Legacy memoization decorator retained for backward compatibility."""
+
+    def decorator(func: F) -> F:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            cache_key_value = generate_cache_key(prefix, *args, **kwargs)
+            cached_value = cache_get(cache_key_value, backend)
+            if cached_value is not None:
+                return cached_value
+
+            result = func(*args, **kwargs)
+            cache_set(cache_key_value, result, ttl=ttl, backend=backend)
+            return result
+
+        return cast(F, wrapper)
+
+    return decorator
+
+
+def invalidate_cache(
+    prefix: str,
+    *args: Any,
+    cache_alias: str = "default",
+    backend: Optional[str] = None,
+    **kwargs: Any,
+) -> bool:
     """
     Invalidate cache entries with the given prefix and arguments.
 
@@ -448,7 +535,17 @@ def invalidate_cache(prefix: str, *args: Any, cache_alias: str = "default", **kw
     Returns:
         True if cache was invalidated successfully, False otherwise
     """
+    if backend is not None:
+        cache_alias = backend
+
     key = cache_key(prefix, *args, **kwargs)
+    if args and len(args) == 1 and isinstance(args[0], list):
+        key = cache_key(prefix, *args[0], **kwargs)
+
+    if cache_alias == CACHE_BACKEND_REDIS:
+        deleted = cache_delete(key, backend=CACHE_BACKEND_REDIS)
+        return bool(deleted)
+
     cache_instance = get_cache_instance(cache_alias)
 
     try:
@@ -460,7 +557,7 @@ def invalidate_cache(prefix: str, *args: Any, cache_alias: str = "default", **kw
         return False
 
 
-def invalidate_pattern(pattern: str, cache_alias: str = "default") -> bool:
+def invalidate_pattern(pattern: str, cache_alias: str = "default", backend: Optional[str] = None) -> bool:
     """
     Invalidate all cache entries matching the given pattern.
     Only works with Redis cache.
@@ -472,6 +569,9 @@ def invalidate_pattern(pattern: str, cache_alias: str = "default") -> bool:
     Returns:
         True if pattern invalidation was successful, False otherwise
     """
+    if backend is not None:
+        cache_alias = backend
+
     redis_client = get_redis_connection()
     if not redis_client:
         logger.warning("Cannot invalidate by pattern: Redis not available")

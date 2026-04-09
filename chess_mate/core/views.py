@@ -64,17 +64,18 @@ def readiness_check(request: HttpRequest) -> HttpResponse:
         HTTP 200 if all dependencies are ready, 503 otherwise
     """
     problems = []
+    from . import health_checks
 
     # Check database
-    db_check = check_database()
+    db_check = health_checks.check_database()
     if db_check["status"] != "ok":
         problems.append(f"Database: {db_check['message']}")
 
     # If there are problems, return 503
     if problems:
-        return HttpResponse(f"Not ready: {', '.join(problems)}", status=503, content_type="text/plain")
+        return JsonResponse({"status": "not_ready", "message": f"Not ready: {', '.join(problems)}"}, status=503)
 
-    return HttpResponse("ready")
+    return JsonResponse({"status": "ready"})
 
 
 @api_view(["GET"])
@@ -204,7 +205,7 @@ def clear_cache(request: HttpRequest) -> Response:
     Returns:
         JSON response with the result of the operation
     """
-    from .cache_invalidation import GLOBAL_TAG, cache_invalidator
+    from .cache_invalidation import GLOBAL_TAG, invalidate_cache
 
     start_time = time.time()
     pattern = request.data.get("pattern")
@@ -216,7 +217,9 @@ def clear_cache(request: HttpRequest) -> Response:
         # If tags are provided, invalidate those specific tags
         if isinstance(tags, str):
             tags = [tags]
-        count = cache_invalidator.invalidate_tags(tags)
+        for tag in tags:
+            invalidate_cache(tag)
+        count = len(tags)
     elif pattern:
         # If pattern is provided, invalidate that pattern
         from .cache import cache_delete_pattern
@@ -224,7 +227,8 @@ def clear_cache(request: HttpRequest) -> Response:
         count = cache_delete_pattern(pattern)
     else:
         # Otherwise, invalidate everything
-        count = cache_invalidator.invalidate_tag(GLOBAL_TAG)
+        invalidate_cache(GLOBAL_TAG)
+        count = 1
 
     duration_ms = int((time.time() - start_time) * 1000)
 

@@ -85,6 +85,49 @@ class GameAnalyzer:
         except Exception as e:
             logger.error("Error cleaning up game analyzer: %s", str(e))
 
+    def _generate_ai_feedback(self, game_analysis: List[Dict[str, Any]], game: Optional[Game] = None) -> Optional[Dict[str, Any]]:
+        """Generate structured AI feedback for legacy tests and compatibility callers."""
+        try:
+            response = self.openai_client.chat.completions.create(
+                model=getattr(settings, "OPENAI_MODEL", "gpt-3.5-turbo"),
+                messages=[
+                    {"role": "system", "content": "You are a chess coach that returns JSON only."},
+                    {
+                        "role": "user",
+                        "content": json.dumps(
+                            {
+                                "task": "analyze_game",
+                                "game_id": getattr(game, "id", None),
+                                "moves": game_analysis,
+                            }
+                        ),
+                    },
+                ],
+                temperature=getattr(settings, "OPENAI_TEMPERATURE", 0.7),
+                max_tokens=getattr(settings, "OPENAI_MAX_TOKENS", 500),
+            )
+
+            content = response.choices[0].message.content or ""
+            parsed = json.loads(content)
+            feedback = parsed.get("feedback", parsed) if isinstance(parsed, dict) else {}
+
+            required_sections = {
+                "overall_performance",
+                "opening",
+                "middlegame",
+                "endgame",
+                "tactics",
+                "time_management",
+            }
+            if isinstance(feedback, dict) and required_sections.issubset(feedback.keys()):
+                return feedback
+
+            logger.warning("OpenAI feedback response missing required sections")
+            return None
+        except Exception as e:
+            logger.error("Error generating OpenAI feedback: %s", str(e))
+            return None
+
     def analyze_game(self, game: Game, depth=20, use_ai=True, progress_callback=None, task_id=None):
         """
         Analyze a chess game and save the results.

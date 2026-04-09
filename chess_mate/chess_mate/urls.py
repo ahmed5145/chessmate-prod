@@ -43,6 +43,7 @@ urlpatterns = [
     # Admin and API endpoints
     path("admin/", admin.site.urls),
     path("api/v1/", include("core.urls")),  # Include core.urls for API v1
+    path("api/system/", include("core.urls_system")),  # Legacy API prefix
 ]
 
 # Add static and media URLs in development
