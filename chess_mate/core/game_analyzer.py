@@ -85,6 +85,101 @@ class GameAnalyzer:
         except Exception as e:
             logger.error("Error cleaning up game analyzer: %s", str(e))
 
+    def analyze_single_game(self, game: Game, depth: int = 20) -> Dict[str, Any]:
+        """Backward-compatible wrapper that returns structured analysis data for a single game."""
+        return self._perform_analysis(game, depth)
+
+    def generate_feedback(self, analysis_results: Union[Dict[str, Any], List[Dict[str, Any]]], game: Optional[Game] = None) -> Dict[str, Any]:
+        """Backward-compatible wrapper used by legacy analysis tests."""
+        if isinstance(analysis_results, list):
+            return self.feedback_generator.generate_feedback({"moves": analysis_results})
+
+        if isinstance(analysis_results, dict):
+            if "analysis_results" in analysis_results:
+                analysis_payload = analysis_results.get("analysis_results", {})
+                metrics = analysis_payload.get("metrics", {}) if isinstance(analysis_payload, dict) else {}
+                summary = metrics.get("summary", metrics if isinstance(metrics, dict) else {})
+                if not isinstance(summary, dict):
+                    summary = {}
+
+                canonical_summary = {
+                    "overall": summary.get("overall", {"accuracy": 0.0, "mistakes": 0, "blunders": 0}),
+                    "phases": summary.get("phases", {}),
+                    "tactics": summary.get("tactics", {}),
+                    "time_management": summary.get("time_management", {}),
+                    "positional": summary.get("positional", {}),
+                    "advantage": summary.get("advantage", {}),
+                    "resourcefulness": summary.get("resourcefulness", {}),
+                    "opening": summary.get("opening", {}),
+                    "middlegame": summary.get("middlegame", {}),
+                    "endgame": summary.get("endgame", {}),
+                }
+
+                overall = canonical_summary.get("overall", {})
+                if isinstance(overall, dict):
+                    overall["mistakes"] = int(overall.get("mistakes", 0) or 0)
+                    overall["blunders"] = int(overall.get("blunders", 0) or 0)
+                    canonical_summary["overall"] = overall
+
+                return {
+                    "analysis_results": {
+                        "summary": canonical_summary,
+                        "strengths": summary.get("strengths", []),
+                        "weaknesses": summary.get("weaknesses", []),
+                        "critical_moments": summary.get("critical_moments", []),
+                        "improvement_areas": summary.get("improvement_areas", ""),
+                    },
+                    "analysis_complete": True,
+                    "source": "stockfish",
+                }
+
+            return self.feedback_generator.generate_feedback(analysis_results)
+
+        return self.feedback_generator.generate_feedback({"moves": []})
+
+    def _generate_ai_feedback(self, game_analysis: List[Dict[str, Any]], game: Optional[Game] = None) -> Optional[Dict[str, Any]]:
+        """Generate structured AI feedback for legacy tests and compatibility callers."""
+        try:
+            response = self.openai_client.chat.completions.create(
+                model=getattr(settings, "OPENAI_MODEL", "gpt-3.5-turbo"),
+                messages=[
+                    {"role": "system", "content": "You are a chess coach that returns JSON only."},
+                    {
+                        "role": "user",
+                        "content": json.dumps(
+                            {
+                                "task": "analyze_game",
+                                "game_id": getattr(game, "id", None),
+                                "moves": game_analysis,
+                            }
+                        ),
+                    },
+                ],
+                temperature=getattr(settings, "OPENAI_TEMPERATURE", 0.7),
+                max_tokens=getattr(settings, "OPENAI_MAX_TOKENS", 500),
+            )
+
+            content = response.choices[0].message.content or ""
+            parsed = json.loads(content)
+            feedback = parsed.get("feedback", parsed) if isinstance(parsed, dict) else {}
+
+            required_sections = {
+                "overall_performance",
+                "opening",
+                "middlegame",
+                "endgame",
+                "tactics",
+                "time_management",
+            }
+            if isinstance(feedback, dict) and required_sections.issubset(feedback.keys()):
+                return feedback
+
+            logger.warning("OpenAI feedback response missing required sections")
+            return None
+        except Exception as e:
+            logger.error("Error generating OpenAI feedback: %s", str(e))
+            return None
+
     def analyze_game(self, game: Game, depth=20, use_ai=True, progress_callback=None, task_id=None):
         """
         Analyze a chess game and save the results.
@@ -238,10 +333,33 @@ class GameAnalyzer:
                     
                     # Call with a single argument (the combined analysis result)
                     feedback = self.feedback_generator.generate_feedback(analysis_data)
+                    
+                    # Update progress after successful feedback generation
+                    if progress_callback:
+                        progress_callback(85, "AI feedback generated successfully")
+                        
+                    if task_id and self.task_manager:
+                        self.task_manager.update_task_status(
+                            task_id=task_id,
+                            status="PROCESSING",
+                            progress=85,
+                            message="AI feedback generated successfully"
+                        )
                 except Exception as e:
                     logger.error(f"Error generating AI feedback: {str(e)}")
-                    # Continue without AI feedback
+                    # Continue without AI feedback but update progress
                     feedback = {"error": f"Failed to generate AI feedback: {str(e)}"}
+                    
+                    if progress_callback:
+                        progress_callback(85, "Skipping AI feedback due to error")
+                        
+                    if task_id and self.task_manager:
+                        self.task_manager.update_task_status(
+                            task_id=task_id,
+                            status="PROCESSING",
+                            progress=85,
+                            message="Skipping AI feedback due to error"
+                        )
             
             if progress_callback:
                 progress_callback(90, "Saving analysis results")

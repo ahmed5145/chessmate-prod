@@ -5,7 +5,7 @@ import { API_URL } from '../config';
 
 // Get the base URL from environment variables or use a default
 const getBaseUrl = () => {
-    return API_URL || 'http://localhost:8000';
+    return API_URL || '/api';
 };
 
 const API_BASE_URL = getBaseUrl();

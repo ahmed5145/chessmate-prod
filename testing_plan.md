@@ -1,5 +1,29 @@
 # Testing Unification Plan
 
+## Current CI Gaps (2026-04-09)
+
+The following issues were identified during the latest CI-like validation and are not fully fixed in this pass. They are now tracked here for focused follow-up work:
+
+1. Backend full-suite contract drift outside the stabilized compatibility tests
+- Missing legacy exports referenced by tests:
+   - `core.cache_invalidation.invalidate_cache_on_delete`
+   - `core.cache_invalidation.get_redis_connection`
+   - `core.cache.cache_memoize`
+- Health-check contract mismatches (status codes/payload shape/component naming) in `core.tests.health.*`.
+- OpenAI feedback test expectations for `GameAnalyzer._generate_ai_feedback` in `core.tests.test_openai_feedback`.
+
+2. Stockfish-dependent test instability
+- Several failures in `core.tests.test_stockfish_analyzer` depend on engine availability/behavior and memory conditions.
+- CI needs deterministic engine test mode (mocked engine or constrained deterministic fixture path).
+
+3. Frontend test noise cleanup (non-blocking)
+- React Router v7 future warning was addressed in targeted tests, but test logs still include intentional `console.error` and `console.log` calls from error-path assertions and component diagnostics.
+- Follow-up should suppress expected console output in tests where it does not add signal.
+
+4. Validation scope note
+- Targeted backend suites remain green (`test_analysis_tasks`, `test_feedback_views`, `test_profile_views`).
+- Remaining failures are in broader backend coverage paths and should be handled in a dedicated hardening pass.
+
 ## 1. Project Structure Changes
 
 ### 1.1 Consolidate Test Locations

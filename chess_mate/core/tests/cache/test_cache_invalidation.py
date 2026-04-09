@@ -10,6 +10,7 @@ import time
 import uuid
 from unittest.mock import MagicMock, patch
 
+import fakeredis
 import redis
 from core.cache_invalidation import (
     GLOBAL_TAG,
@@ -30,8 +31,16 @@ class CacheInvalidationTestCase(TestCase):
     def setUp(self):
         """Set up the test client and Redis connection."""
         self.client = Client()
-        self.redis_client = redis.from_url(getattr(settings, "REDIS_URL", "redis://localhost:6379/0"))
+        redis_url = getattr(settings, "REDIS_URL", None) or "redis://localhost:6379/0"
         self.tag_separator = "::tag::"
+
+        try:
+            self.redis_client = redis.from_url(redis_url)
+            self.redis_client.ping()
+        except Exception:
+            # Fall back to fakeredis when real Redis is disabled/unavailable in tests.
+            self.redis_client = fakeredis.FakeStrictRedis(decode_responses=True)
+
         self.redis_client.flushdb()  # Clear Redis before tests
 
     def tearDown(self):
@@ -195,7 +204,7 @@ class CacheInvalidationTestCase(TestCase):
 
         # Test invalidating specific tags
         response = self.client.post(
-            "/api/system/cache/clear/",
+            "/api/v1/system/cache/clear/",
             data=json.dumps({"tags": ["user_data", "profile"]}),
             content_type="application/json",
         )
@@ -206,7 +215,7 @@ class CacheInvalidationTestCase(TestCase):
         mock_invalidate_cache.assert_any_call("profile")
 
         # Test global invalidation
-        response = self.client.post("/api/system/cache/clear/", data=json.dumps({}), content_type="application/json")
+        response = self.client.post("/api/v1/system/cache/clear/", data=json.dumps({}), content_type="application/json")
 
         # Verify the response and that invalidate_cache was called with global tag
         self.assertEqual(response.status_code, 200)

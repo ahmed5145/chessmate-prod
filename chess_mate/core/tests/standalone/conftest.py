@@ -4,9 +4,11 @@ Conftest for standalone tests that don't require Django.
 This file contains pytest fixtures specific to standalone tests.
 """
 
+import json
 import os
 import sys
 
+import fakeredis
 import pytest
 
 # Add the project root to the path for relative imports

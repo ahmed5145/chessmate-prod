@@ -285,6 +285,7 @@ const SingleGameAnalysis = () => {
   const hasExceededMaxRetries = useRef(false);
   const hasAttemptedDirectFetch = useRef(false);
   const hasAttemptedRecovery = useRef(false);
+  const isFetchingAnalysisRef = useRef(false);
   const pollingErrorCount = useRef(0);
   const analysisCompleted = useRef(false);
   const timeoutIds = useRef([]);
@@ -293,6 +294,7 @@ const SingleGameAnalysis = () => {
   // Poll for analysis status
   const pollForAnalysisStatus = async () => {
     if (!gameId) return;
+    if (analysisCompleted.current || isFetchingAnalysisRef.current) return;
     
     try {
       setPollingFailed(false);
@@ -460,6 +462,11 @@ const SingleGameAnalysis = () => {
 
   // Function to fetch analysis data
   const fetchAnalysisData = async () => {
+    if (isFetchingAnalysisRef.current) {
+      return false;
+    }
+
+    isFetchingAnalysisRef.current = true;
     setLoadingMessage('Retrieving analysis results...');
     try {
       const data = await fetchGameAnalysis(gameId);
@@ -471,54 +478,37 @@ const SingleGameAnalysis = () => {
                 setLoading(false);
         // Remove from localStorage to prevent future false "completed" states
         localStorage.removeItem(`analysis_complete_${gameId}`);
+        isFetchingAnalysisRef.current = false;
         return false;
       }
       
       // Verify we have valid data
-      if (data && (
-        (data.moves && data.moves.length > 0) || 
-        (data.positions && data.positions.length > 0) || 
-        (data.metrics && Object.keys(data.metrics).length > 0)
-      )) {
+      const hasMoves = data.moves?.length > 0 || 
+                      data.analysis_results?.moves?.length > 0;
+      const hasMetrics = data.metrics || 
+                        (data.analysis_results && Object.keys(data.analysis_results).length > 0);
+      
+      if (data && (hasMoves || hasMetrics)) {
         console.log('Analysis data retrieved successfully:', data);
         setAnalysisData(data);
                     setLoading(false);
         analysisCompleted.current = true;
         // Mark as complete in localStorage to avoid unnecessary API calls
         localStorage.setItem(`analysis_complete_${gameId}`, 'true');
+        isFetchingAnalysisRef.current = false;
         return true;
                 } else {
-        console.warn('Received empty or invalid analysis data:', data);
-        // If data is empty but we haven't exceeded max retries, don't show error yet
-        if (!hasExceededMaxRetries.current) {
-          // Remove from localStorage to prevent future false "completed" states
-          localStorage.removeItem(`analysis_complete_${gameId}`);
-          return false;
-        }
-        // Remove from localStorage
-        localStorage.removeItem(`analysis_complete_${gameId}`);
-        throw new Error('No valid analysis data available. The analysis may have failed.');
+        console.warn('Retrieved data structure is invalid:', data);
+        setAnalysisError('The analysis data structure is invalid or incomplete. Please try again.');
+                    setLoading(false);
+        isFetchingAnalysisRef.current = false;
+        return false;
             }
         } catch (error) {
-      console.error('Error fetching game analysis:', error);
-      
-      // Check if it's an authentication error
-      if (error.auth_error) {
-        setAuthError(true);
-        return false;
-      }
-      
-      // If Redis is unavailable, the data might not be accessible yet
-      // Continue polling rather than showing an error
-      if (!hasExceededMaxRetries.current) {
-        console.log('Fetch failed but continuing polling attempts');
-        return false;
-      }
-      
-      // Remove from localStorage to prevent future false "completed" states
-      localStorage.removeItem(`analysis_complete_${gameId}`);
-      setAnalysisError(error.message || 'We encountered an error fetching your analysis.');
+      console.error('Error fetching analysis data:', error);
+      setAnalysisError(error.message || 'Failed to load analysis data');
             setLoading(false);
+      isFetchingAnalysisRef.current = false;
       return false;
     }
   };
@@ -542,6 +532,7 @@ const SingleGameAnalysis = () => {
       pollingErrorCount.current = 0;
       hasExceededMaxRetries.current = false;
       analysisCompleted.current = false;
+      isFetchingAnalysisRef.current = false;
       
       // Clear all existing intervals and timeouts
       clearAllIntervals();
@@ -811,7 +802,7 @@ const SingleGameAnalysis = () => {
           (analysisData.positions && analysisData.positions.length > 0) || 
           (analysisData.metrics && Object.keys(analysisData.metrics).length > 0)
         ) ? (
-          <GameAnalysisResults analysis={analysisData} isDarkMode={isDarkMode} />
+          <GameAnalysisResults analysisData={analysisData} isDarkMode={isDarkMode} />
         ) : (
           <NoDataError 
             gameId={gameId}

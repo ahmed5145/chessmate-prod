@@ -292,7 +292,7 @@ class TestRedisCache:
         # Replace real function with mock that always fails
         import core.redis_config
 
-        chess_mate.core.redis_config.redis_lock = mock_redis_lock_fail
+        core.redis_config.redis_lock = mock_redis_lock_fail
 
         # Reset result and call again
         result_container["value"] = None
@@ -303,7 +303,7 @@ class TestRedisCache:
         assert result_container["value"] is None
 
         # Restore original function
-        chess_mate.core.redis_config.redis_lock = original_redis_lock
+        core.redis_config.redis_lock = original_redis_lock
 
     def test_redis_tag_invalidation(self, mock_redis_client):
         """Test tag-based cache invalidation."""

@@ -5,17 +5,25 @@ on:
     - cron: '0 0 * * 0'  # Run weekly on Sunday at midnight
   workflow_dispatch:  # Allow manual triggering
 
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   security-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install Python dependencies
         run: |
@@ -32,22 +40,22 @@ jobs:
           bandit -r chess_mate/ -x chess_mate/core/tests/,chess_mate/*/migrations/
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v6
         with:
           node-version: '18'
 
       - name: Install Node.js dependencies
         run: |
-          cd frontend
+          cd chess_mate/frontend
           npm ci
 
       - name: Run npm audit
         run: |
-          cd frontend
+          cd chess_mate/frontend
           npm audit
 
       - name: Run OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.9.0
+        uses: zaproxy/action-baseline@v0.15.0
         with:
           target: 'https://staging.chessmate.com'
           allow_issue_writing: false

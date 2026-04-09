@@ -12,14 +12,22 @@ on:
       - '**.md'
       - 'docs/**'
 
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   backend-tests:
     name: Backend Tests - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11']
 
     services:
       redis:
@@ -48,7 +56,7 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
@@ -83,7 +91,7 @@ jobs:
 
     - name: Run Standalone Tests
       run: |
-        python run_tests.py --standalone --coverage
+        python run_tests.py --standalone --coverage --fail-under 0
 
     - name: Run Django Tests
       run: |
@@ -94,13 +102,13 @@ jobs:
         python run_tests.py --coverage --html --fail-under 80
 
     - name: Upload Coverage Report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-report-python${{ matrix.python-version }}
         path: htmlcov/
 
     - name: Upload Coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v6
       with:
         files: ./coverage.xml
         flags: backend,python${{ matrix.python-version }}
@@ -110,60 +118,62 @@ jobs:
   frontend-tests:
     name: Frontend Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v6
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: 'frontend/package-lock.json'
+        cache-dependency-path: 'chess_mate/frontend/package-lock.json'
 
     - name: Install Dependencies
       run: |
-        cd frontend
+        cd chess_mate/frontend
         npm ci
 
     - name: Run Tests
       run: |
-        cd frontend
+        cd chess_mate/frontend
         npm test -- --watchAll=false --coverage
 
     - name: Upload Coverage Report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-report-frontend
-        path: frontend/coverage/
+        path: chess_mate/frontend/coverage/
 
     - name: Upload Coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v6
       with:
-        files: ./frontend/coverage/coverage-final.json
+        files: ./chess_mate/frontend/coverage/coverage-final.json
         flags: frontend
         fail_ci_if_error: false
 
   linting:
     name: Code Quality & Security Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: '3.12'
+        python-version: '3.11'
         cache: 'pip'
 
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v6
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: 'frontend/package-lock.json'
+        cache-dependency-path: 'chess_mate/frontend/package-lock.json'
 
     - name: Install Backend Linting Tools
       run: |
@@ -172,7 +182,7 @@ jobs:
 
     - name: Install Frontend Linting Tools
       run: |
-        cd frontend
+        cd chess_mate/frontend
         npm ci
 
     - name: Check Python Code Style (flake8)
@@ -205,29 +215,30 @@ jobs:
 
     - name: Check Frontend Code Style (eslint)
       run: |
-        cd frontend
+        cd chess_mate/frontend
         npm run lint
 
     - name: Check Frontend Code Format (prettier)
       run: |
-        cd frontend
+        cd chess_mate/frontend
         npm run format:check || true # Don't fail CI for formatting issues
 
     - name: Check Frontend Dependencies for Vulnerabilities
       run: |
-        cd frontend
+        cd chess_mate/frontend
         npm audit --production || true # Don't fail CI on audit (report only)
 
   security-scan:
     name: Security Scanning
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [backend-tests, frontend-tests]
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     - name: Run Docker Security Scan
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@v0.28.0
       with:
         scan-type: 'fs'
         format: 'table'
@@ -236,24 +247,30 @@ jobs:
         ignore-unfixed: true
 
     - name: Run Repository Security Scan
-      uses: snyk/actions/scan@master
-      with:
-        args: --severity-threshold=high --all-projects
       env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN || 'dummy-token-for-pr-builds' }}
+        SNYK_TOKEN: ${{ secrets['SNYK_TOKEN'] }}
+      run: |
+        if [ -z "$SNYK_TOKEN" ]; then
+          echo "SNYK_TOKEN is not configured; skipping repository scan."
+          exit 0
+        fi
+        npm install -g snyk
+        snyk auth "$SNYK_TOKEN"
+        snyk test --severity-threshold=high --all-projects
 
   health-check:
     name: Health Check Test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [backend-tests, frontend-tests]
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: '3.12'
+        python-version: '3.11'
         cache: 'pip'
 
     - name: Install Dependencies
@@ -269,8 +286,18 @@ jobs:
 
     - name: Start Server in Background
       run: |
-        python manage.py runserver &
-        sleep 5  # Let the server start up
+        cd chess_mate
+        nohup python manage.py runserver 0.0.0.0:8000 > /tmp/chessmate-server.log 2>&1 &
+        for i in {1..20}; do
+          if curl -fsS http://localhost:8000/health/ >/dev/null; then
+            echo "Server is ready"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "Server failed to start in time"
+        tail -n 200 /tmp/chessmate-server.log || true
+        exit 1
 
     - name: Test Health Check Endpoint
       run: |

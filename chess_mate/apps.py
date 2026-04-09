@@ -17,7 +17,7 @@ class ChessMateConfig(AppConfig):
         """Initialize app-specific components when Django starts."""
         # Import and setup cache invalidation
         try:
-            from chess_mate.core.cache_middleware import setup_cache_invalidation
+            from core.cache_middleware import setup_cache_invalidation
 
             setup_cache_invalidation()
             logger.info("Cache invalidation system initialized")
@@ -26,7 +26,7 @@ class ChessMateConfig(AppConfig):
 
         # Initialize Redis connection pool
         try:
-            from chess_mate.core.redis_config import get_redis_client
+            from core.redis_config import get_redis_client
 
             client = get_redis_client()
             info = client.info()

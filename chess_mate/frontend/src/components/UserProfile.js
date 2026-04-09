@@ -63,7 +63,11 @@ const UserProfile = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div
+          role="status"
+          aria-label="Loading profile"
+          className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"
+        ></div>
       </div>
     );
   }
@@ -133,6 +137,7 @@ const UserProfile = () => {
                     </span>
                     <button
                       type="button"
+                      aria-label="Email Notifications"
                       onClick={() => handlePreferenceChange("emailNotifications")}
                       className={`${
                         preferences.emailNotifications ? "bg-indigo-600" : "bg-gray-200"
@@ -153,6 +158,7 @@ const UserProfile = () => {
                     </span>
                     <button
                       type="button"
+                      aria-label="Dark Mode"
                       onClick={() => handlePreferenceChange("darkMode")}
                       className={`${
                         preferences.darkMode ? "bg-indigo-600" : "bg-gray-200"
@@ -173,6 +179,7 @@ const UserProfile = () => {
                     </span>
                     <button
                       type="button"
+                      aria-label="Auto-Analyze Games"
                       onClick={() => handlePreferenceChange("autoAnalyze")}
                       className={`${
                         preferences.autoAnalyze ? "bg-indigo-600" : "bg-gray-200"

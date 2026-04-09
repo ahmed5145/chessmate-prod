@@ -77,10 +77,23 @@ aws.yaml
 logs/
 *.log
 
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
 # Redis
 dump.rdb
 *.rdb
 redis_data/
+
+# Celery runtime state
+chess_mate/celery_state.dat
+chess_mate/celery_state.bak
+chess_mate/celery_state.dir
+chess_mate/celery.pid
 
 # System
 .DS_Store

@@ -300,7 +300,7 @@ const Games = () => {
         
         // Navigate to the analysis page immediately
         console.log(`Navigating to analysis page for game ${gameId}`);
-        navigate(`/game/${gameId}/analysis`);
+      navigate(`/game/${gameId}/analysis`);
       } catch (error) {
         console.error('Error starting analysis:', error);
         toast.dismiss(toastId);

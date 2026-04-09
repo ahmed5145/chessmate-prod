@@ -1,10 +1,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Profile Views](https://visitor-badge.laobi.icu/badge?page_id=ahmed5145.ahmed5145&title=Profile%20Views)
-[![GitHub stars](https://img.shields.io/github/stars/ahmed5145/chessmate.svg)](https://github.com/ahmed5145/chessmate/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/ahmed5145/chessmate.svg)](https://github.com/ahmed5145/chessmate/network)
-[![GitHub issues](https://img.shields.io/github/issues/ahmed5145/chessmate.svg)](https://github.com/ahmed5145/chessmate/issues)
-![GitHub last commit](https://img.shields.io/github/last-commit/ahmed5145/chessmate)
-![CI Status](https://github.com/ahmed5145/chessmate/workflows/ChessMate%20CI/badge.svg)
+[![GitHub stars](https://img.shields.io/github/stars/ahmed5145/chessmate.svg)](https://github.com/ahmed5145/chessmate-prod/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/ahmed5145/chessmate.svg)](https://github.com/ahmed5145/chessmate-prod/network)
+[![GitHub issues](https://img.shields.io/github/issues/ahmed5145/chessmate.svg)](https://github.com/ahmed5145/chessmate-prod/issues)
+![GitHub last commit](https://img.shields.io/github/last-commit/ahmed5145/chessmate-prod)
+![CI Status](https://github.com/ahmed5145/chessmate-prod/workflows/ChessMate%20CI/badge.svg)
 
 # ChessMate: AI-Powered Chess Analysis Platform
 
@@ -48,10 +48,10 @@ chess_mate/           # Main Django application directory
 
 For comprehensive installation instructions, see our [Installation Guide](INSTALLATION.md).
 
-```bash
+   ```bash
 # Clone the repository
 git clone https://github.com/yourusername/chessmate.git
-cd chessmate
+   cd chessmate
 
 # Setup and run (Windows)
 setup_windows.bat
@@ -60,8 +60,8 @@ run_development.bat
 # Setup and run (Linux/Mac)
 pip install -e ".[dev]"
 ./setup.sh
-python manage.py runserver
-```
+     python manage.py runserver
+     ```
 
 ## Documentation
 

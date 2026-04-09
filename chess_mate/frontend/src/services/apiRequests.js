@@ -405,29 +405,47 @@ export const checkAnalysisStatus = async (gameId) => {
             
             // Process the response
             const data = response.data;
+            console.log('Analysis status response:', data);
             
-            if (data.status === 'success') {
+            // Check if the response has a direct success status
+            if (data.status === 'success' || data.status === 'complete' || 
+                data.status === 'SUCCESS' || data.status === 'COMPLETED') {
                 // Task completed successfully
                 return {
-                    status: 'COMPLETED',
+                    status: 'SUCCESS',
                     progress: 100,
                     message: data.message || 'Analysis completed',
                     analysis: data.analysis
                 };
-            } else if (data.task && data.task.status) {
-                const taskStatus = data.task.status.toUpperCase();
+            } 
+            // Check if we have a top-level progress field
+            else if (data.progress !== undefined) {
+                return {
+                    status: data.status?.toUpperCase() || 'IN_PROGRESS',
+                    progress: parseInt(data.progress) || 0,
+                    message: data.message || 'Analysis in progress',
+                    taskId: data.id || data.task_id
+                };
+            }
+            // Check task status structure from the backend
+            else if (data.task) {
+                const taskStatus = data.task.status?.toUpperCase();
+                const progress = data.task.progress !== undefined ? parseInt(data.task.progress) : 0;
                 
                 if (isValidStatus(taskStatus)) {
                     // Map Celery status to our status constants
                     let status = taskStatus;
                     
-                    if (taskStatus === 'PROGRESS' || taskStatus === 'STARTED') {
+                    if (taskStatus === 'PROGRESS' || taskStatus === 'STARTED' || 
+                        taskStatus === 'PROCESSING') {
                         status = 'IN_PROGRESS';
+                    } else if (taskStatus === 'COMPLETED' || taskStatus === 'SUCCESS') {
+                        status = 'SUCCESS';
                     }
                     
                     return {
                         status,
-                        progress: data.task.progress || 0,
+                        progress: progress,
                         message: data.task.message || 'Analysis in progress',
                         taskId: data.task.id
                     };
@@ -437,7 +455,7 @@ export const checkAnalysisStatus = async (gameId) => {
             // Default to pending status
             return {
                 status: 'PENDING',
-                progress: 0,
+                progress: data.progress || 0,
                 message: data.message || 'Analysis pending'
             };
         } catch (error) {
@@ -511,59 +529,117 @@ export const fetchGameAnalysis = async (gameId) => {
         }
 
         // Extract analysis data from response
-        const analysisData = response.data.analysis || response.data;
-        if (!analysisData) {
-            throw new Error('No analysis data found');
+        // First try direct response, then nested structures
+        let analysisData = response.data;
+        
+        // If the response has nested analysis data, use that
+        if (response.data.analysis) {
+            analysisData = response.data.analysis;
+        } else if (response.data.analysis_data) {
+            analysisData = response.data.analysis_data;
+        }
+        
+        // Check for status in the data
+        if (analysisData.status === 'error' || response.data.status === 'error') {
+            throw new Error(analysisData.message || response.data.message || 'Error retrieving analysis');
+        }
+        
+        // Check for error message in any format
+        if (analysisData.error || response.data.error) {
+            const errorMsg = analysisData.error || response.data.error;
+            console.warn('Error returned in analysis data:', errorMsg);
+            return { error: errorMsg };
+        }
+
+        // Check if we have the metrics directly or in a nested structure
+        const metrics = analysisData.metrics || analysisData.analysis_results?.summary || analysisData.analysis_results || analysisData;
+        const moves = analysisData.moves || analysisData.analysis_results?.moves || [];
+
+        const normalizeMove = (move) => ({
+            move_number: Number(move.move_number) || 0,
+            move: move.move || '',
+            san: move.san || '',
+            is_white: Boolean(move.is_white),
+            classification: move.classification || 'neutral',
+            eval_before: Number(move.eval_before) || 0,
+            eval_after: Number(move.eval_after) || 0,
+            eval_change: Number(move.eval_change) || 0,
+            best_move: move.best_move || null,
+            best_line: Array.isArray(move.best_line) ? move.best_line : [],
+            position: move.position || '',
+            time: Number(move.time) || 0
+        });
+
+        const normalizedMoves = Array.isArray(moves) ? moves.map(normalizeMove) : [];
+
+        const moveHighlights = normalizedMoves.reduce((accumulator, move) => {
+            const absoluteChange = Math.abs(move.eval_change);
+
+            if (move.eval_change > 0) {
+                accumulator.strengths.push(`Move ${move.move_number}: ${move.san || move.move} improved the position by ${move.eval_change.toFixed(2)}.`);
+            }
+
+            if (move.eval_change < -0.5) {
+                accumulator.weaknesses.push(`Move ${move.move_number}: ${move.san || move.move} dropped evaluation by ${Math.abs(move.eval_change).toFixed(2)}.`);
+            }
+
+            if (absoluteChange > 1) {
+                accumulator.criticalMoments.push(`Move ${move.move_number}: ${move.san || move.move} changed the evaluation by ${move.eval_change.toFixed(2)}.`);
+            }
+
+            return accumulator;
+        }, {
+            strengths: [],
+            weaknesses: [],
+            criticalMoments: []
+        });
+
+        const feedback = response.data.feedback || analysisData.feedback || {
+            strengths: moveHighlights.strengths.slice(0, 8),
+            weaknesses: moveHighlights.weaknesses.slice(0, 8),
+            critical_moments: moveHighlights.criticalMoments.slice(0, 8),
+            suggestions: [
+                'Review the largest evaluation swings to identify recurring mistakes.',
+                'Compare your played move with the suggested best move at the critical positions.',
+                'Study the opening, middlegame, and endgame metrics to spot phase-specific trends.'
+            ]
+        };
+
+        const summary = metrics.overall || metrics.metrics?.overall ? metrics : {
+            overall: metrics.overall || {},
+            move_quality: metrics.move_quality || {},
+            time_management: metrics.time_management || {},
+            phases: metrics.phases || { opening: {}, middlegame: {}, endgame: {} },
+            tactics: metrics.tactics || {},
+            advantage: metrics.advantage || {},
+            resourcefulness: metrics.resourcefulness || {},
+            metadata: metrics.metadata || {
+                is_white: true,
+                total_moves: normalizedMoves.length,
+                opening_length: 0,
+                middlegame_length: 0,
+                endgame_length: 0
+            }
+        };
+
+        const responseMoves = normalizedMoves.length > 0 ? normalizedMoves : [];
+        
+        // Verify we have valid data - either moves or metrics must be present
+        if (!summary && responseMoves.length === 0) {
+            console.warn('No valid analysis data found');
+            return { error: 'No analysis data found' };
         }
 
         // Transform the response to match the expected structure
         const transformedData = {
             analysis_complete: true,
+            status: analysisData.status || 'complete',
             analysis_results: {
-                moves: analysisData.moves || [],
-                overall: {
-                    accuracy: analysisData.overall?.accuracy || 0,
-                    mistakes: analysisData.overall?.mistakes || 0,
-                    blunders: analysisData.overall?.blunders || 0,
-                    inaccuracies: analysisData.overall?.inaccuracies || 0,
-                    avg_centipawn_loss: analysisData.overall?.avg_centipawn_loss || 0,
-                    moves_count: analysisData.overall?.moves_count || 0
-                },
-                phases: {
-                    opening: {
-                        accuracy: analysisData.phases?.opening?.accuracy || 0,
-                        moves_count: analysisData.phases?.opening?.moves_count || 0,
-                        time_management: analysisData.phases?.opening?.time_management || {}
-                    },
-                    middlegame: analysisData.phases?.middlegame || {},
-                    endgame: analysisData.phases?.endgame || {}
-                },
-                tactics: {
-                    missed: analysisData.tactics?.missed || 0,
-                    successful: analysisData.tactics?.successful || 0,
-                    success_rate: analysisData.tactics?.success_rate || 0,
-                    opportunities: analysisData.tactics?.opportunities || 0,
-                    tactical_score: analysisData.tactics?.tactical_score || 0,
-                    pattern_recognition: analysisData.tactics?.pattern_recognition || 0
-                },
-                positional: {
-                    king_safety: analysisData.positional?.king_safety || 0,
-                    center_control: analysisData.positional?.center_control || 0,
-                    pawn_structure: analysisData.positional?.pawn_structure || 0,
-                    piece_activity: analysisData.positional?.piece_activity || 0,
-                    space_advantage: analysisData.positional?.space_advantage || 0
-                },
-                time_management: {
-                    average_time: analysisData.time_management?.average_time || 0,
-                    time_variance: analysisData.time_management?.time_variance || 0,
-                    time_consistency: analysisData.time_management?.time_consistency || 0,
-                    time_pressure_moves: analysisData.time_management?.time_pressure_moves || 0,
-                    time_pressure_percentage: analysisData.time_management?.time_pressure_percentage || 0
-                },
-                advantage: analysisData.advantage || {},
-                resourcefulness: analysisData.resourcefulness || {}
+                summary,
+                moves: responseMoves,
+                metrics: metrics
             },
-            feedback: response.data.feedback || {}
+            feedback
         };
 
         console.log('Transformed data:', transformedData);

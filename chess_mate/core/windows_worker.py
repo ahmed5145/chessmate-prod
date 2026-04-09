@@ -8,15 +8,9 @@
 
 import logging
 import multiprocessing
-import os
-import signal
-import time
-from typing import List, Optional, Union
-
-from django.conf import settings
+ 
 from redis import Redis
-from rq import Connection, Queue, Worker
-from rq.worker import WorkerStatus
+from rq import Worker
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +39,9 @@ class WindowsWorkerProcess:
         """Run the RQ worker."""
         try:
             redis_conn = Redis.from_url(redis_url)
-            with Connection(redis_conn):
-                worker = Worker(queues)
-                worker.work()
+            # RQ 2.x removed Connection context import path used by older versions.
+            worker = Worker(queues, connection=redis_conn)
+            worker.work()
         except Exception as e:
             logger.error(f"Worker process error: {e}")
 

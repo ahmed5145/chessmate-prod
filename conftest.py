@@ -12,13 +12,17 @@ import json
 import os
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Add the project root to the Python path for relative imports
+# Add both the repository root and app package root to the Python path.
 project_root = os.path.dirname(os.path.abspath(__file__))
+app_root = os.path.join(project_root, "chess_mate")
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+if app_root not in sys.path:
+    sys.path.insert(0, app_root)
 
 # -------------------------------------------------------------------------------
 # Django Configuration
@@ -37,7 +41,7 @@ def pytest_configure(config):
     print("Setting up Django test environment")
     # Set up Django environment
     os.environ.setdefault("TESTING", "True")
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.test_settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.chess_mate.test_settings")
 
     # Try to set up Django
     try:
@@ -162,6 +166,48 @@ def test_profile(db, test_user):
         return Profile.objects.create(user=test_user, chess_com_username="testuser", lichess_username="testuser")
     except (ImportError, ModuleNotFoundError):
         pytest.skip("Profile model not available")
+
+
+@pytest.fixture
+def stockfish_mock():
+    """Provide a reusable Stockfish engine mock for analysis tests."""
+
+    def create_analysis_result(cp_score=0, mate_in=None, depth=20, nodes=1000, time=0.1, color=None):
+        import chess
+
+        score = chess.engine.Mate(mate_in) if mate_in is not None else chess.engine.Cp(cp_score)
+        pov_color = chess.WHITE if color is None else color
+
+        return {
+            "score": chess.engine.PovScore(score, pov_color),
+            "depth": depth,
+            "pv": [chess.Move.from_uci("e2e4")],
+            "nodes": nodes,
+            "time": time,
+        }
+
+    engine_mock = MagicMock(name="stockfish_engine")
+    engine_mock.configure.return_value = None
+    engine_mock.quit.return_value = None
+    engine_mock.analyse.return_value = create_analysis_result()
+
+    patcher = patch("chess.engine.SimpleEngine.popen_uci", return_value=engine_mock)
+    patcher.start()
+
+    helper = MagicMock(name="stockfish_mock")
+    helper.return_value = engine_mock
+    helper.create_analysis_result = create_analysis_result
+
+    try:
+        yield helper
+    finally:
+        patcher.stop()
+
+
+@pytest.fixture
+def capture_queries():
+    """Legacy no-op query capture fixture used by older tests."""
+    yield None
 
 
 # -------------------------------------------------------------------------------

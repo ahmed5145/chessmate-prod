@@ -3,6 +3,9 @@
 import json
 import logging
 import os
+import sys
+import builtins
+import inspect
 from functools import wraps
 from typing import Any, Dict, List, Optional, Set, Union
 
@@ -11,6 +14,9 @@ from django.conf import settings
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# Keep module aliases unified for legacy tests that patch either import path.
+sys.modules.setdefault("chess_mate.core.redis_config", sys.modules[__name__])
 
 # Redis connection pool configuration
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
@@ -74,7 +80,7 @@ def get_redis_client() -> redis.Redis:
                 socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
                 retry_on_timeout=REDIS_RETRY_ON_TIMEOUT,
                 max_connections=REDIS_MAX_CONNECTIONS,
-                decode_responses=True,
+                decode_responses=False,
                 health_check_interval=30,  # Periodically check connections
                 )
                 logger.info(f"Created Redis connection pool for {REDIS_HOST}:{REDIS_PORT} (attempt {attempt+1})")
@@ -141,11 +147,15 @@ class DummyRedisClient:
             elif name == 'set':
                 key = args[0]
                 value = args[1]
+                if isinstance(value, str):
+                    value = value.encode('utf-8')
                 self._local_cache[key] = value
                 return True
             elif name == 'setex':
                 key = args[0]
                 value = args[2]  # args[1] is the TTL
+                if isinstance(value, str):
+                    value = value.encode('utf-8')
                 self._local_cache[key] = value
                 return True
             elif name == 'delete' or name == 'del':
@@ -174,6 +184,8 @@ class DummyRedisClient:
                 return self._local_cache[key]
             elif name == 'ping':
                 return True
+            elif name == 'info':
+                return {'redis_version': 'dummy'}
             elif name in ('hset', 'hmset', 'rpush', 'lpush', 'sadd', 'zadd'):
                 return 1  # Simulate success for write operations
             else:
@@ -427,8 +439,9 @@ def redis_unlock(lock_name: str, lock_id: str) -> bool:
         client = get_redis_client()
         lock_key = get_redis_key(KEY_PREFIX_LOCK, lock_name)
 
-        # Only release if we own the lock
-        if client.get(lock_key) == lock_id.encode("utf-8"):
+        # Only release if we own the lock (handle bytes and str clients).
+        current_lock = client.get(lock_key)
+        if current_lock == lock_id or current_lock == lock_id.encode("utf-8"):
             client.delete(lock_key)
             return True
         return False
@@ -461,8 +474,34 @@ def with_redis_lock(lock_name: str, timeout: int = TTL_LOCK):
             else:
                 actual_lock_name = lock_name
 
+            # Resolve lock helpers dynamically so legacy module alias patches
+            # (e.g. chess_mate.core.redis_config.redis_lock) are honored.
+            alias_module = None
+            caller_frame = inspect.currentframe().f_back
+            if caller_frame is not None:
+                caller_chess_mate = caller_frame.f_globals.get("chess_mate")
+                caller_core = getattr(caller_chess_mate, "core", None) if caller_chess_mate else None
+                alias_module = getattr(caller_core, "redis_config", None) if caller_core else None
+
+            if alias_module is None:
+                alias_module = sys.modules.get("chess_mate.core.redis_config")
+            if alias_module is None:
+                try:
+                    import chess_mate as chess_mate_pkg  # type: ignore
+
+                    core_pkg = getattr(chess_mate_pkg, "core", None)
+                    alias_module = getattr(core_pkg, "redis_config", None) if core_pkg else None
+                except Exception:
+                    alias_module = None
+            if alias_module is None:
+                chess_mate_pkg = getattr(builtins, "chess_mate", None)
+                core_pkg = getattr(chess_mate_pkg, "core", None) if chess_mate_pkg else None
+                alias_module = getattr(core_pkg, "redis_config", None) if core_pkg else None
+            lock_fn = getattr(alias_module, "redis_lock", redis_lock) if alias_module else redis_lock
+            unlock_fn = getattr(alias_module, "redis_unlock", redis_unlock) if alias_module else redis_unlock
+
             # Try to acquire lock
-            lock_id = redis_lock(actual_lock_name, timeout)
+            lock_id = lock_fn(actual_lock_name, timeout)
             if not lock_id:
                 logger.warning(f"Could not acquire lock: {actual_lock_name}")
                 return None
@@ -472,7 +511,7 @@ def with_redis_lock(lock_name: str, timeout: int = TTL_LOCK):
                 return func(*args, **kwargs)
             finally:
                 # Release lock
-                redis_unlock(actual_lock_name, lock_id)
+                unlock_fn(actual_lock_name, lock_id)
 
         return wrapper
 

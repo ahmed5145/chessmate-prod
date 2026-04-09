@@ -4,6 +4,10 @@ import { API_URL } from '../config';
 
 const API_BASE_URL = API_URL;
 const CACHE_TTL = 3600 * 1000; // 1 hour in milliseconds
+const ANALYSIS_START_DEDUP_WINDOW_MS = 15000;
+const inFlightAnalysisStarts = new Map();
+const recentAnalysisStarts = new Map();
+const inFlightAnalysisFetches = new Map();
 
 // Initialize IndexedDB
 const initDB = () => {
@@ -58,25 +62,53 @@ const getCachedAnalysis = async (gameId) => {
 };
 
 export const analyzeSpecificGame = async (gameId) => {
-    try {
-        const response = await api.post(`/api/v1/games/${gameId}/analyze/`);
-        console.log('Analysis started response:', response.data);
-        
-        // Return with consistent structure
-        return {
-            success: true,
-            task_id: response.data.task_id || response.data.id,
-            status: response.data.status || 'started',
-            message: response.data.message || 'Analysis started',
-            redirect: false // Explicitly indicate no redirect
-        };
-    } catch (error) {
-        console.error('Error starting analysis:', error);
-        if (error.response?.status === 401) {
-            throw { auth_error: true, message: 'Authentication required' };
-        }
-        throw error.response?.data?.error || error.message || 'Failed to start analysis';
+    const numericGameId = Number(gameId);
+    const dedupKey = Number.isFinite(numericGameId) ? String(numericGameId) : String(gameId);
+    const now = Date.now();
+
+    const cachedStart = recentAnalysisStarts.get(dedupKey);
+    if (cachedStart && (now - cachedStart.timestamp) < ANALYSIS_START_DEDUP_WINDOW_MS) {
+        console.log(`Skipping duplicate analysis start for game ${dedupKey} within dedup window`);
+        return { ...cachedStart.response, deduplicated: true };
     }
+
+    if (inFlightAnalysisStarts.has(dedupKey)) {
+        console.log(`Reusing in-flight analysis start request for game ${dedupKey}`);
+        return inFlightAnalysisStarts.get(dedupKey);
+    }
+
+    const requestPromise = (async () => {
+        try {
+            const response = await api.post(`/api/v1/games/${gameId}/analyze/`);
+            console.log('Analysis started response:', response.data);
+
+            const normalizedResponse = {
+                success: true,
+                task_id: response.data.task_id || response.data.id,
+                status: response.data.status || 'started',
+                message: response.data.message || 'Analysis started',
+                redirect: false // Explicitly indicate no redirect
+            };
+
+            recentAnalysisStarts.set(dedupKey, {
+                timestamp: Date.now(),
+                response: normalizedResponse
+            });
+
+            return normalizedResponse;
+        } catch (error) {
+            console.error('Error starting analysis:', error);
+            if (error.response?.status === 401) {
+                throw { auth_error: true, message: 'Authentication required' };
+            }
+            throw error.response?.data?.error || error.message || 'Failed to start analysis';
+        } finally {
+            inFlightAnalysisStarts.delete(dedupKey);
+        }
+    })();
+
+    inFlightAnalysisStarts.set(dedupKey, requestPromise);
+    return requestPromise;
 };
 
 export const checkAnalysisStatus = async (gameId) => {
@@ -131,11 +163,14 @@ export const checkAnalysisStatus = async (gameId) => {
         // Handle standard response with task wrapper
         if (data && data.task) {
             const taskData = data.task;
+            console.log(`Detailed task data for game ${gameId}:`, taskData);
+            
             const status = taskData.status?.toUpperCase() || 'UNKNOWN';
+            const progressValue = taskData.progress !== undefined ? Number(taskData.progress) : 0;
             
             // Store progress in localStorage
-            if (taskData.progress !== undefined) {
-                localStorage.setItem(`last_known_progress_${gameId}`, taskData.progress);
+            if (progressValue > 0) {
+                localStorage.setItem(`last_known_progress_${gameId}`, progressValue);
                 localStorage.setItem(`last_progress_update_${gameId}`, Date.now());
             }
             
@@ -163,10 +198,19 @@ export const checkAnalysisStatus = async (gameId) => {
                 };
             }
             
+            // Handle processing status
+            if (status === 'PROCESSING') {
+                return {
+                    status: 'PROCESSING',
+                    progress: progressValue,
+                    message: taskData.message || 'Analyzing game...'
+                };
+            }
+            
             // For other statuses
             return {
                 status: status,
-                progress: taskData.progress || 0,
+                progress: progressValue,
                 message: taskData.message || 'Analyzing game...'
             };
         }
@@ -189,7 +233,17 @@ export const checkAnalysisStatus = async (gameId) => {
             }
         }
         
+        // Check for a 'not_found' status specifically
+        if (data && data.status === 'not_found') {
+            return {
+                status: 'PENDING',
+                progress: 0,
+                message: data.message || 'Analysis task not found'
+            };
+        }
+        
         // Fallback to unknown status
+        console.warn('Unexpected response format:', data);
         return {
             status: 'UNKNOWN',
             progress: 0,
@@ -199,7 +253,7 @@ export const checkAnalysisStatus = async (gameId) => {
         console.error('Error checking analysis status:', error);
         return {
             status: 'ERROR',
-            error: error.message,
+            error: error.message || 'Error checking status',
             progress: 0
         };
     }
@@ -233,6 +287,12 @@ const simulateProgressResponse = (gameId) => {
 }
 
 export const fetchGameAnalysis = async (gameId, retry = 0) => {
+    const dedupKey = String(gameId);
+    if (inFlightAnalysisFetches.has(dedupKey)) {
+        return inFlightAnalysisFetches.get(dedupKey);
+    }
+
+    const requestPromise = (async () => {
     // Check if we have a stored error for this game analysis
     const storedError = localStorage.getItem(`analysis_error_${gameId}`);
     if (storedError && retry === 0) {
@@ -259,13 +319,29 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
         // Check if we got a valid response with data
         if (response.data && Object.keys(response.data).length > 0) {
             console.log(`Analysis data received for game ${gameId}:`, response.data);
+            const payload = response.data;
+
+            const hasMetrics = !!payload.metrics || !!payload.analysis_results;
+            const hasMoves =
+                (Array.isArray(payload.moves) && payload.moves.length > 0) ||
+                (Array.isArray(payload.movesAnalysis) && payload.movesAnalysis.length > 0);
+
+            const normalizedPayload = {
+                ...payload,
+                analysis_results: payload.analysis_results || {
+                    summary: payload.metrics || {},
+                    moves: payload.moves || payload.movesAnalysis || []
+                },
+                metrics: payload.metrics || payload.analysis_results?.summary || {},
+                moves: payload.moves || payload.movesAnalysis || []
+            };
             
             // If we have a valid analysis, mark it as complete in localStorage
-            if (response.data.metrics && response.data.movesAnalysis) {
+            if (hasMetrics && hasMoves) {
                 localStorage.setItem(`analysis_complete_${gameId}`, 'true');
                 localStorage.removeItem(`analysis_error_${gameId}`);
                 return {
-                    ...response.data,
+                    ...normalizedPayload,
                     isComplete: true
                 };
             }
@@ -307,7 +383,7 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
             
             // Return the data as is if it doesn't match our expected format
             return {
-                ...response.data,
+                ...normalizedPayload,
                 isComplete: false
             };
         }
@@ -352,7 +428,13 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
             ai_feedback: null,
             isComplete: false
         };
+    } finally {
+        inFlightAnalysisFetches.delete(dedupKey);
     }
+    })();
+
+    inFlightAnalysisFetches.set(dedupKey, requestPromise);
+    return requestPromise;
 };
 
 // Helper function to normalize metrics data
@@ -580,6 +662,10 @@ export const checkMultipleAnalysisStatuses = async (gameIds) => {
 export const restartAnalysis = async (gameId) => {
     try {
         console.log(`Force restarting analysis for game ${gameId}`);
+        const numericGameId = Number(gameId);
+        const dedupKey = Number.isFinite(numericGameId) ? String(numericGameId) : String(gameId);
+        recentAnalysisStarts.delete(dedupKey);
+        inFlightAnalysisStarts.delete(dedupKey);
         
         // First clear any cached completion markers
         localStorage.removeItem(`analysis_complete_${gameId}`);

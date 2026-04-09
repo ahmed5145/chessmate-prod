@@ -48,9 +48,16 @@ def setup_environment():
     # Make sure we're in the right directory
     os.chdir(script_dir)
 
-    # Add the project root to PYTHONPATH
+    # Add project paths to PYTHONPATH.
+    # Keep repository root first so `chess_mate.core` resolves correctly
+    # instead of being shadowed by the nested `chess_mate/chess_mate` package.
+    app_dir = script_dir / "chess_mate"
+    sys.path.insert(0, str(app_dir))
     sys.path.insert(0, str(script_dir))
-    os.environ["PYTHONPATH"] = str(script_dir) + os.pathsep + os.environ.get("PYTHONPATH", "")
+
+    os.environ["PYTHONPATH"] = (
+        str(script_dir) + os.pathsep + str(app_dir) + os.pathsep + os.environ.get("PYTHONPATH", "")
+    )
 
     # Set testing flag
     os.environ["TESTING"] = "True"
@@ -62,6 +69,7 @@ def setup_environment():
 def build_command(args):
     """Build the pytest command based on arguments."""
     cmd = [sys.executable, "-m", "pytest"]
+    django_settings = "chess_mate.test_settings"
 
     # Handle verbosity
     if args.verbose > 0:
@@ -85,17 +93,17 @@ def build_command(args):
     if args.standalone:
         cmd.extend(["-p", "no:django", "standalone_tests/"])
     elif args.django:
-        cmd.extend(["--ds=chess_mate.test_settings", "chess_mate/core/tests/"])
+        cmd.extend([f"--ds={django_settings}", "core/tests/"])
     elif args.path:
         # User specified a custom path
         if args.path.startswith("standalone_tests"):
             cmd.extend(["-p", "no:django", args.path])
         else:
             # Assume Django tests if not in standalone_tests
-            cmd.extend(["--ds=chess_mate.test_settings", args.path])
+            cmd.extend([f"--ds={django_settings}", args.path])
     else:
         # Run all tests by default
-        cmd.extend(["--ds=chess_mate.test_settings", "chess_mate/core/tests/", "standalone_tests/"])
+        cmd.extend([f"--ds={django_settings}", "chess_mate/core/tests/", "standalone_tests/"])
 
     return cmd
 
@@ -109,14 +117,19 @@ def run_tests(cmd):
     # Set the environment
     env = os.environ.copy()
 
+    # Run Django tests from app root to preserve historical import behavior.
+    django_cwd = None
+    if any(arg.startswith("--ds=") for arg in cmd):
+        django_cwd = str(Path(__file__).parent.absolute() / "chess_mate")
+
     # Run the command
-    return subprocess.run(cmd, env=env)
+    return subprocess.run(cmd, env=env, cwd=django_cwd)
 
 
 def main():
     """Main entry point."""
     args = parse_args()
-    script_dir = setup_environment()
+    setup_environment()
 
     # Build the command
     cmd = build_command(args)

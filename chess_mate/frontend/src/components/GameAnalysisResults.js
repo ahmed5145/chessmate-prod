@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { formatNumber } from '../utils/formatters';
-import { FaChessKnight, FaClock, FaChartLine, FaExclamationTriangle, FaHourglassHalf } from 'react-icons/fa';
+import { FaClock, FaChartLine, FaExclamationTriangle, FaHourglassHalf } from 'react-icons/fa';
 
 const StatItem = ({ label, value, icon: Icon, isDarkMode }) => (
     <div className={`flex items-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
@@ -48,10 +48,78 @@ const PhaseAnalysis = ({ phase, data, isDarkMode }) => (
     </div>
 );
 
-const GameAnalysisResults = ({ analysisData }) => {
-    const { isDarkMode } = useTheme();
+const getClassificationBadgeClass = (classification, isDarkMode) => {
+    const value = String(classification || 'neutral').toLowerCase();
 
-    if (!analysisData) {
+    if (value === 'brilliant') {
+        return isDarkMode ? 'bg-cyan-900 text-cyan-300' : 'bg-cyan-100 text-cyan-700';
+    }
+    if (value === 'great' || value === 'great move') {
+        return isDarkMode ? 'bg-blue-950 text-blue-300' : 'bg-blue-900 text-blue-100';
+    }
+
+    if (value === 'best' || value === 'excellent') {
+        return isDarkMode ? 'bg-emerald-900 text-emerald-300' : 'bg-emerald-100 text-emerald-700';
+    }
+    if (value === 'good') {
+        return isDarkMode ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-700';
+    }
+    if (value === 'inaccuracy') {
+        return isDarkMode ? 'bg-amber-900 text-amber-300' : 'bg-amber-100 text-amber-700';
+    }
+    if (value === 'mistake' || value === 'blunder') {
+        return isDarkMode ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-700';
+    }
+
+    return isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700';
+};
+
+const normalizeMove = (move) => {
+    const rawDelta =
+        move.eval_change ??
+        move.evaluation_change ??
+        move.delta ??
+        move.evaluation ??
+        0;
+
+    return {
+        moveNumber: move.move_number || 0,
+        san: move.san || move.move || '-',
+        classification: move.classification || 'neutral',
+        evalDelta: Number.isFinite(Number(rawDelta)) ? Number(rawDelta) : 0
+    };
+};
+
+const pickNumber = (...values) => {
+    for (const value of values) {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) {
+            return parsed;
+        }
+    }
+    return 0;
+};
+
+const pickAccuracy = (overallAccuracy, moveQualityAccuracy, ...fallbacks) => {
+    const overallParsed = Number(overallAccuracy);
+    const moveQualityParsed = Number(moveQualityAccuracy);
+
+    if (Number.isFinite(overallParsed) && overallParsed > 0) {
+        return overallParsed;
+    }
+
+    if (Number.isFinite(moveQualityParsed) && moveQualityParsed > 0) {
+        return moveQualityParsed;
+    }
+
+    return pickNumber(overallAccuracy, moveQualityAccuracy, ...fallbacks);
+};
+
+const GameAnalysisResults = ({ analysisData, analysis }) => {
+    const { isDarkMode } = useTheme();
+    const resolvedAnalysisData = analysisData || analysis;
+
+    if (!resolvedAnalysisData) {
         return (
             <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
                 <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -61,23 +129,78 @@ const GameAnalysisResults = ({ analysisData }) => {
         );
     }
 
-    // Extract data from the normalized structure
-    const analysisResults = analysisData.analysis_results || {};
-    const summary = analysisResults.summary || {};
-    const feedback = analysisData.feedback || {};
+    // Support both legacy and normalized backend response shapes.
+    const analysisResults = resolvedAnalysisData.analysis_results || {};
+    const metrics = resolvedAnalysisData.metrics || {};
+    const hasMetrics = metrics && Object.keys(metrics).length > 0;
+    const summary = hasMetrics ? metrics : (analysisResults.summary || analysisResults || {});
+    const feedback = resolvedAnalysisData.feedback || resolvedAnalysisData.ai_feedback || {};
+    const rawMoves =
+        resolvedAnalysisData.moves ||
+        resolvedAnalysisData.movesAnalysis ||
+        analysisResults.moves ||
+        [];
+    const moves = Array.isArray(rawMoves) ? rawMoves.map(normalizeMove) : [];
 
     // Extract metrics
     const overall = summary.overall || {};
-    const phases = summary.phases || {};
-    const timeManagement = summary.time_management || {};
+    const moveQuality = summary.move_quality || metrics.move_quality || analysisResults.move_quality || {};
+    const phases = summary.phases || metrics.phases || analysisResults.phases || {};
+    const timeManagement = summary.time_management || analysisResults.time_management || {};
+    const hasMoveTimeData = rawMoves.some((move) => {
+        const candidate = move.time_spent ?? move.time ?? move.clock;
+        const parsed = Number(candidate);
+        return Number.isFinite(parsed) && parsed > 0;
+    });
+
+    const hasComputedTimeMetrics = [
+        timeManagement.time_management_score,
+        timeManagement.time_pressure_percentage,
+        timeManagement.average_time,
+        timeManagement.avg_time_per_move
+    ].some((value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed > 0;
+    });
+    const showTimeAsUnavailable = !hasMoveTimeData && !hasComputedTimeMetrics;
 
     // Format metrics for display
     const displayMetrics = {
-        accuracy: formatNumber(overall.accuracy || 0),
-        mistakes: formatNumber(overall.mistakes || 0),
-        timeManagement: formatNumber(timeManagement.time_management_score || 0),
-        timePressure: formatNumber(timeManagement.time_pressure_percentage || 0)
+        accuracy: formatNumber(
+            pickAccuracy(
+                overall.accuracy,
+                moveQuality.accuracy,
+                overall.accuracy_score,
+                summary.accuracy
+            )
+        ),
+        mistakes: formatNumber(
+            pickNumber(
+                overall.mistakes,
+                moveQuality.mistakes,
+                overall.total_mistakes,
+                pickNumber(overall.blunders, 0) + pickNumber(overall.inaccuracies, 0)
+            )
+        ),
+        timeManagement: formatNumber(
+            pickNumber(
+                timeManagement.time_management_score,
+                overall.time_management_score,
+                summary.time_management_score
+            )
+        ),
+        timePressure: formatNumber(
+            pickNumber(
+                timeManagement.time_pressure_percentage,
+                summary.time_pressure_percentage
+            )
+        )
     };
+
+    if (showTimeAsUnavailable) {
+        displayMetrics.timeManagement = 'N/A';
+        displayMetrics.timePressure = 'N/A';
+    }
 
     return (
         <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
@@ -97,13 +220,13 @@ const GameAnalysisResults = ({ analysisData }) => {
                 />
                 <StatItem
                     label="Time Management"
-                    value={`${displayMetrics.timeManagement}%`}
+                    value={displayMetrics.timeManagement === 'N/A' ? 'N/A' : `${displayMetrics.timeManagement}%`}
                     icon={FaClock}
                     isDarkMode={isDarkMode}
                 />
                 <StatItem
                     label="Time Pressure"
-                    value={`${displayMetrics.timePressure}%`}
+                    value={displayMetrics.timePressure === 'N/A' ? 'N/A' : `${displayMetrics.timePressure}%`}
                     icon={FaHourglassHalf}
                     isDarkMode={isDarkMode}
                 />
@@ -173,6 +296,38 @@ const GameAnalysisResults = ({ analysisData }) => {
             </div>
                 )}
           </div>
+
+            {moves.length > 0 && (
+                <div className={`mt-8 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                    <h3 className="text-lg font-semibold mb-3">Move Insights</h3>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                            <thead>
+                                <tr className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
+                                    <th className="text-left py-2 pr-4">Move</th>
+                                    <th className="text-left py-2 pr-4">Played</th>
+                                    <th className="text-left py-2 pr-4">Classification</th>
+                                    <th className="text-right py-2">Eval Delta</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {moves.map((move, idx) => (
+                                    <tr key={`${move.moveNumber}-${move.san}-${idx}`} className={isDarkMode ? 'border-t border-gray-700' : 'border-t border-gray-200'}>
+                                        <td className="py-2 pr-4">{move.moveNumber}</td>
+                                        <td className="py-2 pr-4 font-medium">{move.san}</td>
+                                        <td className="py-2 pr-4">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getClassificationBadgeClass(move.classification, isDarkMode)}`}>
+                                                {move.classification}
+                                            </span>
+                                        </td>
+                                        <td className="py-2 text-right">{move.evalDelta.toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
     </div>
   );
 };

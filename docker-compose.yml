@@ -6,10 +6,14 @@ services:
     restart: always
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     depends_on:
       - db
       - redis
     environment:
+      - ENVIRONMENT=development
+      - DEBUG=True
       - DATABASE_HOST=db
       - DATABASE_PORT=5432
       - DATABASE_NAME=chessmate
@@ -18,7 +22,6 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - DJANGO_SETTINGS_MODULE=chess_mate.settings
-      - SECRET_KEY=local_development_key
       - STOCKFISH_PATH=/usr/games/stockfish
       - ENABLE_CELERY=true
     volumes:
@@ -50,6 +53,8 @@ services:
     build: .
     restart: always
     command: celery -A chess_mate worker -l info
+    env_file:
+      - .env
     volumes:
       - ./chess_mate:/app/chess_mate
     depends_on:
@@ -57,6 +62,8 @@ services:
       - redis
       - db
     environment:
+      - ENVIRONMENT=development
+      - DEBUG=True
       - DATABASE_HOST=db
       - DATABASE_PORT=5432
       - DATABASE_NAME=chessmate
@@ -65,21 +72,22 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - DJANGO_SETTINGS_MODULE=chess_mate.settings
-      - SECRET_KEY=local_development_key
       - STOCKFISH_PATH=/usr/games/stockfish
 
   frontend:
     build:
-      context: ./frontend
+      context: ./chess_mate/frontend
       dockerfile: Dockerfile
+    env_file:
+      - ./chess_mate/frontend/.env
     volumes:
-      - ./frontend:/app
+      - ./chess_mate/frontend:/app
       - /app/node_modules
     ports:
       - "3000:3000"
     command: npm start
     environment:
-      - REACT_APP_API_URL=http://localhost:8000/api
+      - REACT_APP_API_URL=http://localhost:8000
 
   nginx:
     image: nginx:alpine

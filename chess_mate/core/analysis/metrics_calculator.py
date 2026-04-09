@@ -26,6 +26,22 @@ class MetricsCalculator:
     """Enhanced metrics calculator with proper validation and aggregation."""
 
     @staticmethod
+    def _normalized_classification(move: Dict[str, Any]) -> str:
+        """Normalize move classification labels across analyzer versions."""
+        raw = str(move.get("classification", "")).strip().lower().replace("_", " ")
+        if raw in {"good move", "good"}:
+            return "good"
+        if raw in {"excellent move", "excellent"}:
+            return "excellent"
+        if raw in {"great move", "great"}:
+            return "excellent"
+        if raw in {"best", "brilliant"}:
+            return "excellent"
+        if raw in {"inaccuracy", "mistake", "blunder", "neutral"}:
+            return raw
+        return "neutral"
+
+    @staticmethod
     def _get_default_time_metrics() -> Dict[str, Any]:
         """Return default time management metrics."""
         return {
@@ -51,7 +67,7 @@ class MetricsCalculator:
             # Check if we have any moves to analyze
             if not moves:
                 return MetricsCalculator._get_default_metrics()
-                
+
             # Identify the player (white or black)
             is_white = moves[0].get("is_white", True)
             
@@ -100,11 +116,11 @@ class MetricsCalculator:
             
             # Compile all metrics with consistent structure
             metrics = {
-                "overall": overall_metrics,
+                    "overall": overall_metrics,
                 "move_quality": move_quality,
                 "time_management": time_management,
                 "consistency": consistency,
-                "phases": phase_metrics,
+                    "phases": phase_metrics,
                 "tactics": tactical_metrics,
                 "advantage": advantage_metrics,
                 "resourcefulness": resourcefulness_metrics,
@@ -138,7 +154,7 @@ class MetricsCalculator:
                             validated_metrics[section][key] = float(value)
             
             return validated_metrics
-            
+
         except Exception as e:
             logger.error(f"Error calculating game metrics: {str(e)}")
             # Return default metrics with error information
@@ -489,7 +505,7 @@ class MetricsCalculator:
             for move in moves:
                 try:
                     # Get evaluation improvement
-                    eval_improvement_val = move.get("evaluation_improvement")
+                    eval_improvement_val = move.get("evaluation_improvement", move.get("eval_change"))
                     if eval_improvement_val is None:
                         continue
 
@@ -552,8 +568,11 @@ class MetricsCalculator:
         # Calculate move quality streaks
         quality_streaks = []
         current_streak = 0
+        good_classes = {"good", "excellent"}
+        mistake_classes = {"mistake", "blunder"}
         for move in moves:
-            if move['classification'] in ['good', 'excellent']:
+            classification = MetricsCalculator._normalized_classification(move)
+            if classification in good_classes:
                 current_streak += 1
             else:
                 if current_streak > 0:
@@ -568,7 +587,7 @@ class MetricsCalculator:
         window_size = 5
         for i in range(len(moves)):
             window = moves[i:i+window_size]
-            window_mistakes = sum(1 for m in window if m['classification'] in ['mistake', 'blunder'])
+            window_mistakes = sum(1 for m in window if MetricsCalculator._normalized_classification(m) in mistake_classes)
             if window_mistakes > 1:
                 mistake_clusters += 1.0
             mistakes_in_window += float(window_mistakes)
@@ -582,8 +601,8 @@ class MetricsCalculator:
             time_variations = [abs(t - avg_time) for t in times]
             avg_variation = sum(time_variations) / max(1.0, float(len(time_variations)))
             time_consistency = max(0.0, 100.0 - (avg_variation / max(1.0, avg_time) * 100.0))
-            
-        # Calculate final score
+
+            # Calculate final score
         streak_score = (sum(quality_streaks) / max(1.0, float(len(moves)))) * 100.0 if quality_streaks else 0.0
         error_score = max(0.0, 100.0 - (mistakes_in_window / max(1.0, float(len(moves))) * 100.0))
         cluster_score = max(0.0, 100.0 - (mistake_clusters / max(1.0, float(len(moves))) * 100.0))
@@ -595,12 +614,46 @@ class MetricsCalculator:
     def _calculate_phase_metrics(moves: List[Dict[str, Any]], is_white: bool) -> Dict[str, Any]:
         """Calculate enhanced metrics for a specific game phase."""
         try:
+            if not moves:
+                return {
+                    "total_positions": 0,
+                    "success_rate": 0.0,
+                    "pattern_recognition": 0.0,
+                    "brilliant_moves": 0,
+                    "normalized_score": 0.0,
+                    "accuracy": 0.0,
+                    "moves_count": 0,
+                    "mistakes": 0,
+                    "blunders": 0,
+                    "critical_moves": 0,
+                }
+
             # Initialize metrics
             total_positions = 0
             successful = 0.0
             missed = 0
             brilliant_moves = 0
             pattern_scores: List[float] = []
+
+            # Always expose phase summary stats from available move labels.
+            moves_count = len(moves)
+            mistakes_count = 0
+            blunders_count = 0
+            inaccuracies_count = 0
+            critical_moves = 0
+
+            for move in moves:
+                classification = MetricsCalculator._normalized_classification(move)
+                if classification == "mistake":
+                    mistakes_count += 1
+                elif classification == "blunder":
+                    blunders_count += 1
+                elif classification == "inaccuracy":
+                    inaccuracies_count += 1
+
+                eval_drop = float(move.get("evaluation_drop", max(0.0, -float(move.get("eval_change", 0.0)))))
+                if bool(move.get("is_critical", False)) or eval_drop >= 100.0:
+                    critical_moves += 1
 
             # First pass: identify tactical positions
             tactical_positions: List[TacticalPosition] = []
@@ -661,6 +714,9 @@ class MetricsCalculator:
             # Calculate final metrics with proper normalization
             success_rate = successful / max(1, total_positions)
             pattern_recognition = statistics.mean(pattern_scores) if pattern_scores else 0.0
+            phase_accuracy = (
+                (moves_count - (mistakes_count + blunders_count + inaccuracies_count)) / max(1, moves_count) * 100.0
+            )
 
             return {
                 "total_positions": total_positions,
@@ -668,6 +724,11 @@ class MetricsCalculator:
                 "pattern_recognition": float(pattern_recognition),
                 "brilliant_moves": brilliant_moves,
                 "normalized_score": float((success_rate + pattern_recognition) / 2.0),
+                "accuracy": round(phase_accuracy, 1),
+                "moves_count": moves_count,
+                "mistakes": mistakes_count,
+                "blunders": blunders_count,
+                "critical_moves": critical_moves,
             }
 
         except Exception as e:
@@ -678,6 +739,11 @@ class MetricsCalculator:
                 "pattern_recognition": 0.0,
                 "brilliant_moves": 0,
                 "normalized_score": 0.0,
+                "accuracy": 0.0,
+                "moves_count": 0,
+                "mistakes": 0,
+                "blunders": 0,
+                "critical_moves": 0,
             }
 
     @staticmethod
@@ -1078,17 +1144,45 @@ class MetricsCalculator:
         """Calculate overall game metrics with enhanced validation."""
         try:
             total_moves = len(moves)
-            mistakes = sum(1 for m in moves if m.get("is_mistake", False))
-            blunders = sum(1 for m in moves if m.get("is_blunder", False))
-            inaccuracies = sum(1 for m in moves if m.get("evaluation_drop", 0) > 100)
-            quality_moves = sum(1 for m in moves if m.get("evaluation_improvement", 0) > 50)
+            move_quality = MetricsCalculator._calculate_move_quality(moves)
+            mistakes = sum(
+                1
+                for m in moves
+                if m.get("is_mistake", False) or MetricsCalculator._normalized_classification(m) == "mistake"
+            )
+            blunders = sum(
+                1
+                for m in moves
+                if m.get("is_blunder", False) or MetricsCalculator._normalized_classification(m) == "blunder"
+            )
+            inaccuracies = sum(
+                1
+                for m in moves
+                if (
+                    MetricsCalculator._normalized_classification(m) == "inaccuracy"
+                    or float(m.get("evaluation_drop", max(0.0, -float(m.get("eval_change", 0.0))))) > 100.0
+                )
+            )
+            quality_moves = sum(
+                1
+                for m in moves
+                if m.get("is_best", False)
+                or MetricsCalculator._normalized_classification(m) in {"good", "excellent"}
+            )
 
-            # Calculate overall accuracy with perspective
-            accuracy = MetricsCalculator._calculate_accuracy(moves)
+            # Keep overall accuracy consistent with move_quality accuracy shown in UI.
+            accuracy = float(move_quality.get("accuracy", 0.0))
             consistency = MetricsCalculator._calculate_consistency(moves)
 
             # Calculate critical positions
-            critical_positions = sum(1 for m in moves if m.get("is_critical", False))
+            critical_positions = sum(
+                1
+                for m in moves
+                if (
+                    m.get("is_critical", False)
+                    or float(m.get("evaluation_drop", max(0.0, -float(m.get("eval_change", 0.0))))) >= 1.0
+                )
+            )
 
             # Calculate average position quality
             position_quality = (
@@ -1332,10 +1426,27 @@ class MetricsCalculator:
             total_moves = float(len(moves))
             
             # Count move types
-            mistakes = sum(1.0 for m in moves if m.get("is_mistake", False))
-            blunders = sum(1.0 for m in moves if m.get("is_blunder", False))
-            inaccuracies = sum(1.0 for m in moves if m.get("is_inaccuracy", False))
-            quality_moves = sum(1.0 for m in moves if m.get("is_best", False))
+            mistakes = sum(
+                1.0
+                for m in moves
+                if m.get("is_mistake", False) or MetricsCalculator._normalized_classification(m) == "mistake"
+            )
+            blunders = sum(
+                1.0
+                for m in moves
+                if m.get("is_blunder", False) or MetricsCalculator._normalized_classification(m) == "blunder"
+            )
+            inaccuracies = sum(
+                1.0
+                for m in moves
+                if m.get("is_inaccuracy", False) or MetricsCalculator._normalized_classification(m) == "inaccuracy"
+            )
+            quality_moves = sum(
+                1.0
+                for m in moves
+                if m.get("is_best", False)
+                or MetricsCalculator._normalized_classification(m) in {"good", "excellent"}
+            )
             
             # Calculate percentages
             accuracy = ((total_moves - (mistakes + blunders + inaccuracies)) / total_moves) * 100.0

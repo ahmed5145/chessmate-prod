@@ -10,16 +10,34 @@ import sys
 import django
 import pytest
 
-# Add the project root to the path for relative imports
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# Add both repository root and app root to the import path.
+# Repository root must come first so `chess_mate.core` resolves to
+# `<repo>/chess_mate/core` instead of the nested `chess_mate/chess_mate` package.
+tests_dir = os.path.dirname(__file__)
+app_root = os.path.abspath(os.path.join(tests_dir, "../.."))
+repo_root = os.path.abspath(os.path.join(tests_dir, "../../.."))
+
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
+if app_root not in sys.path:
+    sys.path.insert(1, app_root)
 
 # Try to configure Django for testing
 try:
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.test_settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.chess_mate.test_settings")
     django.setup()
 except ImportError:
+    pass
+
+try:
+    import core as core_package
+    import core.models as core_models
+
+    sys.modules.setdefault("chess_mate.core", core_package)
+    sys.modules.setdefault("chess_mate.core.models", core_models)
+    sys.modules.setdefault("chessmate_prod.chess_mate.core", core_package)
+    sys.modules.setdefault("chessmate_prod.chess_mate.core.models", core_models)
+except Exception:
     pass
 
 
@@ -93,35 +111,30 @@ def pytest_sessionstart(session):
         pass
 
 
-# Model fixtures - these depend on models being properly imported
-try:
-    from chess_mate.core.models import Game, Profile
+@pytest.fixture
+def test_game(db, test_user):
+    """Create a test game."""
+    try:
+        from core.models import Game
+    except (ImportError, ModuleNotFoundError):
+        pytest.skip("core.models unavailable in this test context")
 
-    @pytest.fixture
-    def test_game(db, test_user):
-        """Create a test game."""
-        return Game.objects.create(
-            user=test_user,
-            platform="lichess",
-            white="testuser",
-            black="opponent",
-            pgn='[Event "Test Game"]\n[Site "https://lichess.org"]\n[White "testuser"]\n[Black "opponent"]\n[Result "1-0"]\n\n1.e4 e5 2.Nf3 Nc6 3.Bb5 a6 4.Ba4 Nf6 5.O-O Be7 6.d3 d6 7.c3 O-O 8.Re1 Nb8 9.Nbd2 Nbd7 10.Nf1 c6 11.Bc2 Qc7 12.Ng3 Re8 13.d4 Bf8 14.Nh4 g6 15.f4 Bg7 16.f5 1-0',
-            result="1-0",
-        )
+    return Game.objects.create(
+        user=test_user,
+        platform="lichess",
+        white="testuser",
+        black="opponent",
+        pgn='[Event "Test Game"]\n[Site "https://lichess.org"]\n[White "testuser"]\n[Black "opponent"]\n[Result "1-0"]\n\n1.e4 e5 2.Nf3 Nc6 3.Bb5 a6 4.Ba4 Nf6 5.O-O Be7 6.d3 d6 7.c3 O-O 8.Re1 Nb8 9.Nbd2 Nbd7 10.Nf1 c6 11.Bc2 Qc7 12.Ng3 Re8 13.d4 Bf8 14.Nh4 g6 15.f4 Bg7 16.f5 1-0',
+        result="1-0",
+    )
 
-    @pytest.fixture
-    def test_profile(db, test_user):
-        """Create a test profile."""
-        return Profile.objects.create(user=test_user, chess_com_username="testuser", lichess_username="testuser")
 
-except (ImportError, ModuleNotFoundError):
-    # If models cannot be imported, create dummy fixtures
-    @pytest.fixture
-    def test_game(db, test_user):
-        """Dummy test game fixture."""
-        return None
+@pytest.fixture
+def test_profile(db, test_user):
+    """Create a test profile."""
+    try:
+        from core.models import Profile
+    except (ImportError, ModuleNotFoundError):
+        pytest.skip("core.models unavailable in this test context")
 
-    @pytest.fixture
-    def test_profile(db, test_user):
-        """Dummy test profile fixture."""
-        return None
+    return Profile.objects.create(user=test_user, chess_com_username="testuser", lichess_username="testuser")

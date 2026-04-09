@@ -9,6 +9,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Union
 import environ  # type: ignore
+from django.core.exceptions import ImproperlyConfigured
 
 from dotenv import load_dotenv
 
@@ -33,19 +34,25 @@ else:
 # Testing mode flag - must be defined before any dependent settings
 TESTING: bool = env('TESTING', default='False').lower() == "true"
 
+# Environment detection
+ENVIRONMENT = env('ENVIRONMENT', default='development')
+IS_PRODUCTION = ENVIRONMENT.lower() == "production"
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY', default='django-insecure-p1*dz5cqu(21e+w9a%d15i-syw9!$2+*q7%oqg$a!^n*bw00ki')
+if IS_PRODUCTION and not TESTING:
+    SECRET_KEY = env('SECRET_KEY', default='').strip()
+    if not SECRET_KEY or SECRET_KEY.startswith('django-insecure'):
+        raise ImproperlyConfigured(
+            "SECRET_KEY must be set to a strong value when ENVIRONMENT=production"
+        )
+else:
+    SECRET_KEY = env('SECRET_KEY', default='django-insecure-dev-only-change-me')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool('DEBUG', default=False)
-
-ENVIRONMENT = env('ENVIRONMENT', default='production')
-
-# Environment detection
-IS_PRODUCTION = ENVIRONMENT.lower() == "production"
 
 # OpenAI Settings
 OPENAI_API_KEY = env('OPENAI_API_KEY', default='')
@@ -446,8 +453,15 @@ STOCKFISH_PATH = env('STOCKFISH_PATH', default=r'C:\Users\PCAdmin\Downloads\stoc
 STOCKFISH_THREADS = int(env('STOCKFISH_THREADS', default=4))
 STOCKFISH_HASH_SIZE = int(env('STOCKFISH_HASH_SIZE', default=128))  # MB
 
+# Security configuration
+SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=IS_PRODUCTION and not DEBUG)
+SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=IS_PRODUCTION)
+CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=IS_PRODUCTION)
+SECURE_HSTS_SECONDS = int(env('SECURE_HSTS_SECONDS', default='31536000' if IS_PRODUCTION else '0'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=IS_PRODUCTION)
+SECURE_HSTS_PRELOAD = env.bool('SECURE_HSTS_PRELOAD', default=IS_PRODUCTION)
+
 # CSRF Configuration
-CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = False  # Frontend needs access to CSRF cookie
 CSRF_COOKIE_SAMESITE = "Lax"  # Allows the cookie to be sent with same-site requests
 CSRF_TRUSTED_ORIGINS = [

@@ -5,6 +5,7 @@ Provides standardized error responses, exception handling, and custom exceptions
 """
 
 import functools
+import json
 import logging
 import threading
 import traceback
@@ -106,6 +107,20 @@ ERROR_CODES = {
 }
 
 
+class APIJsonResponse(JsonResponse):
+    """JsonResponse with DRF-like data/json access used by tests."""
+
+    @property
+    def data(self):
+        try:
+            return json.loads(self.content.decode("utf-8"))
+        except Exception:
+            return {}
+
+    def json(self):
+        return self.data
+
+
 def create_error_response(
     error_type: str,
     message: str,
@@ -130,8 +145,9 @@ def create_error_response(
 
     response_data = ERROR_RESPONSE_STRUCTURE.copy()
     response_data.update({"code": error_code, "message": message, "details": details, "request_id": request_id})
+    response_data["error"] = message
 
-    return JsonResponse(response_data, status=status_code)
+    return APIJsonResponse(response_data, status=status_code)
 
 
 def handle_view_exception(exc: Exception, request_id: Optional[str] = None) -> JsonResponse:
@@ -155,6 +171,9 @@ def handle_view_exception(exc: Exception, request_id: Optional[str] = None) -> J
         error_type = "bad_request"
         message = str(exc.detail)
         details = None
+
+        if isinstance(exc, ValidationError):
+            details = {"errors": exc.errors}
 
         # Map exception types to error codes
         if status_code == status.HTTP_401_UNAUTHORIZED:
@@ -487,7 +506,7 @@ class ExternalServiceError(APIException):
 
 def create_success_response(
     data: Any = None, message: Optional[str] = None, status_code: int = status.HTTP_200_OK
-) -> JsonResponse:
+) -> Response:
     """
     Create a standardized success response.
 
@@ -497,14 +516,17 @@ def create_success_response(
         status_code: HTTP status code
 
     Returns:
-        JsonResponse with standardized success format
+        Response with standardized success format
     """
     response_data = {"status": "success", "data": data if data is not None else {}}
+
+    if isinstance(data, dict):
+        response_data.update(data)
 
     if message:
         response_data["message"] = message
 
-    return JsonResponse(response_data, status=status_code)
+    return Response(response_data, status=status_code)
 
 
 # Standardized error responses for auth issues

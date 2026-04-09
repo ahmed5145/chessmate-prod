@@ -8,12 +8,14 @@ cache control and automatic cache invalidation when data changes.
 
 import functools
 import logging
-from typing import Any, Callable, Dict, List, Optional, Set, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Set, TypeVar, Union, cast
 
 from django.conf import settings
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
 from django.utils.decorators import method_decorator
 
-from .cache import cache_delete_pattern, generate_cache_key
+from .cache import generate_cache_key, get_redis_connection, invalidate_pattern
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,39 @@ F = TypeVar("F", bound=Callable[..., Any])
 # Cache tag constants
 TAG_SEPARATOR = "::tag::"
 GLOBAL_TAG = "global"
+
+# Backward-compatible lookup tables used by older tests.
+ENTITY_KEY_PREFIXES: Dict[str, List[str]] = {
+    "User": ["user:", "profile:", "dashboard:", "analysis:", "feedback:", "subscription:"],
+    "Profile": ["profile:"],
+    "Game": ["game:", "analysis:", "feedback:"],
+    "Subscription": ["subscription:"],
+}
+
+ENTITY_DEPENDENCIES: Dict[str, List[str]] = {
+    "User": ["Profile", "Game", "Subscription"],
+    "Profile": [],
+    "Game": [],
+    "Subscription": [],
+}
+
+TAG_KEY_PREFIXES: Dict[str, List[str]] = {
+    "user_games": ["user_games:"],
+    "dashboard": ["dashboard:"],
+    "game_details": ["game_details:"],
+    "game_analysis": ["analysis:"],
+    "profile": ["profile:"],
+    "feedback": ["feedback:"],
+}
+
+TAG_DEPENDENCIES: Dict[str, List[str]] = {
+    "user_games": ["game_details", "game_analysis", "dashboard"],
+    "dashboard": [],
+    "game_details": [],
+    "game_analysis": [],
+    "profile": [],
+    "feedback": [],
+}
 
 
 class CacheInvalidator:
@@ -38,6 +73,23 @@ class CacheInvalidator:
         """Initialize the cache invalidator."""
         self._tag_patterns: Dict[str, Set[str]] = {}
         self._initialized = False
+
+    @classmethod
+    def invalidate_entity(cls, entity_type: str, entity_id: Any) -> bool:
+        """Invalidate cache keys for an entity and its dependent entities."""
+        try:
+            for prefix in ENTITY_KEY_PREFIXES.get(entity_type, []):
+                invalidate_pattern(f"{prefix}*{entity_id}*", "redis")
+
+            for dependency in ENTITY_DEPENDENCIES.get(entity_type, []):
+                for prefix in ENTITY_KEY_PREFIXES.get(dependency, []):
+                    invalidate_pattern(f"{prefix}*{entity_id}*", "redis")
+
+            logger.debug(f"Invalidated cache for {entity_type}:{entity_id}")
+            return True
+        except Exception as error:
+            logger.error(f"Error invalidating entity cache for {entity_type}:{entity_id}: {error}")
+            return False
 
     def initialize(self) -> None:
         """
@@ -81,7 +133,8 @@ class CacheInvalidator:
         self.initialize()
         return self._tag_patterns.get(tag, set())
 
-    def invalidate_tag(self, tag: str) -> int:
+    @classmethod
+    def invalidate_tag(cls, tag: str) -> bool:
         """
         Invalidate all cache entries associated with a tag.
 
@@ -91,29 +144,29 @@ class CacheInvalidator:
         Returns:
             Number of patterns invalidated
         """
-        patterns = self.get_patterns_for_tag(tag)
-        count = 0
-
-        for pattern in patterns:
-            try:
-                deleted = cache_delete_pattern(pattern)
-                count += deleted
-                logger.debug(f"Invalidated pattern '{pattern}' for tag '{tag}': {deleted} keys")
-            except Exception as e:
-                logger.error(f"Error invalidating pattern '{pattern}' for tag '{tag}': {str(e)}")
-
-        # Also invalidate the tag-specific pattern
-        tag_pattern = f"*{TAG_SEPARATOR}{tag}*"
         try:
-            deleted = cache_delete_pattern(tag_pattern)
-            count += deleted
-            logger.debug(f"Invalidated tag pattern '{tag_pattern}': {deleted} keys")
-        except Exception as e:
-            logger.error(f"Error invalidating tag pattern '{tag_pattern}': {str(e)}")
+            # Legacy tag invalidation uses explicit tag-marker keys.
+            if tag == GLOBAL_TAG:
+                invalidate_pattern(f"*{TAG_SEPARATOR}*", "redis")
+                logger.debug(f"Invalidated cache for tag: {tag}")
+                return True
 
-        return count
+            invalidate_pattern(f"*{TAG_SEPARATOR}{tag}", "redis")
+            for prefix in TAG_KEY_PREFIXES.get(tag, []):
+                invalidate_pattern(f"{prefix}*", "redis")
 
-    def invalidate_tags(self, tags: List[str]) -> int:
+            for dependency in TAG_DEPENDENCIES.get(tag, []):
+                for prefix in TAG_KEY_PREFIXES.get(dependency, []):
+                    invalidate_pattern(f"{prefix}*", "redis")
+
+            logger.debug(f"Invalidated cache for tag: {tag}")
+            return True
+        except Exception as error:
+            logger.error(f"Error invalidating tag cache for {tag}: {error}")
+            return False
+
+    @classmethod
+    def invalidate_tags(cls, tags: List[str]) -> bool:
         """
         Invalidate multiple tags at once.
 
@@ -123,19 +176,58 @@ class CacheInvalidator:
         Returns:
             Total number of patterns invalidated
         """
-        count = 0
         for tag in tags:
-            count += self.invalidate_tag(tag)
-        return count
+            cls.invalidate_tag(tag)
+        return True
 
-    def invalidate_all(self) -> int:
+    @classmethod
+    def invalidate_user_cache(cls, user_id: Any) -> bool:
+        """Invalidate user-specific cache keys."""
+        try:
+            patterns = [
+                f"user:*{user_id}*",
+                f"profile:*{user_id}*",
+                f"user_games:*{user_id}*",
+                f"dashboard:*{user_id}*",
+                f"analysis:*{user_id}*",
+                f"feedback:*{user_id}*",
+                f"user_stats:*{user_id}*",
+                f"subscription:*{user_id}*",
+            ]
+            for pattern in patterns:
+                invalidate_pattern(pattern, "redis")
+            logger.debug(f"Invalidated all cache for user: {user_id}")
+            return True
+        except Exception as error:
+            logger.error(f"Error invalidating user cache for {user_id}: {error}")
+            return False
+
+    @classmethod
+    def invalidate_game_cache(cls, game_id: Any) -> bool:
+        """Invalidate game-specific cache keys."""
+        try:
+            patterns = [
+                f"game:*{game_id}*",
+                f"analysis:*{game_id}*",
+                f"feedback:*{game_id}*",
+            ]
+            for pattern in patterns:
+                invalidate_pattern(pattern, "redis")
+            logger.debug(f"Invalidated all cache for game: {game_id}")
+            return True
+        except Exception as error:
+            logger.error(f"Error invalidating game cache for {game_id}: {error}")
+            return False
+
+    @classmethod
+    def invalidate_all(cls) -> bool:
         """
         Invalidate all cached data.
 
         Returns:
             Number of patterns invalidated
         """
-        return self.invalidate_tag(GLOBAL_TAG)
+        return cls.invalidate_tag(GLOBAL_TAG)
 
 
 # Global cache invalidator instance
@@ -170,30 +262,34 @@ def with_cache_tags(*tags: str) -> Callable[[Any], Any]:
     """
 
     def decorator(func: F) -> F:
+        existing_tags = getattr(func, "_cache_tags", set())
+        if not isinstance(existing_tags, set):
+            existing_tags = set(existing_tags)
+        combined_tags = existing_tags.union(set(tags))
+
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Get the base cache key for this function call
-            base_key = generate_cache_key(func.__module__, func.__qualname__, *args, **kwargs)
+            # Keep key generation stable for legacy tests and helper utilities.
+            base_key = generate_cache_key(func.__name__, *args, **kwargs)
+            result = func(*args, **kwargs)
 
-            # For each tag, store a mapping from the tag to this cache key
-            for tag in tags:
-                tag_key = f"{base_key}{TAG_SEPARATOR}{tag}"
-                # This is a no-op key that helps us find keys by tag pattern
-                # We don't actually store anything here, it's just for pattern matching
-                # This approach allows for fine-grained invalidation without maintaining
-                # a separate index of keys
+            redis_client = get_redis_connection()
+            if redis_client:
+                if redis_client.get(base_key) is None:
+                    redis_client.set(base_key, "1")
+                    for tag in combined_tags:
+                        redis_client.set(f"{base_key}{TAG_SEPARATOR}{tag}", "1")
 
-            # Call the original function
-            return func(*args, **kwargs)
+            return result
 
         # Store the tags on the function for introspection
-        setattr(wrapper, "_cache_tags", tags)
+        setattr(wrapper, "_cache_tags", combined_tags)
         return cast(F, wrapper)
 
     return decorator
 
 
-def invalidates_cache(*tags: str) -> Callable[[F], F]:
+def invalidates_cache(*tags: str, entities: Union[Dict[str, str], None] = None) -> Callable[[F], F]:
     """
     Decorator to invalidate cache tags when a function is called.
 
@@ -212,9 +308,21 @@ def invalidates_cache(*tags: str) -> Callable[[F], F]:
 
             # Invalidate the specified cache tags
             try:
-                invalidate_cache(list(tags))
-            except Exception as e:
-                logger.error(f"Error invalidating cache in {func.__qualname__}: {str(e)}")
+                for tag in tags:
+                    CacheInvalidator.invalidate_tag(tag)
+
+                if entities:
+                    for entity_type, argument_name in entities.items():
+                        entity_id = kwargs.get(argument_name)
+                        if entity_id is None:
+                            for arg in args:
+                                if isinstance(arg, dict) and argument_name in arg:
+                                    entity_id = arg.get(argument_name)
+                                    break
+                        if entity_id is not None:
+                            CacheInvalidator.invalidate_entity(entity_type, entity_id)
+            except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+                logger.error("Error invalidating cache in %s: %s", func.__qualname__, error)
 
             return result
 
@@ -291,3 +399,21 @@ class CacheTagsMiddleware:
                         response["Cache-Control"] = "public, max-age=300"
 
         return response
+
+
+@receiver(post_save)
+def invalidate_cache_on_save(sender: Any, instance: Any, **kwargs: Any) -> None:
+    """Legacy post-save hook used by compatibility tests."""
+    model_name = sender.__name__
+    if model_name not in ENTITY_KEY_PREFIXES:
+        return
+
+    entity_id = getattr(instance, "id", None)
+    if entity_id is not None:
+        CacheInvalidator.invalidate_entity(model_name, entity_id)
+
+
+@receiver(post_delete)
+def invalidate_cache_on_delete(sender: Any, instance: Any, **kwargs: Any) -> None:
+    """Legacy post-delete hook used by compatibility tests."""
+    invalidate_cache_on_save(sender, instance, **kwargs)

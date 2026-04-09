@@ -5,6 +5,9 @@ This package contains the primary functionality for chess analysis, game managem
 and user-facing features.
 """
 
+import os
+from typing import Any
+
 # Export cache middleware components
 from .cache_middleware import (
     CacheInvalidationMiddleware,
@@ -85,7 +88,15 @@ from .redis_config import (
     with_redis_lock,
 )
 from .task_manager import TaskManager
-from .windows_worker import WindowsWorkerPool
+
+WindowsWorkerPool: Any = None
+try:
+    if os.name == "nt":
+        from .windows_worker import WindowsWorkerPool as _WindowsWorkerPool
+
+        WindowsWorkerPool = _WindowsWorkerPool
+except ImportError:
+    pass
 
 # Note: Type definitions are in the types.py module,
 # but we don't import them here to avoid circular imports.
