@@ -778,6 +778,25 @@ class GameAnalyzer:
         # Convert dict results to list maintaining order
         return [results_by_id.get(game_id, {}) for game_id in game_ids]
 
+    def analyze_games(self, games: List[Game], depth: int = 20, use_ai: bool = True) -> List[Dict[str, Any]]:
+        """
+        Alias for analyze_batch_games - validate input and call batch analyzer.
+        
+        Args:
+            games: List of Game objects to analyze
+            depth: Analysis depth
+            use_ai: Whether to use AI feedback
+            
+        Returns:
+            List of analysis results
+            
+        Raises:
+            ValueError: If games list is empty
+        """
+        if not games:
+            raise ValueError("No games provided for analysis")
+        return self.analyze_batch_games(games, depth=depth, use_ai=use_ai)
+
     def save_analysis(self, game: Game, analysis_result: Dict[str, Any], feedback_result: Dict[str, Any]) -> GameAnalysis:
         """
         Save analysis results to the database.
