@@ -86,6 +86,11 @@ class TaskManager:
 
     def __init__(self, redis_client=None):
         """Initialize the task manager with default configuration."""
+        if getattr(self, "_initialized", False):
+            if redis_client is not None:
+                self.redis_client = redis_client
+            return
+
         self.tasks: Dict[str, Dict[str, Any]] = {}
         self.game_tasks: Dict[str, str] = {}
         self.task_timeout = getattr(settings, "TASK_TIMEOUT", self.DEFAULT_TASK_TIMEOUT)
@@ -99,6 +104,8 @@ class TaskManager:
         
         if self.redis_client is None:
             logger.warning("Redis connection not available, using in-memory storage only")
+
+        self._initialized = True
 
     def _cache_get_value(self, key: str) -> Any:
         return cache_get(key, backend_name=CACHE_BACKEND_REDIS)
@@ -1057,6 +1064,23 @@ class TaskManager:
                             time.sleep(retry_delay)
 
         return task_id
+
+    def create_analysis_job(
+        self,
+        game_id: Union[int, str],
+        user_id: Optional[int] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Backward-compatible wrapper used by legacy analysis tests."""
+        task_id = self.create_task(
+            game_id=game_id,
+            user_id=user_id,
+            task_type=self.TYPE_ANALYSIS,
+            parameters=parameters,
+            **kwargs,
+        )
+        return self.get_task_status_by_id(task_id)
 
     def _get_task_id_for_game(self, game_id: Union[int, str]) -> Optional[str]:
         """

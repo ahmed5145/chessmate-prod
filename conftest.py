@@ -12,6 +12,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -165,6 +166,48 @@ def test_profile(db, test_user):
         return Profile.objects.create(user=test_user, chess_com_username="testuser", lichess_username="testuser")
     except (ImportError, ModuleNotFoundError):
         pytest.skip("Profile model not available")
+
+
+@pytest.fixture
+def stockfish_mock():
+    """Provide a reusable Stockfish engine mock for analysis tests."""
+
+    def create_analysis_result(cp_score=0, mate_in=None, depth=20, nodes=1000, time=0.1, color=None):
+        import chess
+
+        score = chess.engine.Mate(mate_in) if mate_in is not None else chess.engine.Cp(cp_score)
+        pov_color = chess.WHITE if color is None else color
+
+        return {
+            "score": chess.engine.PovScore(score, pov_color),
+            "depth": depth,
+            "pv": [chess.Move.from_uci("e2e4")],
+            "nodes": nodes,
+            "time": time,
+        }
+
+    engine_mock = MagicMock(name="stockfish_engine")
+    engine_mock.configure.return_value = None
+    engine_mock.quit.return_value = None
+    engine_mock.analyse.return_value = create_analysis_result()
+
+    patcher = patch("chess.engine.SimpleEngine.popen_uci", return_value=engine_mock)
+    patcher.start()
+
+    helper = MagicMock(name="stockfish_mock")
+    helper.return_value = engine_mock
+    helper.create_analysis_result = create_analysis_result
+
+    try:
+        yield helper
+    finally:
+        patcher.stop()
+
+
+@pytest.fixture
+def capture_queries():
+    """Legacy no-op query capture fixture used by older tests."""
+    yield None
 
 
 # -------------------------------------------------------------------------------

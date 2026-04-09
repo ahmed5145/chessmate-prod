@@ -85,6 +85,58 @@ class GameAnalyzer:
         except Exception as e:
             logger.error("Error cleaning up game analyzer: %s", str(e))
 
+    def analyze_single_game(self, game: Game, depth: int = 20) -> Dict[str, Any]:
+        """Backward-compatible wrapper that returns structured analysis data for a single game."""
+        return self._perform_analysis(game, depth)
+
+    def generate_feedback(self, analysis_results: Union[Dict[str, Any], List[Dict[str, Any]]], game: Optional[Game] = None) -> Dict[str, Any]:
+        """Backward-compatible wrapper used by legacy analysis tests."""
+        if isinstance(analysis_results, list):
+            return self.feedback_generator.generate_feedback({"moves": analysis_results})
+
+        if isinstance(analysis_results, dict):
+            if "analysis_results" in analysis_results:
+                analysis_payload = analysis_results.get("analysis_results", {})
+                metrics = analysis_payload.get("metrics", {}) if isinstance(analysis_payload, dict) else {}
+                summary = metrics.get("summary", metrics if isinstance(metrics, dict) else {})
+                if not isinstance(summary, dict):
+                    summary = {}
+
+                canonical_summary = {
+                    "overall": summary.get("overall", {"accuracy": 0.0, "mistakes": 0, "blunders": 0}),
+                    "phases": summary.get("phases", {}),
+                    "tactics": summary.get("tactics", {}),
+                    "time_management": summary.get("time_management", {}),
+                    "positional": summary.get("positional", {}),
+                    "advantage": summary.get("advantage", {}),
+                    "resourcefulness": summary.get("resourcefulness", {}),
+                    "opening": summary.get("opening", {}),
+                    "middlegame": summary.get("middlegame", {}),
+                    "endgame": summary.get("endgame", {}),
+                }
+
+                overall = canonical_summary.get("overall", {})
+                if isinstance(overall, dict):
+                    overall["mistakes"] = int(overall.get("mistakes", 0) or 0)
+                    overall["blunders"] = int(overall.get("blunders", 0) or 0)
+                    canonical_summary["overall"] = overall
+
+                return {
+                    "analysis_results": {
+                        "summary": canonical_summary,
+                        "strengths": summary.get("strengths", []),
+                        "weaknesses": summary.get("weaknesses", []),
+                        "critical_moments": summary.get("critical_moments", []),
+                        "improvement_areas": summary.get("improvement_areas", ""),
+                    },
+                    "analysis_complete": True,
+                    "source": "stockfish",
+                }
+
+            return self.feedback_generator.generate_feedback(analysis_results)
+
+        return self.feedback_generator.generate_feedback({"moves": []})
+
     def _generate_ai_feedback(self, game_analysis: List[Dict[str, Any]], game: Optional[Game] = None) -> Optional[Dict[str, Any]]:
         """Generate structured AI feedback for legacy tests and compatibility callers."""
         try:
