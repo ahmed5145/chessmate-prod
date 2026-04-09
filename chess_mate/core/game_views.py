@@ -29,7 +29,7 @@ from django.utils.decorators import method_decorator
 
 # Third-party imports
 from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .ai_feedback import AIFeedbackGenerator
@@ -538,7 +538,7 @@ def get_game(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 @auth_csrf_exempt
 @track_request_time
 @rate_limit(endpoint_type="ANALYSIS")
@@ -547,6 +547,12 @@ def analyze_game(request, game_id=None):
     try:
         # Use request.data from DRF instead of manually parsing JSON
         data = request.data
+
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {"detail": "Authentication credentials were not provided."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
         # Get game_id from URL param first, then request body as fallback
         game_id = game_id or data.get("game_id")
 
@@ -583,6 +589,18 @@ def analyze_game(request, game_id=None):
         depth = data.get("depth", DEFAULT_ANALYSIS_DEPTH)
         use_ai = data.get("use_ai", DEFAULT_USE_AI)
 
+        profile = Profile.objects.filter(user=request.user).first()
+        if not request.user.is_staff and (profile is None or profile.credits < 1):
+            return Response(
+                {
+                    "status": "error",
+                    "error": "Insufficient credits",
+                    "credits_required": 1,
+                    "credits_available": 0 if profile is None else profile.credits,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Resolve through legacy module path when tests patch core.* symbols.
         compat_task = _resolve_compat_attr("core.tasks", "analyze_game_task", analyze_game_task)
         compat_task_managers = _get_compat_task_managers()
@@ -597,7 +615,8 @@ def analyze_game(request, game_id=None):
 
         # Deduct one credit for analysis when possible.
         try:
-            profile = Profile.objects.get(user=request.user)
+            if profile is None:
+                profile = Profile.objects.get(user=request.user)
             profile.credits = max(0, profile.credits - 1)
             profile.save(update_fields=["credits"])
         except Profile.DoesNotExist:

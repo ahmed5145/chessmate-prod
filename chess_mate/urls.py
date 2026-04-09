@@ -17,7 +17,7 @@ from typing import Any, Callable
 try:
     # Import the views directly from the core module
     from chess_mate.core.views import health_check as health_check_view
-    from chess_mate.core.views import detailed_health_check as readiness_check_view
+    from chess_mate.core.views import readiness_check as readiness_check_view
 except ImportError:
     # For testing purposes, define stub views if the real ones aren't available
     # Use explicit typing to avoid incompatible redefinition errors

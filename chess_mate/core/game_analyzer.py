@@ -43,6 +43,24 @@ from .task_manager import (TASK_STATUS_FAILURE, TASK_STATUS_SUCCESS, TaskManager
 logger = logging.getLogger(__name__)
 
 
+class _TaskProxy:
+    """Lazy proxy for Celery task functions to avoid import cycles at module load."""
+
+    def __init__(self, task_attr: str):
+        self.task_attr = task_attr
+
+    def delay(self, **kwargs):
+        from . import tasks
+
+        task_fn = getattr(tasks, self.task_attr)
+        return task_fn.delay(**kwargs)
+
+
+# Legacy module-level task callables patched by tests.
+analyze_game = _TaskProxy("analyze_game_task")
+batch_analyze_games = _TaskProxy("batch_analyze_games_task")
+
+
 class GameMetrics(TypedDict):
     moves: List[Dict[str, Any]]
     overall: Dict[str, Any]
@@ -89,10 +107,68 @@ class GameAnalyzer:
         """Backward-compatible wrapper that returns structured analysis data for a single game."""
         return self._perform_analysis(game, depth)
 
+    def analyze_game_async(
+        self,
+        game_id: int,
+        user_id: int,
+        use_ai: bool = True,
+        depth: Optional[int] = None,
+        stockfish_path: Optional[str] = None,
+    ):
+        """Legacy async API that dispatches a Celery task for a single game."""
+        game = Game.objects.get(id=game_id)
+        if game.user_id != user_id:
+            raise ResourceNotFoundError(f"Game {game_id} does not belong to user {user_id}")
+
+        task_kwargs = {
+            "game_id": game_id,
+            "user_id": user_id,
+            "use_ai": use_ai,
+            "depth": depth if depth is not None else getattr(settings, "ANALYSIS_DEPTH", 20),
+            "stockfish_path": stockfish_path if stockfish_path is not None else getattr(settings, "STOCKFISH_PATH", ""),
+        }
+        return analyze_game.delay(**task_kwargs)
+
+    def batch_analyze_games_async(
+        self,
+        game_ids: List[int],
+        user_id: int,
+        use_ai: bool = True,
+        depth: Optional[int] = None,
+        stockfish_path: Optional[str] = None,
+    ):
+        """Legacy async API that dispatches a Celery task for a batch of games."""
+        if not game_ids:
+            raise ValueError("game_ids must not be empty")
+
+        user_game_count = Game.objects.filter(id__in=game_ids, user_id=user_id).count()
+        if user_game_count != len(game_ids):
+            raise ResourceNotFoundError("One or more games were not found for the given user")
+
+        task_kwargs = {
+            "game_ids": game_ids,
+            "user_id": user_id,
+            "use_ai": use_ai,
+            "depth": depth if depth is not None else getattr(settings, "ANALYSIS_DEPTH", 20),
+            "stockfish_path": stockfish_path if stockfish_path is not None else getattr(settings, "STOCKFISH_PATH", ""),
+        }
+        return batch_analyze_games.delay(**task_kwargs)
+
     def generate_feedback(self, analysis_results: Union[Dict[str, Any], List[Dict[str, Any]]], game: Optional[Game] = None) -> Dict[str, Any]:
         """Backward-compatible wrapper used by legacy analysis tests."""
         if isinstance(analysis_results, list):
-            return self.feedback_generator.generate_feedback({"moves": analysis_results})
+            feedback = self.feedback_generator.generate_feedback({"moves": analysis_results})
+            if not isinstance(feedback, dict):
+                feedback = {}
+
+            opening = feedback.get("opening") if isinstance(feedback.get("opening"), dict) else {}
+            opening.setdefault("accuracy", 0)
+            feedback["opening"] = opening
+            feedback.setdefault("mistakes", 0)
+            feedback.setdefault("blunders", 0)
+            feedback.setdefault("time_management", {})
+            feedback.setdefault("tactical_opportunities", [])
+            return feedback
 
         if isinstance(analysis_results, dict):
             if "analysis_results" in analysis_results:
@@ -133,9 +209,31 @@ class GameAnalyzer:
                     "source": "stockfish",
                 }
 
-            return self.feedback_generator.generate_feedback(analysis_results)
+            feedback = self.feedback_generator.generate_feedback(analysis_results)
+            if not isinstance(feedback, dict):
+                feedback = {}
 
-        return self.feedback_generator.generate_feedback({"moves": []})
+            opening = feedback.get("opening") if isinstance(feedback.get("opening"), dict) else {}
+            opening.setdefault("accuracy", 0)
+            feedback["opening"] = opening
+            feedback.setdefault("mistakes", 0)
+            feedback.setdefault("blunders", 0)
+            feedback.setdefault("time_management", {})
+            feedback.setdefault("tactical_opportunities", [])
+            return feedback
+
+        feedback = self.feedback_generator.generate_feedback({"moves": []})
+        if not isinstance(feedback, dict):
+            feedback = {}
+
+        opening = feedback.get("opening") if isinstance(feedback.get("opening"), dict) else {}
+        opening.setdefault("accuracy", 0)
+        feedback["opening"] = opening
+        feedback.setdefault("mistakes", 0)
+        feedback.setdefault("blunders", 0)
+        feedback.setdefault("time_management", {})
+        feedback.setdefault("tactical_opportunities", [])
+        return feedback
 
     def _generate_ai_feedback(self, game_analysis: List[Dict[str, Any]], game: Optional[Game] = None) -> Optional[Dict[str, Any]]:
         """Generate structured AI feedback for legacy tests and compatibility callers."""
@@ -526,6 +624,8 @@ class GameAnalyzer:
         except MetricsError as e:
             logger.error(f"Metrics error: {str(e)}")
             raise AnalysisError(f"Analysis failed: {str(e)}")
+        except ValueError:
+            raise
         except Exception as e:
             logger.error(f"Error during analysis: {str(e)}")
             raise AnalysisError(f"Analysis failed: {str(e)}")
@@ -575,10 +675,13 @@ class GameAnalyzer:
                     {"fen": board.fen(), "move_number": len(moves), "move": move.uci(), "is_white": board.turn}
                 )
 
+            if not moves:
+                raise ValueError("No moves found")
+
             return {"moves": moves, "positions": positions}
 
-        except (chess.pgn.InvalidGameError, ValueError) as e:
-            raise ValidationError(f"Invalid PGN format: {str(e)}")
+        except ValueError as e:
+            raise ValueError(f"Invalid PGN data: {str(e)}")
         except Exception as e:
             raise TaskError(f"Failed to extract game data: {str(e)}")
 

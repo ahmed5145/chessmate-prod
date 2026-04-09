@@ -290,21 +290,26 @@ class TestGameViews:
         }
         test_game.save()
 
-        # Mock the feedback generator
-        with patch.object(game_views.AIFeedbackGenerator, "generate_feedback") as mock_generate:
-            mock_generate.return_value = "This is AI feedback for your game."
+        # Ensure this endpoint has enough credits for the canonical 25-credit deduction.
+        profile = Profile.objects.get(user=test_user)
+        profile.credits = 100
+        profile.save(update_fields=["credits"])
+
+        # Mock the feedback helper used by the feedback endpoint.
+        with patch("core.feedback_views.generate_game_feedback") as mock_generate:
+            mock_generate.return_value = ("This is AI feedback for your game.", "gpt-4-turbo", 25)
 
             url = reverse("generate_ai_feedback", kwargs={"game_id": test_game.id})
             response = authenticated_client.post(url)
 
-            assert response.status_code == status.HTTP_200_OK
+            assert response.status_code == status.HTTP_201_CREATED
             assert mock_generate.called
             assert "feedback" in response.data
             assert response.data["feedback"]["content"] == "This is AI feedback for your game."
 
-            # Check if credits were deducted (feedback costs 2)
+            # Check if credits were deducted (feedback costs 25)
             profile = Profile.objects.get(user=test_user)
-            assert profile.credits == 8  # Started with 10
+            assert profile.credits == 75  # Started with 100
 
             # Check if feedback was saved to the game
             test_game.refresh_from_db()
