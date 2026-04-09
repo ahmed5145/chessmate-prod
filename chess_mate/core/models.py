@@ -30,6 +30,10 @@ class Player(models.Model):
 
     username = models.CharField(max_length=100, unique=True)
     date_joined = models.DateTimeField(auto_now_add=True)
+    game = models.ForeignKey('Game', on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    color = models.CharField(max_length=10, choices=[('white', 'White'), ('black', 'Black')], null=True, blank=True)
+    rating = models.IntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
         return str(self.username)
@@ -59,6 +63,7 @@ class Profile(models.Model):
     chess_com_username = models.CharField(max_length=50, blank=True, default='')
     lichess_username = models.CharField(max_length=50, blank=True, default='')
     rating_history = models.JSONField(default=dict, blank=True)  # Store rating history
+    games = models.ManyToManyField('Game', blank=True, related_name='profiles')
     
     @property
     def rating(self) -> int:
@@ -766,6 +771,7 @@ class GameAnalysis(models.Model):
     
     # Store the AI-generated feedback
     feedback = models.JSONField(default=dict, blank=True)
+    depth = models.IntegerField(null=True, blank=True, default=20)
     
     class Meta:
         verbose_name = "Game Analysis"
@@ -796,12 +802,26 @@ class GameAnalysis(models.Model):
             return {}
         return self.analysis_data.get('moves_analysis', self.analysis_data.get('moves', {}))
 
+    @moves_analysis.setter
+    def moves_analysis(self, value):
+        """Set moves_analysis in analysis_data."""
+        if not self.analysis_data:
+            self.analysis_data = {}
+        self.analysis_data['moves_analysis'] = value
+
     @property
     def summary(self):
         """Backward-compatible alias for legacy test expectations."""
         if not hasattr(self, 'analysis_data') or not self.analysis_data:
             return {}
         return self.analysis_data.get('summary', {})
+
+    @summary.setter
+    def summary(self, value):
+        """Set summary in analysis_data."""
+        if not self.analysis_data:
+            self.analysis_data = {}
+        self.analysis_data['summary'] = value
     
     @property 
     def evaluation(self):

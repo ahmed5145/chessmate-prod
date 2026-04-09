@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 # Model to cache mapping
 MODEL_CACHE_MAPPING = {
     "Game": {
+        "tags": ["games"],
         "fields": ["id", "status", "result"],
         "invalidate_functions": [
             lambda instance: invalidate_game_cache(instance.id),
