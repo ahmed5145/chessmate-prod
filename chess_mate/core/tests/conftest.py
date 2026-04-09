@@ -10,10 +10,17 @@ import sys
 import django
 import pytest
 
-# Add the project root to the path for relative imports
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# Add both repository root and app root to the import path.
+# Repository root must come first so `chess_mate.core` resolves to
+# `<repo>/chess_mate/core` instead of the nested `chess_mate/chess_mate` package.
+tests_dir = os.path.dirname(__file__)
+app_root = os.path.abspath(os.path.join(tests_dir, "../../../"))
+repo_root = os.path.abspath(os.path.join(tests_dir, "../../../../"))
+
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
+if app_root not in sys.path:
+    sys.path.insert(1, app_root)
 
 # Try to configure Django for testing
 try:
