@@ -98,19 +98,19 @@ const Games = () => {
   const shouldPollGame = (game) => {
     // Don't poll if we don't have a game ID
     if (!game.id) return false;
-    
-    // Only poll games that are explicitly marked for analysis and in a pending state
-    const isPending = game.analysis_status === 'pending' || game.status === 'pending';
-    
-    // Don't poll games that are already analyzed, have errors, or marked as not_analyzed
-    const isAnalyzedOrError = game.analysis_status === 'analyzed' || 
-                             game.analysis_status === 'error' ||
-                             game.analysis_status === 'not_analyzed' ||
-                             game.status === 'analyzed' ||
-                             game.status === 'error' ||
-                             game.status === 'not_analyzed';
-                             
-    return isPending && !isAnalyzedOrError;
+
+    const analysisStatus = String(game.analysis_status || '').toLowerCase();
+    const gameStatus = String(game.status || '').toLowerCase();
+
+    // Terminal states should never be polled.
+    const terminalStates = new Set(['analyzed', 'error', 'failed', 'not_analyzed', 'completed']);
+    if (terminalStates.has(analysisStatus) || terminalStates.has(gameStatus)) {
+      return false;
+    }
+
+    // Poll all in-flight analysis states, not just pending.
+    const activeStates = new Set(['pending', 'analyzing', 'in_progress', 'processing', 'started', 'queued']);
+    return activeStates.has(analysisStatus) || activeStates.has(gameStatus);
   };
 
   // Set up polling for games with pending analysis.
