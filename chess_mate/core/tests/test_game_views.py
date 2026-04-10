@@ -181,6 +181,26 @@ class TestGameViews:
                         test_game.refresh_from_db()
                         assert test_game.analysis_status == "analyzing"
 
+    def test_analyze_game_passes_named_delay_kwargs(self, authenticated_client, test_user, test_game):
+        test_game.analysis_status = "not_analyzed"
+        test_game.save()
+
+        with patch("core.tasks.analyze_game_task.delay") as mock_task:
+            mock_task.return_value = MagicMock(id="mock-task-id")
+
+            with patch("core.game_views._get_compat_task_managers", return_value=[game_views.task_manager]):
+                with patch.object(game_views.task_manager, "get_active_tasks_for_game", return_value=[]):
+                    with patch.object(game_views.task_manager, "register_task"):
+                        url = reverse("analyze_game", kwargs={"game_id": test_game.id})
+                        response = authenticated_client.post(url, {"depth": 26, "use_ai": False}, format="json")
+
+                        assert response.status_code == status.HTTP_202_ACCEPTED
+                        mock_task.assert_called_once()
+                        assert mock_task.call_args.args[0] == test_game.id
+                        assert mock_task.call_args.kwargs["user_id"] == test_user.id
+                        assert mock_task.call_args.kwargs["depth"] == 26
+                        assert mock_task.call_args.kwargs["use_ai"] is False
+
     def test_analyze_game_deduplicates_active_task(self, authenticated_client, test_user, test_game):
         test_game.analysis_status = "not_analyzed"
         test_game.save()
