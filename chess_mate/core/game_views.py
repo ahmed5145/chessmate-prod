@@ -951,14 +951,23 @@ def check_analysis_status(request, task_id):
     async_result_cls = _resolve_compat_async_result()
 
     task_info = None
+    foreign_task_found = False
     for manager in compat_task_managers:
         try:
-            task_info = manager.get_task_info(task_id)
-            if task_info:
+            candidate = manager.get_task_info(task_id)
+            if not candidate:
+                continue
+
+            owner_id = candidate.get("user_id")
+            if request.user.is_staff or owner_id in (None, request.user.id):
+                task_info = candidate
                 break
+
+            foreign_task_found = True
         except Exception:
             continue
-    if task_info and task_info.get("user_id") not in (None, request.user.id) and not request.user.is_staff:
+
+    if task_info is None and foreign_task_found and not request.user.is_staff:
         return Response({"status": "error", "message": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
     async_result = async_result_cls(task_id)
@@ -977,14 +986,23 @@ def check_batch_analysis_status(request, task_id):
     async_result_cls = _resolve_compat_async_result()
 
     task_info = None
+    foreign_task_found = False
     for manager in compat_task_managers:
         try:
-            task_info = manager.get_task_info(task_id)
-            if task_info:
+            candidate = manager.get_task_info(task_id)
+            if not candidate:
+                continue
+
+            owner_id = candidate.get("user_id")
+            if request.user.is_staff or owner_id in (None, request.user.id):
+                task_info = candidate
                 break
+
+            foreign_task_found = True
         except Exception:
             continue
-    if task_info and task_info.get("user_id") not in (None, request.user.id) and not request.user.is_staff:
+
+    if task_info is None and foreign_task_found and not request.user.is_staff:
         return Response({"status": "error", "message": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
     async_result = async_result_cls(task_id)

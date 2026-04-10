@@ -124,60 +124,31 @@ class TestGameAnalysis:
         response = api_client.post(url)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    @pytest.mark.skip(reason="OpenAI mock integration needs to be fixed")
     def test_analyze_game_view_authorized(
         self, api_client, user, game, mock_openai_client, mock_stockfish_engine, mock_analysis_results
     ):
         api_client.force_authenticate(user=user)
         url = reverse("analyze_game", args=[game.id])
+        mock_task = MagicMock()
+        mock_task.id = "mock-task-id"
 
-        mock_feedback = {
-            "mistakes": 1,
-            "blunders": 0,
-            "inaccuracies": 2,
-            "time_management": {
-                "avg_time_per_move": 15,
-                "critical_moments": [],
-                "time_pressure_moves": [],
-                "suggestion": "Good time management",
-            },
-            "opening": {"played_moves": ["e4", "e5", "Nf3"], "accuracy": 85.5, "suggestion": "Good opening play"},
-            "tactical_opportunities": ["Missed fork on move 15"],
-            "endgame": {"evaluation": "Equal position", "accuracy": 80.0, "suggestion": "Practice rook endgames"},
-            "positional_play": {
-                "piece_activity": 75,
-                "pawn_structure": 80,
-                "king_safety": 90,
-                "suggestion": "Good piece coordination",
-            },
-            "ai_suggestions": {
-                "strengths": ["Tactical awareness", "Time management"],
-                "areas_for_improvement": ["Opening preparation", "Endgame technique"],
-            },
-        }
+        with patch("core.tasks.analyze_game_task.delay", return_value=mock_task):
+            response = api_client.post(url, {"depth": 20, "use_ai": True}, format="json")
 
-        with patch("chess.engine.SimpleEngine.popen_uci", return_value=mock_stockfish_engine), patch(
-            "core.game_analyzer.GameAnalyzer.analyze_single_game", return_value=mock_analysis_results
-        ), patch("core.ai_feedback.AIFeedbackGenerator.generate_personalized_feedback", return_value=mock_feedback):
-            response = api_client.post(url)
-            assert response.status_code == status.HTTP_200_OK
+        assert response.status_code in (status.HTTP_200_OK, status.HTTP_202_ACCEPTED)
+        assert isinstance(response.data, dict)
+        assert "task_id" in response.data
+        assert response.data["task_id"]
+        assert response.data["game_id"] == game.id
 
-            # Check response structure
-            assert isinstance(response.data, dict)
-            assert "analysis" in response.data
-            assert "feedback" in response.data
-
-            # Check feedback structure
-            feedback = response.data["feedback"]
-            assert "opening" in feedback
-            assert "accuracy" in feedback["opening"]
-            assert "mistakes" in feedback
-            assert "blunders" in feedback
-            assert "time_management" in feedback
-            assert "tactical_opportunities" in feedback
-            assert "endgame" in feedback
-            assert "positional_play" in feedback
-            assert "ai_suggestions" in feedback
+        # Either a fresh enqueue (202) or deduplicated already-running (200) is valid.
+        if response.status_code == status.HTTP_202_ACCEPTED:
+            assert response.data["status"] == "success"
+            assert response.data["message"] == "Analysis started"
+            profile = Profile.objects.get(user=user)
+            assert profile.credits == 9
+        else:
+            assert response.data["status"] == "already_running"
 
     def test_analyze_game_view_not_found(self, api_client, user):
         api_client.force_authenticate(user=user)
@@ -200,69 +171,28 @@ class TestGameAnalysis:
                 assert "error" in response.data
                 assert "insufficient credits" in response.data["error"].lower()
 
-    @pytest.mark.skip(reason="OpenAI mock integration needs to be fixed")
     def test_analyze_batch_games_view(
         self, api_client, user, game, mock_openai_client, mock_stockfish_engine, mock_analysis_results
     ):
         api_client.force_authenticate(user=user)
-        url = reverse("batch_analyze_games")
+        url = reverse("batch_analyze")
+        mock_task = MagicMock()
+        mock_task.id = "mock-batch-task-id"
 
-        mock_feedback = {
-            "mistakes": 1,
-            "blunders": 0,
-            "inaccuracies": 2,
-            "time_management": {
-                "avg_time_per_move": 15,
-                "critical_moments": [],
-                "time_pressure_moves": [],
-                "suggestion": "Good time management",
-            },
-            "opening": {"played_moves": ["e4", "e5", "Nf3"], "accuracy": 85.5, "suggestion": "Good opening play"},
-            "tactical_opportunities": ["Missed fork on move 15"],
-            "endgame": {"evaluation": "Equal position", "accuracy": 80.0, "suggestion": "Practice rook endgames"},
-            "positional_play": {
-                "piece_activity": 75,
-                "pawn_structure": 80,
-                "king_safety": 90,
-                "suggestion": "Good piece coordination",
-            },
-        }
+        with patch("core.tasks.analyze_batch_games_task.delay", return_value=mock_task):
+            response = api_client.post(url, {"game_ids": [game.id], "depth": 20, "use_ai": True}, format="json")
 
-        with patch("chess.engine.SimpleEngine.popen_uci", return_value=mock_stockfish_engine), patch(
-            "core.game_analyzer.GameAnalyzer.analyze_single_game", return_value=mock_analysis_results
-        ), patch("core.ai_feedback.AIFeedbackGenerator.generate_personalized_feedback", return_value=mock_feedback):
-            response = api_client.post(url, {"num_games": 1})
-            assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        assert isinstance(response.data, dict)
+        assert response.data["status"] == "success"
+        assert response.data["message"] == "Batch analysis started"
+        assert response.data["task_id"] == "mock-batch-task-id"
+        assert response.data["games_count"] == 1
+        assert response.data["total_games"] == 1
 
-            # Check response structure
-            assert isinstance(response.data, dict)
-            assert "message" in response.data
-            assert "results" in response.data
-
-            # Check results structure
-            results = response.data["results"]
-            assert "individual_games" in results
-            assert isinstance(results["individual_games"], dict)
-
-            assert "overall_stats" in results
-            overall_stats = results["overall_stats"]
-            assert "total_games" in overall_stats
-            assert "wins" in overall_stats
-            assert "losses" in overall_stats
-            assert "draws" in overall_stats
-            assert "average_accuracy" in overall_stats
-            assert "common_mistakes" in overall_stats
-            assert "improvement_areas" in overall_stats
-            assert "strengths" in overall_stats
-
-            # Check dynamic feedback
-            assert "dynamic_feedback" in results
-
-            # Verify OpenAI was called
-            assert mock_openai_client.chat.completions.create.called
-
-            # Verify the feedback contains the mock response
-            assert "Test feedback content" in str(response.data)
+        # Batch enqueue deducts one credit per game.
+        profile = Profile.objects.get(user=user)
+        assert profile.credits == 9
 
     def test_game_analyzer_initialization(self, game_analyzer):
         assert game_analyzer is not None
