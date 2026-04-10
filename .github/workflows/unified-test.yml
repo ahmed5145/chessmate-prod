@@ -90,14 +90,20 @@ jobs:
         echo "STOCKFISH_PATH=/usr/games/stockfish" >> .env
 
     - name: Run Standalone Tests
+      env:
+        PYTEST_ADDOPTS: --disable-warnings
       run: |
         python run_tests.py --standalone --coverage --fail-under 0
 
     - name: Run Django Tests
+      env:
+        PYTEST_ADDOPTS: --disable-warnings
       run: |
         python run_tests.py --django --coverage --fail-under 0
 
     - name: Generate Combined Coverage Report
+      env:
+        PYTEST_ADDOPTS: --disable-warnings
       run: |
         python run_tests.py --coverage --html --fail-under 0
 
