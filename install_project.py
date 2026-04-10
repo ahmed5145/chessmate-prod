@@ -57,7 +57,7 @@ module = "tests.*"
 ignore_errors = true
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "chess_mate.test_settings"
+DJANGO_SETTINGS_MODULE = "chess_mate.chess_mate.test_settings"
 python_files = ["test_*.py", "*_test.py"]
 testpaths = ["tests", "chess_mate/core/tests"]
 """)

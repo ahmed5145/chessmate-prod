@@ -73,7 +73,7 @@ def setup_environment():
 def build_command(args):
     """Build the pytest command based on arguments."""
     cmd = [sys.executable, "-m", "pytest"]
-    django_settings = "chess_mate.test_settings"
+    django_settings = "chess_mate.chess_mate.test_settings"
 
     # Handle verbosity
     if args.verbose > 0:

@@ -18,7 +18,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 
 # Configure Django settings
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.test_settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.chess_mate.test_settings")
 
 
 def setup_django():
