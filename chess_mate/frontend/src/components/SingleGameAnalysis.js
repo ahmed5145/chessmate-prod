@@ -334,6 +334,21 @@ const SingleGameAnalysis = () => {
         return;
       }
 
+      const terminalFailureStatuses = new Set(['FAILURE', 'FAILED', 'ERROR', 'REVOKED', 'AUTH_ERROR']);
+      if (terminalFailureStatuses.has(statusResponse.status)) {
+        clearAllIntervals();
+        analysisErrorRef.current = true;
+        setLoading(false);
+
+        if (statusResponse.status === 'AUTH_ERROR') {
+          setAuthError(true);
+          return;
+        }
+
+        setAnalysisError(statusResponse.message || 'Analysis failed. Please try again.');
+        return;
+      }
+
       // Update progress
       const progressValue = parseInt(statusResponse.progress) || 0;
       setProgress(progressValue);

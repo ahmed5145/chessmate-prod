@@ -145,4 +145,43 @@ describe('SingleGameAnalysis', () => {
 
     expect(checkAnalysisStatus.mock.calls.length).toBe(callCountAfterError);
   });
+
+  it('stops polling on terminal FAILED status', async () => {
+    jest.useFakeTimers();
+    analyzeSpecificGame.mockResolvedValue({ success: true });
+    checkAnalysisStatus.mockResolvedValue({
+      status: 'FAILED',
+      message: 'Worker failed to analyze game',
+      progress: 40,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/analysis/1']}>
+        <Routes>
+          <Route path="/analysis/:gameId" element={<SingleGameAnalysis />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(analyzeSpecificGame).toHaveBeenCalledWith('1'));
+
+    await act(async () => {
+      jest.advanceTimersByTime(6000);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Worker failed to analyze game')).toBeInTheDocument();
+    });
+
+    const callCountAfterFailure = checkAnalysisStatus.mock.calls.length;
+
+    await act(async () => {
+      jest.advanceTimersByTime(30000);
+      await Promise.resolve();
+    });
+
+    expect(checkAnalysisStatus.mock.calls.length).toBe(callCountAfterFailure);
+    expect(fetchGameAnalysis).not.toHaveBeenCalled();
+  });
 });
