@@ -38,6 +38,7 @@ class StockfishAnalyzer:
     _last_used: float = 0.0  # Changed to float for time.time()
     _TIMEOUT: int = 30  # Seconds before engine is considered idle
     _initialized = False
+    _bootstrap_complete = False
 
     def __new__(cls):
         """Singleton pattern implementation."""
@@ -60,8 +61,17 @@ class StockfishAnalyzer:
 
     def __init__(self):
         """Initialize the analyzer."""
-        self.position_evaluator = PositionEvaluator()
-        self._init_engine()
+        with self._lock:
+            if self._bootstrap_complete:
+                return
+
+            self.position_evaluator = PositionEvaluator()
+            self._bootstrap_complete = True
+
+        # Keep test/CI startup fast and deterministic; engine initialization
+        # remains lazy via analyze_position when actually needed.
+        if not _is_testing_mode():
+            self._init_engine()
 
     def _init_engine(self):
         """Initialize the Stockfish engine."""
