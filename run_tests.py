@@ -74,6 +74,7 @@ def build_command(args):
     """Build the pytest command based on arguments."""
     cmd = [sys.executable, "-m", "pytest"]
     django_settings = "chess_mate.chess_mate.test_settings"
+    is_ci = os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
 
     # Handle verbosity
     if args.verbose > 0:
@@ -111,7 +112,11 @@ def build_command(args):
         cmd.extend([f"--ds={django_settings}", "chess_mate/core/tests/", "standalone_tests/"])
 
     # CI diagnostics: dump thread stacks if a single test is silent for too long.
-    if os.environ.get("GITHUB_ACTIONS", "").lower() == "true" and any(arg.startswith("--ds=") for arg in cmd):
+    if is_ci and any(arg.startswith("--ds=") for arg in cmd):
+        # Force per-test progress in CI so a stuck test can be identified from logs.
+        if args.verbose == 0:
+            cmd.append("-vv")
+        cmd.extend(["-o", "console_output_style=progress", "--durations=20"])
         cmd.extend(["-o", "faulthandler_timeout=120"])
 
     return cmd
