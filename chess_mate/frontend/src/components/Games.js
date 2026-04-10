@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Filter, Search, ChevronLeft, ChevronRight, Swords, CheckCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -78,8 +78,17 @@ const Games = () => {
     setCurrentPage(1);
   }, [searchTerm, filters, sortConfig]);
 
-  // Polling interval for analysis status (10 seconds)
-  const POLLING_INTERVAL = 10000;
+  // Polling configuration for analysis status checks.
+  const POLLING_BASE_INTERVAL = 10000;
+  const POLLING_MAX_INTERVAL = 60000;
+  const pollingTimeoutRef = useRef(null);
+  const pollingInFlightRef = useRef(false);
+  const pollingBackoffRef = useRef(POLLING_BASE_INTERVAL);
+  const gamesRef = useRef(games);
+
+  useEffect(() => {
+    gamesRef.current = games;
+  }, [games]);
 
   useEffect(() => {
     loadGames();
@@ -104,130 +113,106 @@ const Games = () => {
     return isPending && !isAnalyzedOrError;
   };
 
-  // Set up polling for games with pending analysis
+  // Set up polling for games with pending analysis.
   useEffect(() => {
-    // Clear any existing polling intervals
-    if (window._batchPollingInterval) {
-      clearInterval(window._batchPollingInterval);
-      window._batchPollingInterval = null;
-    }
-    
-    // Get all games that need polling
-    const gamesToPoll = games.filter(shouldPollGame);
-    
-    if (gamesToPoll.length === 0) {
-      console.log('No games need polling');
-      return;
-    }
-    
-    console.log(`Setting up batch polling for ${gamesToPoll.length} games`);
-    
-    // Set error count tracking
     const errorCounts = {};
-    gamesToPoll.forEach(game => {
-      errorCounts[game.id] = 0;
-    });
-    
-    // Set up a single interval to check all games at once
-    window._batchPollingInterval = setInterval(async () => {
+
+    const clearPolling = () => {
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+        pollingTimeoutRef.current = null;
+      }
+    };
+
+    const scheduleNextPoll = (delayMs) => {
+      clearPolling();
+      pollingTimeoutRef.current = setTimeout(runPollCycle, delayMs);
+    };
+
+    const runPollCycle = async () => {
+      if (pollingInFlightRef.current) {
+        scheduleNextPoll(pollingBackoffRef.current);
+        return;
+      }
+
+      const currentGamesToCheck = gamesRef.current.filter(shouldPollGame).map(game => game.id);
+
+      if (currentGamesToCheck.length === 0) {
+        console.log('No games need polling');
+        clearPolling();
+        return;
+      }
+
+      pollingInFlightRef.current = true;
+
       try {
-        // Get all game IDs that still need polling
-        // Re-filter the games array to check if state has been updated
-        const currentGamesToCheck = games.filter(shouldPollGame).map(game => game.id);
-        
-        if (currentGamesToCheck.length === 0) {
-          console.log('No more games need polling, clearing interval');
-          clearInterval(window._batchPollingInterval);
-          window._batchPollingInterval = null;
-          return;
-        }
-        
-        // Check all games at once
         const statuses = await checkMultipleAnalysisStatuses(currentGamesToCheck);
-        
-        // Track if any game state was updated
-        let stateUpdated = false;
-        
-        // Process each status
+        pollingBackoffRef.current = POLLING_BASE_INTERVAL;
+
         Object.entries(statuses).forEach(([gameId, status]) => {
-          gameId = parseInt(gameId); // Convert string ID to number if needed
-          
-          // Update status in state
-            setAnalysisStatus(prev => ({
-              ...prev,
-            [gameId]: status
+          const parsedGameId = parseInt(gameId, 10);
+
+          setAnalysisStatus(prev => ({
+            ...prev,
+            [parsedGameId]: status,
           }));
-          
-          // Process status and update games accordingly
-          if (status.status === 'COMPLETED' || status.status === 'ERROR' || 
-              status.status === 'AUTH_ERROR' || status.status === 'FAILED') {
-            
+
+          if (
+            status.status === 'COMPLETED' ||
+            status.status === 'ERROR' ||
+            status.status === 'AUTH_ERROR' ||
+            status.status === 'FAILED'
+          ) {
             if (status.status === 'COMPLETED') {
-              toast.success(`Analysis completed for game ${gameId}`);
-              
-              // Update the games list with the completed analysis
+              toast.success(`Analysis completed for game ${parsedGameId}`);
               setGames(prev => prev.map(g =>
-                g.id === gameId ? { ...g, analysis_status: 'analyzed', analysis: status.analysis } : g
+                g.id === parsedGameId ? { ...g, analysis_status: 'analyzed', analysis: status.analysis } : g
               ));
-              stateUpdated = true;
-            } else if (status.status === 'ERROR' || status.status === 'FAILED') {
-              // Don't show error toast for every game
-              console.warn(`Analysis failed for game ${gameId}: ${status.message}`);
-              
-              // Update game status to reflect failure
-              setGames(prev => prev.map(g => 
-                g.id === gameId ? { ...g, analysis_status: 'error' } : g
+            } else {
+              console.warn(`Analysis failed for game ${parsedGameId}: ${status.message}`);
+              setGames(prev => prev.map(g =>
+                g.id === parsedGameId ? { ...g, analysis_status: 'error' } : g
               ));
-              stateUpdated = true;
             }
-            
-            // Reset error count
-            errorCounts[gameId] = 0;
+
+            errorCounts[parsedGameId] = 0;
           } else if (status.status === 'PENDING' && status.message?.includes('not started')) {
-            // Increment error count for games with no analysis
-            errorCounts[gameId] = (errorCounts[gameId] || 0) + 1;
-            
-            if (errorCounts[gameId] >= 3) {
-              console.log(`Game ${gameId} has no analysis after 3 checks, marking as not_analyzed`);
-              
-              // Update game status to prevent future polling
-              setGames(prev => {
-                const updatedGames = prev.map(g => 
-                  g.id === gameId ? { ...g, analysis_status: 'not_analyzed' } : g
-                );
-                return updatedGames;
-              });
-              stateUpdated = true;
-              
-              // Also remove from error counts to avoid processing it again
-              delete errorCounts[gameId];
+            errorCounts[parsedGameId] = (errorCounts[parsedGameId] || 0) + 1;
+
+            if (errorCounts[parsedGameId] >= 3) {
+              console.log(`Game ${parsedGameId} has no analysis after 3 checks, marking as not_analyzed`);
+              setGames(prev => prev.map(g =>
+                g.id === parsedGameId ? { ...g, analysis_status: 'not_analyzed' } : g
+              ));
+              delete errorCounts[parsedGameId];
             }
           }
         });
-        
-        // If state was updated, make sure we check if we should still be polling at all
-        if (stateUpdated) {
-          // Re-check if any games still need polling
-          setTimeout(() => {
-            const remainingGames = games.filter(shouldPollGame);
-            if (remainingGames.length === 0) {
-              console.log('No more games need polling after state update, clearing interval');
-              clearInterval(window._batchPollingInterval);
-              window._batchPollingInterval = null;
-            }
-          }, 100); // Small delay to ensure state has updated
-        }
       } catch (error) {
         console.error('Error in batch polling:', error);
+        pollingBackoffRef.current = Math.min(pollingBackoffRef.current * 2, POLLING_MAX_INTERVAL);
+      } finally {
+        pollingInFlightRef.current = false;
+
+        const remainingGames = gamesRef.current.filter(shouldPollGame);
+        if (remainingGames.length > 0) {
+          scheduleNextPoll(pollingBackoffRef.current);
+        } else {
+          clearPolling();
+        }
       }
-    }, POLLING_INTERVAL);
-    
-    // Cleanup on unmount
+    };
+
+    const initialGamesToPoll = gamesRef.current.filter(shouldPollGame);
+    if (initialGamesToPoll.length > 0) {
+      console.log(`Setting up batch polling for ${initialGamesToPoll.length} games`);
+      pollingBackoffRef.current = POLLING_BASE_INTERVAL;
+      scheduleNextPoll(POLLING_BASE_INTERVAL);
+    }
+
     return () => {
-      if (window._batchPollingInterval) {
-        clearInterval(window._batchPollingInterval);
-        window._batchPollingInterval = null;
-      }
+      clearPolling();
+      pollingInFlightRef.current = false;
     };
   }, [games]);
 

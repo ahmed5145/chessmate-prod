@@ -288,8 +288,29 @@ const SingleGameAnalysis = () => {
   const isFetchingAnalysisRef = useRef(false);
   const pollingErrorCount = useRef(0);
   const analysisCompleted = useRef(false);
+  const pollingTimeoutRef = useRef(null);
+  const pollDelayRef = useRef(3000);
   const timeoutIds = useRef([]);
-  const pollingIntervals = useRef([]);
+  const POLL_MIN_DELAY = 3000;
+  const POLL_MAX_DELAY = 15000;
+
+  const scheduleStatusPoll = (delay = POLL_MIN_DELAY) => {
+    if (analysisCompleted.current || isFetchingAnalysisRef.current || analysisError) {
+      return;
+    }
+
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+    }
+
+    pollingTimeoutRef.current = setTimeout(async () => {
+      await pollForAnalysisStatus();
+
+      if (!analysisCompleted.current && !analysisError) {
+        scheduleStatusPoll(pollDelayRef.current);
+      }
+    }, delay);
+  };
   
   // Poll for analysis status
   const pollForAnalysisStatus = async () => {
@@ -300,6 +321,7 @@ const SingleGameAnalysis = () => {
       setPollingFailed(false);
       const statusResponse = await checkAnalysisStatus(gameId);
       console.log(`Analysis status for game ${gameId}:`, statusResponse);
+      pollDelayRef.current = POLL_MIN_DELAY;
 
       // If we have a complete analysis, fetch it
       if (statusResponse.status === 'SUCCESS' || statusResponse.progress === 100) {
@@ -381,6 +403,7 @@ const SingleGameAnalysis = () => {
     } catch (error) {
       console.error('Error polling for analysis status:', error);
       pollingErrorCount.current += 1;
+      pollDelayRef.current = Math.min(POLL_MAX_DELAY, pollDelayRef.current * 2);
       
       // If we encounter several polling errors, try to fetch the analysis directly
       if (pollingErrorCount.current >= 3 && !hasAttemptedDirectFetch.current) {
@@ -410,11 +433,10 @@ const SingleGameAnalysis = () => {
       progressIntervalRef.current = null;
     }
     
-    // Clear all polling intervals
-    pollingIntervals.current.forEach(intervalId => {
-      clearInterval(intervalId);
-    });
-    pollingIntervals.current = [];
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+    }
     
     // Clear all timeout IDs
     timeoutIds.current.forEach(timeoutId => {
@@ -444,11 +466,11 @@ const SingleGameAnalysis = () => {
         pollingErrorCount.current = 0;
         hasExceededMaxRetries.current = false;
         analysisCompleted.current = false;
+        pollDelayRef.current = POLL_MIN_DELAY;
         
         // Start polling again
         setProgressStatus('analyzing');
-        const pollInterval = setInterval(pollForAnalysisStatus, 3000);
-        pollingIntervals.current.push(pollInterval);
+        scheduleStatusPoll(POLL_MIN_DELAY);
       } else {
         setAnalysisError('Failed to restart analysis. Please try again.');
         setLoading(false);
@@ -533,6 +555,7 @@ const SingleGameAnalysis = () => {
       hasExceededMaxRetries.current = false;
       analysisCompleted.current = false;
       isFetchingAnalysisRef.current = false;
+      pollDelayRef.current = POLL_MIN_DELAY;
       
       // Clear all existing intervals and timeouts
       clearAllIntervals();
@@ -556,8 +579,7 @@ const SingleGameAnalysis = () => {
         // Set an initial delay before polling to give task time to register
         const initialDelayId = setTimeout(() => {
           // Start polling
-          const pollInterval = setInterval(pollForAnalysisStatus, 3000);
-          pollingIntervals.current.push(pollInterval);
+          scheduleStatusPoll(POLL_MIN_DELAY);
         }, 3000);
         
         timeoutIds.current.push(initialDelayId);
