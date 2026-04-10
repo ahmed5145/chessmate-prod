@@ -363,7 +363,7 @@ export const checkBatchAnalysisStatus = async (taskId) => {
             throw new Error('No task ID provided');
         }
 
-        const response = await api.get(`/api/v1/games/batch-analyze/status/${taskId}/`);
+        const response = await api.get(`/api/v1/games/batch-status/${taskId}/`);
 
         if (!response.data) {
             throw new Error('Invalid response from server');

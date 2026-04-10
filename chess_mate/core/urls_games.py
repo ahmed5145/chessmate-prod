@@ -25,6 +25,7 @@ urlpatterns = [
     path("batch-analyze/", game_views.batch_analyze_games, name="batch_analyze"),
     path("batch-status/", game_views.batch_get_analysis_status, name="batch_status"),
     path("batch-status/<str:task_id>/", game_views.check_batch_analysis_status, name="check_batch_analysis_status"),
+    path("batch-analyze/status/<str:task_id>/", game_views.check_batch_analysis_status),
 ]
 
 # Add router URLs to urlpatterns

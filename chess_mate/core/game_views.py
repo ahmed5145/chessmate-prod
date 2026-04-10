@@ -592,9 +592,7 @@ def get_game(request):
 
         # Check permission
         if not request.user.is_staff and game.user.id != request.user.id:
-                return JsonResponse(
-                    {"status": "error", "message": "You do not have permission to view this game"}, status=403
-                )
+            return JsonResponse({"status": "error", "message": "You do not have permission to view this game"}, status=403)
 
         # Format response
         game_data = {
@@ -990,18 +988,65 @@ def check_batch_analysis_status(request, task_id):
         return Response({"status": "error", "message": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
     async_result = async_result_cls(task_id)
-    state = str(async_result.state or "PENDING").upper()
-    if state == "PROGRESS":
-        state = "IN_PROGRESS"
+    raw_state = str(async_result.state or "PENDING").upper()
+    legacy_progress = _legacy_status_progress(task_id, task_info)
 
-    return Response({"status": state, "progress": _legacy_status_progress(task_id, task_info)}, status=status.HTTP_200_OK)
+    result_payload = async_result.result if isinstance(async_result.result, dict) else {}
+    task_meta = {}
+    if isinstance(getattr(async_result, "info", None), dict):
+        task_meta = async_result.info
+
+    total = int(task_meta.get("total") or task_meta.get("games_count") or len(task_meta.get("game_ids", []) or []))
+    if total <= 0 and task_info:
+        total = len(task_info.get("game_ids", []) or [])
+
+    current = int(task_meta.get("current") or task_meta.get("completed") or 0)
+    if raw_state in {"SUCCESS", "FAILURE", "FAILED"} and total > 0:
+        current = total
+
+    progress = int(task_meta.get("progress") or legacy_progress or (100 if raw_state == "SUCCESS" else 0))
+
+    frontend_state = raw_state
+    if raw_state in {"PROGRESS", "IN_PROGRESS", "STARTED"}:
+        frontend_state = "PROGRESS"
+    elif raw_state in {"FAILED", "ERROR"}:
+        frontend_state = "FAILURE"
+
+    completed_games = []
+    failed_games = []
+    aggregate_metrics: Dict[str, Any] = {}
+    if isinstance(result_payload.get("results"), dict):
+        for game_id, game_result in result_payload["results"].items():
+            if isinstance(game_result, dict) and game_result.get("status") == "success":
+                completed_games.append({"game_id": int(game_id), **game_result})
+            else:
+                payload = game_result if isinstance(game_result, dict) else {"message": str(game_result)}
+                failed_games.append({"game_id": int(game_id), **payload})
+
+    response_payload = {
+        "state": frontend_state,
+        "meta": {
+            "current": current,
+            "total": total,
+            "progress": progress,
+            "message": task_meta.get("message") or result_payload.get("message") or "Batch analysis in progress",
+            "error": task_meta.get("error") or result_payload.get("error"),
+        },
+        "completed_games": completed_games,
+        "failed_games": failed_games,
+        "aggregate_metrics": aggregate_metrics,
+        # Backward-compatible legacy keys
+        "status": "IN_PROGRESS" if frontend_state == "PROGRESS" else frontend_state,
+        "progress": progress,
+    }
+
+    return Response(response_payload, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @auth_csrf_exempt
 @track_request_time
-@validate_request(required_fields=["game_ids"])
 @rate_limit(endpoint_type="ANALYSIS")
 def batch_analyze_games(request):
     """Start batch analysis of multiple games."""
@@ -1009,12 +1054,30 @@ def batch_analyze_games(request):
         data = json.loads(request.body)
         game_ids = data.get("game_ids", [])
 
+        # Frontend compatibility path: derive game_ids from num_games/time_control/include_analyzed
+        if (not game_ids) and ("num_games" in data):
+            requested_count = int(data.get("num_games") or 0)
+            if requested_count <= 0:
+                raise ValidationError([{"field": "num_games", "message": "num_games must be a positive integer"}])
+
+            time_control_filter = str(data.get("time_control", "all") or "all").lower()
+            include_analyzed = bool(data.get("include_analyzed", False))
+
+            queryset = Game.objects.filter(user=request.user).order_by("-date_played", "-id")
+            if not include_analyzed:
+                queryset = queryset.exclude(analysis_status__in=["completed", "analyzed"])
+
+            if time_control_filter != "all":
+                queryset = queryset.filter(time_control__icontains=time_control_filter)
+
+            game_ids = list(queryset.values_list("id", flat=True)[:requested_count])
+
         # Validate inputs
         if not game_ids or not isinstance(game_ids, list):
-            raise ValidationError([{"field": "game_ids", "message": "List of game IDs is required"}])
+            raise ValidationError([{"field": "game_ids", "message": "List of game IDs is required or deriveable"}])
 
-        if len(game_ids) > 10:
-            raise ValidationError([{"field": "game_ids", "message": "Maximum 10 games can be analyzed in a batch"}])
+        if len(game_ids) > 50:
+            raise ValidationError([{"field": "game_ids", "message": "Maximum 50 games can be analyzed in a batch"}])
 
         # NOTE: Credit check removed - batch analysis is now free
 
@@ -1029,10 +1092,10 @@ def batch_analyze_games(request):
 
             # Check permission
             if not request.user.is_staff and game.user.id != request.user.id:
-                    return JsonResponse(
-                        {"status": "error", "message": f"You do not have permission to analyze game {game_id}"},
-                        status=403,
-                    )
+                return JsonResponse(
+                    {"status": "error", "message": f"You do not have permission to analyze game {game_id}"},
+                    status=403,
+                )
 
         # Resolve through legacy module path when tests patch core.* symbols.
         compat_batch_task = _resolve_compat_attr("core.tasks", "analyze_batch_games_task", analyze_batch_games_task)
@@ -1061,7 +1124,14 @@ def batch_analyze_games(request):
             invalidate_cache(f"game_{game_id}")
 
         return Response(
-            {"status": "success", "message": "Batch analysis started", "task_id": task.id, "games_count": len(game_ids)},
+            {
+                "status": "success",
+                "message": "Batch analysis started",
+                "task_id": task.id,
+                "games_count": len(game_ids),
+                "total_games": len(game_ids),
+                "estimated_time": len(game_ids) * 2,
+            },
             status=status.HTTP_202_ACCEPTED,
         )
 
