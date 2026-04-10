@@ -16,6 +16,8 @@ jobs:
   security-scan:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      ZAP_TARGET_URL: ${{ vars.ZAP_TARGET_URL || secrets.ZAP_TARGET_URL || '' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -54,9 +56,25 @@ jobs:
           cd chess_mate/frontend
           npm audit
 
+      - name: Validate ZAP Target
+        id: zap_target
+        run: |
+          if [ -z "$ZAP_TARGET_URL" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "ZAP_TARGET_URL is not configured; skipping ZAP baseline scan."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Using ZAP target: $ZAP_TARGET_URL"
+          fi
+
       - name: Run OWASP ZAP Baseline Scan
+        if: ${{ steps.zap_target.outputs.configured == 'true' }}
         uses: zaproxy/action-baseline@v0.15.0
         with:
-          target: 'https://staging.chessmate.com'
+          target: ${{ env.ZAP_TARGET_URL }}
           allow_issue_writing: false
           cmd_options: '-a'
+
+      - name: Skip OWASP ZAP Baseline Scan (missing target)
+        if: ${{ steps.zap_target.outputs.configured != 'true' }}
+        run: echo "Skipping OWASP ZAP baseline scan because ZAP_TARGET_URL is not configured."
