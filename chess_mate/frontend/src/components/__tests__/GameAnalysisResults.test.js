@@ -113,6 +113,25 @@ describe('GameAnalysisResults', () => {
     expect(screen.getByText('100%')).toBeInTheDocument();
   });
 
+  it('shows unavailable states when analysis data is explicitly unavailable', () => {
+    const analysisData = {
+      metrics: {
+        summary: {
+          overall: { accuracy: 0, mistakes: 0, data_status: 'unavailable' },
+          data_status: 'unavailable',
+        },
+      },
+      feedback: {
+        data_status: 'unavailable',
+      },
+    };
+
+    render(<GameAnalysisResults analysisData={analysisData} />);
+
+    expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Analysis unavailable').length).toBeGreaterThan(0);
+  });
+
   it('applies cyan and dark blue badges for brilliant and great move', () => {
     const analysisData = {
       metrics: {

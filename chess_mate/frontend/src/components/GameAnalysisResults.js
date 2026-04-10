@@ -17,28 +17,31 @@ const StatItem = ({ label, value, icon: Icon, isDarkMode }) => (
           </div>
 );
 
-const PhaseAnalysis = ({ phase, data, isDarkMode }) => (
+const PhaseAnalysis = ({ phase, data, isDarkMode, isUnavailable }) => (
     <div className="mb-6 p-4 rounded-lg bg-gray-800 shadow-sm">
         <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{phase}</h3>
+        {isUnavailable && (
+            <p className="mb-4 text-gray-400">Analysis unavailable</p>
+        )}
         {data.feedback.analysis && (
             <p className="mb-4 text-gray-400">{data.feedback.analysis}</p>
         )}
         <div className="grid grid-cols-2 gap-4">
             <div>
                 <p className="text-sm font-medium text-gray-400">Accuracy</p>
-                <p className="text-xl font-semibold text-white">{formatNumber(data.accuracy)}%</p>
+                <p className="text-xl font-semibold text-white">{isUnavailable ? 'N/A' : `${formatNumber(data.accuracy)}%`}</p>
             </div>
             <div>
                 <p className="text-sm font-medium text-gray-400">Mistakes</p>
-                <p className="text-xl font-semibold text-white">{data.mistakes}</p>
+                <p className="text-xl font-semibold text-white">{isUnavailable ? 'N/A' : data.mistakes}</p>
             </div>
-            {data.opportunities > 0 && (
+            {!isUnavailable && data.opportunities > 0 && (
                 <div>
                     <p className="text-sm font-medium text-gray-400">Opportunities</p>
                     <p className="text-xl font-semibold text-white">{data.opportunities}</p>
           </div>
             )}
-            {data.bestMoves > 0 && (
+            {!isUnavailable && data.bestMoves > 0 && (
                 <div>
                     <p className="text-sm font-medium text-gray-400">Best Moves</p>
                     <p className="text-xl font-semibold text-white">{data.bestMoves}</p>
@@ -147,6 +150,7 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
     const moveQuality = summary.move_quality || metrics.move_quality || analysisResults.move_quality || {};
     const phases = summary.phases || metrics.phases || analysisResults.phases || {};
     const timeManagement = summary.time_management || analysisResults.time_management || {};
+    const isAnalysisUnavailable = summary.data_status === 'unavailable' || feedback.data_status === 'unavailable';
     const hasMoveTimeData = rawMoves.some((move) => {
         const candidate = move.time_spent ?? move.time ?? move.clock;
         const parsed = Number(candidate);
@@ -166,7 +170,7 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
 
     // Format metrics for display
     const displayMetrics = {
-        accuracy: formatNumber(
+        accuracy: isAnalysisUnavailable ? 'N/A' : formatNumber(
             pickAccuracy(
                 overall.accuracy,
                 moveQuality.accuracy,
@@ -174,7 +178,7 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
                 summary.accuracy
             )
         ),
-        mistakes: formatNumber(
+        mistakes: isAnalysisUnavailable ? 'N/A' : formatNumber(
             pickNumber(
                 overall.mistakes,
                 moveQuality.mistakes,
@@ -182,14 +186,14 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
                 pickNumber(overall.blunders, 0) + pickNumber(overall.inaccuracies, 0)
             )
         ),
-        timeManagement: formatNumber(
+        timeManagement: isAnalysisUnavailable ? 'N/A' : formatNumber(
             pickNumber(
                 timeManagement.time_management_score,
                 overall.time_management_score,
                 summary.time_management_score
             )
         ),
-        timePressure: formatNumber(
+        timePressure: isAnalysisUnavailable ? 'N/A' : formatNumber(
             pickNumber(
                 timeManagement.time_pressure_percentage,
                 summary.time_pressure_percentage
@@ -208,7 +212,7 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <StatItem
                     label="Overall Accuracy"
-                    value={`${displayMetrics.accuracy}%`}
+                    value={displayMetrics.accuracy === 'N/A' ? 'N/A' : `${displayMetrics.accuracy}%`}
                     icon={FaChartLine}
                     isDarkMode={isDarkMode}
                 />
@@ -245,6 +249,7 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
                             bestMoves: phases[phase]?.best_moves || 0,
                             feedback: feedback[phase] || {}
                         }}
+                        isUnavailable={isAnalysisUnavailable}
                         isDarkMode={isDarkMode}
                     />
                 ))}

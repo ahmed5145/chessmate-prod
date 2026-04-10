@@ -114,6 +114,7 @@ class FeedbackGenerator:
         if not moves:
             return {
                 'source': 'statistical',
+                'data_status': 'unavailable',
                 'strengths': [],
                 'weaknesses': ['No moves available for analysis'],
                 'critical_moments': [],
@@ -121,7 +122,7 @@ class FeedbackGenerator:
                 'opening': {'feedback': 'Insufficient data for opening analysis'},
                 'middlegame': {'feedback': 'Insufficient data for middlegame analysis'},
                 'endgame': {'feedback': 'Insufficient data for endgame analysis'},
-                'metrics': {'summary': {'overall': {'accuracy': 0.0, 'consistency': 0.0}}}
+                'metrics': {'summary': {'overall': {'accuracy': 0.0, 'consistency': 0.0, 'data_status': 'unavailable'}}}
             }
             
         # Basic statistical analysis
@@ -133,6 +134,7 @@ class FeedbackGenerator:
         
         return {
             'source': 'statistical',
+            'data_status': 'available',
             'strengths': [f'Made {good_moves} good moves'] if good_moves > 0 else [],
             'weaknesses': [f'Made {mistakes} mistakes'] if mistakes > 0 else ['No major mistakes detected'],
             'critical_moments': self._find_critical_moments(moves),
@@ -149,7 +151,8 @@ class FeedbackGenerator:
                         'accuracy': accuracy,
                         'consistency': self._calculate_consistency(moves),
                         'total_moves': total_moves,
-                        'mistakes': mistakes
+                        'mistakes': mistakes,
+                        'data_status': 'available'
                     }
                 }
             }
@@ -438,6 +441,7 @@ class FeedbackGenerator:
             if not isinstance(game_metrics, dict) or "overall" not in game_metrics:
                 return {
                     "source": "statistical",
+                    "data_status": "unavailable",
                     "strengths": [],
                     "weaknesses": ["Unable to analyze game properly"],
                     "critical_moments": [],
@@ -445,7 +449,7 @@ class FeedbackGenerator:
                     "opening": {"analysis": "Analysis unavailable", "suggestion": "Review basic principles"},
                     "middlegame": {"analysis": "Analysis unavailable", "suggestion": "Focus on fundamentals"},
                     "endgame": {"analysis": "Analysis unavailable", "suggestion": "Practice basic endgames"},
-                    "metrics": {},
+                    "metrics": {"summary": {"overall": {"accuracy": 0.0, "consistency": 0.0, "data_status": "unavailable"}}},
                 }
 
             overall = game_metrics.get("overall", {})
@@ -484,6 +488,7 @@ class FeedbackGenerator:
 
             feedback = {
                 "source": "statistical",
+                "data_status": "available",
                 "strengths": strengths if strengths else ["Basic understanding of chess principles"],
                 "weaknesses": weaknesses if weaknesses else ["Areas for improvement not identified"],
                 "critical_moments": [],  # Statistical analysis doesn't identify specific moments
@@ -524,6 +529,7 @@ class FeedbackGenerator:
             # Return minimal feedback structure
             return {
                 "source": "statistical",
+                "data_status": "unavailable",
                 "strengths": [],
                 "weaknesses": ["Unable to analyze game properly"],
                 "critical_moments": [],
@@ -531,7 +537,7 @@ class FeedbackGenerator:
                 "opening": {"analysis": "Analysis unavailable", "suggestion": "Review basic principles"},
                 "middlegame": {"analysis": "Analysis unavailable", "suggestion": "Focus on fundamentals"},
                 "endgame": {"analysis": "Analysis unavailable", "suggestion": "Practice basic endgames"},
-                "metrics": {},
+                "metrics": {"summary": {"overall": {"accuracy": 0.0, "consistency": 0.0, "data_status": "unavailable"}}},
             }
 
     def _calculate_statistical_metrics(self, game_metrics: Dict[str, Any]) -> Dict[str, Any]:
