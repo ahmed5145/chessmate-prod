@@ -27,14 +27,13 @@ describe("ForgotPassword Component", () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText("Reset your password")).toBeInTheDocument();
+    expect(screen.getByText("Forgot Your Password?")).toBeInTheDocument();
     expect(screen.getByLabelText("Email address")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send reset link" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send Reset Instructions" })).toBeInTheDocument();
   });
 
   it("handles successful password reset request", async () => {
-    const mockResponse = { message: "Password reset email sent" };
-    requestPasswordReset.mockResolvedValueOnce(mockResponse);
+    requestPasswordReset.mockResolvedValueOnce({});
 
     render(
       <BrowserRouter>
@@ -43,29 +42,21 @@ describe("ForgotPassword Component", () => {
     );
 
     const emailInput = screen.getByLabelText("Email address");
-    const submitButton = screen.getByRole("button", { name: "Send reset link" });
+    const submitButton = screen.getByRole("button", { name: "Send Reset Instructions" });
 
     fireEvent.change(emailInput, { target: { value: "test@example.com" } });
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(requestPasswordReset).toHaveBeenCalledWith({
-        email: "test@example.com",
-      });
-      expect(toast.success).toHaveBeenCalledWith(mockResponse.message);
+      expect(requestPasswordReset).toHaveBeenCalledWith("test@example.com");
+      expect(toast.success).toHaveBeenCalledWith("Password reset instructions sent to your email");
     });
 
-    // Wait for navigation
-    await waitFor(
-      () => {
-        expect(mockNavigate).toHaveBeenCalledWith("/");
-      },
-      { timeout: 6000 }
-    );
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it("handles password reset request error", async () => {
-    const mockError = { error: "Invalid email" };
+    const mockError = new Error("Invalid email");
     requestPasswordReset.mockRejectedValueOnce(mockError);
 
     render(
@@ -75,16 +66,14 @@ describe("ForgotPassword Component", () => {
     );
 
     const emailInput = screen.getByLabelText("Email address");
-    const submitButton = screen.getByRole("button", { name: "Send reset link" });
+    const submitButton = screen.getByRole("button", { name: "Send Reset Instructions" });
 
     fireEvent.change(emailInput, { target: { value: "invalid@example.com" } });
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(requestPasswordReset).toHaveBeenCalledWith({
-        email: "invalid@example.com",
-      });
-      expect(toast.error).toHaveBeenCalledWith(mockError.error);
+      expect(requestPasswordReset).toHaveBeenCalledWith("invalid@example.com");
+      expect(toast.error).toHaveBeenCalledWith("Invalid email");
     });
 
     expect(mockNavigate).not.toHaveBeenCalled();
@@ -102,12 +91,12 @@ describe("ForgotPassword Component", () => {
     );
 
     const emailInput = screen.getByLabelText("Email address");
-    const submitButton = screen.getByRole("button", { name: "Send reset link" });
+    const submitButton = screen.getByRole("button", { name: "Send Reset Instructions" });
 
     fireEvent.change(emailInput, { target: { value: "test@example.com" } });
     fireEvent.click(submitButton);
 
-    expect(screen.getByText("Sending reset link...")).toBeInTheDocument();
+    expect(screen.getByText("Sending...")).toBeInTheDocument();
     expect(submitButton).toBeDisabled();
   });
 });

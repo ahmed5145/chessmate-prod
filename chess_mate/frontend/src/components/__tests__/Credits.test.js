@@ -4,9 +4,18 @@ import { BrowserRouter } from 'react-router-dom';
 import { UserContext } from '../../contexts/UserContext';
 import Credits from '../Credits';
 import { toast } from 'react-hot-toast';
+import api from '../../services/api';
+
+jest.mock('../../context/ThemeContext', () => ({
+  useTheme: () => ({ isDarkMode: false }),
+}));
 
 // Mock react-hot-toast
 jest.mock('react-hot-toast');
+
+jest.mock('../../services/api', () => ({
+  post: jest.fn(),
+}));
 
 // Mock useNavigate
 const mockNavigate = jest.fn();
@@ -17,14 +26,16 @@ jest.mock('react-router-dom', () => ({
 
 describe('Credits Component', () => {
   const mockSetCredits = jest.fn();
+  const mockFetchUserData = jest.fn();
   const defaultProps = {
     credits: 100,
     setCredits: mockSetCredits,
+    fetchUserData: mockFetchUserData,
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    fetch.mockReset();
+    api.post.mockReset();
   });
 
   test('renders credit packages', () => {
@@ -50,15 +61,12 @@ describe('Credits Component', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/100 credits/i)).toBeInTheDocument();
+    expect(screen.getByText(/currently have\s*100\s*credits available/i)).toBeInTheDocument();
   });
 
   test('handles successful purchase initiation', async () => {
-    const mockResponse = {
-      ok: true,
-      json: () => Promise.resolve({ checkout_url: 'https://stripe.com/checkout' }),
-    };
-    fetch.mockResolvedValueOnce(mockResponse);
+    localStorage.setItem('tokens', JSON.stringify({ access: 'test-access-token' }));
+    api.post.mockResolvedValueOnce({ data: { checkout_url: 'https://stripe.com/checkout' } });
 
     render(
       <BrowserRouter>
@@ -73,26 +81,21 @@ describe('Credits Component', () => {
     fireEvent.click(purchaseButtons[0]); // Basic package button
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/purchase-credits/',
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-            'Authorization': expect.any(String),
-          }),
-        })
+      expect(api.post).toHaveBeenCalledWith(
+        '/api/purchase-credits/',
+        { package_id: 'basic' },
+        {
+          headers: {
+            Authorization: 'Bearer test-access-token',
+          },
+        }
       );
     });
   });
 
   test('handles purchase error', async () => {
-    const mockResponse = {
-      ok: false,
-      status: 400,
-      json: () => Promise.resolve({ error: 'Purchase failed' }),
-    };
-    fetch.mockResolvedValueOnce(mockResponse);
+    localStorage.setItem('tokens', JSON.stringify({ access: 'test-access-token' }));
+    api.post.mockRejectedValueOnce(new Error('Purchase failed'));
 
     render(
       <BrowserRouter>
@@ -119,7 +122,7 @@ describe('Credits Component', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/100 credits/i)).toBeInTheDocument();
+    expect(screen.getByText(/currently have\s*100\s*credits available/i)).toBeInTheDocument();
 
     rerender(
       <BrowserRouter>
@@ -129,6 +132,6 @@ describe('Credits Component', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/200 credits/i)).toBeInTheDocument();
+    expect(screen.getByText(/currently have\s*200\s*credits available/i)).toBeInTheDocument();
   });
 });

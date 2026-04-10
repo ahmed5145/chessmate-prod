@@ -1,6 +1,13 @@
 // jest-dom adds custom jest matchers for asserting on DOM nodes.
 import '@testing-library/jest-dom';
 
+// Provide a safe default theme context for component tests that render
+// components in isolation without app-level providers.
+jest.mock('./context/ThemeContext', () => ({
+  ThemeProvider: ({ children }) => children,
+  useTheme: () => ({ isDarkMode: false, toggleDarkMode: jest.fn() }),
+}));
+
 // Mock the fetch API
 global.fetch = jest.fn();
 
