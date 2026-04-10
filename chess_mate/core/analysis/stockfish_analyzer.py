@@ -349,10 +349,6 @@ class StockfishAnalyzer:
         """Internal method to clean up engine resources."""
         with self._lock:
             if self._engine:
-                if _is_testing_mode():
-                    self._engine = None
-                    self._initialized = False
-                    return
                 try:
                     self._engine.quit()
                 except Exception as e:
