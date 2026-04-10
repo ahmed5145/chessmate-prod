@@ -75,7 +75,40 @@ jobs:
           requirements.txt \
           README.md
 
+    - name: Evaluate Deployment Preconditions
+      id: deploy_precheck
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION || vars.AWS_REGION || '' }}
+        STAGING_HOST: ${{ secrets.STAGING_HOST }}
+        STAGING_USERNAME: ${{ secrets.STAGING_USERNAME }}
+        STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+        STAGING_PORT: ${{ secrets.STAGING_PORT }}
+      run: |
+        aws_ready=true
+        staging_ready=true
+
+        if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+          aws_ready=false
+        fi
+
+        if [ -z "$AWS_REGION" ]; then
+          aws_ready=false
+        fi
+
+        if [ -z "$STAGING_HOST" ] || [ -z "$STAGING_USERNAME" ] || [ -z "$STAGING_SSH_KEY" ] || [ -z "$STAGING_PORT" ]; then
+          staging_ready=false
+        fi
+
+        echo "aws_ready=$aws_ready" >> "$GITHUB_OUTPUT"
+        echo "staging_ready=$staging_ready" >> "$GITHUB_OUTPUT"
+
+        echo "AWS deploy prerequisites: $aws_ready"
+        echo "Staging deploy prerequisites: $staging_ready"
+
     - name: Configure AWS credentials
+      if: ${{ (github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main') && steps.deploy_precheck.outputs.aws_ready == 'true' }}
       uses: aws-actions/configure-aws-credentials@v6
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -83,7 +116,7 @@ jobs:
         aws-region: ${{ secrets.AWS_REGION || vars.AWS_REGION || 'us-east-1' }}
 
     - name: Deploy to Elastic Beanstalk
-      if: ${{ github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main' }}
+      if: ${{ (github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main') && steps.deploy_precheck.outputs.aws_ready == 'true' }}
       uses: einaregilsson/beanstalk-deploy@v22
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -94,8 +127,13 @@ jobs:
         region: ${{ secrets.AWS_REGION || vars.AWS_REGION || 'us-east-1' }}
         deployment_package: chessmate-app.zip
 
+    - name: Skip Production Deploy (Missing AWS Credentials)
+      if: ${{ (github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main') && steps.deploy_precheck.outputs.aws_ready != 'true' }}
+      run: |
+        echo "Skipping production deployment: required AWS credentials/region are not configured."
+
     - name: Deploy to Staging Server
-      if: ${{ github.event.inputs.environment == 'staging' || github.ref == 'refs/heads/staging' }}
+      if: ${{ (github.event.inputs.environment == 'staging' || github.ref == 'refs/heads/staging') && steps.deploy_precheck.outputs.staging_ready == 'true' }}
       uses: appleboy/ssh-action@v1.2.0
       with:
         host: ${{ secrets.STAGING_HOST }}
@@ -136,6 +174,11 @@ jobs:
           # Update symbolic link to current deployment
           cd ~/
           ln -sfn ~/deployments/chessmate-${{ github.run_number }} chessmate-current
+
+    - name: Skip Staging Deploy (Missing SSH Credentials)
+      if: ${{ (github.event.inputs.environment == 'staging' || github.ref == 'refs/heads/staging') && steps.deploy_precheck.outputs.staging_ready != 'true' }}
+      run: |
+        echo "Skipping staging deployment: required staging SSH secrets are not configured."
 
     - name: Post-deployment checks
       run: |
