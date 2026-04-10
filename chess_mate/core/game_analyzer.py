@@ -43,6 +43,12 @@ from .task_manager import (TASK_STATUS_FAILURE, TASK_STATUS_SUCCESS, TaskManager
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Keep legacy import aliases pointed at the same module so monkeypatches work
+# no matter which package spelling the test runner imports first.
+sys.modules.setdefault("core.game_analyzer", sys.modules[__name__])
+sys.modules.setdefault("chess_mate.core.game_analyzer", sys.modules[__name__])
+sys.modules.setdefault("chessmate_prod.chess_mate.core.game_analyzer", sys.modules[__name__])
+
 
 class _TaskProxy:
     """Lazy proxy for Celery task functions to avoid import cycles at module load."""

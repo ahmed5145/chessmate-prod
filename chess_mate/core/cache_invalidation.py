@@ -8,6 +8,7 @@ cache control and automatic cache invalidation when data changes.
 
 import functools
 import logging
+import sys
 from typing import Any, Callable, Dict, List, Set, TypeVar, Union, cast
 
 from django.conf import settings
@@ -18,6 +19,12 @@ from django.utils.decorators import method_decorator
 from .cache import generate_cache_key, get_redis_connection, invalidate_pattern
 
 logger = logging.getLogger(__name__)
+
+# Keep legacy import aliases pointed at the same module so monkeypatches work
+# no matter which package spelling the test runner imports first.
+sys.modules.setdefault("core.cache_invalidation", sys.modules[__name__])
+sys.modules.setdefault("chess_mate.core.cache_invalidation", sys.modules[__name__])
+sys.modules.setdefault("chessmate_prod.chess_mate.core.cache_invalidation", sys.modules[__name__])
 
 # Type variable for function return types
 T = TypeVar("T")

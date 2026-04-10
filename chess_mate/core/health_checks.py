@@ -42,6 +42,12 @@ if not hasattr(_builtins, "socket"):
 
 logger = logging.getLogger(__name__)
 
+# Keep legacy import aliases pointed at the same module so monkeypatches work
+# no matter which package spelling the test runner imports first.
+sys.modules.setdefault("core.health_checks", sys.modules[__name__])
+sys.modules.setdefault("chess_mate.core.health_checks", sys.modules[__name__])
+sys.modules.setdefault("chessmate_prod.chess_mate.core.health_checks", sys.modules[__name__])
+
 # Health check types
 DB_CHECK = "database"
 CACHE_CHECK = "cache"
