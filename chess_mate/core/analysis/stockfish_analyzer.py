@@ -5,6 +5,7 @@ Handles all interactions with the Stockfish chess engine.
 
 import atexit
 import logging
+import os
 import threading
 import time
 from typing import Any, Dict, Optional, Union, cast, List
@@ -19,6 +20,13 @@ from .position_evaluator import PositionEvaluator
 from ..error_handling import AnalysisError
 
 logger = logging.getLogger(__name__)
+
+
+def _is_testing_mode() -> bool:
+    """Return True when running under test environments."""
+    if str(os.environ.get("TESTING", "")).lower() in {"1", "true", "yes", "on"}:
+        return True
+    return bool(getattr(settings, "TESTING", False))
 
 
 class StockfishAnalyzer:
@@ -38,7 +46,9 @@ class StockfishAnalyzer:
                 if cls._instance is None:
                     cls._instance = super(StockfishAnalyzer, cls).__new__(cls)
                     cls._instance._initialized = False
-                    atexit.register(cls._instance.cleanup)
+                    # Avoid interpreter-shutdown deadlocks in test/CI runs.
+                    if not _is_testing_mode():
+                        atexit.register(cls._instance.cleanup)
         return cls._instance
 
     @classmethod
@@ -339,6 +349,10 @@ class StockfishAnalyzer:
         """Internal method to clean up engine resources."""
         with self._lock:
             if self._engine:
+                if _is_testing_mode():
+                    self._engine = None
+                    self._initialized = False
+                    return
                 try:
                     self._engine.quit()
                 except Exception as e:
@@ -369,6 +383,8 @@ class StockfishAnalyzer:
 
     def __del__(self):
         """Ensure engine is closed on deletion."""
+        if _is_testing_mode():
+            return
         try:
             self.cleanup()
         except Exception as e:

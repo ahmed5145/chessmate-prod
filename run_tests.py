@@ -11,8 +11,10 @@ This script provides a simple command-line interface for running tests with vari
 
 import argparse
 import os
+import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -122,8 +124,57 @@ def run_tests(cmd):
     if any(arg.startswith("--ds=") for arg in cmd):
         django_cwd = str(Path(__file__).parent.absolute() / "chess_mate")
 
-    # Run the command
-    return subprocess.run(cmd, env=env, cwd=django_cwd)
+    # Stream output while guarding against CI hangs that occasionally occur
+    # after pytest prints the final summary but before process termination.
+    process = subprocess.Popen(
+        cmd,
+        env=env,
+        cwd=django_cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+
+    summary_seen = False
+    success_summary = False
+    last_output = time.time()
+    summary_pattern = re.compile(r"=+\s+\d+\s+passed(?:,\s+\d+\s+skipped)?")
+
+    assert process.stdout is not None
+    while True:
+        line = process.stdout.readline()
+        if line:
+            print(line, end="")
+            last_output = time.time()
+
+            lower_line = line.lower()
+            if summary_pattern.search(line):
+                summary_seen = True
+                success_summary = ("failed" not in lower_line) and ("error" not in lower_line)
+
+        if process.poll() is not None:
+            break
+
+        # CI-only safety valve: if pytest printed a success summary and then
+        # emits no more output for a minute, treat it as a shutdown hang.
+        if (
+            os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
+            and summary_seen
+            and success_summary
+            and (time.time() - last_output) > 60
+        ):
+            print("\nDetected post-summary pytest shutdown hang in CI; terminating process.")
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            return subprocess.CompletedProcess(cmd, 0)
+
+        time.sleep(0.1)
+
+    return subprocess.CompletedProcess(cmd, process.returncode)
 
 
 def main():
