@@ -1,6 +1,6 @@
 import api from './api';
 import { toast } from 'react-hot-toast';
-import { refreshTokens, getAccessToken, getRefreshToken, setTokens } from './authService';
+import { refreshTokens, getAccessToken, getRefreshToken, setTokens, clearTokens } from './authService';
 import { API_URL } from '../config';
 
 // Define API base URL
@@ -42,11 +42,8 @@ export const loginUser = async (email, password) => {
             throw new Error("Authentication tokens not found in server response");
         }
         
-        // Store tokens in localStorage
-        localStorage.setItem('tokens', JSON.stringify({
-            access: accessToken,
-            refresh: refreshToken
-        }));
+        // Persist tokens through shared helper to keep all key formats in sync.
+        setTokens(accessToken, refreshToken);
         
         // Set default Authorization header
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
@@ -89,16 +86,16 @@ export const logoutUser = async () => {
             await api.post("/api/v1/auth/logout/", { refresh: tokens.refresh });
         }
         
-        // Clear tokens regardless of server response
-            localStorage.removeItem('tokens');
-            delete api.defaults.headers.common['Authorization'];
+        // Clear tokens regardless of server response.
+        clearTokens();
+        delete api.defaults.headers.common['Authorization'];
 
         return true;
     } catch (error) {
         console.error('Logout error:', error);
         
-        // Even if the server request fails, we want to clear local storage
-        localStorage.removeItem('tokens');
+        // Even if the server request fails, clear local auth state.
+        clearTokens();
         delete api.defaults.headers.common['Authorization'];
         return false;
     }

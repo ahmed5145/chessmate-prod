@@ -1,44 +1,63 @@
-// Token storage helper functions
-export const getAccessToken = () => {
-    // Try new format first
-    const accessToken = localStorage.getItem('accessToken');
-    if (accessToken) return accessToken;
-    
-    // Fall back to old format
+import { API_URL } from '../config';
+
+const buildApiUrl = (path) => {
+    const base = (API_URL || '').replace(/\/$/, '');
+    const suffix = path.startsWith('/') ? path : `/${path}`;
+    return `${base}${suffix}`;
+};
+
+const parseLegacyTokens = () => {
     try {
-        const tokens = JSON.parse(localStorage.getItem('tokens') || '{}');
-        return tokens.access || null;
+        return JSON.parse(localStorage.getItem('tokens') || '{}');
     } catch (e) {
         console.error('Error parsing tokens from localStorage:', e);
-        return null;
+        return {};
     }
+};
+
+// Token storage helper functions
+export const getAccessToken = () => {
+    const directToken =
+        localStorage.getItem('access_token') ||
+        localStorage.getItem('accessToken');
+
+    if (directToken) {
+        return directToken;
+    }
+
+    const tokens = parseLegacyTokens();
+    return tokens.access || null;
 };
 
 export const getRefreshToken = () => {
-    // Try new format first
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (refreshToken) return refreshToken;
-    
-    // Fall back to old format
-    try {
-        const tokens = JSON.parse(localStorage.getItem('tokens') || '{}');
-        return tokens.refresh || null;
-    } catch (e) {
-        console.error('Error parsing tokens from localStorage:', e);
-        return null;
+    const directToken =
+        localStorage.getItem('refresh_token') ||
+        localStorage.getItem('refreshToken');
+
+    if (directToken) {
+        return directToken;
     }
+
+    const tokens = parseLegacyTokens();
+    return tokens.refresh || null;
 };
 
 export const setTokens = (accessToken, refreshToken) => {
-    // Store in both formats for backward compatibility
+    // Store in both formats for backward compatibility.
     if (accessToken) {
+        localStorage.setItem('access_token', accessToken);
         localStorage.setItem('accessToken', accessToken);
     } else {
+        localStorage.removeItem('access_token');
         localStorage.removeItem('accessToken');
     }
     
     if (refreshToken) {
+        localStorage.setItem('refresh_token', refreshToken);
         localStorage.setItem('refreshToken', refreshToken);
+    } else {
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('refreshToken');
     }
     
     // Also update old format
@@ -57,6 +76,8 @@ export const setTokens = (accessToken, refreshToken) => {
 };
 
 export const clearTokens = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('tokens');
@@ -71,7 +92,7 @@ export const refreshTokens = async () => {
             return null;
         }
         
-        const response = await fetch('http://localhost:8000/api/v1/auth/token/refresh/', { // TODO: change to production url in production
+        const response = await fetch(buildApiUrl('/api/v1/auth/token/refresh/'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -101,7 +122,7 @@ export const refreshTokens = async () => {
 
 export const resetPassword = async (token, newPassword) => {
     try {
-        const response = await fetch('http://localhost:8000/api/v1/auth/reset-password/confirm/', {
+        const response = await fetch(buildApiUrl('/api/v1/auth/reset-password/confirm/'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
