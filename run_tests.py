@@ -110,6 +110,10 @@ def build_command(args):
         # Run all tests by default
         cmd.extend([f"--ds={django_settings}", "chess_mate/core/tests/", "standalone_tests/"])
 
+    # CI diagnostics: dump thread stacks if a single test is silent for too long.
+    if os.environ.get("GITHUB_ACTIONS", "").lower() == "true" and any(arg.startswith("--ds=") for arg in cmd):
+        cmd.extend(["-o", "faulthandler_timeout=120"])
+
     return cmd
 
 
@@ -146,6 +150,8 @@ def run_tests(cmd):
     last_output = time.time()
     start_time = time.time()
     last_heartbeat = start_time
+    is_ci = os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
+    no_output_timeout = int(os.environ.get("RUN_TESTS_NO_OUTPUT_TIMEOUT", "180"))
     summary_pattern = re.compile(r"=+\s+\d+\s+passed(?:,\s+\d+\s+skipped)?")
     line_queue: Queue = Queue()
 
@@ -176,12 +182,7 @@ def run_tests(cmd):
 
             # CI-only safety valve: if pytest printed a success summary and then
             # emits no more output for a minute, treat it as a shutdown hang.
-            if (
-                os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
-                and summary_seen
-                and success_summary
-                and (now - last_output) > 60
-            ):
+            if is_ci and summary_seen and success_summary and (now - last_output) > 60:
                 print("\nDetected post-summary pytest shutdown hang in CI; terminating process.", flush=True)
                 process.terminate()
                 try:
@@ -190,15 +191,22 @@ def run_tests(cmd):
                     process.kill()
                 return subprocess.CompletedProcess(cmd, 0)
 
-            if os.environ.get("GITHUB_ACTIONS", "").lower() == "true" and (now - last_heartbeat) >= 30:
+            if is_ci and (now - last_heartbeat) >= 30:
                 elapsed = int(now - start_time)
-                print(f"[run_tests] Still running... {elapsed}s elapsed, waiting for pytest output", flush=True)
+                silent_for = int(now - last_output)
+                print(
+                    f"[run_tests] Still running... {elapsed}s elapsed, {silent_for}s since last pytest output",
+                    flush=True,
+                )
                 last_heartbeat = now
 
             # CI-only safety valve: if startup emits no output for too long,
             # terminate to avoid a deadlocked job that never progresses.
-            if os.environ.get("GITHUB_ACTIONS", "").lower() == "true" and (now - last_output) > 240:
-                print("\n[run_tests] No pytest output for 240s in CI; terminating as hung process.", flush=True)
+            if is_ci and (now - last_output) > no_output_timeout:
+                print(
+                    f"\n[run_tests] No pytest output for {no_output_timeout}s in CI; terminating as hung process.",
+                    flush=True,
+                )
                 process.terminate()
                 try:
                     process.wait(timeout=10)
