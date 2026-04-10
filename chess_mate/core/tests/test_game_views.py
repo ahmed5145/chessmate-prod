@@ -159,25 +159,50 @@ class TestGameViews:
         with patch("core.tasks.analyze_game_task.delay") as mock_task:
             mock_task.return_value = MagicMock(id="mock-task-id")
 
-            with patch.object(game_views.task_manager, "register_task") as mock_register:
-                url = reverse("analyze_game", kwargs={"game_id": test_game.id})
-                response = authenticated_client.post(url)
+            with patch("core.game_views._get_compat_task_managers", return_value=[game_views.task_manager]):
+                with patch.object(game_views.task_manager, "get_active_tasks_for_game", return_value=[]):
+                    with patch.object(game_views.task_manager, "register_task") as mock_register:
+                        url = reverse("analyze_game", kwargs={"game_id": test_game.id})
+                        response = authenticated_client.post(url)
 
-                assert response.status_code == status.HTTP_202_ACCEPTED
-                assert mock_task.called
-                assert mock_task.call_args[0][0] == test_game.id
-                assert mock_register.called
-                assert mock_register.call_args[0][0] == "mock-task-id"
-                assert mock_register.call_args[0][1] == test_game.id
-                assert mock_register.call_args[0][2] == test_user.id
+                        assert response.status_code == status.HTTP_202_ACCEPTED
+                        assert mock_task.called
+                        assert mock_task.call_args[0][0] == test_game.id
+                        assert mock_register.called
+                        assert mock_register.call_args[0][0] == "mock-task-id"
+                        assert mock_register.call_args[0][1] == test_game.id
+                        assert mock_register.call_args[0][2] == test_user.id
 
-                # Check if credits were deducted
-                profile = Profile.objects.get(user=test_user)
-                assert profile.credits == 9  # Started with 10
+                        # Check if credits were deducted
+                        profile = Profile.objects.get(user=test_user)
+                        assert profile.credits == 9  # Started with 10
 
-                # Check if game status was updated
-                test_game.refresh_from_db()
-                assert test_game.analysis_status == "analyzing"
+                        # Check if game status was updated
+                        test_game.refresh_from_db()
+                        assert test_game.analysis_status == "analyzing"
+
+    def test_analyze_game_deduplicates_active_task(self, authenticated_client, test_user, test_game):
+        test_game.analysis_status = "not_analyzed"
+        test_game.save()
+
+        with patch("core.tasks.analyze_game_task.delay") as mock_task:
+            with patch("core.game_views._get_compat_task_managers", return_value=[game_views.task_manager]):
+                with patch.object(game_views.task_manager, "get_active_tasks_for_game", return_value=["existing-task-id"]):
+                    with patch.object(game_views.task_manager, "register_task") as mock_register:
+                        url = reverse("analyze_game", kwargs={"game_id": test_game.id})
+                        response = authenticated_client.post(url)
+
+                        assert response.status_code == status.HTTP_200_OK
+                        assert response.data["status"] == "already_running"
+                        assert response.data["task_id"] == "existing-task-id"
+                        mock_task.assert_not_called()
+                        mock_register.assert_not_called()
+
+                        profile = Profile.objects.get(user=test_user)
+                        assert profile.credits == 10
+
+                        test_game.refresh_from_db()
+                        assert test_game.analysis_status == "not_analyzed"
 
     def test_get_game_analysis(self, authenticated_client, test_user, test_game):
         # Set up a game with analysis data

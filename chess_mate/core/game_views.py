@@ -629,13 +629,56 @@ def analyze_game(request, game_id=None):
         compat_task = _resolve_compat_attr("core.tasks", "analyze_game_task", analyze_game_task)
         compat_task_managers = _get_compat_task_managers()
 
-        # Start async task and register it in legacy-compatible format.
-        task = compat_task.delay(game.id, depth, use_ai)
-        for manager in compat_task_managers:
-            try:
-                manager.register_task(task.id, game.id, request.user.id)
-            except Exception:
-                continue
+        lock = None
+        lock_acquired = False
+        lock_manager = next(
+            (manager for manager in compat_task_managers if getattr(manager, "redis_client", None) is not None),
+            None,
+        )
+
+        if lock_manager is not None:
+            lock = lock_manager.redis_client.lock(f"analysis_lock:game:{game.id}", timeout=15, blocking_timeout=3)
+
+        try:
+            if lock is not None:
+                lock_acquired = lock.acquire(blocking=True)
+
+            # Avoid duplicate task enqueue for the same game in concurrent requests.
+            existing_task_id = None
+            for manager in compat_task_managers:
+                try:
+                    active_tasks = manager.get_active_tasks_for_game(game.id)
+                except Exception:
+                    continue
+
+                if active_tasks:
+                    existing_task_id = active_tasks[0]
+                    break
+
+            if existing_task_id:
+                return Response(
+                    {
+                        "status": "already_running",
+                        "message": "Analysis already in progress",
+                        "task_id": existing_task_id,
+                        "game_id": game.id,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            # Start async task and register it in legacy-compatible format.
+            task = compat_task.delay(game.id, depth, use_ai)
+            for manager in compat_task_managers:
+                try:
+                    manager.register_task(task.id, game.id, request.user.id)
+                except Exception:
+                    continue
+        finally:
+            if lock is not None and lock_acquired:
+                try:
+                    lock.release()
+                except Exception:
+                    logger.debug("Failed to release analysis lock", exc_info=True)
 
         # Deduct one credit for analysis when possible.
         try:
