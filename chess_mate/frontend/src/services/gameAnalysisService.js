@@ -9,6 +9,28 @@ const inFlightAnalysisStarts = new Map();
 const recentAnalysisStarts = new Map();
 const inFlightAnalysisFetches = new Map();
 
+const SUCCESS_STATUSES = new Set(['SUCCESS', 'COMPLETED']);
+const TERMINAL_FAILURE_STATUSES = new Set(['FAILURE', 'FAILED', 'ERROR', 'REVOKED', 'AUTH_ERROR']);
+
+export const classifyAnalysisPollingStatus = (status, progress = 0) => {
+    const normalizedStatus = String(status || '').toUpperCase();
+    const numericProgress = Number(progress) || 0;
+
+    return {
+        normalizedStatus,
+        isSuccess: SUCCESS_STATUSES.has(normalizedStatus) || numericProgress >= 100,
+        isTerminalFailure: TERMINAL_FAILURE_STATUSES.has(normalizedStatus),
+    };
+};
+
+export const computeNextPollDelay = ({ currentDelay, minDelay, maxDelay, hadError }) => {
+    if (!hadError) {
+        return minDelay;
+    }
+
+    return Math.min(maxDelay, currentDelay * 2);
+};
+
 // Initialize IndexedDB
 const initDB = () => {
     return new Promise((resolve, reject) => {

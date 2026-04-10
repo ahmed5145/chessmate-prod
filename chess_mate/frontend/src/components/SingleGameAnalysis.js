@@ -1,7 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { analyzeSpecificGame, checkAnalysisStatus, fetchGameAnalysis, restartAnalysis } from '../services/gameAnalysisService';
+import {
+  analyzeSpecificGame,
+  checkAnalysisStatus,
+  classifyAnalysisPollingStatus,
+  computeNextPollDelay,
+  fetchGameAnalysis,
+  restartAnalysis,
+} from '../services/gameAnalysisService';
 import GameAnalysisResults from './GameAnalysisResults';
 import LoadingSpinner from './LoadingSpinner';
 import './SingleGameAnalysis.css';
@@ -322,10 +329,17 @@ const SingleGameAnalysis = () => {
       setPollingFailed(false);
       const statusResponse = await checkAnalysisStatus(gameId);
       console.log(`Analysis status for game ${gameId}:`, statusResponse);
-      pollDelayRef.current = POLL_MIN_DELAY;
+      pollDelayRef.current = computeNextPollDelay({
+        currentDelay: pollDelayRef.current,
+        minDelay: POLL_MIN_DELAY,
+        maxDelay: POLL_MAX_DELAY,
+        hadError: false,
+      });
+
+      const classification = classifyAnalysisPollingStatus(statusResponse.status, statusResponse.progress);
 
       // If we have a complete analysis, fetch it
-      if (statusResponse.status === 'SUCCESS' || statusResponse.progress === 100) {
+      if (classification.isSuccess) {
         clearAllIntervals();
         setProgressStatus('complete');
         setLoadingMessage('Analysis complete! Loading results...');
@@ -334,8 +348,7 @@ const SingleGameAnalysis = () => {
         return;
       }
 
-      const terminalFailureStatuses = new Set(['FAILURE', 'FAILED', 'ERROR', 'REVOKED', 'AUTH_ERROR']);
-      if (terminalFailureStatuses.has(statusResponse.status)) {
+      if (classification.isTerminalFailure) {
         clearAllIntervals();
         analysisErrorRef.current = true;
         setLoading(false);
@@ -419,7 +432,12 @@ const SingleGameAnalysis = () => {
     } catch (error) {
       console.error('Error polling for analysis status:', error);
       pollingErrorCount.current += 1;
-      pollDelayRef.current = Math.min(POLL_MAX_DELAY, pollDelayRef.current * 2);
+      pollDelayRef.current = computeNextPollDelay({
+        currentDelay: pollDelayRef.current,
+        minDelay: POLL_MIN_DELAY,
+        maxDelay: POLL_MAX_DELAY,
+        hadError: true,
+      });
       
       // If we encounter several polling errors, try to fetch the analysis directly
       if (pollingErrorCount.current >= 3 && !hasAttemptedDirectFetch.current) {

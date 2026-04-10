@@ -5,6 +5,8 @@ import SingleGameAnalysis from '../SingleGameAnalysis';
 import {
   analyzeSpecificGame,
   checkAnalysisStatus,
+  classifyAnalysisPollingStatus,
+  computeNextPollDelay,
   fetchGameAnalysis,
 } from '../../services/gameAnalysisService';
 
@@ -12,6 +14,17 @@ import {
 jest.mock('../../services/gameAnalysisService', () => ({
   analyzeSpecificGame: jest.fn(),
   checkAnalysisStatus: jest.fn(),
+  classifyAnalysisPollingStatus: jest.fn((status, progress) => {
+    const normalizedStatus = String(status || '').toUpperCase();
+    return {
+      normalizedStatus,
+      isSuccess: normalizedStatus === 'SUCCESS' || normalizedStatus === 'COMPLETED' || Number(progress) >= 100,
+      isTerminalFailure: ['FAILURE', 'FAILED', 'ERROR', 'REVOKED', 'AUTH_ERROR'].includes(normalizedStatus),
+    };
+  }),
+  computeNextPollDelay: jest.fn(({ currentDelay, minDelay, maxDelay, hadError }) =>
+    hadError ? Math.min(maxDelay, currentDelay * 2) : minDelay
+  ),
   fetchGameAnalysis: jest.fn(),
   restartAnalysis: jest.fn(),
 }));
@@ -30,7 +43,23 @@ describe('SingleGameAnalysis', () => {
     jest.useRealTimers();
     analyzeSpecificGame.mockReset();
     checkAnalysisStatus.mockReset();
+    classifyAnalysisPollingStatus.mockReset();
+    computeNextPollDelay.mockReset();
     fetchGameAnalysis.mockReset();
+
+    classifyAnalysisPollingStatus.mockImplementation((status, progress) => {
+      const normalizedStatus = String(status || '').toUpperCase();
+      return {
+        normalizedStatus,
+        isSuccess: normalizedStatus === 'SUCCESS' || normalizedStatus === 'COMPLETED' || Number(progress) >= 100,
+        isTerminalFailure: ['FAILURE', 'FAILED', 'ERROR', 'REVOKED', 'AUTH_ERROR'].includes(normalizedStatus),
+      };
+    });
+
+    computeNextPollDelay.mockImplementation(({ currentDelay, minDelay, maxDelay, hadError }) =>
+      hadError ? Math.min(maxDelay, currentDelay * 2) : minDelay
+    );
+
     localStorage.clear();
   });
 
