@@ -144,6 +144,9 @@ def get_cache_instance(cache_alias: str = "default") -> BaseCache:
         return cast(BaseCache, patched_impl(cache_alias))
 
     if cache_alias in {CACHE_BACKEND_DEFAULT, CACHE_BACKEND_MEMORY}:
+        patched_cache = _resolve_patched_cache_symbol("cache")
+        if patched_cache is not None:
+            return cast(BaseCache, patched_cache)
         return cast(BaseCache, cache)
 
     if cache_alias == CACHE_BACKEND_REDIS:
