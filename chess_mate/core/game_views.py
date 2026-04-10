@@ -194,7 +194,7 @@ def _enqueue_analysis_task(
                 "game_id": game_id,
             }
 
-        task = analysis_task.delay(game_id, depth, use_ai)
+        task = analysis_task.delay(game_id, user_id=user_id, depth=depth, use_ai=use_ai)
 
         for manager in managers:
             try:
