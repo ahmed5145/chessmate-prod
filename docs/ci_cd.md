@@ -90,6 +90,10 @@ It performs:
 - npm dependency auditing
 - OWASP ZAP baseline scanning against the staging environment
 
+The ZAP scan is optional. If you set `ZAP_TARGET_URL`, it should point to a
+reachable environment you control, such as your own staging deployment.
+Leaving it unset skips the ZAP step cleanly.
+
 ## Docker Configuration
 
 The project uses Docker for containerization:
