@@ -14,7 +14,9 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
+from queue import Empty, Queue
 from pathlib import Path
 
 
@@ -112,9 +114,9 @@ def build_command(args):
 
 def run_tests(cmd):
     """Run the tests with the given command."""
-    print("\n" + "=" * 80)
-    print(f"Running: {' '.join(cmd)}")
-    print("=" * 80 + "\n")
+    print("\n" + "=" * 80, flush=True)
+    print(f"Running: {' '.join(cmd)}", flush=True)
+    print("=" * 80 + "\n", flush=True)
 
     # Set the environment
     env = os.environ.copy()
@@ -126,6 +128,8 @@ def run_tests(cmd):
 
     # Stream output while guarding against CI hangs that occasionally occur
     # after pytest prints the final summary but before process termination.
+    env["PYTHONUNBUFFERED"] = "1"
+
     process = subprocess.Popen(
         cmd,
         env=env,
@@ -139,13 +143,55 @@ def run_tests(cmd):
     summary_seen = False
     success_summary = False
     last_output = time.time()
+    start_time = time.time()
+    last_heartbeat = start_time
     summary_pattern = re.compile(r"=+\s+\d+\s+passed(?:,\s+\d+\s+skipped)?")
+    line_queue: Queue = Queue()
 
     assert process.stdout is not None
+
+    def _reader_thread(stdout, output_queue):
+        """Read subprocess output lines without blocking the main watchdog loop."""
+        try:
+            for out_line in iter(stdout.readline, ""):
+                output_queue.put(out_line)
+        finally:
+            output_queue.put(None)
+
+    reader = threading.Thread(target=_reader_thread, args=(process.stdout, line_queue), daemon=True)
+    reader.start()
+
     while True:
-        line = process.stdout.readline()
+        try:
+            line = line_queue.get(timeout=1)
+        except Empty:
+            line = None
+
+        if line is None:
+            if process.poll() is not None:
+                break
+
+            now = time.time()
+            if os.environ.get("GITHUB_ACTIONS", "").lower() == "true" and (now - last_heartbeat) >= 30:
+                elapsed = int(now - start_time)
+                print(f"[run_tests] Still running... {elapsed}s elapsed, waiting for pytest output", flush=True)
+                last_heartbeat = now
+
+            # CI-only safety valve: if startup emits no output for too long,
+            # terminate to avoid a deadlocked job that never progresses.
+            if os.environ.get("GITHUB_ACTIONS", "").lower() == "true" and (now - last_output) > 240:
+                print("\n[run_tests] No pytest output for 240s in CI; terminating as hung process.", flush=True)
+                process.terminate()
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                return subprocess.CompletedProcess(cmd, 1)
+
+            continue
+
         if line:
-            print(line, end="")
+            print(line, end="", flush=True)
             last_output = time.time()
 
             lower_line = line.lower()
@@ -164,7 +210,7 @@ def run_tests(cmd):
             and success_summary
             and (time.time() - last_output) > 60
         ):
-            print("\nDetected post-summary pytest shutdown hang in CI; terminating process.")
+            print("\nDetected post-summary pytest shutdown hang in CI; terminating process.", flush=True)
             process.terminate()
             try:
                 process.wait(timeout=10)
@@ -172,7 +218,7 @@ def run_tests(cmd):
                 process.kill()
             return subprocess.CompletedProcess(cmd, 0)
 
-        time.sleep(0.1)
+    reader.join(timeout=1)
 
     return subprocess.CompletedProcess(cmd, process.returncode)
 
