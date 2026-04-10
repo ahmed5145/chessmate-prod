@@ -245,6 +245,61 @@ class TestGameViews:
                 failing_manager.register_task.assert_not_called()
                 healthy_manager.register_task.assert_not_called()
 
+    def test_enqueue_analysis_task_releases_lock_on_success(self, test_user, test_game):
+        lock = MagicMock()
+        lock.acquire.return_value = True
+
+        manager = MagicMock()
+        manager.redis_client.lock.return_value = lock
+        manager.get_active_tasks_for_game.return_value = []
+
+        analysis_task = MagicMock()
+        analysis_task.delay.return_value = MagicMock(id="queued-task-id")
+
+        result = game_views._enqueue_analysis_task(
+            game_id=test_game.id,
+            user_id=test_user.id,
+            depth=24,
+            use_ai=True,
+            analysis_task=analysis_task,
+            managers=[manager],
+            legacy_register_signature=False,
+        )
+
+        assert result["status"] == "success"
+        assert result["task_id"] == "queued-task-id"
+        manager.redis_client.lock.assert_called_once_with(
+            f"analysis_lock:game:{test_game.id}", timeout=15, blocking_timeout=3
+        )
+        lock.acquire.assert_called_once_with(blocking=True)
+        lock.release.assert_called_once()
+
+    def test_enqueue_analysis_task_releases_lock_for_already_running(self, test_user, test_game):
+        lock = MagicMock()
+        lock.acquire.return_value = True
+
+        manager = MagicMock()
+        manager.redis_client.lock.return_value = lock
+        manager.get_active_tasks_for_game.return_value = ["existing-task-id"]
+
+        analysis_task = MagicMock()
+
+        result = game_views._enqueue_analysis_task(
+            game_id=test_game.id,
+            user_id=test_user.id,
+            depth=24,
+            use_ai=True,
+            analysis_task=analysis_task,
+            managers=[manager],
+            legacy_register_signature=False,
+        )
+
+        assert result["status"] == "already_running"
+        assert result["task_id"] == "existing-task-id"
+        analysis_task.delay.assert_not_called()
+        lock.acquire.assert_called_once_with(blocking=True)
+        lock.release.assert_called_once()
+
     def test_get_game_analysis(self, authenticated_client, test_user, test_game):
         # Set up a game with analysis data
         test_game.analysis_status = "analyzed"
