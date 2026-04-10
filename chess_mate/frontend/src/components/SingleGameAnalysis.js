@@ -288,6 +288,7 @@ const SingleGameAnalysis = () => {
   const isFetchingAnalysisRef = useRef(false);
   const pollingErrorCount = useRef(0);
   const analysisCompleted = useRef(false);
+  const analysisErrorRef = useRef(false);
   const pollingTimeoutRef = useRef(null);
   const pollDelayRef = useRef(3000);
   const timeoutIds = useRef([]);
@@ -295,7 +296,7 @@ const SingleGameAnalysis = () => {
   const POLL_MAX_DELAY = 15000;
 
   const scheduleStatusPoll = (delay = POLL_MIN_DELAY) => {
-    if (analysisCompleted.current || isFetchingAnalysisRef.current || analysisError) {
+    if (analysisCompleted.current || isFetchingAnalysisRef.current || analysisErrorRef.current) {
       return;
     }
 
@@ -306,7 +307,7 @@ const SingleGameAnalysis = () => {
     pollingTimeoutRef.current = setTimeout(async () => {
       await pollForAnalysisStatus();
 
-      if (!analysisCompleted.current && !analysisError) {
+      if (!analysisCompleted.current && !analysisErrorRef.current) {
         scheduleStatusPoll(pollDelayRef.current);
       }
     }, delay);
@@ -445,11 +446,19 @@ const SingleGameAnalysis = () => {
     timeoutIds.current = [];
   };
 
+  useEffect(() => {
+    analysisErrorRef.current = Boolean(analysisError);
+    if (analysisErrorRef.current) {
+      clearAllIntervals();
+    }
+  }, [analysisError]);
+
   // Handle analysis restart
   const handleRestartAnalysis = async () => {
     try {
       setLoading(true);
       setAnalysisError(null);
+      analysisErrorRef.current = false;
       setPollingFailed(false);
       setLoadingMessage('Restarting analysis...');
       
@@ -542,6 +551,7 @@ const SingleGameAnalysis = () => {
       setProgress(0);
       setAnalysisData(null);
       setAnalysisError(null);
+      analysisErrorRef.current = false;
       setAuthError(false);
       setPollingFailed(false);
       setProgressStatus('starting');
@@ -705,6 +715,7 @@ const SingleGameAnalysis = () => {
     
     // Reset state
     setAnalysisError(null);
+    analysisErrorRef.current = false;
     setPollingFailed(false);
     setProgress(0);
     
