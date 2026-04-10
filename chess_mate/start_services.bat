@@ -18,19 +18,21 @@ REM Keep backend and Celery aligned: both must use Redis in this workflow.
 set "REDIS_DISABLED=False"
 set "DEBUG=True"
 set "ENVIRONMENT=development"
+set "DJANGO_SETTINGS_MODULE=chess_mate.settings"
+set "PYTHONPATH=%BASE_DIR%"
 
 where redis-server >nul 2>&1
 if %errorlevel%==0 (
-	start "ChessMate Redis" /MIN cmd /k "cd /d %BASE_DIR% && set REDIS_DISABLED=False && redis-server redis.windows.conf"
+	start "ChessMate Redis" cmd /k "cd /d %BASE_DIR% && set ""REDIS_DISABLED=False"" && redis-server redis.windows.conf"
 ) else (
 	echo redis-server was not found in PATH. Start Redis manually if needed.
 )
 
-start "ChessMate Django" /MIN cmd /k "cd /d %BASE_DIR% && set REDIS_DISABLED=False && set DEBUG=True && set ENVIRONMENT=development && %VENV_PY% manage.py runserver 8000"
+start "ChessMate Django" cmd /k "cd /d %BASE_DIR% && set ""REDIS_DISABLED=False"" && set ""DEBUG=True"" && set ""ENVIRONMENT=development"" && set ""DJANGO_SETTINGS_MODULE=chess_mate.settings"" && set ""PYTHONPATH=%BASE_DIR%"" && %VENV_PY% manage.py runserver 8000"
 
 REM Keep Celery quieter to avoid terminal noise while still showing warnings/errors.
-start "ChessMate Celery" /MIN cmd /k "cd /d %BASE_DIR% && set REDIS_DISABLED=False && set DEBUG=True && set ENVIRONMENT=development && %VENV_PY% -m celery -A chess_mate worker --pool=solo --concurrency=1 --loglevel=WARNING"
+start "ChessMate Celery" cmd /k "cd /d %BASE_DIR% && set ""REDIS_DISABLED=False"" && set ""DEBUG=True"" && set ""ENVIRONMENT=development"" && set ""DJANGO_SETTINGS_MODULE=chess_mate.settings"" && set ""PYTHONPATH=%BASE_DIR%"" && %VENV_PY% -m celery -A chess_mate.celery:app worker --pool=solo --concurrency=1 --loglevel=INFO"
 
 echo Backend services started.
-echo Redis, Django, and Celery windows were launched minimized.
+echo Redis, Django, and Celery windows were launched.
 echo Logs are written by processes under %LOG_DIR% when configured by each service.

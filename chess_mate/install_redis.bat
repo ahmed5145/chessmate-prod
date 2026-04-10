@@ -1,61 +1,63 @@
 @echo off
+setlocal
+
 echo Installing Redis for Windows...
 
-:: Check if Redis is already installed
-redis-cli --version > nul 2>&1
-if %errorlevel% equ 0 (
+set "REDIS_CLI=redis-cli"
+set "REDIS_SERVER=redis-server"
+
+REM If Redis is not available on PATH, try installing it.
+%REDIS_CLI% --version >nul 2>&1
+if errorlevel 1 (
+    echo Redis was not found on PATH. Downloading installer...
+    curl -L -o redis.msi https://github.com/microsoftarchive/redis/releases/download/win-3.0.504/Redis-x64-3.0.504.msi
+    if errorlevel 1 (
+        echo Failed to download Redis installer.
+        exit /b 1
+    )
+
+    echo Installing Redis...
+    start /wait msiexec /i redis.msi /quiet
+    if exist redis.msi del redis.msi
+
+    REM Prefer installed executables when available.
+    if exist "C:\Program Files\Redis\redis-cli.exe" set "REDIS_CLI=C:\Program Files\Redis\redis-cli.exe"
+    if exist "C:\Program Files\Redis\redis-server.exe" set "REDIS_SERVER=C:\Program Files\Redis\redis-server.exe"
+) else (
     echo Redis is already installed.
-    goto :verify_redis
 )
 
-:: Download Redis using curl (built into Windows 10+)
-echo Downloading Redis...
-curl -L -o redis.msi https://github.com/microsoftarchive/redis/releases/download/win-3.0.504/Redis-x64-3.0.504.msi
-
-:: Install Redis silently
-echo Installing Redis...
-start /wait msiexec /i redis.msi /quiet
-
-:: Wait a bit
-setlocal enabledelayedexpansion
-set /a count=0
-:wait_loop
-set /a count+=1
-if !count! lss 5 (
-    rem This loop will run for approximately 5 seconds
-    goto wait_loop
-)
-
-
-:: Clean up
-del redis.msi
-
-:verify_redis
-:: Start Redis service
-echo Starting Redis service...
-net start Redis
+REM Try to start Windows service first.
+echo Starting Redis service (if installed as service)...
+net start Redis >nul 2>&1
 if errorlevel 1 (
-    echo Starting Redis server directly...
-    start "Redis Server" /B "C:\Program Files\Redis\redis-server.exe" redis.windows.conf
-    set /a count=0
-    :wait_loop2
-    set /a count+=1
-    if !count! lss 3 (
-        rem This loop will run for approximately 3 seconds
-        goto wait_loop2
-    )
+    echo Redis service not available/running. Starting redis-server process...
+    where redis-server >nul 2>&1
+    if errorlevel 1 (
+        if exist "C:\Program Files\Redis\redis-server.exe" set "REDIS_SERVER=C:\Program Files\Redis\redis-server.exe"
     )
 
-:: Test Redis
+    if not exist "%REDIS_SERVER%" (
+        where %REDIS_SERVER% >nul 2>&1
+        if errorlevel 1 (
+            echo Could not locate redis-server. Install Redis manually and retry.
+            exit /b 1
+        )
+    )
+
+    start "Redis Server" cmd /k "cd /d %~dp0 && %REDIS_SERVER% redis.windows.conf"
+)
+
+REM Validate connectivity.
 echo Testing Redis connection...
-"C:\Program Files\Redis\redis-cli.exe" ping
-if errorlevel 1 (
-    echo Failed to connect to Redis.
-    echo Please ensure Redis is installed correctly.
-    echo You can download it from: https://github.com/microsoftarchive/redis/releases
-    exit /b 1
+where redis-cli >nul 2>&1
+if %errorlevel%==0 (
+    redis-cli ping
+) else if exist "C:\Program Files\Redis\redis-cli.exe" (
+    "C:\Program Files\Redis\redis-cli.exe" ping
+) else (
+    echo redis-cli not found; skip ping test.
 )
 
-echo Redis is installed and running!
-echo Installation complete.
+echo Redis setup complete.
 pause
