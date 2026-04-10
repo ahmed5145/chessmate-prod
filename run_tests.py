@@ -85,6 +85,7 @@ def build_command(args):
         if args.html:
             coverage_args.append("--cov-report=html")
         coverage_args.append("--cov-report=term")
+        coverage_args.append("--cov-report=xml")
         if args.fail_under:
             coverage_args.append(f"--cov-fail-under={args.fail_under}")
         cmd.extend(coverage_args)
