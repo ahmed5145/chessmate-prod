@@ -25,13 +25,13 @@ ChessMate uses GitHub Actions for automated testing, building, and deployment. T
 
 The CI/CD pipeline is defined in the following workflow files:
 
-1. `.github/workflows/ci.yml`: Continuous Integration
+1. `.github/workflows/unified-test.yml`: Continuous Integration & Testing
 2. `.github/workflows/cd.yml`: Continuous Deployment
 3. `.github/workflows/security-scan.yml`: Security Scanning
 
 ## Continuous Integration
 
-The CI workflow (`ci.yml`) is triggered on:
+The CI workflow (`unified-test.yml`) is triggered on:
 - Push to `main` and `develop` branches
 - Pull requests to `main` and `develop` branches
 

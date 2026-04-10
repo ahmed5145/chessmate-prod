@@ -48,7 +48,7 @@ jobs:
     - name: Install Backend Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r chess_mate/requirements.txt
+        pip install -r requirements.txt
 
     - name: Install Frontend Dependencies
       working-directory: chess_mate/frontend
@@ -154,7 +154,7 @@ jobs:
           # Setup virtual environment
           python -m venv venv
           source venv/bin/activate
-          pip install -r chess_mate/requirements.txt
+          pip install -r requirements.txt
 
           # Environment variables should be provided by server secrets/config
           echo "Using pre-configured environment on server"
@@ -163,10 +163,9 @@ jobs:
           cd chess_mate/frontend
           npm ci
           npm run build
-          cd ..
 
-          # Collect static files and run migrations
-          cd chess_mate
+          # Collect static files and run migrations (from chess_mate directory)
+          cd ../
           python manage.py collectstatic --noinput
           python manage.py migrate --noinput
 
