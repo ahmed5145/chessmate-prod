@@ -98,7 +98,7 @@ def build_command(args):
     if args.standalone:
         cmd.extend(["-p", "no:django", "standalone_tests/"])
     elif args.django:
-        cmd.extend([f"--ds={django_settings}", "core/tests/"])
+        cmd.extend([f"--ds={django_settings}", "chess_mate/core/tests/"])
     elif args.path:
         # User specified a custom path
         if args.path.startswith("standalone_tests"):
@@ -108,7 +108,7 @@ def build_command(args):
             cmd.extend([f"--ds={django_settings}", args.path])
     else:
         # Run all tests by default
-        cmd.extend([f"--ds={django_settings}", "core/tests/", "../standalone_tests/"])
+        cmd.extend([f"--ds={django_settings}", "chess_mate/core/tests/", "standalone_tests/"])
 
     return cmd
 
@@ -122,10 +122,10 @@ def run_tests(cmd):
     # Set the environment
     env = os.environ.copy()
 
-    # Run Django tests from app root to preserve historical import behavior.
+    # Run from the repository root so repo-relative paths stay consistent.
     django_cwd = None
     if any(arg.startswith("--ds=") for arg in cmd):
-        django_cwd = str(Path(__file__).parent.absolute() / "chess_mate")
+        django_cwd = str(Path(__file__).parent.absolute())
 
     # Stream output while guarding against CI hangs that occasionally occur
     # after pytest prints the final summary but before process termination.
