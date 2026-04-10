@@ -149,6 +149,84 @@ def _resolve_compat_async_result() -> Any:
     return candidates[0] if candidates else AsyncResult
 
 
+def _enqueue_analysis_task(
+    *,
+    game_id: int,
+    user_id: int,
+    depth: int,
+    use_ai: bool,
+    analysis_task: Any,
+    managers: List[Any],
+    legacy_register_signature: bool = False,
+) -> Dict[str, Any]:
+    """Enqueue a single-game analysis with lock + active-task dedup."""
+    lock = None
+    lock_acquired = False
+
+    lock_manager = next(
+        (manager for manager in managers if getattr(manager, "redis_client", None) is not None),
+        None,
+    )
+
+    if lock_manager is not None:
+        lock = lock_manager.redis_client.lock(f"analysis_lock:game:{game_id}", timeout=15, blocking_timeout=3)
+
+    try:
+        if lock is not None:
+            lock_acquired = lock.acquire(blocking=True)
+
+        existing_task_id = None
+        for manager in managers:
+            try:
+                active_tasks = manager.get_active_tasks_for_game(game_id)
+            except Exception:
+                continue
+
+            if active_tasks:
+                existing_task_id = active_tasks[0]
+                break
+
+        if existing_task_id:
+            return {
+                "status": "already_running",
+                "message": "Analysis already in progress",
+                "task_id": existing_task_id,
+                "game_id": game_id,
+            }
+
+        task = analysis_task.delay(game_id, depth, use_ai)
+
+        for manager in managers:
+            try:
+                if legacy_register_signature:
+                    manager.register_task(task.id, game_id, user_id)
+                else:
+                    manager.register_task(
+                        task_id=task.id,
+                        task_type=TaskManager.TYPE_ANALYSIS,
+                        user_id=user_id,
+                        game_id=game_id,
+                    )
+            except TypeError:
+                # Compatibility for older manager mocks/signatures.
+                manager.register_task(task.id, game_id, user_id)
+            except Exception:
+                continue
+
+        return {
+            "status": "success",
+            "message": "Analysis started",
+            "task_id": task.id,
+            "game_id": game_id,
+        }
+    finally:
+        if lock is not None and lock_acquired:
+            try:
+                lock.release()
+            except Exception:
+                logger.debug("Failed to release analysis lock", exc_info=True)
+
+
 def _legacy_status_progress(task_id: str, task_info: Optional[Dict[str, Any]]) -> int:
     """Preserve progress values expected by legacy view tests."""
     if task_info and task_info.get("progress") not in (None, 0):
@@ -196,45 +274,32 @@ class GameViewSet(viewsets.ModelViewSet):
             depth = int(request.data.get("depth", 20))
             use_ai = bool(request.data.get("use_ai", True))
 
-            lock = None
-            lock_acquired = False
-            if task_manager.redis_client is not None:
-                lock = task_manager.redis_client.lock(f"analysis_lock:game:{game.id}", timeout=15, blocking_timeout=3)
+            enqueue_result = _enqueue_analysis_task(
+                game_id=game.id,
+                user_id=request.user.id,
+                depth=depth,
+                use_ai=use_ai,
+                analysis_task=analyze_game_task,
+                managers=[task_manager],
+                legacy_register_signature=False,
+            )
 
-            try:
-                if lock is not None:
-                    lock_acquired = lock.acquire(blocking=True)
-
-                active_tasks = task_manager.get_active_tasks_for_game(game.id)
-                if active_tasks:
-                    existing_task_id = active_tasks[0]
-                    return Response(
-                        {
-                            "status": "already_running",
-                            "message": "Analysis already in progress",
-                            "task_id": existing_task_id,
-                        }
-                    )
-
-                # Create analysis task
-                task = analyze_game_task.delay(game.id, depth, use_ai)
-
-                # Register immediately so follow-up requests see the canonical task.
-                task_manager.register_task(
-                    task_id=task.id,
-                    task_type=TaskManager.TYPE_ANALYSIS,
-                    user_id=request.user.id,
-                    game_id=game.id,
+            if enqueue_result["status"] == "already_running":
+                return Response(
+                    {
+                        "status": "already_running",
+                        "message": enqueue_result["message"],
+                        "task_id": enqueue_result["task_id"],
+                    }
                 )
 
-            finally:
-                if lock is not None and lock_acquired:
-                    try:
-                        lock.release()
-                    except Exception:
-                        logger.debug("Failed to release analysis lock", exc_info=True)
-
-            return Response({"status": "success", "message": "Analysis started", "task_id": task.id})
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Analysis started",
+                    "task_id": enqueue_result["task_id"],
+                }
+            )
 
         except Exception as e:
             return create_error_response(
@@ -629,56 +694,26 @@ def analyze_game(request, game_id=None):
         compat_task = _resolve_compat_attr("core.tasks", "analyze_game_task", analyze_game_task)
         compat_task_managers = _get_compat_task_managers()
 
-        lock = None
-        lock_acquired = False
-        lock_manager = next(
-            (manager for manager in compat_task_managers if getattr(manager, "redis_client", None) is not None),
-            None,
+        enqueue_result = _enqueue_analysis_task(
+            game_id=game.id,
+            user_id=request.user.id,
+            depth=depth,
+            use_ai=use_ai,
+            analysis_task=compat_task,
+            managers=compat_task_managers,
+            legacy_register_signature=True,
         )
 
-        if lock_manager is not None:
-            lock = lock_manager.redis_client.lock(f"analysis_lock:game:{game.id}", timeout=15, blocking_timeout=3)
-
-        try:
-            if lock is not None:
-                lock_acquired = lock.acquire(blocking=True)
-
-            # Avoid duplicate task enqueue for the same game in concurrent requests.
-            existing_task_id = None
-            for manager in compat_task_managers:
-                try:
-                    active_tasks = manager.get_active_tasks_for_game(game.id)
-                except Exception:
-                    continue
-
-                if active_tasks:
-                    existing_task_id = active_tasks[0]
-                    break
-
-            if existing_task_id:
-                return Response(
-                    {
-                        "status": "already_running",
-                        "message": "Analysis already in progress",
-                        "task_id": existing_task_id,
-                        "game_id": game.id,
-                    },
-                    status=status.HTTP_200_OK,
-                )
-
-            # Start async task and register it in legacy-compatible format.
-            task = compat_task.delay(game.id, depth, use_ai)
-            for manager in compat_task_managers:
-                try:
-                    manager.register_task(task.id, game.id, request.user.id)
-                except Exception:
-                    continue
-        finally:
-            if lock is not None and lock_acquired:
-                try:
-                    lock.release()
-                except Exception:
-                    logger.debug("Failed to release analysis lock", exc_info=True)
+        if enqueue_result["status"] == "already_running":
+            return Response(
+                {
+                    "status": "already_running",
+                    "message": enqueue_result["message"],
+                    "task_id": enqueue_result["task_id"],
+                    "game_id": game.id,
+                },
+                status=status.HTTP_200_OK,
+            )
 
         # Deduct one credit for analysis when possible.
         try:
@@ -693,7 +728,12 @@ def analyze_game(request, game_id=None):
         game.save(update_fields=["analysis_status"])
 
         return Response(
-            {"status": "success", "message": "Analysis started", "task_id": task.id, "game_id": game.id},
+            {
+                "status": "success",
+                "message": "Analysis started",
+                "task_id": enqueue_result["task_id"],
+                "game_id": game.id,
+            },
             status=status.HTTP_202_ACCEPTED,
         )
 

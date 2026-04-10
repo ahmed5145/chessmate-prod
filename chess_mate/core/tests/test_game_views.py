@@ -204,6 +204,27 @@ class TestGameViews:
                         test_game.refresh_from_db()
                         assert test_game.analysis_status == "not_analyzed"
 
+    def test_analyze_game_dedup_survives_manager_lookup_error(self, authenticated_client, test_user, test_game):
+        test_game.analysis_status = "not_analyzed"
+        test_game.save()
+
+        failing_manager = MagicMock()
+        failing_manager.get_active_tasks_for_game.side_effect = RuntimeError("cache temporary failure")
+        healthy_manager = MagicMock()
+        healthy_manager.get_active_tasks_for_game.return_value = ["existing-task-id"]
+
+        with patch("core.tasks.analyze_game_task.delay") as mock_task:
+            with patch("core.game_views._get_compat_task_managers", return_value=[failing_manager, healthy_manager]):
+                url = reverse("analyze_game", kwargs={"game_id": test_game.id})
+                response = authenticated_client.post(url)
+
+                assert response.status_code == status.HTTP_200_OK
+                assert response.data["status"] == "already_running"
+                assert response.data["task_id"] == "existing-task-id"
+                mock_task.assert_not_called()
+                failing_manager.register_task.assert_not_called()
+                healthy_manager.register_task.assert_not_called()
+
     def test_get_game_analysis(self, authenticated_client, test_user, test_game):
         # Set up a game with analysis data
         test_game.analysis_status = "analyzed"
