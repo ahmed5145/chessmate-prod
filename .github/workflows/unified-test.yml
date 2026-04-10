@@ -258,13 +258,16 @@ jobs:
       uses: actions/checkout@v6
 
     - name: Run Docker Security Scan
-      uses: aquasecurity/trivy-action@v0.33.1
-      with:
-        scan-type: 'fs'
-        format: 'table'
-        exit-code: '1'
-        severity: 'CRITICAL,HIGH'
-        ignore-unfixed: true
+      run: |
+        docker run --rm \
+          -v "${{ github.workspace }}:/workdir" \
+          aquasec/trivy:0.65.0 \
+          fs \
+          --format table \
+          --exit-code 1 \
+          --severity CRITICAL,HIGH \
+          --ignore-unfixed \
+          /workdir
 
     - name: Run Repository Security Scan
       env:
