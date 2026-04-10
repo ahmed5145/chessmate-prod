@@ -1,16 +1,16 @@
 # ChessMate Application Dependencies
 
 # Django and REST Framework
-Django==4.2.5
-djangorestframework==3.14.0
+Django==4.2.30
+djangorestframework==3.15.2
 django-cors-headers==4.2.0
 django-filter==23.2
 django-storages==1.14.6
 django-redis==5.3.0
-djangorestframework-simplejwt==5.3.0
+djangorestframework-simplejwt==5.5.1
 
 # Web Server
-gunicorn==21.2.0
+gunicorn==22.0.0
 whitenoise==6.5.0
 
 # Database and Cache
@@ -33,8 +33,8 @@ django-environ==0.12.0
 openai==1.59.8
 ndjson==0.3.1
 numpy==1.26.4
-requests==2.31.0
-Pillow==10.0.1
+requests==2.33.0
+Pillow==12.1.1
 stripe==6.5.0
 
 # API Documentation
@@ -55,6 +55,6 @@ coverage==7.3.1
 fakeredis==2.35.0
 
 # Development Tools
-black==23.9.1
+black==26.3.1
 flake8==6.1.0
 isort==5.12.0
