@@ -21,6 +21,10 @@ ENV/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
 media/
 staticfiles/
 
@@ -50,7 +54,6 @@ chess_mate/frontend/.env
 .env.development
 .env.production
 .env.test
-.env.example
 
 # Docker
 .docker/
@@ -87,6 +90,8 @@ htmlcov/
 # Redis
 dump.rdb
 *.rdb
+appendonly.aof
+*.aof
 redis_data/
 
 # Celery runtime state
@@ -94,6 +99,11 @@ chess_mate/celery_state.dat
 chess_mate/celery_state.bak
 chess_mate/celery_state.dir
 chess_mate/celery.pid
+celerybeat-schedule
+
+# Local runtime artifacts
+logfile
+*.pid
 
 # System
 .DS_Store
