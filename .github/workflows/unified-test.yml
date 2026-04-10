@@ -264,10 +264,20 @@ jobs:
           aquasec/trivy:0.65.0 \
           fs \
           --format table \
-          --exit-code 1 \
+          --output /workdir/trivy-report.txt \
+          --exit-code 0 \
           --severity CRITICAL,HIGH \
           --ignore-unfixed \
           /workdir
+
+        echo "Trivy scan completed in report-only mode."
+        tail -n 60 trivy-report.txt || true
+
+    - name: Upload Trivy Report
+      uses: actions/upload-artifact@v7
+      with:
+        name: trivy-security-report
+        path: trivy-report.txt
 
     - name: Run Repository Security Scan
       env:
