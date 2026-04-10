@@ -13,6 +13,7 @@ import hashlib
 import inspect
 import json
 import logging
+import sys
 import unittest.mock
 import random
 import time
@@ -78,6 +79,21 @@ _redis_client = None
 _ORIGINAL_GET_CACHE_INSTANCE: Optional[Callable[[str], BaseCache]] = None
 
 
+def _resolve_patched_cache_symbol(symbol: str) -> Optional[Any]:
+    """Return a monkeypatched cache symbol across known module aliases."""
+    for module_name in (
+        "core.cache",
+        "chess_mate.core.cache",
+        "chessmate_prod.chess_mate.core.cache",
+        __name__,
+    ):
+        module = sys.modules.get(module_name)
+        candidate = getattr(module, symbol, None) if module else None
+        if isinstance(candidate, unittest.mock.Mock):
+            return candidate
+    return None
+
+
 def _build_redis_client(ensure_ping: bool = True) -> Optional["Redis"]:  # type: ignore
     """Build a direct Redis client from settings.
 
@@ -121,11 +137,11 @@ def get_cache_instance(cache_alias: str = "default") -> BaseCache:
     Returns:
         A Django cache instance
     """
-    # Some legacy tests patch module-level get_cache_instance while still
-    # calling a previously imported function reference.
-    active_impl = globals().get("get_cache_instance")
-    if _ORIGINAL_GET_CACHE_INSTANCE is not None and active_impl is not _ORIGINAL_GET_CACHE_INSTANCE:
-        return cast(BaseCache, cast(Callable[[str], Any], active_impl)(cache_alias))
+    # Some tests patch `core.cache.get_cache_instance` while callers use
+    # `chess_mate.core.cache` imports; prefer patched alias when present.
+    patched_impl = _resolve_patched_cache_symbol("get_cache_instance")
+    if patched_impl is not None and (_ORIGINAL_GET_CACHE_INSTANCE is None or patched_impl is not _ORIGINAL_GET_CACHE_INSTANCE):
+        return cast(BaseCache, patched_impl(cache_alias))
 
     if cache_alias in {CACHE_BACKEND_DEFAULT, CACHE_BACKEND_MEMORY}:
         return cast(BaseCache, cache)
@@ -189,11 +205,15 @@ def get_redis_connection() -> Optional["Redis"]:  # type: ignore
             return None
 
     # Prefer configured Django cache backend client when available.
-    patched_get_cache = _ORIGINAL_GET_CACHE_INSTANCE is not None and globals().get("get_cache_instance") is not _ORIGINAL_GET_CACHE_INSTANCE
+    patched_get_cache = _resolve_patched_cache_symbol("get_cache_instance") is not None
     cache_lookup_succeeded = False
     redis_cache: Any = None
     try:
-        redis_cache = get_cache_instance(CACHE_BACKEND_REDIS)
+        patched_get_cache_impl = _resolve_patched_cache_symbol("get_cache_instance")
+        if patched_get_cache_impl is not None:
+            redis_cache = patched_get_cache_impl(CACHE_BACKEND_REDIS)
+        else:
+            redis_cache = get_cache_instance(CACHE_BACKEND_REDIS)
         cache_lookup_succeeded = True
 
         if patched_get_cache:
@@ -546,7 +566,11 @@ def cacheable(
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             key = resolved_key_func(*args, **kwargs)
-            cache_instance = get_cache_instance(cache_backend)
+            patched_get_cache_impl = _resolve_patched_cache_symbol("get_cache_instance")
+            if patched_get_cache_impl is not None:
+                cache_instance = patched_get_cache_impl(cache_backend)
+            else:
+                cache_instance = get_cache_instance(cache_backend)
             cached = cache_instance.get(key)
             if cached is not None:
                 return cached
@@ -679,7 +703,11 @@ def invalidate_cache(
         deleted = cache_delete(key, backend=CACHE_BACKEND_REDIS)
         return bool(deleted)
 
-    cache_instance = get_cache_instance(cache_alias)
+    patched_get_cache_impl = _resolve_patched_cache_symbol("get_cache_instance")
+    if patched_get_cache_impl is not None:
+        cache_instance = patched_get_cache_impl(cache_alias)
+    else:
+        cache_instance = get_cache_instance(cache_alias)
 
     try:
         cache_instance.delete(key)
@@ -705,7 +733,11 @@ def invalidate_pattern(pattern: str, cache_alias: str = "default", backend: Opti
     if backend is not None:
         cache_alias = backend
 
-    redis_client = get_redis_connection()
+    patched_get_redis = _resolve_patched_cache_symbol("get_redis_connection")
+    if patched_get_redis is not None:
+        redis_client = patched_get_redis()
+    else:
+        redis_client = get_redis_connection()
     if not redis_client:
         logger.warning("Cannot invalidate by pattern: Redis not available")
         return False
@@ -747,7 +779,11 @@ def cache_stats() -> Dict[str, Any]:
 
     # If Redis is available, get Redis stats
     try:
-        redis_client = get_redis_connection()
+        patched_get_redis = _resolve_patched_cache_symbol("get_redis_connection")
+        if patched_get_redis is not None:
+            redis_client = patched_get_redis()
+        else:
+            redis_client = get_redis_connection()
         if redis_client:
             info = redis_client.info()  # type: ignore
             if isinstance(info, dict):

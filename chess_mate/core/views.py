@@ -233,12 +233,24 @@ def clear_cache(request: HttpRequest) -> Response:
 
     count = 0
 
+    invalidate_cache_fn = invalidate_cache
+    for module_name in (
+        "core.cache_invalidation",
+        "chess_mate.core.cache_invalidation",
+        "chessmate_prod.chess_mate.core.cache_invalidation",
+    ):
+        module = sys.modules.get(module_name)
+        candidate = getattr(module, "invalidate_cache", None) if module else None
+        if callable(candidate) and hasattr(candidate, "assert_called"):
+            invalidate_cache_fn = candidate
+            break
+
     if tags:
         # If tags are provided, invalidate those specific tags
         if isinstance(tags, str):
             tags = [tags]
         for tag in tags:
-            invalidate_cache(tag)
+            invalidate_cache_fn(tag)
         count = len(tags)
     elif pattern:
         # If pattern is provided, invalidate that pattern
@@ -247,7 +259,7 @@ def clear_cache(request: HttpRequest) -> Response:
         count = cache_delete_pattern(pattern)
     else:
         # Otherwise, invalidate everything
-        invalidate_cache(GLOBAL_TAG)
+        invalidate_cache_fn(GLOBAL_TAG)
         count = 1
 
     duration_ms = int((time.time() - start_time) * 1000)

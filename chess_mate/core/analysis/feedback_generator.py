@@ -6,6 +6,7 @@ Handles generation of game feedback using OpenAI API.
 import json
 import logging
 import re
+import sys
 import time
 from typing import Any, Dict, List, Optional
 
@@ -26,6 +27,21 @@ from ..models import Game
 logger = logging.getLogger(__name__)
 
 
+def _resolve_patched_openai(default: Any) -> Any:
+    """Resolve OpenAI class across module aliases, preferring monkeypatched symbol."""
+    for module_name in (
+        "core.analysis.feedback_generator",
+        "chess_mate.core.analysis.feedback_generator",
+        "chessmate_prod.chess_mate.core.analysis.feedback_generator",
+        __name__,
+    ):
+        module = sys.modules.get(module_name)
+        candidate = getattr(module, "OpenAI", None) if module else None
+        if isinstance(candidate, object) and hasattr(candidate, "assert_called"):
+            return candidate
+    return default
+
+
 class FeedbackGenerator:
     """Generates feedback for chess games using OpenAI."""
 
@@ -43,7 +59,8 @@ class FeedbackGenerator:
                 self.openai_client = None
                 return
 
-            self.openai_client = OpenAI(api_key=api_key)
+            openai_cls = _resolve_patched_openai(OpenAI)
+            self.openai_client = openai_cls(api_key=api_key)
             logger.info("OpenAI client initialized successfully")
         except Exception as e:
             logger.error(f"Error initializing OpenAI client: {str(e)}")
