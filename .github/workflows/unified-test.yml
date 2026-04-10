@@ -166,11 +166,17 @@ jobs:
         path: chess_mate/frontend/coverage/
 
     - name: Upload Coverage to Codecov
+      if: ${{ secrets.CODECOV_TOKEN != '' }}
       uses: codecov/codecov-action@v6
       with:
         files: ./chess_mate/frontend/coverage/coverage-final.json
+        token: ${{ secrets['CODECOV_TOKEN'] }}
         flags: frontend
         fail_ci_if_error: false
+
+    - name: Skip Frontend Codecov Upload (missing token)
+      if: ${{ secrets.CODECOV_TOKEN == '' }}
+      run: echo "CODECOV_TOKEN is not configured; skipping frontend coverage upload."
 
   linting:
     name: Code Quality & Security Checks
