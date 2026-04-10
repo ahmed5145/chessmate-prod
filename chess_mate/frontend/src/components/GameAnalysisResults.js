@@ -166,7 +166,10 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
         const parsed = Number(value);
         return Number.isFinite(parsed) && parsed > 0;
     });
-    const showTimeAsUnavailable = !hasMoveTimeData && !hasComputedTimeMetrics;
+    const explicitTimeDataStatus = String(timeManagement.data_status || '').toLowerCase();
+    const showTimeAsUnavailable = explicitTimeDataStatus
+        ? explicitTimeDataStatus === 'unavailable'
+        : (!hasMoveTimeData && !hasComputedTimeMetrics);
 
     // Format metrics for display
     const displayMetrics = {

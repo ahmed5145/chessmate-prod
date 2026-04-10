@@ -1213,12 +1213,14 @@ def get_game_analysis(request, game_id):
         # Try to get the analysis
         try:
             analysis = GameAnalysis.objects.get(game_id=game_id)
-            
-            return Response({"analysis_data": analysis.analysis_data}, status=status.HTTP_200_OK)
+
+            payload = analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
+            return Response({"analysis_data": payload, **payload}, status=status.HTTP_200_OK)
             
         except GameAnalysis.DoesNotExist:
             if game.analysis:
-                return Response({"analysis_data": game.analysis}, status=status.HTTP_200_OK)
+                payload = game.analysis if isinstance(game.analysis, dict) else {}
+                return Response({"analysis_data": payload, **payload}, status=status.HTTP_200_OK)
             return Response({"status": "not_found", "message": "No analysis found for this game"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             logger.error(f"Error retrieving game analysis: {str(e)}", exc_info=True)

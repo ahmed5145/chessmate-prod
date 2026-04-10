@@ -49,6 +49,25 @@ export const shouldPollStatus = (status, progress = 0) => {
     return true;
 };
 
+export const normalizeAnalysisResponsePayload = (rawPayload) => {
+    const payload = rawPayload && typeof rawPayload === 'object' ? rawPayload : {};
+    const unwrapped = payload.analysis_data && typeof payload.analysis_data === 'object'
+        ? payload.analysis_data
+        : payload;
+
+    const normalizedAnalysisResults = unwrapped.analysis_results || {
+        summary: unwrapped.metrics || {},
+        moves: unwrapped.moves || unwrapped.movesAnalysis || []
+    };
+
+    return {
+        ...unwrapped,
+        analysis_results: normalizedAnalysisResults,
+        metrics: unwrapped.metrics || normalizedAnalysisResults.summary || {},
+        moves: unwrapped.moves || unwrapped.movesAnalysis || normalizedAnalysisResults.moves || []
+    };
+};
+
 // Initialize IndexedDB
 const initDB = () => {
     return new Promise((resolve, reject) => {
@@ -359,22 +378,12 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
         // Check if we got a valid response with data
         if (response.data && Object.keys(response.data).length > 0) {
             console.log(`Analysis data received for game ${gameId}:`, response.data);
-            const payload = response.data;
+            const normalizedPayload = normalizeAnalysisResponsePayload(response.data);
 
-            const hasMetrics = !!payload.metrics || !!payload.analysis_results;
+            const hasMetrics = !!normalizedPayload.metrics || !!normalizedPayload.analysis_results;
             const hasMoves =
-                (Array.isArray(payload.moves) && payload.moves.length > 0) ||
-                (Array.isArray(payload.movesAnalysis) && payload.movesAnalysis.length > 0);
-
-            const normalizedPayload = {
-                ...payload,
-                analysis_results: payload.analysis_results || {
-                    summary: payload.metrics || {},
-                    moves: payload.moves || payload.movesAnalysis || []
-                },
-                metrics: payload.metrics || payload.analysis_results?.summary || {},
-                moves: payload.moves || payload.movesAnalysis || []
-            };
+                (Array.isArray(normalizedPayload.moves) && normalizedPayload.moves.length > 0) ||
+                (Array.isArray(normalizedPayload.movesAnalysis) && normalizedPayload.movesAnalysis.length > 0);
             
             // If we have a valid analysis, mark it as complete in localStorage
             if (hasMetrics && hasMoves) {

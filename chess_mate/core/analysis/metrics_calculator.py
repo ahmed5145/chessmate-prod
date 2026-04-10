@@ -45,10 +45,17 @@ class MetricsCalculator:
     def _get_default_time_metrics() -> Dict[str, Any]:
         """Return default time management metrics."""
         return {
+            "average_time": 0.0,
+            "avg_time_per_move": 0.0,
+            "time_variance": 0.0,
             "time_usage": 0.0,
             "time_consistency": 0.0,
             "time_pressure": 0.0,
+            "time_pressure_moves": 0,
+            "time_pressure_percentage": 0.0,
+            "time_management_score": 0.0,
             "critical_time_usage": 0.0,
+            "data_status": "unavailable",
         }
 
     @staticmethod
@@ -335,11 +342,13 @@ class MetricsCalculator:
         if not moves:
             return {
                 "average_time": 0.0,
+                "avg_time_per_move": 0.0,
                 "time_variance": 0.0,
                 "time_consistency": 0.0,
                 "time_pressure_moves": 0,
                 "time_management_score": 0.0,
                 "time_pressure_percentage": 0.0,
+                "data_status": "unavailable",
             }
 
         try:
@@ -390,11 +399,13 @@ class MetricsCalculator:
 
             return {
                 "average_time": round(avg_time, 1),
+                "avg_time_per_move": round(avg_time, 1),
                 "time_variance": round(time_variance, 1),
                 "time_consistency": round(time_consistency, 1),
                 "time_pressure_moves": time_pressure_moves,
                 "time_management_score": round(time_management_score, 1),
                 "time_pressure_percentage": round(time_pressure_percentage, 1),
+                "data_status": "available",
             }
 
         except Exception as e:
@@ -1278,11 +1289,20 @@ class MetricsCalculator:
             if "time_management" in metrics:
                 time_mgmt = metrics["time_management"]
                 time_mgmt["average_time"] = max(0, min(3600, time_mgmt.get("average_time", 0)))
+                time_mgmt["avg_time_per_move"] = max(
+                    0, min(3600, time_mgmt.get("avg_time_per_move", time_mgmt.get("average_time", 0)))
+                )
                 time_mgmt["time_variance"] = max(0, time_mgmt.get("time_variance", 0))
                 time_mgmt["time_consistency"] = max(0, min(100, time_mgmt.get("time_consistency", 0)))
                 time_mgmt["time_pressure_moves"] = max(0, time_mgmt.get("time_pressure_moves", 0))
                 time_mgmt["time_management_score"] = max(0, min(100, time_mgmt.get("time_management_score", 0)))
                 time_mgmt["time_pressure_percentage"] = max(0, min(100, time_mgmt.get("time_pressure_percentage", 0)))
+                time_mgmt["time_usage"] = max(0, min(100, time_mgmt.get("time_usage", 0)))
+                time_mgmt["time_pressure"] = max(
+                    0, min(100, time_mgmt.get("time_pressure", time_mgmt.get("time_pressure_percentage", 0)))
+                )
+                status_value = str(time_mgmt.get("data_status", "")).lower()
+                time_mgmt["data_status"] = "available" if status_value == "available" else "unavailable"
 
             # Validate advantage metrics
             if "advantage" in metrics:
@@ -1324,11 +1344,15 @@ class MetricsCalculator:
         """Return default metrics structure matching frontend requirements."""
         default_time_management = {
             "average_time": 0.0,
+            "avg_time_per_move": 0.0,
             "time_variance": 0.0,
             "time_consistency": 0.0,
             "time_pressure_moves": 0,
             "time_management_score": 0.0,
             "time_pressure_percentage": 0.0,
+            "time_usage": 0.0,
+            "time_pressure": 0.0,
+            "data_status": "unavailable",
         }
 
         return {
@@ -1464,7 +1488,7 @@ class MetricsCalculator:
             raise MetricsError(f"Failed to calculate move quality: {str(e)}")
 
     @staticmethod
-    def _calculate_time_management(time_data: List[Dict[str, Any]]) -> Dict[str, float]:
+    def _calculate_time_management(time_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Calculate time management metrics.
         
@@ -1476,15 +1500,13 @@ class MetricsCalculator:
         """
         try:
             if not time_data:
-                return {
-                    "time_usage": 0.0,
-                    "time_consistency": 0.0,
-                    "time_pressure": 0.0,
-                    "avg_time_per_move": 0.0
-                }
+                return MetricsCalculator._get_default_time_metrics()
             
             total_moves = float(len(time_data))
             total_time = sum(float(t.get("time_spent", 0.0)) for t in time_data)
+
+            if total_time <= 0:
+                return MetricsCalculator._get_default_time_metrics()
             
             # Calculate average time per move
             avg_time_per_move = total_time / total_moves if total_moves > 0 else 0.0
@@ -1504,15 +1526,28 @@ class MetricsCalculator:
             # Calculate time pressure (percentage of moves with less than 10% of average time)
             time_pressure = sum(1.0 for t in time_data 
                               if float(t.get("time_spent", 0.0)) < 0.1 * avg_time_per_move) / total_moves * 100.0
+            time_pressure_moves = int(
+                sum(1 for t in time_data if float(t.get("time_spent", 0.0)) < 0.1 * avg_time_per_move)
+            )
+
+            # Calculate variance for compatibility with frontend metrics card
+            time_values = [float(t.get("time_spent", 0.0)) for t in time_data]
+            time_variance = statistics.variance(time_values) if len(time_values) > 1 else 0.0
             
             # Calculate time usage (percentage of total time used)
             time_usage = min(100.0, (total_time / 3600.0) * 100.0)  # Assuming 1 hour game
             
             return {
+                "average_time": avg_time_per_move,
+                "avg_time_per_move": avg_time_per_move,
+                "time_variance": max(0.0, float(time_variance)),
                 "time_usage": max(0.0, min(100.0, time_usage)),
                 "time_consistency": max(0.0, min(100.0, time_consistency)),
                 "time_pressure": max(0.0, min(100.0, time_pressure)),
-                "avg_time_per_move": avg_time_per_move
+                "time_pressure_moves": time_pressure_moves,
+                "time_pressure_percentage": max(0.0, min(100.0, time_pressure)),
+                "time_management_score": max(0.0, min(100.0, (time_consistency + (100.0 - time_pressure)) / 2.0)),
+                "data_status": "available",
             }
             
         except Exception as e:

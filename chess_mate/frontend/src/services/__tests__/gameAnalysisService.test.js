@@ -1,4 +1,9 @@
-import { classifyAnalysisPollingStatus, computeNextPollDelay, shouldPollStatus } from '../gameAnalysisService';
+import {
+  classifyAnalysisPollingStatus,
+  computeNextPollDelay,
+  normalizeAnalysisResponsePayload,
+  shouldPollStatus,
+} from '../gameAnalysisService';
 
 describe('gameAnalysisService polling helpers', () => {
   test('classifies success statuses and 100% progress as success', () => {
@@ -76,5 +81,30 @@ describe('gameAnalysisService polling helpers', () => {
     expect(shouldPollStatus('IN_PROGRESS')).toBe(true);
     expect(shouldPollStatus('pending', 25)).toBe(true);
     expect(shouldPollStatus('unknown_status', 50)).toBe(true);
+  });
+
+  test('normalizes wrapped analysis payload under analysis_data', () => {
+    const normalized = normalizeAnalysisResponsePayload({
+      analysis_data: {
+        metrics: { overall: { accuracy: 88.5 } },
+        moves: [{ move: 'e4' }],
+      },
+    });
+
+    expect(normalized.metrics.overall.accuracy).toBe(88.5);
+    expect(normalized.moves).toHaveLength(1);
+    expect(normalized.analysis_results.summary.overall.accuracy).toBe(88.5);
+  });
+
+  test('preserves existing top-level analysis_results payload', () => {
+    const normalized = normalizeAnalysisResponsePayload({
+      analysis_results: {
+        summary: { overall: { accuracy: 91 } },
+        moves: [{ move: 'd4' }],
+      },
+    });
+
+    expect(normalized.metrics.overall.accuracy).toBe(91);
+    expect(normalized.moves).toHaveLength(1);
   });
 });
