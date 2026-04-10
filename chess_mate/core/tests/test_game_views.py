@@ -245,6 +245,42 @@ class TestGameViews:
                 failing_manager.register_task.assert_not_called()
                 healthy_manager.register_task.assert_not_called()
 
+    def test_analyze_game_rapid_repeat_returns_already_running(self, authenticated_client, test_user, test_game):
+        test_game.analysis_status = "not_analyzed"
+        test_game.save()
+
+        with patch("core.tasks.analyze_game_task.delay") as mock_task:
+            mock_task.return_value = MagicMock(id="first-task-id")
+
+            with patch("core.game_views._get_compat_task_managers", return_value=[game_views.task_manager]):
+                with patch.object(
+                    game_views.task_manager,
+                    "get_active_tasks_for_game",
+                    side_effect=[[], ["first-task-id"]],
+                ):
+                    with patch.object(game_views.task_manager, "register_task") as mock_register:
+                        url = reverse("analyze_game", kwargs={"game_id": test_game.id})
+
+                        first_response = authenticated_client.post(url)
+                        second_response = authenticated_client.post(url)
+
+                        assert first_response.status_code == status.HTTP_202_ACCEPTED
+                        assert first_response.data["status"] == "success"
+                        assert first_response.data["task_id"] == "first-task-id"
+
+                        assert second_response.status_code == status.HTTP_200_OK
+                        assert second_response.data["status"] == "already_running"
+                        assert second_response.data["task_id"] == "first-task-id"
+
+                        mock_task.assert_called_once()
+                        mock_register.assert_called_once()
+
+                        profile = Profile.objects.get(user=test_user)
+                        assert profile.credits == 9
+
+                        test_game.refresh_from_db()
+                        assert test_game.analysis_status == "analyzing"
+
     def test_enqueue_analysis_task_releases_lock_on_success(self, test_user, test_game):
         lock = MagicMock()
         lock.acquire.return_value = True
