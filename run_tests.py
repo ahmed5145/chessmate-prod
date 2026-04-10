@@ -172,6 +172,23 @@ def run_tests(cmd):
                 break
 
             now = time.time()
+
+            # CI-only safety valve: if pytest printed a success summary and then
+            # emits no more output for a minute, treat it as a shutdown hang.
+            if (
+                os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
+                and summary_seen
+                and success_summary
+                and (now - last_output) > 60
+            ):
+                print("\nDetected post-summary pytest shutdown hang in CI; terminating process.", flush=True)
+                process.terminate()
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                return subprocess.CompletedProcess(cmd, 0)
+
             if os.environ.get("GITHUB_ACTIONS", "").lower() == "true" and (now - last_heartbeat) >= 30:
                 elapsed = int(now - start_time)
                 print(f"[run_tests] Still running... {elapsed}s elapsed, waiting for pytest output", flush=True)
@@ -201,22 +218,6 @@ def run_tests(cmd):
 
         if process.poll() is not None:
             break
-
-        # CI-only safety valve: if pytest printed a success summary and then
-        # emits no more output for a minute, treat it as a shutdown hang.
-        if (
-            os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
-            and summary_seen
-            and success_summary
-            and (time.time() - last_output) > 60
-        ):
-            print("\nDetected post-summary pytest shutdown hang in CI; terminating process.", flush=True)
-            process.terminate()
-            try:
-                process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                process.kill()
-            return subprocess.CompletedProcess(cmd, 0)
 
     reader.join(timeout=1)
 
