@@ -375,11 +375,13 @@ class TaskManager:
             if task_id is None:
                 raise ValidationError("task_id is required")
 
+            normalized_status = str(status).upper()
+
             # Create task info to store
             updated_at = datetime.now().isoformat()
             task_info = {
                 "id": task_id,
-                "status": status,
+                "status": normalized_status,
                 "progress": progress,
                 "message": message,
                 "updated_at": updated_at,
@@ -401,6 +403,30 @@ class TaskManager:
             previous_info = self.tasks.get(task_id, None) or self._cache_get_value(f"{self.TASK_KEY_PREFIX}{task_id}")
             if not previous_info:
                 raise ResourceNotFoundError(f"Task {task_id} not found")
+
+            previous_status = str(previous_info.get("status", TASK_STATUS_PENDING)).upper()
+            previous_progress = int(previous_info.get("progress", 0) or 0)
+
+            # Once a task reaches terminal state, ignore non-terminal stale updates.
+            if previous_status in self.TERMINAL_STATUSES and normalized_status not in self.TERMINAL_STATUSES:
+                logger.debug(
+                    f"Ignoring stale non-terminal update for terminal task {task_id}: "
+                    f"{previous_status} ({previous_progress}%) -> {normalized_status} ({progress}%)"
+                )
+                return True
+
+            # Prevent progress regressions for non-terminal updates.
+            if normalized_status not in self.TERMINAL_STATUSES and previous_progress > int(task_info["progress"] or 0):
+                logger.debug(
+                    f"Ignoring stale progress regression for task {task_id}: "
+                    f"{previous_status} ({previous_progress}%) -> {normalized_status} ({progress}%)"
+                )
+                return True
+
+            # Normalized success semantics: completed tasks always report 100%.
+            if normalized_status == TASK_STATUS_SUCCESS:
+                task_info["progress"] = 100
+
             if previous_info:
                 # Check if this update represents progress compared to the previous state
                 prev_progress = previous_info.get("progress", 0)

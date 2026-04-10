@@ -349,3 +349,48 @@ class TestTaskManager:
 
         # Should return None, not raise an exception
         assert task_info is None
+
+    def test_update_task_status_ignores_non_terminal_after_terminal(self):
+        """Terminal task states must not be overwritten by late non-terminal updates."""
+        task_id = self.task_manager.create_task(game_id=321)
+
+        self.task_manager.update_task_status(
+            task_id=task_id,
+            status=TaskManager.STATUS_COMPLETED,
+            progress=100,
+            message="done",
+        )
+
+        # Simulate a stale progress callback arriving after completion.
+        self.task_manager.update_task_status(
+            task_id=task_id,
+            status=TaskManager.STATUS_RUNNING,
+            progress=50,
+            message="stale in-flight update",
+        )
+
+        task = self.task_manager.get_task(task_id)
+        assert task["status"] == TaskManager.STATUS_COMPLETED
+        assert task["progress"] == 100
+
+    def test_update_task_status_ignores_progress_regression(self):
+        """Non-terminal updates should never move progress backwards."""
+        task_id = self.task_manager.create_task(game_id=654)
+
+        self.task_manager.update_task_status(
+            task_id=task_id,
+            status=TaskManager.STATUS_RUNNING,
+            progress=70,
+            message="steady progress",
+        )
+
+        self.task_manager.update_task_status(
+            task_id=task_id,
+            status=TaskManager.STATUS_RUNNING,
+            progress=40,
+            message="late stale update",
+        )
+
+        task = self.task_manager.get_task(task_id)
+        assert task["status"] == TaskManager.STATUS_RUNNING
+        assert task["progress"] == 70
