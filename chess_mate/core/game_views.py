@@ -823,11 +823,12 @@ def import_external_games(request):
             try:
                 # Get the user object
                 user = User.objects.get(id=user_id)
-                # Legacy tests patch save_game(user, platform, game_data); fallback to current signature.
+                # Canonical signature: save_game(game_data, username, user).
+                # Keep a compatibility fallback for legacy patched call signatures used in some tests.
                 try:
-                    saved_game = save_game_fn(user, platform, game_data)
-                except TypeError:
                     saved_game = save_game_fn(game_data, username, user)
+                except TypeError:
+                    saved_game = save_game_fn(user, platform, game_data)
 
                 if saved_game:
                     imported_count += 1
@@ -1154,7 +1155,12 @@ def batch_analyze_games(request):
         )
 
     except Exception as e:
-        return handle_api_error(e, "Error starting batch game analysis")
+        logger.error(f"Error starting batch game analysis: {str(e)}", exc_info=True)
+        return create_error_response(
+            error_type="external_service_error",
+            message=f"Error starting batch game analysis: {str(e)}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @csrf_exempt

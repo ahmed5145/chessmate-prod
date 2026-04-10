@@ -419,6 +419,24 @@ class TestGameViews:
                 assert game1.analysis_status == "analyzing"
                 assert game2.analysis_status == "analyzing"
 
+    def test_batch_analyze_returns_json_error_when_enqueue_fails(self, authenticated_client, test_user):
+        game = Game.objects.create(
+            user=test_user,
+            platform="chess.com",
+            white="testuser",
+            black="opponent1",
+            pgn='[Event "Test Game"]\n1. e4 e5',
+            analysis_status="not_analyzed",
+        )
+
+        with patch("core.tasks.analyze_batch_games_task.delay", side_effect=Exception("broker unavailable")):
+            url = reverse("batch_analyze")
+            response = authenticated_client.post(url, {"game_ids": [game.id]}, format="json")
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert "error" in response.data
+        assert "broker unavailable" in str(response.data["error"]).lower()
+
     def test_check_batch_analysis_status(self, authenticated_client, test_user):
         # Mock the task manager and AsyncResult
         task_id = "mock-batch-task-id"
