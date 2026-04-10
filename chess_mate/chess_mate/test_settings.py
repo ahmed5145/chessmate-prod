@@ -4,13 +4,16 @@ These settings are used for running tests to ensure the environment is properly 
 """
 
 # Import base settings
-from .settings import *
+from .settings import *  # noqa: F401,F403
 
 # Use an in-memory SQLite database for testing
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": ":memory:",
+        "TEST": {
+            "SERIALIZE": False,
+        },
     }
 }
 
@@ -170,7 +173,7 @@ import warnings
 
 try:
     from django.utils.deprecation import RemovedInDjango60Warning as _RemovedInDjangoWarning
-except Exception:
+except (ImportError, AttributeError):
     _RemovedInDjangoWarning = DeprecationWarning
 
 warnings.filterwarnings("ignore", category=_RemovedInDjangoWarning)
@@ -183,7 +186,7 @@ OPENAI_MAX_TOKENS = 500
 OPENAI_TEMPERATURE = 0.7
 
 # Redis settings for testing
-REDIS_URL = None  # Disable Redis for testing
+REDIS_URL = None  # type: ignore[assignment]  # Disable Redis for testing
 USE_REDIS = False
 
 # Rate limiting settings

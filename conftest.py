@@ -43,24 +43,14 @@ def pytest_configure(config):
     os.environ.setdefault("TESTING", "True")
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.chess_mate.test_settings")
 
-    # Try to set up Django
     try:
         import django
 
         django.setup()
-        from django.conf import settings
-
-        # Apply migrations if needed
-        if not getattr(settings, "DISABLE_MIGRATIONS_FOR_TESTS", False):
-            print("Applying migrations for tests")
-            from django.core.management import call_command
-
-            call_command("migrate", "-v", "0")
     except ImportError:
         print("Django not available or PYTHONPATH not correctly set")
     except Exception as e:
         print(f"Error setting up Django: {str(e)}")
-
 
 # -------------------------------------------------------------------------------
 # Django-specific Fixtures (Only available when Django is active)
