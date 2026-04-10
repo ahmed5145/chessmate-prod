@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Filter, Search, ChevronLeft, ChevronRight, Swords, CheckCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { checkAnalysisStatus, fetchGameAnalysis, fetchUserGames } from '../services/apiRequests';
-import { checkMultipleAnalysisStatuses, analyzeSpecificGame } from '../services/gameAnalysisService';
+import { checkMultipleAnalysisStatuses, analyzeSpecificGame, shouldPollStatus } from '../services/gameAnalysisService';
 import { useTheme } from '../context/ThemeContext';
 import { Box, CircularProgress, Typography, Card, CardContent, Grid } from '@mui/material';
 import { formatDate } from '../utils/dateUtils';
@@ -99,18 +99,10 @@ const Games = () => {
     // Don't poll if we don't have a game ID
     if (!game.id) return false;
 
-    const analysisStatus = String(game.analysis_status || '').toLowerCase();
-    const gameStatus = String(game.status || '').toLowerCase();
-
-    // Terminal states should never be polled.
-    const terminalStates = new Set(['analyzed', 'error', 'failed', 'not_analyzed', 'completed']);
-    if (terminalStates.has(analysisStatus) || terminalStates.has(gameStatus)) {
-      return false;
-    }
-
-    // Poll all in-flight analysis states, not just pending.
-    const activeStates = new Set(['pending', 'analyzing', 'in_progress', 'processing', 'started', 'queued']);
-    return activeStates.has(analysisStatus) || activeStates.has(gameStatus);
+    // Use the shared helper to check if we should continue polling
+    // Prioritize analysis_status over status
+    const statusToCheck = game.analysis_status || game.status;
+    return shouldPollStatus(statusToCheck);
   };
 
   // Set up polling for games with pending analysis.

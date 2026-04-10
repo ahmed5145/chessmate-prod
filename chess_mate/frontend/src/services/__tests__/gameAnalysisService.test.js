@@ -1,4 +1,4 @@
-import { classifyAnalysisPollingStatus, computeNextPollDelay } from '../gameAnalysisService';
+import { classifyAnalysisPollingStatus, computeNextPollDelay, shouldPollStatus } from '../gameAnalysisService';
 
 describe('gameAnalysisService polling helpers', () => {
   test('classifies success statuses and 100% progress as success', () => {
@@ -47,5 +47,34 @@ describe('gameAnalysisService polling helpers', () => {
         hadError: true,
       })
     ).toBe(15000);
+  });
+
+  test('shouldPollStatus stops polling when progress is 100%', () => {
+    expect(shouldPollStatus('PENDING', 100)).toBe(false);
+    expect(shouldPollStatus('PROCESSING', 100)).toBe(false);
+    expect(shouldPollStatus(undefined, 100)).toBe(false);
+  });
+
+  test('shouldPollStatus stops polling on success statuses', () => {
+    expect(shouldPollStatus('SUCCESS')).toBe(false);
+    expect(shouldPollStatus('COMPLETED')).toBe(false);
+    expect(shouldPollStatus('success', 50)).toBe(false);
+  });
+
+  test('shouldPollStatus stops polling on terminal failure statuses', () => {
+    expect(shouldPollStatus('FAILED')).toBe(false);
+    expect(shouldPollStatus('ERROR')).toBe(false);
+    expect(shouldPollStatus('AUTH_ERROR')).toBe(false);
+    expect(shouldPollStatus('REVOKED')).toBe(false);
+    expect(shouldPollStatus('FAILURE')).toBe(false);
+  });
+
+  test('shouldPollStatus continues polling for active statuses', () => {
+    expect(shouldPollStatus('PENDING')).toBe(true);
+    expect(shouldPollStatus('STARTED')).toBe(true);
+    expect(shouldPollStatus('PROCESSING')).toBe(true);
+    expect(shouldPollStatus('IN_PROGRESS')).toBe(true);
+    expect(shouldPollStatus('pending', 25)).toBe(true);
+    expect(shouldPollStatus('unknown_status', 50)).toBe(true);
   });
 });

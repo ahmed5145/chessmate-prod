@@ -26,6 +26,17 @@ jest.mock('../../services/apiRequests', () => ({
 jest.mock('../../services/gameAnalysisService', () => ({
   checkMultipleAnalysisStatuses: jest.fn().mockResolvedValue({}),
   analyzeSpecificGame: jest.fn(),
+  shouldPollStatus: jest.fn((status, progress) => {
+    const normalizedStatus = String(status || '').toUpperCase();
+    const numericProgress = Number(progress) || 0;
+    if (numericProgress >= 100) return false;
+    const SUCCESS_STATUSES = new Set(['SUCCESS', 'COMPLETED']);
+    const TERMINAL_FAILURE_STATUSES = new Set(['FAILURE', 'FAILED', 'ERROR', 'REVOKED', 'AUTH_ERROR']);
+    if (SUCCESS_STATUSES.has(normalizedStatus) || TERMINAL_FAILURE_STATUSES.has(normalizedStatus)) {
+      return false;
+    }
+    return true;
+  }),
 }));
 
 jest.mock('../../services/authService', () => ({

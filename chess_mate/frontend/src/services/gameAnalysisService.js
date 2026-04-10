@@ -31,6 +31,24 @@ export const computeNextPollDelay = ({ currentDelay, minDelay, maxDelay, hadErro
     return Math.min(maxDelay, currentDelay * 2);
 };
 
+export const shouldPollStatus = (status, progress = 0) => {
+    const normalizedStatus = String(status || '').toUpperCase();
+    const numericProgress = Number(progress) || 0;
+    
+    // Stop polling if we've reached 100% progress
+    if (numericProgress >= 100) {
+        return false;
+    }
+    
+    // Stop polling if status is a terminal state (success or failure)
+    if (SUCCESS_STATUSES.has(normalizedStatus) || TERMINAL_FAILURE_STATUSES.has(normalizedStatus)) {
+        return false;
+    }
+    
+    // Continue polling for all other states (PENDING, STARTED, PROCESSING, etc.)
+    return true;
+};
+
 // Initialize IndexedDB
 const initDB = () => {
     return new Promise((resolve, reject) => {

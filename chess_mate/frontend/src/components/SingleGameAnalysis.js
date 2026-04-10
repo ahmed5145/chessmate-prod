@@ -8,6 +8,7 @@ import {
   computeNextPollDelay,
   fetchGameAnalysis,
   restartAnalysis,
+  shouldPollStatus,
 } from '../services/gameAnalysisService';
 import GameAnalysisResults from './GameAnalysisResults';
 import LoadingSpinner from './LoadingSpinner';
@@ -359,6 +360,12 @@ const SingleGameAnalysis = () => {
         }
 
         setAnalysisError(statusResponse.message || 'Analysis failed. Please try again.');
+        return;
+      }
+
+      // Verify we should continue polling
+      if (!shouldPollStatus(statusResponse.status, statusResponse.progress)) {
+        clearAllIntervals();
         return;
       }
 
