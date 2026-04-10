@@ -45,16 +45,16 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'chess_mate/frontend/package-lock.json'
 
       - name: Install Node.js dependencies
-        run: |
-          cd chess_mate/frontend
-          npm ci
+        working-directory: chess_mate/frontend
+        run: npm ci
 
       - name: Run npm audit
-        run: |
-          cd chess_mate/frontend
-          npm audit
+        working-directory: chess_mate/frontend
+        run: npm audit
 
       - name: Validate ZAP Target
         id: zap_target
