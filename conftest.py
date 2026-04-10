@@ -22,7 +22,7 @@ app_root = os.path.join(project_root, "chess_mate")
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 if app_root not in sys.path:
-    sys.path.insert(0, app_root)
+    sys.path.insert(1, app_root)
 
 # -------------------------------------------------------------------------------
 # Django Configuration

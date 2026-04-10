@@ -6,18 +6,20 @@ ChessMate Django project initialization.
 # You'll need to still import individual modules from the app.
 # e.g. from chess_mate import settings
 
-# Import Celery for task processing
-from .celery import app as celery_app
+import importlib
 import sys
+from typing import Optional
+
+celery_app = None  # type: Optional[object]
 
 try:
-	import core as _core
+    _core = importlib.import_module("core")
 
-	core = _core
-	sys.modules.setdefault("chess_mate.core", _core)
-except Exception:
-	# Keep package import-safe even when app modules are unavailable.
-	pass
+    core = _core
+    sys.modules.setdefault("chess_mate.core", _core)
+except ImportError:
+    # Keep package import-safe even when app modules are unavailable.
+    pass
 
 __all__ = ["celery_app"]
 

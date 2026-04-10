@@ -1,4 +1,4 @@
-from chess_mate.settings import *
+from chess_mate.chess_mate.settings import *
 
 # Test database settings
 DATABASES = {
