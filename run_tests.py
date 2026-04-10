@@ -107,7 +107,7 @@ def build_command(args):
             cmd.extend([f"--ds={django_settings}", args.path])
     else:
         # Run all tests by default
-        cmd.extend([f"--ds={django_settings}", "chess_mate/core/tests/", "standalone_tests/"])
+        cmd.extend([f"--ds={django_settings}", "core/tests/", "../standalone_tests/"])
 
     return cmd
 
