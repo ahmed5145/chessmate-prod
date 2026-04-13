@@ -149,7 +149,9 @@ def test_generate_feedback_with_invalid_metrics(feedback_generator):
     assert feedback["source"] == "statistical"
     assert feedback["data_status"] == "unavailable"
     assert "metrics" in feedback
-    assert feedback["metrics"]["summary"]["overall"]["data_status"] == "unavailable"
+    # Metrics should have overall key with data_status
+    assert "overall" in feedback["metrics"]
+    assert feedback["metrics"]["overall"]["data_status"] == "unavailable"
 
 
 def test_parse_ai_response_invalid_json(feedback_generator):

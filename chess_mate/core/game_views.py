@@ -167,7 +167,7 @@ def _enqueue_analysis_task(
         for manager in managers:
             try:
                 active_tasks = manager.get_active_tasks_for_game(game_id)
-            except (AttributeError, TypeError, ValueError):
+            except (AttributeError, TypeError, ValueError, RuntimeError):
                 continue
 
             if active_tasks:

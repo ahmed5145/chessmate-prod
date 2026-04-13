@@ -644,7 +644,9 @@ class FeedbackGenerator:
 
             # Fall back to section extraction for plain-text responses.
             sections = self._extract_sections(response)
-            if sections:
+            # Check if any actual content was extracted (don't accept empty sections dicts)
+            has_content = any(sections.get(key, []) for key in sections.keys())
+            if sections and has_content:
                 parsed = {
                     "feedback": {
                         "source": "openai",
@@ -653,13 +655,13 @@ class FeedbackGenerator:
                         "critical_moments": sections.get("critical_moments", []),
                         "improvement_areas": sections.get("improvement_areas", []),
                         "opening": {
-                            "analysis": sections.get("opening", [""])[0],
+                            "analysis": sections.get("opening", [""])[0] if sections.get("opening", []) else "",
                             "suggestion": (
                                 sections.get("opening", ["", ""])[1] if len(sections.get("opening", [])) > 1 else ""
                             ),
                         },
                         "middlegame": {
-                            "analysis": sections.get("middlegame", [""])[0],
+                            "analysis": sections.get("middlegame", [""])[0] if sections.get("middlegame", []) else "",
                             "suggestion": (
                                 sections.get("middlegame", ["", ""])[1]
                                 if len(sections.get("middlegame", [])) > 1
@@ -667,7 +669,7 @@ class FeedbackGenerator:
                             ),
                         },
                         "endgame": {
-                            "analysis": sections.get("endgame", [""])[0],
+                            "analysis": sections.get("endgame", [""])[0] if sections.get("endgame", []) else "",
                             "suggestion": (
                                 sections.get("endgame", ["", ""])[1] if len(sections.get("endgame", [])) > 1 else ""
                             ),
@@ -725,7 +727,7 @@ class FeedbackGenerator:
                     "opening": {"analysis": "Analysis unavailable", "suggestion": "Review basic principles"},
                     "middlegame": {"analysis": "Analysis unavailable", "suggestion": "Focus on fundamentals"},
                     "endgame": {"analysis": "Analysis unavailable", "suggestion": "Practice basic endgames"},
-                    "metrics": {"summary": {"overall": {"accuracy": 0.0, "consistency": 0.0, "data_status": "unavailable"}}},
+                    "metrics": {"overall": {"accuracy": 0.0, "consistency": 0.0, "data_status": "unavailable"}},
                 }
 
             overall = normalized_metrics.get("overall", {})
@@ -797,7 +799,7 @@ class FeedbackGenerator:
 
             # Add metrics in the wrapped shape the rest of the codebase expects.
             training_block = self._build_training_block(normalized_metrics)
-            feedback["metrics"] = {"summary": self._calculate_statistical_metrics(normalized_metrics)}
+            feedback["metrics"] = self._calculate_statistical_metrics(normalized_metrics)
             feedback["training_block"] = training_block
             feedback["phase_motifs"] = training_block.get("phase_motifs", {})
             feedback["impact_metrics"] = training_block.get("impact_metrics", {})
