@@ -546,8 +546,6 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
     summary_bits.append(f"Weakest phase: {weakest_phase.title()} ({phase_metrics[weakest_phase]['accuracy']}% accuracy).")
     if top_strengths:
         summary_bits.append(f"Reliable strength: {top_strengths[0]}.")
-    summary_bits.append(sample_size_note)
-
     action_plan = []
     if top_weaknesses:
         action_plan.append(f"Prioritize fixing: {top_weaknesses[0]}.")

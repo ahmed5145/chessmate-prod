@@ -8,7 +8,7 @@ from pathlib import Path
 import environ  # type: ignore
 from django.core.exceptions import ImproperlyConfigured
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,8 +22,8 @@ env = environ.Env()
 environment_name = os.environ.get('ENVIRONMENT', 'development')
 env_files = [
     os.path.join(PROJECT_ROOT, f".env.{environment_name}.local"),
-    os.path.join(PROJECT_ROOT, f".env.{environment_name}"),
     os.path.join(PROJECT_ROOT, ".env.local"),
+    os.path.join(PROJECT_ROOT, f".env.{environment_name}"),
     os.path.join(PROJECT_ROOT, ".env"),
 ]
 for env_file in env_files:
@@ -55,6 +55,16 @@ DEBUG = env.bool('DEBUG', default=False)
 
 # OpenAI Settings
 OPENAI_API_KEY = env('OPENAI_API_KEY', default='').strip()
+if not OPENAI_API_KEY:
+    for fallback_file in (
+        os.path.join(PROJECT_ROOT, ".env.prod"),
+        os.path.join(PROJECT_ROOT, ".env.production"),
+    ):
+        if os.path.exists(fallback_file):
+            fallback_key = (dotenv_values(fallback_file).get("OPENAI_API_KEY") or "").strip()
+            if fallback_key:
+                OPENAI_API_KEY = fallback_key
+                break
 USE_OPENAI = bool(OPENAI_API_KEY)
 OPENAI_MODEL = "gpt-3.5-turbo"
 OPENAI_MAX_TOKENS = 500

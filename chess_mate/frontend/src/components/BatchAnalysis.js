@@ -318,7 +318,16 @@ const BatchAnalysis = () => {
 
     // Filter by analysis status if needed
     const analysisStatus = String(game.analysis_status || game.status || '').toLowerCase();
-    const isAnalyzed = analysisStatus === 'analyzed' || analysisStatus === 'completed' || analysisStatus === 'success' || Boolean(game.analysis);
+    const analyzedStatuses = new Set([
+      'analyzed',
+      'completed',
+      'success',
+      'failed',
+      'analyzing',
+      'in_progress',
+      'processing'
+    ]);
+    const isAnalyzed = Boolean(game.analysis) || analyzedStatuses.has(analysisStatus);
     if (gameSelectionFilter === 'unanalyzed' && isAnalyzed) {
       return false;
     }
