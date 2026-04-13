@@ -384,11 +384,45 @@ const BatchAnalysisResults = () => {
     const trainingBlock = coachReport.training_block || aggregateMetrics?.training_block || null;
     const phaseMotifs = trainingBlock?.phase_motifs || coachReport.phase_motifs || aggregateMetrics?.phase_motifs || null;
     const impactMetrics = trainingBlock?.impact_metrics || coachReport.impact_metrics || aggregateMetrics?.impact_metrics || null;
+    const performanceTier = coachReport.performance_tier || 'unknown';
+    const confidence = coachReport.confidence || 'medium';
+    const sampleSizeNote = coachReport.sample_size_note || '';
 
     return (
       <Card sx={cardSx}>
         <CardContent>
           <Typography variant="h5" gutterBottom>Coach Summary</Typography>
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12} md={4}>
+              <Card sx={{ bgcolor: isDarkMode ? 'rgba(15, 23, 42, 0.6)' : 'grey.50' }}>
+                <CardContent>
+                  <Typography variant="subtitle2" color="text.secondary">Performance Tier</Typography>
+                  <Typography variant="h6" sx={{ textTransform: 'capitalize' }}>{performanceTier}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Card sx={{ bgcolor: isDarkMode ? 'rgba(15, 23, 42, 0.6)' : 'grey.50' }}>
+                <CardContent>
+                  <Typography variant="subtitle2" color="text.secondary">Confidence</Typography>
+                  <Typography variant="h6" sx={{ textTransform: 'capitalize' }}>{confidence}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Card sx={{ bgcolor: isDarkMode ? 'rgba(15, 23, 42, 0.6)' : 'grey.50' }}>
+                <CardContent>
+                  <Typography variant="subtitle2" color="text.secondary">Key Takeaway</Typography>
+                  <Typography variant="body2">{coachReport.key_takeaway || coachReport.summary || 'No key takeaway available'}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+          {sampleSizeNote && (
+            <Typography variant="body2" sx={{ mb: 2 }} color="text.secondary">
+              {sampleSizeNote}
+            </Typography>
+          )}
           <Typography variant="body1" sx={{ mb: 3 }}>
             {coachReport.summary || 'No summary available yet.'}
           </Typography>

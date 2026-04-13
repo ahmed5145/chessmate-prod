@@ -49,8 +49,10 @@ def generate_game_feedback(game: Game) -> tuple[Dict[str, Any], str, int]:
 
     try:
         # Prefer the real AI path when analysis data exists and an API key is configured.
-        if moves_analysis and settings.OPENAI_API_KEY:
-            feedback_generator = feedback_generator_cls(api_key=settings.OPENAI_API_KEY)
+        api_key = getattr(settings, "OPENAI_API_KEY", None)
+        api_key = api_key.strip() if isinstance(api_key, str) else api_key
+        if moves_analysis and api_key:
+            feedback_generator = feedback_generator_cls(api_key=api_key)
             feedback_content = feedback_generator.generate_feedback(moves_analysis, game)
             model_name = getattr(settings, "OPENAI_MODEL", "gpt-3.5-turbo")
             return feedback_content, model_name, 2
@@ -197,7 +199,9 @@ def generate_game_feedback_view(request, game_id):
             )
 
         # Initialize AI feedback generator
-        feedback_generator = AIFeedbackGenerator(api_key=settings.OPENAI_API_KEY)
+        api_key = getattr(settings, "OPENAI_API_KEY", None)
+        api_key = api_key.strip() if isinstance(api_key, str) else api_key
+        feedback_generator = AIFeedbackGenerator(api_key=api_key)
 
         # Get specific focus areas if provided
         focus_areas = request.data.get("focus_areas", [])
@@ -378,7 +382,9 @@ def generate_comparative_feedback(request):
             )
 
         # Initialize AI feedback generator
-        feedback_generator = AIFeedbackGenerator(api_key=settings.OPENAI_API_KEY)
+        api_key = getattr(settings, "OPENAI_API_KEY", None)
+        api_key = api_key.strip() if isinstance(api_key, str) else api_key
+        feedback_generator = AIFeedbackGenerator(api_key=api_key)
 
         # Get comparison focus if provided
         comparison_focus = request.data.get("comparison_focus", "overall")
@@ -474,7 +480,9 @@ def get_improvement_suggestions(request):
             )
 
         # Initialize AI feedback generator
-        feedback_generator = AIFeedbackGenerator(api_key=settings.OPENAI_API_KEY)
+        api_key = getattr(settings, "OPENAI_API_KEY", None)
+        api_key = api_key.strip() if isinstance(api_key, str) else api_key
+        feedback_generator = AIFeedbackGenerator(api_key=api_key)
 
         # Collect data from recent games (last 10 or fewer)
         recent_games = analyzed_games.order_by("-date_played")[:10]

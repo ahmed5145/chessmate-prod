@@ -726,8 +726,11 @@ def analyze_game(
 
         feedback_result = None
         if use_ai:
-            feedback_generator = FeedbackGenerator(api_key=getattr(settings, "OPENAI_API_KEY", None))
-            feedback_result = feedback_generator.generate_feedback(analysis_result, game)
+            api_key = getattr(settings, "OPENAI_API_KEY", None)
+            api_key = api_key.strip() if isinstance(api_key, str) else api_key
+            if api_key:
+                feedback_generator = FeedbackGenerator(api_key=api_key)
+                feedback_result = feedback_generator.generate_feedback(analysis_result, game)
 
         GameAnalysis.objects.update_or_create(
             game=game,

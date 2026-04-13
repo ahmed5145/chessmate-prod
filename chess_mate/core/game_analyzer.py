@@ -114,7 +114,9 @@ class GameAnalyzer:
                 "OpenAI",
                 OpenAI,
             )
-            self.openai_client = openai_cls(api_key=settings.OPENAI_API_KEY)
+            api_key = getattr(settings, "OPENAI_API_KEY", None)
+            api_key = api_key.strip() if isinstance(api_key, str) else api_key
+            self.openai_client = openai_cls(api_key=api_key) if api_key else None
             self.feedback_generator = FeedbackGenerator()
             self.metrics_calculator = MetricsCalculator()
             self.task_manager = TaskManager()

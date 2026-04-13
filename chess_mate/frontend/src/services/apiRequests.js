@@ -154,14 +154,15 @@ export const fetchUserGames = async () => {
         
         // Normalize and validate each game object
         const normalizedGames = games.map(game => {
+            const normalizedAnalysisStatus = game.analysis_status || game.status || (game.analysis ? 'analyzed' : 'pending');
             return {
                 id: game.id,
                 opponent: game.opponent || 'Unknown',
                 result: game.result || 'unknown',
                 date_played: game.date_played || game.played_at || new Date().toISOString(),
                 opening_name: game.opening_name || 'Unknown Opening',
-                status: game.status || 'pending',
-                analysis_status: game.analysis_status || 'pending',
+                status: game.status || normalizedAnalysisStatus,
+                analysis_status: normalizedAnalysisStatus,
                 white: game.white || game.opponent || 'Unknown',
                 black: game.black || game.user_username || 'Unknown',
                 pgn: game.pgn || '',

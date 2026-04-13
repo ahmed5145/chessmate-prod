@@ -29,7 +29,7 @@ const BatchAnalysis = () => {
   const [taskId, setTaskId] = useState(null);
   const [availableGames, setAvailableGames] = useState([]);
   const [selectedTimeControl, setSelectedTimeControl] = useState('all');
-  const [includeAnalyzed, setIncludeAnalyzed] = useState(false);
+  const [gameSelectionFilter, setGameSelectionFilter] = useState('unanalyzed');
   const [reportHistory, setReportHistory] = useState([]);
   const { isDarkMode } = useTheme();
   const userContext = useContext(UserContext);
@@ -226,6 +226,7 @@ const BatchAnalysis = () => {
 
   const startBatchAnalysis = async () => {
     const hasManualSelection = selectedGameIds.length > 0;
+    const includeAnalyzed = gameSelectionFilter === 'all';
 
     if (!hasManualSelection && !numGames) {
       toast.error('Please enter the number of games to analyze');
@@ -316,7 +317,9 @@ const BatchAnalysis = () => {
     }
 
     // Filter by analysis status if needed
-    if (!includeAnalyzed && game.analysis) {
+    const analysisStatus = String(game.analysis_status || game.status || '').toLowerCase();
+    const isAnalyzed = analysisStatus === 'analyzed' || analysisStatus === 'completed' || analysisStatus === 'success' || Boolean(game.analysis);
+    if (gameSelectionFilter === 'unanalyzed' && isAnalyzed) {
       return false;
     }
 
@@ -478,19 +481,31 @@ const BatchAnalysis = () => {
             </div>
           </div>
 
-          {/* Include Already Analyzed Games */}
+          {/* Game selection filter */}
           <div className="mt-4">
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                checked={includeAnalyzed}
-                onChange={(e) => setIncludeAnalyzed(e.target.checked)}
-              />
-              <span className={`text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                Include already analyzed games
-              </span>
-            </label>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <label htmlFor="gameSelectionFilter" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                  Game Selection Filter
+                </label>
+                <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Hide analyzed games by default so the table focuses on unrated material.
+                </p>
+              </div>
+              <select
+                id="gameSelectionFilter"
+                className={`mt-1 block w-full md:w-72 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
+                  isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'border-gray-300 text-gray-900'
+                }`}
+                value={gameSelectionFilter}
+                onChange={(e) => setGameSelectionFilter(e.target.value)}
+              >
+                <option value="unanalyzed">Unanalyzed games only</option>
+                <option value="all">All games</option>
+              </select>
+            </div>
           </div>
 
           {/* Selection Shortcuts */}
@@ -534,7 +549,7 @@ const BatchAnalysis = () => {
                 Select imported games ({selectedGameIds.length} selected)
               </h3>
               <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                If none selected, we use Number of Games + filters
+                If none selected, we use Number of Games + the filter above
               </span>
             </div>
             <div className={`max-h-64 overflow-y-auto rounded-md border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>

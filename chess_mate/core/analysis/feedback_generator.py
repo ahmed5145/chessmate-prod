@@ -9,7 +9,7 @@ import sys
 from typing import Any, Dict, List, Optional, cast
 
 from django.conf import settings
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 
 logger = logging.getLogger(__name__)
 
@@ -317,6 +317,7 @@ class FeedbackGenerator:
         """Initialize OpenAI client."""
         try:
             api_key = getattr(settings, "OPENAI_API_KEY", None)
+            api_key = api_key.strip() if isinstance(api_key, str) else api_key
             if not api_key:
                 logger.warning("OpenAI API key not found in settings")
                 self.openai_client = None
@@ -371,7 +372,7 @@ class FeedbackGenerator:
 
             return self._generate_statistical_feedback(game_metrics)
 
-        except (AttributeError, TypeError, ValueError, json.JSONDecodeError) as e:
+        except (AttributeError, TypeError, ValueError, json.JSONDecodeError, OpenAIError) as e:
             logger.error("Error generating feedback: %s", e)
             return self._generate_statistical_feedback(analysis_result if isinstance(analysis_result, dict) else {})
     def _analyze_phase(self, moves: List[Dict[str, Any]]) -> str:

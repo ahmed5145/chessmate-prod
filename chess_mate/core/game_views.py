@@ -420,6 +420,15 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
                 )
 
     games_count = max(len(analyses), 1)
+    sample_size_note = (
+        "Single-game diagnosis: treat percentages as game-level diagnostics, not player-level trends."
+        if games_count == 1
+        else (
+            "Small sample: treat the report as directional, not final."
+            if games_count < 3
+            else "Batch sample is large enough to support trend-level coaching."
+        )
+    )
     overall_metrics = {
         "accuracy": round(overall["accuracy"] / games_count, 1),
         "mistakes": round(overall["mistakes"], 1),
@@ -467,6 +476,17 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
     weakest_phase_accuracy = phase_metrics[weakest_phase]["accuracy"]
     time_pressure_pct = _safe_float(time_summary.get("time_pressure_percentage"))
 
+    if overall_accuracy >= 90:
+        performance_tier = "elite"
+    elif overall_accuracy >= 80:
+        performance_tier = "strong"
+    elif overall_accuracy >= 65:
+        performance_tier = "solid"
+    elif overall_accuracy >= 50:
+        performance_tier = "inconsistent"
+    else:
+        performance_tier = "struggling"
+
     if overall_accuracy >= 78 and "Stable overall move quality" not in top_strengths:
         top_strengths.append("Stable overall move quality")
     if phase_metrics["opening"]["accuracy"] >= 80 and "Solid opening phase execution" not in top_strengths:
@@ -510,14 +530,23 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
     top_weaknesses = top_weaknesses[:3]
     top_improvements = top_improvements[:3]
 
+    if top_weaknesses:
+        key_takeaway = top_weaknesses[0]
+    elif top_improvements:
+        key_takeaway = top_improvements[0]
+    else:
+        key_takeaway = "No dominant weakness identified"
+
     critical_sorted = sorted(critical_moments, key=lambda m: abs(_safe_float(m.get("eval_change"))), reverse=True)
 
     summary_bits = []
+    summary_bits.append(f"Batch profile: {performance_tier}.")
     if top_weaknesses:
         summary_bits.append(f"Main recurring weakness: {top_weaknesses[0]}.")
     summary_bits.append(f"Weakest phase: {weakest_phase.title()} ({phase_metrics[weakest_phase]['accuracy']}% accuracy).")
     if top_strengths:
         summary_bits.append(f"Reliable strength: {top_strengths[0]}.")
+    summary_bits.append(sample_size_note)
 
     action_plan = []
     if top_weaknesses:
@@ -528,12 +557,17 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
 
     coach_report = {
         "summary": " ".join(summary_bits).strip(),
+        "key_takeaway": key_takeaway,
         "top_strengths": top_strengths,
         "top_weaknesses": top_weaknesses,
         "improvement_areas": top_improvements,
         "critical_moments": critical_sorted[:5],
         "action_plan": action_plan,
         "openings_seen": top_openings,
+        "performance_tier": performance_tier,
+        "sample_size": games_count,
+        "sample_size_note": sample_size_note,
+        "confidence": "high" if games_count >= 10 else "medium" if games_count >= 3 else "low",
     }
 
     training_context_input = {
