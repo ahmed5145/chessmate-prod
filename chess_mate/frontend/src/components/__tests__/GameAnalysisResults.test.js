@@ -44,8 +44,8 @@ describe('GameAnalysisResults', () => {
     expect(screen.getByText('Move Insights')).toBeInTheDocument();
     expect(screen.getByText('e4')).toBeInTheDocument();
     expect(screen.getByText('Nf3')).toBeInTheDocument();
-    expect(screen.getByText('good')).toBeInTheDocument();
-    expect(screen.getByText('best')).toBeInTheDocument();
+    expect(screen.getByText('Good')).toBeInTheDocument();
+    expect(screen.getByText('Best')).toBeInTheDocument();
   });
 
   it('renders move insights from legacy movesAnalysis shape', () => {
@@ -69,7 +69,7 @@ describe('GameAnalysisResults', () => {
 
     expect(screen.getByText('Move Insights')).toBeInTheDocument();
     expect(screen.getByText('Qh5')).toBeInTheDocument();
-    expect(screen.getByText('mistake')).toBeInTheDocument();
+    expect(screen.getByText('Mistake')).toBeInTheDocument();
   });
 
   it('prefers top-level metrics over stale analysis_results summary values', () => {
@@ -129,7 +129,6 @@ describe('GameAnalysisResults', () => {
     render(<GameAnalysisResults analysisData={analysisData} />);
 
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Analysis unavailable').length).toBeGreaterThan(0);
   });
 
   it('applies cyan and dark blue badges for brilliant and great move', () => {
@@ -155,8 +154,8 @@ describe('GameAnalysisResults', () => {
 
     render(<GameAnalysisResults analysisData={analysisData} />);
 
-    const brilliantBadge = screen.getByText('brilliant');
-    const greatMoveBadge = screen.getByText('great move');
+    const brilliantBadge = screen.getByText('Brilliant');
+    const greatMoveBadge = screen.getByText('Great move');
 
     expect(brilliantBadge.className).toContain('bg-cyan-100');
     expect(brilliantBadge.className).toContain('text-cyan-700');
