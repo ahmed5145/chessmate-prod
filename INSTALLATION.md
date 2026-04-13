@@ -99,6 +99,27 @@ sudo apt install redis-server
 sudo service redis-server start
 ```
 
+### OpenAI API Key Setup
+
+ChessMate reads `OPENAI_API_KEY` from the environment, so the key should live in the env file or secret store used by the process you are starting.
+
+1. **Create or sign in to an OpenAI account** at the OpenAI platform dashboard.
+2. **Open the API keys page** and create a new secret key.
+3. **Copy the key immediately** after creation. OpenAI shows the full value only once.
+4. **Store the key in the env file for your environment**:
+   - Local development: `chess_mate/.env.local` or the repo-level `.env` / `.env.development`, depending on the startup path you use.
+   - Production: your deployment secret manager, container environment, or host-level environment variables.
+5. **Set the variable name exactly as** `OPENAI_API_KEY`.
+6. **Restart Django and any background workers** after updating the value so they load the new environment.
+
+Example local entry:
+
+```env
+OPENAI_API_KEY=your-new-openai-api-key
+```
+
+If you are replacing an old key, revoke the previous one in the OpenAI dashboard after you confirm the new key works.
+
 ## Common Issues and Solutions
 
 ### Missing Dependencies
@@ -148,7 +169,10 @@ set REDIS_DISABLED=True
    ENVIRONMENT=production
    SECRET_KEY=your_secure_key
    ALLOWED_HOSTS=your_domain.com
+   OPENAI_API_KEY=your-new-openai-api-key
    ```
+
+3. **Keep the API key out of source control**. Use a deployment secret store or host environment variables where possible.
 
 ## Additional Scripts
 

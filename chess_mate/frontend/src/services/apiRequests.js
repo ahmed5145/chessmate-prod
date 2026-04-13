@@ -324,14 +324,32 @@ export const fetchGameAnalysis = async (gameId) => {
     return fetchGameAnalysisService(gameId);
 };
 
-export const analyzeBatchGames = async (numGames, timeControl = 'all', includeAnalyzed = false) => {
+export const analyzeBatchGames = async (
+    numGames,
+    timeControl = 'all',
+    includeAnalyzed = false,
+    selectedGameIds = []
+) => {
     try {
-        const response = await api.post('/api/v1/games/batch-analyze/', {
+        const normalizedIds = Array.isArray(selectedGameIds)
+            ? selectedGameIds.filter((id) => Number.isInteger(id))
+            : [];
+
+        const payload = {
             num_games: parseInt(numGames, 10),
             time_control: timeControl,
             include_analyzed: includeAnalyzed,
             depth: 20,
             use_ai: true
+        };
+
+        if (normalizedIds.length > 0) {
+            payload.game_ids = normalizedIds;
+            payload.num_games = normalizedIds.length;
+        }
+
+        const response = await api.post('/api/v1/games/batch-analyze/', {
+            ...payload
         });
 
         if (!response.data) {
@@ -369,7 +387,7 @@ export const checkBatchAnalysisStatus = async (taskId) => {
             throw new Error('Invalid response from server');
         }
 
-        const { state, meta = {}, completed_games = [], failed_games = [], aggregate_metrics = {} } = response.data;
+        const { state, meta = {}, completed_games = [], failed_games = [], aggregate_metrics = {}, report_id = null } = response.data;
 
         // Common response structure
         const result = {
@@ -383,7 +401,8 @@ export const checkBatchAnalysisStatus = async (taskId) => {
             },
             completed_games,
             failed_games,
-            aggregate_metrics
+            aggregate_metrics,
+            report_id
         };
 
         // Handle error state
@@ -427,6 +446,38 @@ export const checkBatchAnalysisStatus = async (taskId) => {
             failed_games: [],
             aggregate_metrics: null
         };
+    }
+};
+
+export const fetchBatchReportHistory = async (limit = 20) => {
+    try {
+        const response = await api.get('/api/v1/games/batch-reports/', {
+            params: { limit }
+        });
+
+        if (!response.data || !Array.isArray(response.data.results)) {
+            return [];
+        }
+
+        return response.data.results;
+    } catch (error) {
+        console.error('Error fetching batch report history:', error);
+        throw error.response?.data || new Error('Failed to fetch batch report history');
+    }
+};
+
+export const fetchBatchReportById = async (reportId) => {
+    try {
+        const response = await api.get(`/api/v1/games/batch-reports/${reportId}/`);
+
+        if (!response.data || !response.data.report) {
+            throw new Error('Invalid report response');
+        }
+
+        return response.data.report;
+    } catch (error) {
+        console.error('Error fetching batch report:', error);
+        throw error.response?.data || new Error('Failed to fetch batch report');
     }
 };
 

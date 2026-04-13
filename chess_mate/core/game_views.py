@@ -3,50 +3,43 @@ Game-related views for the ChessMate application.
 Including game retrieval, analysis, and batch processing endpoints.
 """
 
+# pylint: disable=no-member
+# Django adds `objects` managers and model-specific exceptions dynamically.
+
 import json
 import importlib
 import sys
+import time
 
 # Standard library imports
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional
 
 from celery.result import AsyncResult  # type: ignore
 
 # Django imports
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
-from django.db.models import Count, Prefetch, Q, F, Avg
-from django.http import JsonResponse, HttpRequest, HttpResponse, HttpResponseBadRequest
-from django.shortcuts import get_object_or_404
-from django.utils import timezone
+from django.db import DatabaseError, OperationalError, transaction
+from django.db.models import Q
+from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
-from rest_framework import status, viewsets
 from django.utils.decorators import method_decorator
+from rest_framework import status, viewsets
 
 # Third-party imports
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .ai_feedback import AIFeedbackGenerator
 from .cache import (
-    CACHE_BACKEND_REDIS,
-    cache_delete,
     cache_get,
     cache_set,
-    cache_stampede_prevention,
-    cacheable,
-    generate_cache_key,
 )
 from .cache_invalidation import (
-    CacheInvalidator,
     invalidate_cache,
     invalidates_cache,
-    with_cache_tags,
 )
 from .chess_services import ChessComService, LichessService, save_game
 from .chess_utils import extract_metadata_from_pgn, validate_pgn
@@ -58,23 +51,17 @@ from .decorators import (
     validate_request,
     api_login_required,
 )
+from .analysis.feedback_generator import FeedbackGenerator as CoachingFeedbackGenerator
 from .error_handling import (
-    ChessServiceError,
-    CreditLimitError,
-    ExternalServiceError,
-    InvalidOperationError,
     ResourceNotFoundError,
     ValidationError,
-    api_error_handler,
     create_error_response,
-    create_success_response,
     handle_api_error,
 )
-from .game_analyzer import GameAnalyzer
 
 # Local application imports
-from .models import Game, GameAnalysis, Player, Profile, User
-from .serializers import GameAnalysisSerializer, GameSerializer
+from .models import BatchAnalysisReport, Game, GameAnalysis, Player, Profile, User
+from .serializers import GameSerializer
 from .task_manager import TaskManager
 from .tasks import analyze_game_task, batch_analyze_games_task, analyze_batch_games_task
 
@@ -99,7 +86,7 @@ def _resolve_compat_attr(module_name: str, attr_name: str, default: Any) -> Any:
     try:
         module = importlib.import_module(module_name)
         return getattr(module, attr_name, default)
-    except Exception:
+    except (ImportError, AttributeError):
         return default
 
 
@@ -139,7 +126,7 @@ def _resolve_compat_async_result() -> Any:
             candidate = getattr(module, "AsyncResult", None)
             if callable(candidate):
                 candidates.append(candidate)
-        except Exception:
+        except ImportError:
             continue
 
     for candidate in candidates:
@@ -155,6 +142,7 @@ def _enqueue_analysis_task(
     user_id: int,
     depth: int,
     use_ai: bool,
+    force_reanalyze: bool = False,
     analysis_task: Any,
     managers: List[Any],
     legacy_register_signature: bool = False,
@@ -179,7 +167,7 @@ def _enqueue_analysis_task(
         for manager in managers:
             try:
                 active_tasks = manager.get_active_tasks_for_game(game_id)
-            except Exception:
+            except (AttributeError, TypeError, ValueError):
                 continue
 
             if active_tasks:
@@ -194,7 +182,13 @@ def _enqueue_analysis_task(
                 "game_id": game_id,
             }
 
-        task = analysis_task.delay(game_id, user_id=user_id, depth=depth, use_ai=use_ai)
+        task = analysis_task.delay(
+            game_id,
+            user_id=user_id,
+            depth=depth,
+            use_ai=use_ai,
+            force_reanalyze=force_reanalyze,
+        )
 
         for manager in managers:
             try:
@@ -210,7 +204,7 @@ def _enqueue_analysis_task(
             except TypeError:
                 # Compatibility for older manager mocks/signatures.
                 manager.register_task(task.id, game_id, user_id)
-            except Exception:
+            except (AttributeError, ValueError):
                 continue
 
         return {
@@ -223,7 +217,7 @@ def _enqueue_analysis_task(
         if lock is not None and lock_acquired:
             try:
                 lock.release()
-            except Exception:
+            except RuntimeError:
                 logger.debug("Failed to release analysis lock", exc_info=True)
 
 
@@ -232,7 +226,7 @@ def _legacy_status_progress(task_id: str, task_info: Optional[Dict[str, Any]]) -
     if task_info and task_info.get("progress") not in (None, 0):
         try:
             return int(task_info.get("progress", 0))
-        except Exception:
+        except (TypeError, ValueError):
             return 0
 
     if task_id == "mock-task-id":
@@ -241,6 +235,425 @@ def _legacy_status_progress(task_id: str, task_info: Optional[Dict[str, Any]]) -
         return 75
 
     return int((task_info or {}).get("progress", 0) or 0)
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    """Convert arbitrary values to float without raising."""
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _normalize_int_list(values: Any) -> List[int]:
+    """Convert a mixed sequence into a clean list of ints."""
+    if not isinstance(values, list):
+        return []
+
+    normalized: List[int] = []
+    for raw in values:
+        try:
+            normalized.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    return normalized
+
+
+def _top_items_by_frequency(items: List[str], limit: int = 3) -> List[str]:
+    """Return the top-N items by frequency while preserving readable ordering."""
+    counts: Dict[str, int] = {}
+    for item in items:
+        normalized = str(item or "").strip()
+        if not normalized:
+            continue
+        counts[normalized] = counts.get(normalized, 0) + 1
+
+    ordered = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    return [name for name, _ in ordered[:limit]]
+
+
+def _clean_feedback_items(items: List[str]) -> List[str]:
+    """Remove low-signal fallback phrases that do not help the user act."""
+    blocked_exact = {
+        "unable to analyze game properly",
+        "overall game analysis",
+        "analysis unavailable",
+        "insufficient data",
+        "no analysis available",
+    }
+    blocked_contains = [
+        "unable to analyze",
+        "generic feedback",
+        "analysis could not be generated",
+    ]
+
+    cleaned: List[str] = []
+    for item in items:
+        text = str(item or "").strip()
+        if not text:
+            continue
+
+        lowered = text.lower()
+        if lowered in blocked_exact:
+            continue
+        if any(token in lowered for token in blocked_contains):
+            continue
+
+        cleaned.append(text)
+
+    return cleaned
+
+
+def _normalize_opening_name(opening_name: Any, max_len: int = 96) -> str:
+    """Keep opening labels readable and avoid extremely long variation strings in UI."""
+    text = str(opening_name or "").strip()
+    if not text:
+        return ""
+    text = " ".join(text.split())
+    if len(text) <= max_len:
+        return text
+    return f"{text[: max_len - 3].rstrip()}..."
+
+
+def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Build one combined report across completed games for the batch results page."""
+    game_ids = [int(item["game_id"]) for item in completed_games if isinstance(item, dict) and item.get("game_id")]
+    if not game_ids:
+        return {}
+
+    analyses = list(GameAnalysis.objects.select_related("game").filter(game_id__in=game_ids))
+    if not analyses:
+        return {}
+
+    overall = {
+        "accuracy": 0.0,
+        "mistakes": 0.0,
+        "blunders": 0.0,
+        "inaccuracies": 0.0,
+        "total_moves": 0.0,
+    }
+    phases: Dict[str, Dict[str, float]] = {
+        "opening": {"accuracy_sum": 0.0, "count": 0.0, "mistakes": 0.0, "best_moves": 0.0, "opportunities": 0.0},
+        "middlegame": {
+            "accuracy_sum": 0.0,
+            "count": 0.0,
+            "mistakes": 0.0,
+            "best_moves": 0.0,
+            "opportunities": 0.0,
+        },
+        "endgame": {"accuracy_sum": 0.0, "count": 0.0, "mistakes": 0.0, "best_moves": 0.0, "opportunities": 0.0},
+    }
+
+    strengths_raw: List[str] = []
+    weaknesses_raw: List[str] = []
+    improvements_raw: List[str] = []
+    critical_moments: List[Dict[str, Any]] = []
+    opening_names: List[str] = []
+    all_moves: List[Dict[str, Any]] = []
+
+    time_management = {
+        "avg_time_per_move": 0.0,
+        "time_pressure_percentage": 0.0,
+        "samples": 0.0,
+    }
+
+    for analysis in analyses:
+        analysis_data = analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
+        metrics = analysis_data.get("metrics", {}) if isinstance(analysis_data.get("metrics", {}), dict) else {}
+        feedback = analysis_data.get("feedback", {}) if isinstance(analysis_data.get("feedback", {}), dict) else {}
+
+        metrics_overall = metrics.get("overall", {}) if isinstance(metrics.get("overall", {}), dict) else {}
+        overall["accuracy"] += _safe_float(metrics_overall.get("accuracy"))
+        overall["mistakes"] += _safe_float(metrics_overall.get("mistakes"))
+        overall["blunders"] += _safe_float(metrics_overall.get("blunders"))
+        overall["inaccuracies"] += _safe_float(metrics_overall.get("inaccuracies"))
+        overall["total_moves"] += _safe_float(metrics_overall.get("total_moves"))
+
+        metrics_phases = metrics.get("phases", {}) if isinstance(metrics.get("phases", {}), dict) else {}
+        for phase_name in ("opening", "middlegame", "endgame"):
+            phase = metrics_phases.get(phase_name, {}) if isinstance(metrics_phases.get(phase_name, {}), dict) else {}
+            phase_accuracy = _safe_float(phase.get("accuracy"))
+            if phase_accuracy > 0:
+                phases[phase_name]["accuracy_sum"] += phase_accuracy
+                phases[phase_name]["count"] += 1
+            phases[phase_name]["mistakes"] += _safe_float(phase.get("mistakes"))
+            phases[phase_name]["best_moves"] += _safe_float(phase.get("best_moves"))
+            phases[phase_name]["opportunities"] += _safe_float(phase.get("opportunities"))
+
+        metrics_time = metrics.get("time_management", {}) if isinstance(metrics.get("time_management", {}), dict) else {}
+        if str(metrics_time.get("data_status", "")).lower() != "unavailable":
+            time_management["avg_time_per_move"] += _safe_float(metrics_time.get("avg_time_per_move"))
+            time_management["time_pressure_percentage"] += _safe_float(metrics_time.get("time_pressure_percentage"))
+            time_management["samples"] += 1
+
+        strengths_raw.extend(feedback.get("strengths", []) if isinstance(feedback.get("strengths", []), list) else [])
+        weaknesses_raw.extend(feedback.get("weaknesses", []) if isinstance(feedback.get("weaknesses", []), list) else [])
+        improvements_raw.extend(
+            feedback.get("improvement_areas", []) if isinstance(feedback.get("improvement_areas", []), list) else []
+        )
+
+        opening_name = getattr(analysis.game, "opening_name", None)
+        if opening_name:
+            normalized_opening = _normalize_opening_name(opening_name)
+            if normalized_opening:
+                opening_names.append(normalized_opening)
+
+        for move in analysis_data.get("moves", []) if isinstance(analysis_data.get("moves", []), list) else []:
+            if not isinstance(move, dict) or not move.get("is_critical"):
+                pass
+
+            move_copy = dict(move)
+            move_copy["game_id"] = analysis.game.id
+            all_moves.append(move_copy)
+
+            if move.get("is_critical"):
+                critical_moments.append(
+                    {
+                        "game_id": analysis.game.id,
+                        "move_number": move.get("move_number"),
+                        "san": move.get("san") or move.get("move"),
+                        "classification": move.get("classification"),
+                        "eval_change": _safe_float(move.get("eval_change")),
+                    }
+                )
+
+    games_count = max(len(analyses), 1)
+    overall_metrics = {
+        "accuracy": round(overall["accuracy"] / games_count, 1),
+        "mistakes": round(overall["mistakes"], 1),
+        "blunders": round(overall["blunders"], 1),
+        "inaccuracies": round(overall["inaccuracies"], 1),
+        "total_moves": round(overall["total_moves"], 1),
+    }
+
+    phase_metrics: Dict[str, Dict[str, float]] = {}
+    for phase_name, data in phases.items():
+        opportunities = int(data["opportunities"])
+        best_moves = int(data["best_moves"])
+        critical_best_moves = int(min(best_moves, opportunities)) if opportunities > 0 else 0
+        phase_metrics[phase_name] = {
+            "accuracy": round((data["accuracy_sum"] / data["count"]) if data["count"] > 0 else 0.0, 1),
+            "mistakes": round(data["mistakes"], 1),
+            "best_moves": best_moves,
+            "opportunities": opportunities,
+            "critical_best_moves": critical_best_moves,
+        }
+
+    weakest_phase = min(
+        (name for name in ("opening", "middlegame", "endgame")),
+        key=lambda name: phase_metrics[name]["accuracy"],
+        default="middlegame",
+    )
+
+    top_strengths = _top_items_by_frequency(_clean_feedback_items(strengths_raw), limit=3)
+    top_weaknesses = _top_items_by_frequency(_clean_feedback_items(weaknesses_raw), limit=3)
+    top_improvements = _top_items_by_frequency(_clean_feedback_items(improvements_raw), limit=3)
+    top_openings = _top_items_by_frequency(opening_names, limit=5)
+
+    time_samples = time_management["samples"]
+    time_summary = {
+        "avg_time_per_move": round((time_management["avg_time_per_move"] / time_samples), 1) if time_samples > 0 else 0.0,
+        "time_pressure_percentage": round((time_management["time_pressure_percentage"] / time_samples), 1)
+        if time_samples > 0
+        else 0.0,
+        "data_status": "available" if time_samples > 0 else "unavailable",
+    }
+
+    # Heuristic enrichment so reports remain actionable even without OpenAI feedback.
+    overall_accuracy = overall_metrics["accuracy"]
+    inaccuracies_per_game = (overall_metrics["inaccuracies"] / games_count) if games_count > 0 else 0.0
+    weakest_phase_accuracy = phase_metrics[weakest_phase]["accuracy"]
+    time_pressure_pct = _safe_float(time_summary.get("time_pressure_percentage"))
+
+    if overall_accuracy >= 78 and "Stable overall move quality" not in top_strengths:
+        top_strengths.append("Stable overall move quality")
+    if phase_metrics["opening"]["accuracy"] >= 80 and "Solid opening phase execution" not in top_strengths:
+        top_strengths.append("Solid opening phase execution")
+    if overall_metrics["blunders"] <= 1 and "Low blunder frequency" not in top_strengths:
+        top_strengths.append("Low blunder frequency")
+
+    if weakest_phase_accuracy < 70:
+        candidate = f"{weakest_phase.title()} decisions need higher precision"
+        if candidate not in top_weaknesses:
+            top_weaknesses.append(candidate)
+    if inaccuracies_per_game >= 12:
+        candidate = "Too many inaccuracies per game"
+        if candidate not in top_weaknesses:
+            top_weaknesses.append(candidate)
+    if time_summary["data_status"] == "available" and time_pressure_pct >= 20:
+        candidate = "Time pressure is impacting move quality"
+        if candidate not in top_weaknesses:
+            top_weaknesses.append(candidate)
+
+    if weakest_phase_accuracy < 70:
+        candidate = f"Train {weakest_phase} pattern recognition and candidate move checks"
+        if candidate not in top_improvements:
+            top_improvements.append(candidate)
+    if inaccuracies_per_game >= 12:
+        candidate = "Add a blunder-check routine before committing each move"
+        if candidate not in top_improvements:
+            top_improvements.append(candidate)
+    if time_summary["data_status"] == "available" and time_pressure_pct >= 20:
+        candidate = "Practice time allocation targets per phase"
+        if candidate not in top_improvements:
+            top_improvements.append(candidate)
+
+    # Avoid contradictory coaching text when clock data is unavailable.
+    if time_summary["data_status"] != "available":
+        time_terms = ("time management", "time pressure")
+        top_weaknesses = [item for item in top_weaknesses if not any(term in item.lower() for term in time_terms)]
+        top_improvements = [item for item in top_improvements if not any(term in item.lower() for term in time_terms)]
+
+    top_strengths = top_strengths[:3]
+    top_weaknesses = top_weaknesses[:3]
+    top_improvements = top_improvements[:3]
+
+    critical_sorted = sorted(critical_moments, key=lambda m: abs(_safe_float(m.get("eval_change"))), reverse=True)
+
+    summary_bits = []
+    if top_weaknesses:
+        summary_bits.append(f"Main recurring weakness: {top_weaknesses[0]}.")
+    summary_bits.append(f"Weakest phase: {weakest_phase.title()} ({phase_metrics[weakest_phase]['accuracy']}% accuracy).")
+    if top_strengths:
+        summary_bits.append(f"Reliable strength: {top_strengths[0]}.")
+
+    action_plan = []
+    if top_weaknesses:
+        action_plan.append(f"Prioritize fixing: {top_weaknesses[0]}.")
+    action_plan.append(f"Spend focused study time on {weakest_phase} decisions this week.")
+    if top_improvements:
+        action_plan.append(f"Training emphasis: {top_improvements[0]}.")
+
+    coach_report = {
+        "summary": " ".join(summary_bits).strip(),
+        "top_strengths": top_strengths,
+        "top_weaknesses": top_weaknesses,
+        "improvement_areas": top_improvements,
+        "critical_moments": critical_sorted[:5],
+        "action_plan": action_plan,
+        "openings_seen": top_openings,
+    }
+
+    training_context_input = {
+        "overall": overall_metrics,
+        "phases": phase_metrics,
+        "time_management": time_summary,
+        "moves": all_moves,
+    }
+    training_block = CoachingFeedbackGenerator.build_training_block(training_context_input)
+
+    try:
+        ai_feedback = CoachingFeedbackGenerator().generate_feedback(training_context_input)
+    except (TypeError, ValueError) as error:
+        logger.debug("Falling back to statistical batch feedback: %s", error)
+        ai_feedback = {
+            "source": "statistical",
+            "data_status": "available" if time_summary.get("data_status") == "available" else "unavailable",
+            "strengths": top_strengths,
+            "weaknesses": top_weaknesses,
+            "critical_moments": critical_sorted[:5],
+            "improvement_areas": top_improvements,
+            "opening": {
+                "analysis": f"Opening accuracy is {phase_metrics['opening']['accuracy']}%.",
+                "suggestion": top_improvements[0] if top_improvements else "Review opening fundamentals.",
+            },
+            "middlegame": {
+                "analysis": f"Middlegame accuracy is {phase_metrics['middlegame']['accuracy']}%.",
+                "suggestion": top_improvements[0] if top_improvements else "Review middlegame patterns.",
+            },
+            "endgame": {
+                "analysis": f"Endgame accuracy is {phase_metrics['endgame']['accuracy']}%.",
+                "suggestion": top_improvements[0] if top_improvements else "Review endgame conversion.",
+            },
+            "metrics": {"summary": {"overall": overall_metrics}},
+            "training_block": training_block,
+            "phase_motifs": training_block.get("phase_motifs", {}),
+            "impact_metrics": training_block.get("impact_metrics", {}),
+            "summary": " ".join(summary_bits).strip(),
+        }
+
+    if isinstance(ai_feedback, dict):
+        ai_feedback.setdefault("summary", " ".join(summary_bits).strip())
+        ai_feedback.setdefault("training_block", training_block)
+        ai_feedback.setdefault("phase_motifs", training_block.get("phase_motifs", {}))
+        ai_feedback.setdefault("impact_metrics", training_block.get("impact_metrics", {}))
+        ai_feedback.setdefault("coach_summary", coach_report["summary"])
+
+    return {
+        "games_analyzed": len(analyses),
+        "overall": overall_metrics,
+        "opening": phase_metrics["opening"],
+        "middlegame": phase_metrics["middlegame"],
+        "endgame": phase_metrics["endgame"],
+        "time_management": time_summary,
+        "coach_report": coach_report,
+        "training_block": training_block,
+        "impact_metrics": training_block.get("impact_metrics", {}),
+        "phase_motifs": training_block.get("phase_motifs", {}),
+        "ai_feedback": ai_feedback,
+    }
+
+
+def _persist_batch_report(
+    *,
+    user: User,
+    task_id: str,
+    game_ids: List[int],
+    completed_games: List[Dict[str, Any]],
+    failed_games: List[Dict[str, Any]],
+    aggregate_metrics: Dict[str, Any],
+) -> BatchAnalysisReport:
+    """Create or update a persisted batch report for history access."""
+    report_defaults = {
+        "game_ids": game_ids,
+        "games_count": len(game_ids) if game_ids else len(completed_games) + len(failed_games),
+        "completed_games": completed_games,
+        "failed_games": failed_games,
+        "aggregate_metrics": aggregate_metrics,
+    }
+
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            with transaction.atomic():
+                report, _ = BatchAnalysisReport.objects.update_or_create(
+                    user=user,
+                    task_id=task_id,
+                    defaults=report_defaults,
+                )
+            return report
+        except OperationalError as exc:
+            # SQLite can transiently lock during concurrent write-heavy moments.
+            is_locked = "database is locked" in str(exc).lower()
+            if is_locked and attempt < max_retries:
+                time.sleep(0.1 * attempt)
+                continue
+            raise
+
+    raise OperationalError("Failed to persist batch report after retry attempts")
+
+
+def _serialize_batch_report(report: BatchAnalysisReport) -> Dict[str, Any]:
+    """Serialize persisted report for API responses."""
+    report_any: Any = report
+    coach_report = {}
+    if isinstance(report.aggregate_metrics, dict):
+        coach_report = report.aggregate_metrics.get("coach_report", {})
+
+    return {
+        "id": report_any.id,
+        "task_id": report_any.task_id,
+        "game_ids": report_any.game_ids if isinstance(report_any.game_ids, list) else [],
+        "games_count": report_any.games_count,
+        "completed_games": report_any.completed_games if isinstance(report_any.completed_games, list) else [],
+        "failed_games": report_any.failed_games if isinstance(report_any.failed_games, list) else [],
+        "aggregate_metrics": report_any.aggregate_metrics if isinstance(report_any.aggregate_metrics, dict) else {},
+        "coach_summary": coach_report.get("summary", "") if isinstance(coach_report, dict) else "",
+        "created_at": report_any.created_at.isoformat(),
+        "updated_at": report_any.updated_at.isoformat(),
+    }
 
 
 class GameViewSet(viewsets.ModelViewSet):
@@ -266,9 +679,11 @@ class GameViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     @invalidates_cache("game_analysis")
-    def analyze(self, request, pk=None) -> Response:
+    def analyze(self, request, pk=None) -> Any:  # pylint: disable=unused-argument
         """Start game analysis."""
         try:
+            if pk is not None:
+                logger.debug("Analyze action requested for pk %s", pk)
             # Using select_related to fetch user in the same query
             game = self.get_object()
             depth = int(request.data.get("depth", 20))
@@ -301,14 +716,14 @@ class GameViewSet(viewsets.ModelViewSet):
                 }
             )
 
-        except Exception as e:
+        except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
             return create_error_response(
                 error_type="external_service_error", message=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     @action(detail=False, methods=["post"])
     @invalidates_cache("game_analysis", "user_games")
-    def batch_analyze(self, request) -> Response:
+    def batch_analyze(self, request) -> Any:
         """Start batch analysis of multiple games."""
         try:
             game_ids = request.data.get("game_ids", [])
@@ -341,16 +756,18 @@ class GameViewSet(viewsets.ModelViewSet):
             return create_error_response(
                 error_type="validation_failed", message=str(e), status_code=status.HTTP_400_BAD_REQUEST
             )
-        except Exception as e:
+        except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
             return create_error_response(
                 error_type="external_service_error", message=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     @action(detail=True, methods=["get"])
     @method_decorator(csrf_exempt)
-    def analysis_status(self, request, pk=None) -> Response:
+    def analysis_status(self, request, pk=None) -> Response:  # pylint: disable=unused-argument
         """Get analysis status for a game."""
         try:
+            if pk is not None:
+                logger.debug("Analysis status requested for pk %s by user %s", pk, request.user.id)
             game = self.get_object()
             
             # First check if we already have a complete analysis in the database
@@ -370,7 +787,7 @@ class GameViewSet(viewsets.ModelViewSet):
             task_info = task_manager.get_task_status(game_id=game.id)
             
             # Log what we got from the task manager for debugging
-            logger.debug(f"Raw task info for game {game.id}: {task_info}")
+            logger.debug("Raw task info for game %s: %s", game.id, task_info)
 
             if not task_info:
                 return Response({
@@ -404,8 +821,8 @@ class GameViewSet(viewsets.ModelViewSet):
             
             return Response(response_data)
 
-        except Exception as e:
-            logger.error(f"Error checking analysis status: {str(e)}", exc_info=True)
+        except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+            logger.error("Error checking analysis status: %s", str(e), exc_info=True)
             return Response({
                 "status": "ERROR",
                 "message": f"Error retrieving analysis status: {str(e)}",
@@ -413,7 +830,7 @@ class GameViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=["get"])
-    def search(self, request) -> Response:
+    def search(self, request) -> Any:
         """Search games with filters."""
         try:
             query = request.query_params.get("q", "")
@@ -462,7 +879,7 @@ class GameViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(queryset, many=True)
             return Response({"results": serializer.data, "count": total_count, "limit": limit, "offset": offset})
 
-        except Exception as e:
+        except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
             return create_error_response(
                 error_type="validation_failed", message=str(e), status_code=status.HTTP_400_BAD_REQUEST
             )
@@ -484,7 +901,7 @@ def get_user_games(request):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        games = Game.objects.filter(user_id=user_id).order_by("-date_played")
+        games: List[Any] = list(Game.objects.filter(user_id=user_id).order_by("-date_played"))
         game_list = [
             {
                 "id": game.id,
@@ -499,7 +916,7 @@ def get_user_games(request):
 
         return Response(game_list, status=status.HTTP_200_OK)
 
-    except Exception as e:
+    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         return Response({"status": "error", "message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -523,17 +940,17 @@ def import_game(request):
         metadata = extract_metadata_from_pgn(pgn)
 
         # Check if game already exists
-        existing_game = Game.objects.filter(
+        existing_game_any: Any = Game.objects.filter(
             external_id=metadata.get("external_id"), source=metadata.get("source")
         ).first()
 
-        if existing_game:
-            return JsonResponse({"status": "success", "message": "Game already exists", "game_id": existing_game.id})
+        if existing_game_any:
+            return JsonResponse({"status": "success", "message": "Game already exists", "game_id": existing_game_any.id})
 
         # Create new game
         with transaction.atomic():
             # Create game
-            game = Game.objects.create(
+            game_any: Any = Game.objects.create(
                 source=metadata.get("source", "manual"),
                 external_id=metadata.get("external_id", ""),
                 date_played=metadata.get("date_played", datetime.now()),
@@ -545,7 +962,7 @@ def import_game(request):
             # Create players
             for player_data in metadata.get("players", []):
                 Player.objects.create(
-                    game=game,
+                    game=game_any,
                     user_id=player_data.get("user_id"),
                     username=player_data.get("username", ""),
                     rating=player_data.get("rating", 0),
@@ -554,14 +971,14 @@ def import_game(request):
 
             # Associate game with user
             if hasattr(request.user, "profile") and request.user.profile:
-                request.user.profile.games.add(game)
+                request.user.profile.games.add(game_any)
 
         # Invalidate cache
         invalidate_cache(f"user_{request.user.id}_games")
 
-        return JsonResponse({"status": "success", "message": "Game imported successfully", "game_id": game.id})
+        return JsonResponse({"status": "success", "message": "Game imported successfully", "game_id": game_any.id})
 
-    except Exception as e:
+    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         return handle_api_error(e, "Error importing game")
 
 
@@ -581,27 +998,27 @@ def get_game(request):
         cache_key = f"game:{game_id}"
         cached_game = cache_get(cache_key)
         if cached_game:
-            logger.info(f"Retrieved game from cache: {game_id}")
+            logger.info("Retrieved game from cache: %s", game_id)
             return JsonResponse({"status": "success", "game": cached_game})
 
         # Get game from database
         try:
-            game = Game.objects.get(id=game_id)
-        except Game.DoesNotExist:
-            raise ResourceNotFoundError(f"Game not found: {game_id}")
+            game: Any = Game.objects.get(id=game_id)
+        except Game.DoesNotExist as exc:
+            raise ResourceNotFoundError(f"Game not found: {game_id}") from exc
 
         # Check permission
-        if not request.user.is_staff and game.user.id != request.user.id:
+        if not request.user.is_staff and game.user.id != request.user.id:  # type: ignore[attr-defined]
             return JsonResponse({"status": "error", "message": "You do not have permission to view this game"}, status=403)
 
         # Format response
         game_data = {
-            "id": game.id,
-            "source": game.source,
-            "external_id": game.external_id,
-            "date_played": game.date_played.isoformat() if game.date_played else None,
-            "pgn": game.pgn,
-            "result": game.result,
+            "id": game.id,  # type: ignore[attr-defined]
+            "source": game.source,  # type: ignore[attr-defined]
+            "external_id": game.external_id,  # type: ignore[attr-defined]
+            "date_played": game.date_played.isoformat() if game.date_played else None,  # type: ignore[attr-defined]
+            "pgn": game.pgn,  # type: ignore[attr-defined]
+            "result": game.result,  # type: ignore[attr-defined]
             "players": [
                 {
                     "id": player.id,
@@ -620,7 +1037,7 @@ def get_game(request):
 
         return JsonResponse({"status": "success", "game": game_data})
 
-    except Exception as e:
+    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         return handle_api_error(e, "Error retrieving game")
 
 
@@ -652,7 +1069,7 @@ def analyze_game(request, game_id=None):
 
         # Get game from database
         try:
-            game = Game.objects.get(id=game_id)
+            game: Any = Game.objects.get(id=game_id)
         except Game.DoesNotExist:
             return Response(
                 {"status": "error", "message": f"Game not found: {game_id}"},
@@ -662,7 +1079,7 @@ def analyze_game(request, game_id=None):
         # Check permission
         if not request.user.is_staff:
             # Check if the user is the owner of the game
-            if game.user_id != request.user.id:
+            if game.user_id != request.user.id:  # type: ignore[attr-defined]
                 return Response(
                     {"status": "error", "message": "You do not have permission to analyze this game"}, 
                     status=status.HTTP_403_FORBIDDEN
@@ -675,6 +1092,7 @@ def analyze_game(request, game_id=None):
         # Get analysis parameters
         depth = data.get("depth", DEFAULT_ANALYSIS_DEPTH)
         use_ai = data.get("use_ai", DEFAULT_USE_AI)
+        force_reanalyze = bool(data.get("force_reanalyze", True))
 
         profile = Profile.objects.filter(user=request.user).first()
         if not request.user.is_staff and (profile is None or profile.credits < 1):
@@ -697,6 +1115,7 @@ def analyze_game(request, game_id=None):
             user_id=request.user.id,
             depth=depth,
             use_ai=use_ai,
+            force_reanalyze=force_reanalyze,
             analysis_task=compat_task,
             managers=compat_task_managers,
             legacy_register_signature=True,
@@ -735,9 +1154,9 @@ def analyze_game(request, game_id=None):
             status=status.HTTP_202_ACCEPTED,
         )
 
-    except Exception as e:
+    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         # Log the full error for debugging
-        logger.error(f"Error analyzing game: {str(e)}", exc_info=True)
+        logger.error("Error analyzing game: %s", str(e), exc_info=True)
         return Response(
             {"status": "error", "message": f"Error analyzing game: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -761,7 +1180,7 @@ def import_external_games(request):
         game_type = data.get("game_type", "rapid")
         num_games = data.get("num_games", 10)
 
-        logger.info(f"Importing games: user_id={user_id}, platform={platform}, username={username}")
+        logger.info("Importing games: user_id=%s, platform=%s, username=%s", user_id, platform, username)
 
         # Validate platform
         if not platform:
@@ -778,8 +1197,8 @@ def import_external_games(request):
                     username = profile.chess_com_username
                 else:
                     username = profile.lichess_username
-            except Profile.DoesNotExist:
-                raise ValidationError([{"field": "username", "message": f"Username for {platform} is required"}])
+            except Profile.DoesNotExist as exc:
+                raise ValidationError([{"field": "username", "message": f"Username for {platform} is required"}]) from exc
 
         if not username:
             raise ValidationError([{"field": "username", "message": f"Username for {platform} is required"}])
@@ -798,7 +1217,7 @@ def import_external_games(request):
                     status=402,
                 )
         except Profile.DoesNotExist:
-            logger.error(f"Profile not found for user_id={user_id}")
+            logger.error("Profile not found for user_id=%s", user_id)
 
         # Import games using legacy-resolved service classes so patched tests intercept calls.
         chess_com_cls = _resolve_compat_attr("core.chess_services", "ChessComService", ChessComService)
@@ -833,8 +1252,8 @@ def import_external_games(request):
                 if saved_game:
                     imported_count += 1
                     saved_games.append(imported_count - 1)
-            except Exception as e:
-                logger.error(f"Error saving game: {str(e)}")
+            except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+                logger.error("Error saving game: %s", str(e))
 
         # Deduct credits if not staff
         if not request.user.is_staff:
@@ -857,8 +1276,8 @@ def import_external_games(request):
 
     except ValidationError as ve:
         return Response({"status": "error", "errors": ve.args[0]}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception as e:
-        logger.error(f"Error importing games: {str(e)}", exc_info=True)
+    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+        logger.error("Error importing games: %s", str(e), exc_info=True)
         return Response(
             {"status": "error", "message": f"Error importing games: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -891,7 +1310,7 @@ def get_task_status(request, game_id=None):
                 return JsonResponse(task_info)
             
             # Log the actual task info for debugging
-            logger.debug(f"Raw task info for game {game_id}: {task_info}")
+            logger.debug("Raw task info for game %s: %s", game_id, task_info)
             
             # Otherwise wrap it in a response with a 'task' key for frontend compatibility
             return JsonResponse({
@@ -917,7 +1336,7 @@ def get_task_status(request, game_id=None):
             task_info = task_manager.get_task_status_by_id(task_id)
 
             # Log the actual task info for debugging
-            logger.debug(f"Raw task info for task {task_id}: {task_info}")
+            logger.debug("Raw task info for task %s: %s", task_id, task_info)
             
             # Wrap the task info in a response with a 'task' key for frontend compatibility
             return JsonResponse({
@@ -931,8 +1350,8 @@ def get_task_status(request, game_id=None):
                 }
             })
 
-    except Exception as e:
-        logger.error(f"Error retrieving task status: {str(e)}", exc_info=True)
+    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+        logger.error("Error retrieving task status: %s", str(e), exc_info=True)
         return JsonResponse({
             "status": "error",
             "message": f"Error retrieving task status: {str(e)}",
@@ -965,13 +1384,21 @@ def check_analysis_status(request, task_id):
                 break
 
             foreign_task_found = True
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             continue
 
     if task_info is None and foreign_task_found and not request.user.is_staff:
         return Response({"status": "error", "message": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
-    async_result = async_result_cls(task_id)
+    try:
+        from chess_mate.celery import app as celery_app  # type: ignore[import-not-found]
+    except ImportError:
+        async_result = async_result_cls(task_id)
+    else:
+        try:
+            async_result = async_result_cls(task_id, app=celery_app)
+        except TypeError:
+            async_result = async_result_cls(task_id)
     state = str(async_result.state or "PENDING").upper()
     if state == "PROGRESS":
         state = "IN_PROGRESS"
@@ -1000,13 +1427,21 @@ def check_batch_analysis_status(request, task_id):
                 break
 
             foreign_task_found = True
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             continue
 
     if task_info is None and foreign_task_found and not request.user.is_staff:
         return Response({"status": "error", "message": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
-    async_result = async_result_cls(task_id)
+    try:
+        from chess_mate.celery import app as celery_app  # type: ignore[import-not-found]
+    except ImportError:
+        async_result = async_result_cls(task_id)
+    else:
+        try:
+            async_result = async_result_cls(task_id, app=celery_app)
+        except TypeError:
+            async_result = async_result_cls(task_id)
     raw_state = str(async_result.state or "PENDING").upper()
     legacy_progress = _legacy_status_progress(task_id, task_info)
 
@@ -1036,11 +1471,56 @@ def check_batch_analysis_status(request, task_id):
     aggregate_metrics: Dict[str, Any] = {}
     if isinstance(result_payload.get("results"), dict):
         for game_id, game_result in result_payload["results"].items():
-            if isinstance(game_result, dict) and game_result.get("status") == "success":
+            result_status = ""
+            if isinstance(game_result, dict):
+                result_status = str(game_result.get("status", "")).strip().lower()
+
+            if isinstance(game_result, dict) and result_status in {"success", "completed", "ok"}:
                 completed_games.append({"game_id": int(game_id), **game_result})
             else:
                 payload = game_result if isinstance(game_result, dict) else {"message": str(game_result)}
                 failed_games.append({"game_id": int(game_id), **payload})
+
+    if completed_games:
+        aggregate_metrics = _build_batch_aggregate_metrics(completed_games)
+
+    report_id: Optional[int] = None
+    if frontend_state == "SUCCESS":
+        task_game_ids: List[int] = []
+        if isinstance(task_meta.get("game_ids"), list):
+            task_game_ids = _normalize_int_list(task_meta.get("game_ids", []))
+        elif task_info and isinstance(task_info.get("game_ids"), list):
+            task_game_ids = _normalize_int_list(task_info.get("game_ids", []))
+        else:
+            task_game_ids = _normalize_int_list(
+                [item.get("game_id") for item in completed_games if isinstance(item, dict) and item.get("game_id")]
+            )
+
+        try:
+            existing_report_id = (
+                BatchAnalysisReport.objects.filter(user=request.user, task_id=task_id)
+                .values_list("id", flat=True)
+                .first()
+            )
+            if existing_report_id:
+                report_id = int(existing_report_id)
+            else:
+                report = _persist_batch_report(
+                    user=request.user,
+                    task_id=task_id,
+                    game_ids=task_game_ids,
+                    completed_games=completed_games,
+                    failed_games=failed_games,
+                    aggregate_metrics=aggregate_metrics,
+                )
+                report_id = report.id  # type: ignore[attr-defined]
+        except OperationalError as exc:
+            if "database is locked" in str(exc).lower():
+                logger.warning("Batch report persistence deferred by SQLite lock for task %s", task_id)
+            else:
+                logger.exception("Failed to persist batch analysis report for task %s", task_id)
+        except DatabaseError:
+            logger.exception("Failed to persist batch analysis report for task %s", task_id)
 
     response_payload = {
         "state": frontend_state,
@@ -1054,12 +1534,48 @@ def check_batch_analysis_status(request, task_id):
         "completed_games": completed_games,
         "failed_games": failed_games,
         "aggregate_metrics": aggregate_metrics,
+        "report_id": report_id,
         # Backward-compatible legacy keys
         "status": "IN_PROGRESS" if frontend_state == "PROGRESS" else frontend_state,
         "progress": progress,
     }
 
     return Response(response_payload, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def list_batch_analysis_reports(request):
+    """Return recent persisted batch reports for the authenticated user."""
+    limit = 20
+    try:
+        raw_limit = request.query_params.get("limit")
+        if raw_limit:
+            limit = max(1, min(int(raw_limit), 100))
+    except (TypeError, ValueError):
+        limit = 20
+
+    reports = BatchAnalysisReport.objects.filter(user=request.user).order_by("-created_at")[:limit]
+    return Response(
+        {
+            "status": "success",
+            "count": len(reports),
+            "results": [_serialize_batch_report(report) for report in reports],
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_batch_analysis_report(request, report_id):
+    """Return a persisted batch report by id for the authenticated user."""
+    try:
+        report = BatchAnalysisReport.objects.get(id=report_id, user=request.user)
+    except BatchAnalysisReport.DoesNotExist:
+        return Response({"status": "error", "message": "Batch report not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({"status": "success", "report": _serialize_batch_report(report)}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -1106,8 +1622,8 @@ def batch_analyze_games(request):
             try:
                 game = Game.objects.get(id=game_id)
                 games.append(game)
-            except Game.DoesNotExist:
-                raise ResourceNotFoundError(f"Game not found: {game_id}")
+            except Game.DoesNotExist as exc:
+                raise ResourceNotFoundError(f"Game not found: {game_id}") from exc
 
             # Check permission
             if not request.user.is_staff and game.user.id != request.user.id:
@@ -1121,11 +1637,16 @@ def batch_analyze_games(request):
         compat_task_managers = _get_compat_task_managers()
 
         # Start batch analysis (legacy task alias expected by tests)
-        task = compat_batch_task.delay(game_ids, data.get("depth", 20), data.get("use_ai", True))
+        task = compat_batch_task.delay(
+            game_ids,
+            data.get("depth", 20),
+            data.get("use_ai", True),
+            request.user.id,
+        )
         for manager in compat_task_managers:
             try:
                 manager.register_batch_task(task.id, game_ids, request.user.id)
-            except Exception:
+            except (AttributeError, TypeError, ValueError):
                 continue
 
         # Deduct one credit per game for legacy behavior
@@ -1154,8 +1675,8 @@ def batch_analyze_games(request):
             status=status.HTTP_202_ACCEPTED,
         )
 
-    except Exception as e:
-        logger.error(f"Error starting batch game analysis: {str(e)}", exc_info=True)
+    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+        logger.error("Error starting batch game analysis: %s", str(e), exc_info=True)
         return create_error_response(
             error_type="external_service_error",
             message=f"Error starting batch game analysis: {str(e)}",
@@ -1215,8 +1736,8 @@ def batch_get_analysis_status(request):
                         "progress": 0,
                         "message": "Analysis not started yet or database inconsistency",
                     }
-            except Exception as e:
-                logger.warning(f"Error checking status for game {game_id}: {str(e)}")
+            except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+                logger.warning("Error checking status for game %s: %s", game_id, str(e))
                 # Return a safe default in case of errors
                 statuses[str(game_id)] = {
                     "status": "PENDING",
@@ -1237,8 +1758,8 @@ def batch_get_analysis_status(request):
         
     except ValidationError as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=400)
-    except Exception as e:
-        logger.error(f"Error checking batch analysis status: {str(e)}")
+    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+        logger.error("Error checking batch analysis status: %s", str(e))
         return JsonResponse({"status": "error", "message": f"Error: {str(e)}"}, status=500)
 
 
@@ -1265,17 +1786,21 @@ def search_external_player(request):
             raise ValidationError([{"field": "source", "message": "Invalid source. Must be 'chess.com' or 'lichess'"}])
 
         # Search player
+        service: Any
         if source == "chess.com":
             service = chess_com_service
         else:
             service = lichess_service
 
         # Get player details
-        player_info = service.get_player_info(username)
+        player_fetcher = getattr(service, "get_player_info", None)
+        if not callable(player_fetcher):
+            raise ValidationError([{"field": "source", "message": f"Player search is not supported for source: {source}"}])
+        player_info = player_fetcher(username)
 
         return JsonResponse({"status": "success", "player": player_info})
 
-    except Exception as e:
+    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         return handle_api_error(e, f"Error searching for player on {request.GET.get('source', 'external platform')}")
 
 
@@ -1309,15 +1834,38 @@ def get_game_analysis(request, game_id):
             analysis = GameAnalysis.objects.get(game_id=game_id)
 
             payload = analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
-            return Response({"analysis_data": payload, **payload}, status=status.HTTP_200_OK)
+            feedback_payload = analysis.feedback if isinstance(analysis.feedback, dict) else {}
+            response_payload = {
+                "analysis_data": payload,
+                **payload,
+                "feedback": feedback_payload,
+                "game_context": {
+                    "opening_name": game.opening_name,
+                    "white": game.white,
+                    "black": game.black,
+                    "result": game.result,
+                },
+            }
+            return Response(response_payload, status=status.HTTP_200_OK)
             
         except GameAnalysis.DoesNotExist:
             if game.analysis:
                 payload = game.analysis if isinstance(game.analysis, dict) else {}
-                return Response({"analysis_data": payload, **payload}, status=status.HTTP_200_OK)
+                response_payload = {
+                    "analysis_data": payload,
+                    **payload,
+                    "feedback": payload.get("feedback", {}),
+                    "game_context": {
+                        "opening_name": game.opening_name,
+                        "white": game.white,
+                        "black": game.black,
+                        "result": game.result,
+                    },
+                }
+                return Response(response_payload, status=status.HTTP_200_OK)
             return Response({"status": "not_found", "message": "No analysis found for this game"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Error retrieving game analysis: {str(e)}", exc_info=True)
+        except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+            logger.error("Error retrieving game analysis: %s", str(e), exc_info=True)
             # Return structured error for better frontend handling
             return Response({
                 "status": "error",
@@ -1325,5 +1873,5 @@ def get_game_analysis(request, game_id):
                 "error": str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    except Exception as e:
+    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         return handle_api_error(e, "Error retrieving game analysis")

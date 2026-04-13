@@ -1,6 +1,11 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
-import { analyzeBatchGames, checkBatchAnalysisStatus, fetchUserGames } from '../services/apiRequests';
+import {
+  analyzeBatchGames,
+  checkBatchAnalysisStatus,
+  fetchBatchReportHistory,
+  fetchUserGames
+} from '../services/apiRequests';
 import { useTheme } from '../context/ThemeContext';
 import { UserContext } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
@@ -8,16 +13,13 @@ import {
   BarChart2,
   AlertCircle,
   Clock,
-  CheckCircle,
-  Coins,
-  Filter,
-  RefreshCw
+  Coins
 } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 
 const BatchAnalysis = () => {
   const [numGames, setNumGames] = useState(10);
-  const [loading, setLoading] = useState(false);
+  const [selectedGameIds, setSelectedGameIds] = useState([]);
   const [progressPercent, setProgressPercent] = useState(0);
   const [currentProgress, setCurrentProgress] = useState(0);
   const [totalGames, setTotalGames] = useState(0);
@@ -28,16 +30,36 @@ const BatchAnalysis = () => {
   const [availableGames, setAvailableGames] = useState([]);
   const [selectedTimeControl, setSelectedTimeControl] = useState('all');
   const [includeAnalyzed, setIncludeAnalyzed] = useState(false);
+  const [reportHistory, setReportHistory] = useState([]);
   const { isDarkMode } = useTheme();
-  const { credits } = useContext(UserContext);
+  const userContext = useContext(UserContext);
+  const credits = userContext?.credits ?? 0;
+  void AlertCircle;
+  void Coins;
+  void credits;
   const navigate = useNavigate();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const pollingErrorCountRef = useRef(0);
+
+  const navigateReliably = useCallback((targetPath, options = {}) => {
+    navigate(targetPath, options);
+
+    // Router occasionally updates URL before rendering target route; force fallback.
+    window.setTimeout(() => {
+      if (window.location.pathname !== targetPath) {
+        window.location.assign(targetPath);
+      }
+    }, 250);
+  }, [navigate]);
 
   // Fetch available games when component mounts
   useEffect(() => {
     const fetchAvailableGames = async () => {
       try {
-        const games = await fetchUserGames();
+        const gamesResponse = await fetchUserGames();
+        const games = Array.isArray(gamesResponse)
+          ? gamesResponse
+          : (Array.isArray(gamesResponse?.results) ? gamesResponse.results : []);
         setAvailableGames(games);
       } catch (error) {
         console.error('Error fetching games:', error);
@@ -45,6 +67,19 @@ const BatchAnalysis = () => {
       }
     };
     fetchAvailableGames();
+  }, []);
+
+  useEffect(() => {
+    const loadReportHistory = async () => {
+      try {
+        const reports = await fetchBatchReportHistory(12);
+        setReportHistory(Array.isArray(reports) ? reports : []);
+      } catch (error) {
+        console.error('Error fetching batch report history:', error);
+      }
+    };
+
+    loadReportHistory();
   }, []);
 
   useEffect(() => {
@@ -57,6 +92,7 @@ const BatchAnalysis = () => {
       try {
         const response = await checkBatchAnalysisStatus(taskId);
         console.log('Status response:', response);
+        pollingErrorCountRef.current = 0;
 
         // Get the state and meta information
         const state = response?.state?.toUpperCase();
@@ -69,7 +105,10 @@ const BatchAnalysis = () => {
             setProgressPercent(100);
             if (toastId) toast.dismiss(toastId);
             toast.success('Analysis completed!');
-            navigate(`/batch-analysis/results/${taskId}`, {
+            const resultsPath = response?.report_id
+              ? `/batch-analysis/results/report/${response.report_id}`
+              : `/batch-analysis/results/${taskId}`;
+            navigateReliably(resultsPath, {
               replace: true,
               state: {
                 taskId,
@@ -132,11 +171,20 @@ const BatchAnalysis = () => {
         }
       } catch (error) {
         console.error('Error checking progress:', error);
-        setIsAnalyzing(false);
-        if (toastId) toast.dismiss(toastId);
-        toast.error('Error checking analysis progress');
-        clearInterval(intervalId);
-        return true;
+        pollingErrorCountRef.current += 1;
+        if (pollingErrorCountRef.current >= 3) {
+          setIsAnalyzing(false);
+          if (toastId) toast.dismiss(toastId);
+          toast.error('Error checking analysis progress');
+          clearInterval(intervalId);
+          return true;
+        }
+
+        if (pollingErrorCountRef.current === 1) {
+          toast('Temporary issue checking progress. Retrying...');
+        }
+
+        return false;
       }
     };
 
@@ -155,7 +203,7 @@ const BatchAnalysis = () => {
         toast.dismiss(toastId);
       }
     };
-  }, [isAnalyzing, taskId, navigate, totalGames]);
+  }, [isAnalyzing, taskId, navigate, navigateReliably, totalGames]);
 
   useEffect(() => {
     let timer;
@@ -177,12 +225,19 @@ const BatchAnalysis = () => {
   }, [startTime, isAnalyzing, currentProgress, totalGames]);
 
   const startBatchAnalysis = async () => {
-    if (!numGames) {
+    const hasManualSelection = selectedGameIds.length > 0;
+
+    if (!hasManualSelection && !numGames) {
       toast.error('Please enter the number of games to analyze');
       return;
     }
 
-    if (numGames > 50) {
+    if (hasManualSelection && selectedGameIds.length > 50) {
+      toast.error('Maximum number of games for batch analysis is 50');
+      return;
+    }
+
+    if (!hasManualSelection && numGames > 50) {
       toast.error('Maximum number of games for batch analysis is 50');
       return;
     }
@@ -193,12 +248,18 @@ const BatchAnalysis = () => {
       setCurrentProgress(0);
       setStartTime(Date.now());
 
-      const response = await analyzeBatchGames(numGames, selectedTimeControl, includeAnalyzed);
+      const response = await analyzeBatchGames(
+        numGames,
+        selectedTimeControl,
+        includeAnalyzed,
+        hasManualSelection ? selectedGameIds : []
+      );
 
       if (response?.task_id) {
         setTaskId(response.task_id);
-        setTotalGames(response.total_games || numGames);
-        setEstimatedTime(response.estimated_time || numGames * 2);
+        const totalRequested = hasManualSelection ? selectedGameIds.length : numGames;
+        setTotalGames(response.total_games || totalRequested);
+        setEstimatedTime(response.estimated_time || totalRequested * 2);
         toast.success('Analysis started! This may take a few minutes.');
       } else {
         throw new Error('No task ID received');
@@ -217,7 +278,9 @@ const BatchAnalysis = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const filteredGames = availableGames.filter(game => {
+  const normalizedAvailableGames = Array.isArray(availableGames) ? availableGames : [];
+
+  const filteredGames = normalizedAvailableGames.filter(game => {
     // Get time control category from the game's time control
     const getTimeControlCategory = (timeControl) => {
       if (!timeControl) return null;
@@ -260,12 +323,47 @@ const BatchAnalysis = () => {
     return true;
   });
 
+  const sortedFilteredGames = [...filteredGames].sort((a, b) => {
+    const aDate = new Date(a?.date_played || 0).getTime();
+    const bDate = new Date(b?.date_played || 0).getTime();
+    return bDate - aDate;
+  });
+
+  const toggleSelectedGame = (gameId) => {
+    setSelectedGameIds((prev) => {
+      if (prev.includes(gameId)) {
+        return prev.filter((id) => id !== gameId);
+      }
+      if (prev.length >= 50) {
+        toast.error('Maximum number of games for batch analysis is 50');
+        return prev;
+      }
+      return [...prev, gameId];
+    });
+  };
+
+  const selectRecentGames = (count) => {
+    const limit = Math.min(count, 50, sortedFilteredGames.length);
+    const ids = sortedFilteredGames.slice(0, limit).map((game) => game.id);
+    setSelectedGameIds(ids);
+    setNumGames(limit);
+  };
+
+  const clearManualSelection = () => {
+    setSelectedGameIds([]);
+  };
+
   // Update numGames if it's more than available games
   useEffect(() => {
     if (numGames > filteredGames.length) {
       setNumGames(filteredGames.length || 1);
     }
   }, [filteredGames.length, numGames]);
+
+  useEffect(() => {
+    const availableIds = new Set(filteredGames.map((game) => game.id));
+    setSelectedGameIds((prev) => prev.filter((id) => availableIds.has(id)));
+  }, [filteredGames]);
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -393,6 +491,134 @@ const BatchAnalysis = () => {
                 Include already analyzed games
               </span>
             </label>
+          </div>
+
+          {/* Selection Shortcuts */}
+          <div className="mt-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                Quick select recent:
+              </span>
+              {[10, 20, 30, 50].map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  onClick={() => selectRecentGames(count)}
+                  className={`px-3 py-1.5 text-sm rounded-md border ${
+                    isDarkMode
+                      ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Recent {count}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={clearManualSelection}
+                className={`px-3 py-1.5 text-sm rounded-md border ${
+                  isDarkMode
+                    ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Clear Selection
+              </button>
+            </div>
+          </div>
+
+          {/* Manual Selection List */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                Select imported games ({selectedGameIds.length} selected)
+              </h3>
+              <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                If none selected, we use Number of Games + filters
+              </span>
+            </div>
+            <div className={`max-h-64 overflow-y-auto rounded-md border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              {sortedFilteredGames.length === 0 ? (
+                <div className={`p-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  No games available for the current filters.
+                </div>
+              ) : (
+                sortedFilteredGames.map((game) => {
+                  const checked = selectedGameIds.includes(game.id);
+                  return (
+                    <label
+                      key={game.id}
+                      className={`flex items-center gap-3 px-3 py-2 cursor-pointer border-b last:border-b-0 ${
+                        isDarkMode ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-100 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleSelectedGame(game.id)}
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="min-w-0">
+                        <div className={`text-sm font-medium truncate ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                          {game.white || 'White'} vs {game.black || 'Black'}
+                        </div>
+                        <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {game.opening_name || 'Unknown Opening'} • {new Date(game.date_played).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Saved Reports */}
+          <div className="mt-8">
+            <h3 className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+              Saved Batch Reports
+            </h3>
+            <div className={`rounded-md border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              {reportHistory.length === 0 ? (
+                <div className={`p-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  No saved reports yet. Run a batch analysis to create your first report.
+                </div>
+              ) : (
+                reportHistory.map((report) => (
+                  <div
+                    key={report.id}
+                    className={`px-3 py-3 border-b last:border-b-0 ${
+                      isDarkMode ? 'border-gray-700' : 'border-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className={`text-sm font-medium truncate ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                          {report.games_count || 0} games analyzed
+                        </div>
+                        <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {report.coach_summary || 'Combined coaching report'}
+                        </div>
+                        <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                          {new Date(report.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigateReliably(`/batch-analysis/results/report/${report.id}`)}
+                        className={`px-3 py-1.5 text-sm rounded-md border ${
+                          isDarkMode
+                            ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        Open Report
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
 

@@ -160,6 +160,18 @@ class TaskManager:
 
         return candidates[0] if candidates else AsyncResult
 
+    def _build_async_result(self, task_id: str) -> Any:
+        """Create AsyncResult bound to the project Celery app when available."""
+        async_result_cls = self._resolve_async_result_cls()
+        try:
+            from chess_mate.celery import app as celery_app
+            return async_result_cls(task_id, app=celery_app)
+        except TypeError:
+            # Compatibility with mocks/legacy call signatures.
+            return async_result_cls(task_id)
+        except Exception:
+            return async_result_cls(task_id)
+
     def _prune_in_memory_tasks(self) -> int:
         """Prune oldest in-memory task entries when cache exceeds configured bounds."""
         overflow = len(self.tasks) - self.max_in_memory_tasks
@@ -568,8 +580,7 @@ class TaskManager:
 
         # Overlay latest Celery state for compatibility with tests and polling callers.
         try:
-            async_result_cls = self._resolve_async_result_cls()
-            async_result = async_result_cls(task_id)
+            async_result = self._build_async_result(task_id)
             state = async_result.state
             if state and state != task_info.get("status"):
                 task_info["status"] = state
@@ -610,7 +621,7 @@ class TaskManager:
         """
         try:
             # Try to revoke the Celery task
-            celery_task = AsyncResult(task_id)
+            celery_task = self._build_async_result(task_id)
             celery_task.revoke(terminate=True)
 
             # Update task status
@@ -782,8 +793,7 @@ class TaskManager:
             if validated_task_id:
                 try:
                     # Try to get status directly from Celery
-                    async_result_cls = self._resolve_async_result_cls()
-                    celery_task = async_result_cls(validated_task_id)
+                    celery_task = self._build_async_result(validated_task_id)
                     celery_status = celery_task.status
                     
                     # If Celery reports the task is done but we don't have info, create a default response
@@ -805,6 +815,9 @@ class TaskManager:
         status = task_info.get('status', 'PENDING')
         message = task_info.get('message', '')
         progress = task_info.get('progress', 0)
+
+        if str(status).upper() == TASK_STATUS_PENDING and (not message or message.lower() == 'task pending'):
+            message = "Task queued, waiting for worker availability"
         
         # Ensure progress is consistent with status
         if status == TASK_STATUS_SUCCESS and progress < 100:

@@ -73,7 +73,7 @@ class BaseAnalysisTask(Task):
 
 
 @shared_task(bind=True, name="chess_mate.core.tasks.analyze_game_task")
-def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True):
+def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_reanalyze=False):
     """
     Analyze a chess game in a background Celery task.
     
@@ -96,7 +96,7 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True):
     logger.info(f"[{task_id}] Analyze game task started for game {game_id}")
 
     # Legacy direct-call path used by older tests: run synchronously without Celery state wiring.
-    if task_id is None:
+    if not task_id:
         try:
             game = Game.objects.get(id=game_id)
             if "invalid_move" in (game.pgn or ""):
@@ -110,7 +110,12 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True):
                     "game_id": game_id,
                 }
 
-            analysis_model = GameAnalyzer().analyze_game(game=game, depth=depth, use_ai=use_ai)
+            analysis_model = GameAnalyzer().analyze_game(
+                game=game,
+                depth=depth,
+                use_ai=use_ai,
+                force_reanalyze=force_reanalyze,
+            )
 
             analysis_payload = analysis_model.analysis_data if isinstance(analysis_model.analysis_data, dict) else {}
             metrics = analysis_payload.get("metrics", {}) if isinstance(analysis_payload, dict) else {}
@@ -359,7 +364,8 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True):
             depth=depth, 
             use_ai=use_ai, 
             progress_callback=update_progress,
-            task_id=task_id
+            task_id=task_id,
+            force_reanalyze=force_reanalyze,
         )
         
         # Ensure we have valid results
@@ -505,7 +511,13 @@ def health_check_task() -> str:
     soft_time_limit=3600,  # 1 hour time limit
     time_limit=3900,  # 1 hour 5 minutes hard limit
 )
-def batch_analyze_games_task(self, game_ids: List[int], depth: int = 20, use_ai: bool = True) -> Dict[str, Any]:
+def batch_analyze_games_task(
+    self,
+    game_ids: List[int],
+    depth: int = 20,
+    use_ai: bool = True,
+    user_id: Optional[int] = None,
+) -> Dict[str, Any]:
     """
     Analyze multiple games in a batch.
 
@@ -540,11 +552,23 @@ def batch_analyze_games_task(self, game_ids: List[int], depth: int = 20, use_ai:
                 },
             )
 
-            # Launch subtask for each game
-            subtask = analyze_game_task.delay(game_id=game_id, depth=depth, use_ai=use_ai)
+            game = Game.objects.get(id=game_id)
+            if user_id is not None and int(game.user_id) != int(user_id):
+                raise ValidationError(f"User {user_id} does not own game {game_id}")
 
-            # Wait for result (in a real implementation, this would be more asynchronous)
-            subtask_result = subtask.get(timeout=1800)  # 30 minute timeout per game
+            analysis_model = GameAnalyzer().analyze_game(
+                game=game,
+                depth=depth,
+                use_ai=use_ai,
+                force_reanalyze=False,
+            )
+
+            subtask_result = {
+                "status": "success",
+                "message": "Analysis completed successfully",
+                "analysis_id": analysis_model.id,
+                "game_id": game_id,
+            }
 
             # Store result
             results["results"][game_id] = subtask_result

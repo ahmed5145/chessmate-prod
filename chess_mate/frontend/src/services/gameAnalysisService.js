@@ -54,17 +54,32 @@ export const normalizeAnalysisResponsePayload = (rawPayload) => {
     const unwrapped = payload.analysis_data && typeof payload.analysis_data === 'object'
         ? payload.analysis_data
         : payload;
+    const extractedFeedback =
+        (payload.feedback && typeof payload.feedback === 'object' ? payload.feedback : null) ||
+        (unwrapped.feedback && typeof unwrapped.feedback === 'object' ? unwrapped.feedback : null) ||
+        (payload.ai_feedback && typeof payload.ai_feedback === 'object' ? payload.ai_feedback : null) ||
+        {};
 
     const normalizedAnalysisResults = unwrapped.analysis_results || {
         summary: unwrapped.metrics || {},
         moves: unwrapped.moves || unwrapped.movesAnalysis || []
     };
 
+    const normalizedMetrics =
+        (unwrapped.metrics && typeof unwrapped.metrics.summary === 'object'
+            ? unwrapped.metrics.summary
+            : unwrapped.metrics) ||
+        normalizedAnalysisResults.summary ||
+        {};
+
     return {
         ...unwrapped,
         analysis_results: normalizedAnalysisResults,
-        metrics: unwrapped.metrics || normalizedAnalysisResults.summary || {},
-        moves: unwrapped.moves || unwrapped.movesAnalysis || normalizedAnalysisResults.moves || []
+        metrics: normalizedMetrics,
+        moves: unwrapped.moves || unwrapped.movesAnalysis || normalizedAnalysisResults.moves || [],
+        feedback: extractedFeedback,
+        ai_feedback: extractedFeedback,
+        game_context: payload.game_context || unwrapped.game_context || {}
     };
 };
 
@@ -380,7 +395,9 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
             console.log(`Analysis data received for game ${gameId}:`, response.data);
             const normalizedPayload = normalizeAnalysisResponsePayload(response.data);
 
-            const hasMetrics = !!normalizedPayload.metrics || !!normalizedPayload.analysis_results;
+            const hasMetrics =
+                (normalizedPayload.metrics && Object.keys(normalizedPayload.metrics).length > 0) ||
+                (normalizedPayload.analysis_results && Object.keys(normalizedPayload.analysis_results).length > 0);
             const hasMoves =
                 (Array.isArray(normalizedPayload.moves) && normalizedPayload.moves.length > 0) ||
                 (Array.isArray(normalizedPayload.movesAnalysis) && normalizedPayload.movesAnalysis.length > 0);

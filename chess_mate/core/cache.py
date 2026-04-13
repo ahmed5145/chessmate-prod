@@ -77,6 +77,15 @@ CACHE_DEBUG = getattr(settings, "CACHE_DEBUG", False)
 # Redis connection singleton
 _redis_client = None
 _ORIGINAL_GET_CACHE_INSTANCE: Optional[Callable[[str], BaseCache]] = None
+_warned_cache_aliases: set[str] = set()
+
+
+def _warn_missing_cache_alias_once(cache_alias: str, error: Exception) -> None:
+    """Avoid spamming logs when an optional cache alias is not configured."""
+    if cache_alias in _warned_cache_aliases:
+        return
+    _warned_cache_aliases.add(cache_alias)
+    logger.warning("Could not get cache '%s', falling back to default. Error: %s", cache_alias, str(error))
 
 
 def _resolve_patched_cache_symbol(symbol: str) -> Optional[Any]:
@@ -153,7 +162,7 @@ def get_cache_instance(cache_alias: str = "default") -> BaseCache:
         try:
             return caches.__getitem__(cache_alias)
         except Exception as e:
-            logger.warning(f"Could not get cache '{cache_alias}', falling back to default. Error: {str(e)}")
+            _warn_missing_cache_alias_once(cache_alias, e)
 
             # Keep legacy fallback behavior when cache access is explicitly mocked in tests.
             mocked_cache_lookup = isinstance(caches.__getitem__, unittest.mock.Mock)
@@ -178,7 +187,7 @@ def get_cache_instance(cache_alias: str = "default") -> BaseCache:
     try:
         return caches.__getitem__(cache_alias)
     except Exception as e:
-        logger.warning(f"Could not get cache '{cache_alias}', falling back to default. Error: {str(e)}")
+        _warn_missing_cache_alias_once(cache_alias, e)
         try:
             return caches.__getitem__("default")
         except Exception as e:

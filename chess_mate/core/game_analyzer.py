@@ -331,7 +331,7 @@ class GameAnalyzer:
             logger.error("Error generating OpenAI feedback: %s", str(e))
             return None
 
-    def analyze_game(self, game: Game, depth=20, use_ai=True, progress_callback=None, task_id=None):
+    def analyze_game(self, game: Game, depth=20, use_ai=True, progress_callback=None, task_id=None, force_reanalyze=False):
         """
         Analyze a chess game and save the results.
         
@@ -372,8 +372,11 @@ class GameAnalyzer:
                 logger.info(f"Found existing analysis for game {game.id}")
                 
                 # Check if analysis is complete by looking at analysis_data
-                if (existing_analysis.analysis_data.get('status') == 'complete' and 
-                    existing_analysis.moves):
+                if (
+                    not force_reanalyze
+                    and existing_analysis.analysis_data.get('status') == 'complete'
+                    and existing_analysis.moves
+                ):
                     if progress_callback:
                         progress_callback(100, "Using existing analysis")
                     # Update task if we have one
@@ -541,9 +544,11 @@ class GameAnalyzer:
             analysis_data['status'] = 'complete'
             analysis_data['completed_at'] = timezone.now().isoformat()
             analysis_data['engine_version'] = self.engine.get_engine_version()
+            if isinstance(feedback, dict):
+                analysis_data['feedback'] = feedback
             
             analysis_result.analysis_data = analysis_data
-            analysis_result.feedback = feedback.get('feedback', '') if isinstance(feedback, dict) else str(feedback)
+            analysis_result.feedback = feedback if isinstance(feedback, dict) else {"raw_feedback": str(feedback)}
             
             # Save moves separately using moves property
             analysis_result.analysis_data['moves'] = analyzed_moves

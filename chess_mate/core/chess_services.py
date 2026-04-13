@@ -243,6 +243,8 @@ class ChessComService:
                         if eco_match:
                             eco_code = eco_match.group(1)
                         opening_name = get_opening_name(eco_code) if eco_code else "Unknown Opening"
+                        if opening_name == "Unknown Opening":
+                            opening_name = pgn_info.get("opening", "Unknown Opening")
 
                         # Format game data
                         formatted_game = {

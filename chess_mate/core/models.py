@@ -851,6 +851,35 @@ class GameAnalysis(models.Model):
         return f"Analysis for Game {self.game_id} - Created: {self.created_at.strftime('%Y-%m-%d')}"
 
 
+class BatchAnalysisReport(models.Model):
+    """Persisted combined report for a completed batch analysis task."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="batch_analysis_reports")
+    task_id = models.CharField(max_length=255, db_index=True)
+    game_ids = models.JSONField(default=list, blank=True)
+    games_count = models.IntegerField(default=0)
+    completed_games = models.JSONField(default=list, blank=True)
+    failed_games = models.JSONField(default=list, blank=True)
+    aggregate_metrics = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Batch Analysis Report"
+        verbose_name_plural = "Batch Analysis Reports"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["task_id"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "task_id"], name="unique_user_batch_report_task"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Batch report {self.id} for {self.user.username} ({self.games_count} games)"
+
+
 class AnalysisCache(models.Model):
     """Model to track cache usage and implement eviction policies."""
 

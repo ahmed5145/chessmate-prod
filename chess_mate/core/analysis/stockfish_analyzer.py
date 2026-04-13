@@ -845,9 +845,30 @@ class StockfishAnalyzer:
             if total_moves == 0:
                 return []
             
+            # Track per-side clock to estimate move spend when PGN clock tags are present.
+            previous_clock_by_color = {True: None, False: None}
+            node = game
+
             # Loop through the game and analyze each position
             for i, move in enumerate(moves_list):
                 is_white = board.turn
+
+                node = node.variation(0)
+                move_clock = None
+                try:
+                    move_clock = node.clock()
+                except Exception:
+                    move_clock = None
+
+                previous_clock = previous_clock_by_color.get(is_white)
+                time_spent = None
+                if isinstance(previous_clock, (int, float)) and isinstance(move_clock, (int, float)):
+                    # Guard against malformed PGN clock jumps.
+                    estimated_spent = float(previous_clock) - float(move_clock)
+                    if estimated_spent >= 0:
+                        time_spent = estimated_spent
+                if isinstance(move_clock, (int, float)):
+                    previous_clock_by_color[is_white] = float(move_clock)
                 
                 # Call progress callback if provided
                 if callback:
@@ -876,6 +897,14 @@ class StockfishAnalyzer:
                 
                 # Classify move with best-move and mate-aware context.
                 best_move = position_before.get("pv", [])[0] if position_before.get("pv") else None
+                best_move_san = None
+                if best_move:
+                    try:
+                        best_move_obj = chess.Move.from_uci(best_move)
+                        if best_move_obj in board.legal_moves:
+                            best_move_san = board.san(best_move_obj)
+                    except Exception:
+                        best_move_san = None
                 classification = self._classify_move(
                     eval_change,
                     eval_before=eval_before,
@@ -895,9 +924,13 @@ class StockfishAnalyzer:
                     'eval_change': eval_change,
                     'classification': classification,
                     'best_move': best_move,
+                    'best_move_san': best_move_san,
+                    'is_best': bool(best_move and move.uci() == best_move),
+                    'is_critical': abs(float(eval_change)) >= 1.0,
                     'best_line': position_before.get("pv", [])[:5] if position_before.get("pv") else [],
                     'position': position_before.get("fen", board.fen()),
-                    'time': 0,  # Placeholder for actual time data
+                    'time': time_spent,
+                    'time_spent': time_spent,
                 }
                 
                 analyzed_moves.append(analyzed_move)
@@ -943,6 +976,8 @@ class StockfishAnalyzer:
         # If the played move matches engine best move and does not worsen sharply,
         # avoid classifying it as neutral.
         if played_move and best_move and played_move == best_move and eval_change_cp >= -50:
+            if eval_change_cp >= -20:
+                return "best"
             if in_mate_band_after and (not in_mate_band_before or raw_change > 0):
                 return "excellent_move"
             if eval_change_cp >= 100:

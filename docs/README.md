@@ -8,6 +8,7 @@ This directory contains documentation for the ChessMate application.
 - [Architecture](ARCHITECTURE.md) - Overview of the application architecture
 - [API Reference](API.md) - API documentation
 - [Installation](INSTALLATION.md) - Installation instructions
+- [Product Planning](product/README.md) - Product requirements, MVP scope, roadmap, and batch-flow design
 
 ## Security and Operations
 

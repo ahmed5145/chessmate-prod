@@ -52,7 +52,7 @@ const PhaseAnalysis = ({ phase, data, isDarkMode, isUnavailable }) => (
 );
 
 const getClassificationBadgeClass = (classification, isDarkMode) => {
-    const value = String(classification || 'neutral').toLowerCase();
+    const value = String(classification || 'neutral').toLowerCase().replace(/_/g, ' ');
 
     if (value === 'brilliant') {
         return isDarkMode ? 'bg-cyan-900 text-cyan-300' : 'bg-cyan-100 text-cyan-700';
@@ -77,6 +77,20 @@ const getClassificationBadgeClass = (classification, isDarkMode) => {
     return isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700';
 };
 
+const formatClassificationLabel = (classification) => {
+    const normalized = String(classification || 'neutral').toLowerCase().replace(/_/g, ' ');
+    if (normalized === 'good move') {
+        return 'Good';
+    }
+    if (normalized === 'excellent move') {
+        return 'Excellent';
+    }
+    if (normalized === 'best move') {
+        return 'Best';
+    }
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
 const normalizeMove = (move) => {
     const rawDelta =
         move.eval_change ??
@@ -88,6 +102,8 @@ const normalizeMove = (move) => {
     return {
         moveNumber: move.move_number || 0,
         san: move.san || move.move || '-',
+        bestMove: move.best_move_san || move.best_move || move.bestMove || '-',
+        isBest: Boolean(move.is_best || move.isBest),
         classification: move.classification || 'neutral',
         evalDelta: Number.isFinite(Number(rawDelta)) ? Number(rawDelta) : 0
     };
@@ -118,6 +134,24 @@ const pickAccuracy = (overallAccuracy, moveQualityAccuracy, ...fallbacks) => {
     return pickNumber(overallAccuracy, moveQualityAccuracy, ...fallbacks);
 };
 
+const pickMeaningfulNumber = (...values) => {
+    let firstFinite = 0;
+    let hasFirstFinite = false;
+    for (const value of values) {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) {
+            if (!hasFirstFinite) {
+                firstFinite = parsed;
+                hasFirstFinite = true;
+            }
+            if (parsed > 0) {
+                return parsed;
+            }
+        }
+    }
+    return hasFirstFinite ? firstFinite : 0;
+};
+
 const GameAnalysisResults = ({ analysisData, analysis }) => {
     const { isDarkMode } = useTheme();
     const resolvedAnalysisData = analysisData || analysis;
@@ -136,7 +170,11 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
     const analysisResults = resolvedAnalysisData.analysis_results || {};
     const metrics = resolvedAnalysisData.metrics || {};
     const hasMetrics = metrics && Object.keys(metrics).length > 0;
-    const summary = hasMetrics ? metrics : (analysisResults.summary || analysisResults || {});
+    const metricsSummary =
+        metrics && typeof metrics.summary === 'object'
+            ? metrics.summary
+            : metrics;
+    const summary = hasMetrics ? metricsSummary : (analysisResults.summary || analysisResults || {});
     const feedback = resolvedAnalysisData.feedback || resolvedAnalysisData.ai_feedback || {};
     const rawMoves =
         resolvedAnalysisData.moves ||
@@ -150,7 +188,13 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
     const moveQuality = summary.move_quality || metrics.move_quality || analysisResults.move_quality || {};
     const phases = summary.phases || metrics.phases || analysisResults.phases || {};
     const timeManagement = summary.time_management || analysisResults.time_management || {};
-    const isAnalysisUnavailable = summary.data_status === 'unavailable' || feedback.data_status === 'unavailable';
+    const hasSummaryContent =
+        Object.keys(overall).length > 0 ||
+        Object.keys(phases).length > 0 ||
+        moves.length > 0;
+    const hasUsefulFeedback =
+        Array.isArray(feedback.strengths) ? feedback.strengths.length > 0 : false;
+    const isAnalysisUnavailable = summary.data_status === 'unavailable' && !hasSummaryContent && !hasUsefulFeedback;
     const hasMoveTimeData = rawMoves.some((move) => {
         const candidate = move.time_spent ?? move.time ?? move.clock;
         const parsed = Number(candidate);
@@ -184,9 +228,8 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
         mistakes: isAnalysisUnavailable ? 'N/A' : formatNumber(
             pickNumber(
                 overall.mistakes,
-                moveQuality.mistakes,
                 overall.total_mistakes,
-                pickNumber(overall.blunders, 0) + pickNumber(overall.inaccuracies, 0)
+                pickNumber(overall.blunders, 0) + pickNumber(overall.mistakes, 0)
             )
         ),
         timeManagement: isAnalysisUnavailable ? 'N/A' : formatNumber(
@@ -314,6 +357,7 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
                                 <tr className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
                                     <th className="text-left py-2 pr-4">Move</th>
                                     <th className="text-left py-2 pr-4">Played</th>
+                                    <th className="text-left py-2 pr-4">Best Move</th>
                                     <th className="text-left py-2 pr-4">Classification</th>
                                     <th className="text-right py-2">Eval Delta</th>
                                 </tr>
@@ -324,8 +368,16 @@ const GameAnalysisResults = ({ analysisData, analysis }) => {
                                         <td className="py-2 pr-4">{move.moveNumber}</td>
                                         <td className="py-2 pr-4 font-medium">{move.san}</td>
                                         <td className="py-2 pr-4">
+                                            {move.bestMove}
+                                            {move.isBest && (
+                                                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${isDarkMode ? 'bg-emerald-900 text-emerald-300' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                    played
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="py-2 pr-4">
                                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getClassificationBadgeClass(move.classification, isDarkMode)}`}>
-                                                {move.classification}
+                                                {formatClassificationLabel(move.classification)}
                                             </span>
                                         </td>
                                         <td className="py-2 text-right">{move.evalDelta.toFixed(2)}</td>

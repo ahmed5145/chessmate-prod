@@ -100,6 +100,14 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/batch-analysis/results/report/:reportId"
+        element={
+          <ProtectedRoute>
+            <BatchAnalysisResults />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/fetch-games"
         element={
           <ProtectedRoute>

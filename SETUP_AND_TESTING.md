@@ -36,7 +36,19 @@ The ChessMate project consists of the following main components:
    - On Windows: Run `install_redis.bat`
    - On Linux/Mac: Install Redis and ensure it's running
 
-6. Set up environment variables by copying `.env.example` to `.env.local` and updating values
+6. Set up environment variables by copying `.env.example` to `.env.local` and updating values.
+   - For OpenAI features, create a key in the OpenAI dashboard, then add it as `OPENAI_API_KEY` in the env file that your startup path actually loads.
+   - Typical local options in this repo are `chess_mate/.env.local`, repo-level `.env`, or `.env.development`.
+   - Restart the Django server and any Celery workers after changing the value.
+   - If you are rotating keys, revoke the old key only after you confirm the new one is working.
+
+OpenAI key creation steps:
+
+1. Sign in to the OpenAI platform.
+2. Open the API keys page.
+3. Create a new secret key.
+4. Copy it once and store it in your chosen env file or secret manager.
+5. Verify the app loads it by restarting the process and checking the AI feedback path.
 
 7. Initialize the database:
    ```bash

@@ -637,6 +637,8 @@ class MetricsCalculator:
                     "mistakes": 0,
                     "blunders": 0,
                     "critical_moves": 0,
+                    "opportunities": 0,
+                    "best_moves": 0,
                 }
 
             # Initialize metrics
@@ -652,6 +654,8 @@ class MetricsCalculator:
             blunders_count = 0
             inaccuracies_count = 0
             critical_moves = 0
+            opportunities = 0
+            best_moves = 0
 
             for move in moves:
                 classification = MetricsCalculator._normalized_classification(move)
@@ -665,6 +669,11 @@ class MetricsCalculator:
                 eval_drop = float(move.get("evaluation_drop", max(0.0, -float(move.get("eval_change", 0.0)))))
                 if bool(move.get("is_critical", False)) or eval_drop >= 100.0:
                     critical_moves += 1
+                    opportunities += 1
+
+                is_best_move = bool(move.get("is_best", False)) or classification in {"good", "excellent"}
+                if is_best_move:
+                    best_moves += 1
 
             # First pass: identify tactical positions
             tactical_positions: List[TacticalPosition] = []
@@ -740,6 +749,8 @@ class MetricsCalculator:
                 "mistakes": mistakes_count,
                 "blunders": blunders_count,
                 "critical_moves": critical_moves,
+                "opportunities": opportunities,
+                "best_moves": best_moves,
             }
 
         except Exception as e:
@@ -755,6 +766,8 @@ class MetricsCalculator:
                 "mistakes": 0,
                 "blunders": 0,
                 "critical_moves": 0,
+                "opportunities": 0,
+                "best_moves": 0,
             }
 
     @staticmethod
