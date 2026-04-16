@@ -1,9 +1,4 @@
-import axios from 'axios';
 import api from './api';
-import { API_URL } from '../config';
-
-const API_BASE_URL = API_URL;
-const CACHE_TTL = 3600 * 1000; // 1 hour in milliseconds
 const ANALYSIS_START_DEDUP_WINDOW_MS = 15000;
 const inFlightAnalysisStarts = new Map();
 const recentAnalysisStarts = new Map();
@@ -83,58 +78,6 @@ export const normalizeAnalysisResponsePayload = (rawPayload) => {
     };
 };
 
-// Initialize IndexedDB
-const initDB = () => {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open('chessmate', 1);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-
-        request.onupgradeneeded = (event) => {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains('analysis')) {
-                db.createObjectStore('analysis', { keyPath: 'gameId' });
-            }
-        };
-    });
-};
-
-// Cache analysis in IndexedDB
-const cacheAnalysis = async (gameId, data) => {
-    try {
-        const db = await initDB();
-        const tx = db.transaction('analysis', 'readwrite');
-        const store = tx.objectStore('analysis');
-
-        await store.put({
-            gameId,
-            data,
-            timestamp: Date.now()
-        });
-    } catch (error) {
-        console.error('Error caching analysis:', error);
-    }
-};
-
-// Get cached analysis from IndexedDB
-const getCachedAnalysis = async (gameId) => {
-    try {
-        const db = await initDB();
-        const tx = db.transaction('analysis', 'readonly');
-        const store = tx.objectStore('analysis');
-        const result = await store.get(gameId);
-
-        if (result && (Date.now() - result.timestamp) < CACHE_TTL) {
-            return result.data;
-        }
-        return null;
-    } catch (error) {
-        console.error('Error getting cached analysis:', error);
-        return null;
-    }
-};
-
 export const analyzeSpecificGame = async (gameId) => {
     const numericGameId = Number(gameId);
     const dedupKey = Number.isFinite(numericGameId) ? String(numericGameId) : String(gameId);
@@ -173,7 +116,7 @@ export const analyzeSpecificGame = async (gameId) => {
         } catch (error) {
             console.error('Error starting analysis:', error);
             if (error.response?.status === 401) {
-                throw { auth_error: true, message: 'Authentication required' };
+                throw new Error('Authentication required');
             }
             throw error.response?.data?.error || error.message || 'Failed to start analysis';
         } finally {
@@ -503,75 +446,6 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
     return requestPromise;
 };
 
-// Helper function to normalize metrics data
-const normalizeMetrics = (metrics) => {
-    const defaultMetrics = {
-        overall: {},
-        move_quality: {},
-        time_management: {},
-        consistency: {},
-        phases: {
-            opening: {},
-            middlegame: {},
-            endgame: {}
-        },
-        tactics: {},
-        advantage: {},
-        resourcefulness: {},
-        metadata: {
-            is_white: true,
-            total_moves: 0,
-            opening_length: 0,
-            middlegame_length: 0,
-            endgame_length: 0
-        }
-    };
-
-    // Ensure all required sections exist
-    const normalizedMetrics = {
-        ...defaultMetrics,
-        ...metrics
-    };
-
-    // Ensure all numeric values are numbers
-    Object.keys(normalizedMetrics).forEach(section => {
-        if (typeof normalizedMetrics[section] === 'object') {
-            Object.keys(normalizedMetrics[section]).forEach(key => {
-                const value = normalizedMetrics[section][key];
-                if (typeof value === 'string' && !isNaN(value)) {
-                    normalizedMetrics[section][key] = parseFloat(value);
-                }
-            });
-        }
-    });
-
-    return normalizedMetrics;
-};
-
-// Helper function to normalize moves data
-const normalizeMoves = (moves) => {
-    return moves.map(move => ({
-        move_number: parseInt(move.move_number) || 0,
-        move: move.move || '',
-        san: move.san || '',
-        is_white: Boolean(move.is_white),
-        evaluation: parseFloat(move.evaluation) || 0,
-        classification: move.classification || 'neutral',
-        position_metrics: move.position_metrics || {}
-    }));
-};
-
-// Helper function to normalize positions data
-const normalizePositions = (positions) => {
-    return positions.map(position => ({
-        move_number: parseInt(position.move_number) || 0,
-        fen: position.fen || '',
-        score: parseFloat(position.score) || 0,
-        best_move: position.best_move || null,
-        position_metrics: position.position_metrics || {}
-    }));
-};
-
 export const fetchBatchAnalysis = async (taskId) => {
     try {
         if (!taskId) {
@@ -758,7 +632,7 @@ export const restartAnalysis = async (gameId) => {
     } catch (error) {
         console.error('Error restarting analysis:', error);
         if (error.response?.status === 401) {
-            throw { auth_error: true, message: 'Authentication required' };
+            throw new Error('Authentication required');
         }
         throw error.response?.data?.error || error.message || 'Failed to restart analysis';
     }

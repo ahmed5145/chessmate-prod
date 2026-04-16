@@ -1,16 +1,11 @@
 import api from './api';
-import { toast } from 'react-hot-toast';
-import { refreshTokens, getAccessToken, getRefreshToken, setTokens, clearTokens } from './authService';
+import { setTokens, clearTokens } from './authService';
 import {
     analyzeSpecificGame as analyzeSpecificGameService,
     checkAnalysisStatus as checkAnalysisStatusService,
     fetchGameAnalysis as fetchGameAnalysisService,
     checkMultipleAnalysisStatuses as checkMultipleAnalysisStatusesService,
 } from './gameAnalysisService';
-import { API_URL } from '../config';
-
-// Define API base URL
-const API_BASE_URL = API_URL;
 
 // Authentication functions
 export const loginUser = async (email, password) => {
@@ -298,23 +293,6 @@ export const fetchExternalGames = async (platform, username, gameType, numGames 
 // Game analysis functions
 export const analyzeSpecificGame = async (gameId) => {
     return analyzeSpecificGameService(gameId);
-};
-
-// Constants for analysis status
-const ANALYSIS_STATUS = {
-    PENDING: 'PENDING',
-    IN_PROGRESS: 'IN_PROGRESS',
-    PROCESSING: 'PROCESSING',
-    COMPLETED: 'COMPLETED',
-    SUCCESS: 'SUCCESS',
-    FAILED: 'FAILED',
-    FAILURE: 'FAILURE',
-    ERROR: 'ERROR',
-    TIMEOUT: 'TIMEOUT'
-};
-
-const isValidStatus = (status) => {
-    return Object.values(ANALYSIS_STATUS).includes(status?.toUpperCase());
 };
 
 export const checkAnalysisStatus = async (gameId) => {
@@ -644,74 +622,6 @@ export const fetchGameFeedback = async (gameId) => {
     throw error;
   }
 };
-
-// Handle authentication errors without redirecting
-const handleAuthError = (error) => {
-    console.error('Auth error in API request:', error);
-    
-    // Return a standardized error response
-    return {
-        status: 'error',
-        error: 'auth_error',
-        message: 'Authentication required. Please login to continue.',
-        code: error.response?.status || 401
-    };
-};
-
-// General API error handler with improved consistency
-const handleApiError = (error, customMessage = null) => {
-    // Network errors
-    if (error.message === 'Network Error' || !error.response) {
-        return {
-            status: 'error',
-            error: 'network_error',
-            message: 'Network connection issue. Please check your internet connection.',
-            code: 0
-        };
-    }
-    
-    // Authentication errors
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-        return handleAuthError(error);
-    }
-    
-    // Server errors
-    if (error.response && error.response.status >= 500) {
-        return {
-            status: 'error',
-            error: 'server_error',
-            message: customMessage || 'Server error. Please try again later.',
-            code: error.response.status
-        };
-    }
-    
-    // Other HTTP errors
-    if (error.response) {
-        const message = error.response.data?.message || 
-                      error.response.data?.detail || 
-                      error.response.data?.error ||
-                      customMessage ||
-                      'Request failed. Please try again.';
-        
-        return {
-            status: 'error',
-            error: 'request_error',
-            message: message,
-            code: error.response.status,
-            details: error.response.data
-        };
-    }
-    
-    // Generic error
-    return {
-        status: 'error',
-        error: 'unknown_error',
-        message: customMessage || error.message || 'An unexpected error occurred.',
-        code: 0
-    };
-};
-
-// Find the checkMultipleAnalysisStatuses function and replace it with this
 
 export async function checkMultipleAnalysisStatuses(gameIds) {
     return checkMultipleAnalysisStatusesService(gameIds);

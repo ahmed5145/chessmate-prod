@@ -93,12 +93,10 @@ describe('Games Component', () => {
   test('renders games list', async () => {
     renderWithProviders();
 
-    await waitFor(() => {
-      expect(screen.getByText(/opponent1/i)).toBeInTheDocument();
-      expect(screen.getByText(/opponent2/i)).toBeInTheDocument();
-      expect(screen.getByText(/Sicilian Defense/i)).toBeInTheDocument();
-      expect(screen.getByText(/Queens Gambit/i)).toBeInTheDocument();
-    });
+    await screen.findByText(/opponent1/i);
+    expect(screen.getByText(/opponent2/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sicilian Defense/i)).toBeInTheDocument();
+    expect(screen.getByText(/Queens Gambit/i)).toBeInTheDocument();
   });
 
   test('renders filter controls', async () => {
@@ -114,13 +112,9 @@ describe('Games Component', () => {
 
     renderWithProviders();
 
-    await waitFor(() => {
-      // toast.error will be called with either the error message directly or wrapped
-      // Check that it was called and the call includes the failure message
-      expect(toast.error).toHaveBeenCalled();
-      const callArgs = toast.error.mock.calls[0]?.[0] || '';
-      expect(callArgs).toMatch(/Failed to fetch games|fetch/i);
-    });
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    const callArgs = toast.error.mock.calls[0]?.[0] || '';
+    expect(callArgs).toMatch(/Failed to fetch games|fetch/i);
   });
 
   test('displays loading state', () => {
@@ -134,10 +128,8 @@ describe('Games Component', () => {
   test('handles analyze game click', async () => {
     renderWithProviders();
 
-    await waitFor(() => {
-      const analyzeButtons = screen.getAllByRole('button', { name: /analyze/i });
-      fireEvent.click(analyzeButtons[0]);
-      expect(mockNavigate).toHaveBeenCalledWith('/game/2/analysis');
-    });
+    const analyzeButtons = await screen.findAllByRole('button', { name: /analyze/i });
+    fireEvent.click(analyzeButtons[0]);
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/game/2/analysis'));
   });
 });

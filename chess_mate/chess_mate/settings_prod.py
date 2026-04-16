@@ -216,7 +216,7 @@ CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access
 CSRF_USE_SESSIONS = False  # Use cookie-based CSRF
 CSRF_COOKIE_NAME = "csrftoken"
 CSRF_HEADER_NAME = "HTTP_X_CSRFTOKEN"
-CSRF_COOKIE_AGE = None  # Session length
+CSRF_COOKIE_AGE: int | None = None  # Session length
 CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
 
 # Static and Media Files

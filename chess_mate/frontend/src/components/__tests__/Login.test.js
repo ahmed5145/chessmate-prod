@@ -65,12 +65,10 @@ describe('Login Component', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    await waitFor(() => {
-      expect(loginUser).toHaveBeenCalledWith('test@example.com', 'testpass');
-      expect(mockSetUser).toHaveBeenCalledWith({ id: 1, email: 'test@example.com' });
-      expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
-      expect(toast.success).toHaveBeenCalledWith('Login successful!');
-    });
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'));
+    expect(loginUser).toHaveBeenCalledWith('test@example.com', 'testpass');
+    expect(mockSetUser).toHaveBeenCalledWith({ id: 1, email: 'test@example.com' });
+    expect(toast.success).toHaveBeenCalledWith('Login successful!');
   });
 
   test('handles login failure', async () => {
@@ -86,9 +84,7 @@ describe('Login Component', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Invalid credentials');
-      expect(mockNavigate).not.toHaveBeenCalled();
-    });
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Invalid credentials'));
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

@@ -134,24 +134,6 @@ const pickAccuracy = (overallAccuracy, moveQualityAccuracy, ...fallbacks) => {
     return pickNumber(overallAccuracy, moveQualityAccuracy, ...fallbacks);
 };
 
-const pickMeaningfulNumber = (...values) => {
-    let firstFinite = 0;
-    let hasFirstFinite = false;
-    for (const value of values) {
-        const parsed = Number(value);
-        if (Number.isFinite(parsed)) {
-            if (!hasFirstFinite) {
-                firstFinite = parsed;
-                hasFirstFinite = true;
-            }
-            if (parsed > 0) {
-                return parsed;
-            }
-        }
-    }
-    return hasFirstFinite ? firstFinite : 0;
-};
-
 const GameAnalysisResults = ({ analysisData, analysis }) => {
     const { isDarkMode } = useTheme();
     const resolvedAnalysisData = analysisData || analysis;

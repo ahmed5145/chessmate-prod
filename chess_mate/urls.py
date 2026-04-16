@@ -10,8 +10,6 @@ from django.contrib import admin  # type: ignore
 from django.urls import include, path  # type: ignore
 from django.views.generic import RedirectView
 from django.http import JsonResponse, HttpRequest
-from rest_framework.response import Response
-from typing import Any, Callable
 
 # Import directly from the package-qualified core module with appropriate error handling
 try:
@@ -21,10 +19,10 @@ try:
 except ImportError:
     # For testing purposes, define stub views if the real ones aren't available
     # Use explicit typing to avoid incompatible redefinition errors
-    def health_check_view(request: HttpRequest) -> JsonResponse:  # type: ignore
+    def health_check_view(_request: HttpRequest) -> JsonResponse:  # type: ignore
         return JsonResponse({"status": "ok"})
     
-    def readiness_check_view(request: HttpRequest) -> JsonResponse:  # type: ignore
+        def readiness_check_view(_request: HttpRequest) -> JsonResponse:  # type: ignore
         return JsonResponse({"status": "ready"})
 
 urlpatterns = [

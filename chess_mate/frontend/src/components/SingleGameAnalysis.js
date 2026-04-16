@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
 import {
   analyzeSpecificGame,
   checkAnalysisStatus,
@@ -11,18 +10,14 @@ import {
   shouldPollStatus,
 } from '../services/gameAnalysisService';
 import GameAnalysisResults from './GameAnalysisResults';
-import LoadingSpinner from './LoadingSpinner';
 import './SingleGameAnalysis.css';
 import { useTheme } from '../context/ThemeContext';
-import { FaChess, FaInfoCircle, FaSpinner, FaExclamationTriangle, FaClock, FaCheckCircle } from 'react-icons/fa';
-import { checkAuthStatus } from '../services/authService';
+import { FaInfoCircle, FaSpinner, FaExclamationTriangle, FaClock, FaCheckCircle } from 'react-icons/fa';
 import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import { Info, CheckCircle } from 'lucide-react';
 
 // Format time in MM:SS format
 const formatTime = (seconds) => {
@@ -280,8 +275,7 @@ const SingleGameAnalysis = () => {
   const [progressStatus, setProgressStatus] = useState('starting'); // starting, analyzing, complete
   const [pollingFailed, setPollingFailed] = useState(false);
   const [analysisStartTime, setAnalysisStartTime] = useState(Date.now());
-  const [statusCheckCount, setStatusCheckCount] = useState(0);
-  const [isCeleryRunning, setIsCeleryRunning] = useState(true);
+  const isCeleryRunning = true;
   const [elapsedTime, setElapsedTime] = useState(0);
   const [statusMessage, setStatusMessage] = useState("Initializing analysis...");
   const [overdueMessage, setOverdueMessage] = useState(null);
@@ -725,6 +719,7 @@ const SingleGameAnalysis = () => {
     return () => {
       clearAllIntervals();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
   // If auth error, redirect to login
@@ -819,6 +814,8 @@ const SingleGameAnalysis = () => {
               <h3 className="font-semibold">{statusMessage}</h3>
             </div>
             <div className={`ml-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p>Current step: {loadingMessage}</p>
+              <p>Progress state: {progressStatus}</p>
               <p>Time elapsed: {formatTime(elapsedTime)}</p>
               {overdueMessage && (
                 <div className={`mt-4 p-3 rounded-md ${

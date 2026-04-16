@@ -2,20 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Filter, Search, ChevronLeft, ChevronRight, Swords, CheckCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { checkAnalysisStatus, fetchGameAnalysis, fetchUserGames } from '../services/apiRequests';
+import { fetchUserGames } from '../services/apiRequests';
 import { checkMultipleAnalysisStatuses, analyzeSpecificGame, shouldPollStatus } from '../services/gameAnalysisService';
 import { useTheme } from '../context/ThemeContext';
-import { Box, CircularProgress, Typography, Card, CardContent, Grid } from '@mui/material';
-import { formatDate } from '../utils/dateUtils';
+import { Box, CircularProgress } from '@mui/material';
 import { checkAuthStatus } from '../services/authService';
 
 const Games = () => {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [analysisStatus, setAnalysisStatus] = useState({});
-  const [selectedGame, setSelectedGame] = useState(null);
-  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const analysisStatusRef = useRef({});
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
   const [filters, setFilters] = useState({
@@ -25,7 +21,7 @@ const Games = () => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [gamesPerPage] = useState(10);
-  const { isDarkMode, isAuthenticated } = useTheme();
+  const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
   // Filter and sort games
@@ -144,10 +140,10 @@ const Games = () => {
         Object.entries(statuses).forEach(([gameId, status]) => {
           const parsedGameId = parseInt(gameId, 10);
 
-          setAnalysisStatus(prev => ({
-            ...prev,
+          analysisStatusRef.current = {
+            ...analysisStatusRef.current,
             [parsedGameId]: status,
-          }));
+          };
 
           if (
             status.status === 'COMPLETED' ||
