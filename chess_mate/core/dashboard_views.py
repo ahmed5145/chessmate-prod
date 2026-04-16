@@ -3,26 +3,19 @@ Dashboard-related views for the ChessMate application.
 This module handles user dashboard functionality including statistics and insights.
 """
 
-import json
+# pylint: disable=no-member
+
 import logging
 import sys
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import timedelta
 
-from django.db import transaction
 from django.db.models import (
-    Avg,
     Case,
     Count,
-    F,
-    FloatField,
     IntegerField,
-    OuterRef,
     Q,
-    Subquery,
     When,
 )
-from django.db.models.functions import Coalesce, TruncDate, TruncMonth
 from django.utils import timezone
 from rest_framework import status
 
@@ -31,15 +24,14 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .cache import cache_delete, cache_get, cache_set, cacheable, generate_cache_key
-from .cache_invalidation import invalidates_cache
-from .error_handling import api_error_handler
+from .cache import cache_delete, cache_get, cache_set, generate_cache_key
 
 # Local application imports
 from .models import Game, GameAnalysis, Profile
 
 # Configure logging
 logger = logging.getLogger(__name__)
+DASHBOARD_EXCEPTIONS = (ValueError, TypeError, RuntimeError, AttributeError, KeyError)
 
 for module_name in (
     "core.dashboard_views",
@@ -81,19 +73,19 @@ def dashboard_view(request):
 
         # Get user's profile with a single query
         try:
-            profile = Profile.objects.select_related("user").get(user=user)
-        except Profile.DoesNotExist:
+            profile = Profile.objects.select_related("user").get(user=user)  # type: ignore[attr-defined]
+        except Profile.DoesNotExist:  # type: ignore[attr-defined]
             return Response({"error": "User profile not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Get recent games with optimized query - limit select fields
         recent_games = (
-            Game.objects.filter(user=user)
+            Game.objects.filter(user=user)  # type: ignore[attr-defined]
             .order_by("-date_played")
             .values("id", "white", "black", "result", "date_played", "platform", "opening_name", "status")[:5]
         )
 
         # Use database aggregation instead of Python counting
-        game_stats = Game.objects.filter(user=user).aggregate(
+        game_stats = Game.objects.filter(user=user).aggregate(  # type: ignore[attr-defined]
             total_games=Count("id"),
             analyzed_games=Count(
                 Case(
@@ -113,7 +105,7 @@ def dashboard_view(request):
         loss_count = game_stats["losses"]
         draw_count = game_stats["draws"]
 
-        analyzed_game_stats = Game.objects.filter(user=user).filter(
+        analyzed_game_stats = Game.objects.filter(user=user).filter(  # type: ignore[attr-defined]
             Q(status="analyzed") | Q(analysis_status="analyzed")
         ).aggregate(
             wins=Count(Case(When(result="win", then=1), output_field=IntegerField())),
@@ -135,7 +127,7 @@ def dashboard_view(request):
         time_control_performance = {}
         for time_control in ["bullet", "blitz", "rapid", "classical"]:
             # Query games with this time control category
-            tc_stats = Game.objects.filter(user=user, time_control_category=time_control).aggregate(
+            tc_stats = Game.objects.filter(user=user, time_control_category=time_control).aggregate(  # type: ignore[attr-defined]
                 count=Count("id"), wins=Count(Case(When(result="win", then=1), output_field=IntegerField()))
             )
 
@@ -151,7 +143,7 @@ def dashboard_view(request):
 
         # Get platform stats using database aggregation
         platform_stats = (
-            Game.objects.filter(user=user)
+            Game.objects.filter(user=user)  # type: ignore[attr-defined]
             .values("platform")
             .annotate(count=Count("id"), wins=Count(Case(When(result="win", then=1), output_field=IntegerField())))
         )
@@ -174,7 +166,7 @@ def dashboard_view(request):
         if analysis_count > 0:
             # Get most recent analyzed games with mistakes
             recent_analyses = (
-                GameAnalysis.objects.select_related("game")
+                GameAnalysis.objects.select_related("game")  # type: ignore[attr-defined]
                 .filter(game__user=user, analysis_data__has_key="mistakes")
                 .order_by("-created_at")[:3]
             )
@@ -252,8 +244,8 @@ def dashboard_view(request):
 
         return Response(dashboard_data, status=status.HTTP_200_OK)
 
-    except Exception as e:
-        logger.error(f"Error in dashboard view: {str(e)}", exc_info=True)
+    except DASHBOARD_EXCEPTIONS as e:
+        logger.error("Error in dashboard view: %s", e, exc_info=True)
         return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -273,8 +265,8 @@ def refresh_dashboard(request):
         return Response(
             {"message": "Dashboard cache cleared, data will be refreshed on next request"}, status=status.HTTP_200_OK
         )
-    except Exception as e:
-        logger.error(f"Error refreshing dashboard data: {str(e)}")
+    except DASHBOARD_EXCEPTIONS as e:
+        logger.error("Error refreshing dashboard data: %s", e)
         return Response(
             {"error": "Failed to refresh dashboard data: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
@@ -305,7 +297,7 @@ def get_performance_trend(request):
             start_date = timezone.now() - timedelta(days=30)
 
         analyzed_games = (
-            Game.objects.filter(user=user, date_played__gte=start_date)
+            Game.objects.filter(user=user, date_played__gte=start_date)  # type: ignore[attr-defined]
             .filter(Q(status="analyzed") | Q(analysis_status="analyzed"))
             .order_by("date_played")
         )
@@ -352,8 +344,8 @@ def get_performance_trend(request):
 
         return Response(time_series, status=status.HTTP_200_OK)
 
-    except Exception as e:
-        logger.error(f"Error getting performance trend: {str(e)}", exc_info=True)
+    except DASHBOARD_EXCEPTIONS as e:
+        logger.error("Error getting performance trend: %s", e, exc_info=True)
         return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -373,7 +365,7 @@ def get_mistake_analysis(request):
             return Response(cached_data, status=status.HTTP_200_OK)
 
         # Get all analyzed games
-        analyzed_games = Game.objects.filter(user=user).filter(Q(status="analyzed") | Q(analysis_status="analyzed"))
+        analyzed_games = Game.objects.filter(user=user).filter(Q(status="analyzed") | Q(analysis_status="analyzed"))  # type: ignore[attr-defined]
 
         if analyzed_games.count() == 0:
             return Response({"message": "No analyzed games found"}, status=status.HTTP_200_OK)
@@ -453,8 +445,8 @@ def get_mistake_analysis(request):
 
         return Response(result, status=status.HTTP_200_OK)
 
-    except Exception as e:
-        logger.error(f"Error getting mistake analysis: {str(e)}")
+    except DASHBOARD_EXCEPTIONS as e:
+        logger.error("Error getting mistake analysis: %s", e)
         return Response(
             {"error": "Failed to retrieve mistake analysis: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

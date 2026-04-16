@@ -3,16 +3,12 @@ import json
 import logging
 import time
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, List, Optional, TypeVar, cast
 
-from django.core.cache import cache
-from django.core.exceptions import ImproperlyConfigured
-from django.http import HttpResponse, JsonResponse
-from django.middleware.csrf import rotate_token
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.request import Request
-from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 logger = logging.getLogger(__name__)
 
@@ -63,13 +59,13 @@ def auth_csrf_exempt(view_func):
         if request.method == "OPTIONS":
             csrf_exempt_view = csrf_exempt(view_func)
             return csrf_exempt_view(request, *args, **kwargs)
-            
+
         # Check for Bearer token auth - exempt CSRF for API clients using JWT
-        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
         if auth_header and auth_header.startswith('Bearer '):
             csrf_exempt_view = csrf_exempt(view_func)
             return csrf_exempt_view(request, *args, **kwargs)
-            
+
         # If the user is authenticated with session (not API), enforce CSRF
         if hasattr(request, "user") and request.user.is_authenticated:
             # Use the view function directly, without CSRF exemption
@@ -103,7 +99,10 @@ def track_request_time(view_func: F) -> F:
         # Calculate and log request time
         request_time = time.time() - start_time
         logger.info(
-            f"Request time: {request_time:.4f}s for {request.method} {request.path}",
+            "Request time: %.4fs for %s %s",
+            request_time,
+            request.method,
+            request.path,
             extra={
                 "request_time": request_time,
                 "request_method": request.method,
@@ -139,6 +138,8 @@ def validate_request(
     Returns:
         The decorated function
     """
+    # Parameters are part of the public decorator API and may be consumed by callers.
+    _ = optional_fields, optional_get_params
 
     def decorator(view_func: F) -> F:
         @wraps(view_func)
@@ -167,7 +168,7 @@ def validate_request(
 
             # If there are validation errors, return error response
             if errors:
-                logger.warning(f"Validation failed for {request.path}: {errors}")
+                logger.warning("Validation failed for %s: %s", request.path, errors)
                 return JsonResponse({"status": "error", "message": "Validation failed", "errors": errors}, status=400)
 
             # No validation errors, proceed with the view
@@ -194,24 +195,24 @@ def api_login_required(view_func: F) -> F:
                 request.user = user
                 # User is authenticated, proceed with the view
                 return view_func(request, *args, **kwargs)
-            
+
             # No valid JWT token found, return 401
             return JsonResponse(
-                {"status": "error", "message": "Authentication required"}, 
+                {"status": "error", "message": "Authentication required"},
                 status=401
             )
-            
+
         except AuthenticationFailed:
             # Invalid token
             return JsonResponse(
-                {"status": "error", "message": "Invalid or expired token"}, 
+                {"status": "error", "message": "Invalid or expired token"},
                 status=401
             )
-        except Exception as e:
-            logger.error(f"Error in api_login_required: {str(e)}", exc_info=True)
+        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+            logger.error("Error in api_login_required: %s", e, exc_info=True)
             return JsonResponse(
-                {"status": "error", "message": "Authentication error"}, 
+                {"status": "error", "message": "Authentication error"},
                 status=401
             )
-    
+
     return cast(F, wrapped_view)

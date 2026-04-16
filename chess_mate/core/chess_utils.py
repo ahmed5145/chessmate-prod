@@ -4,12 +4,12 @@ Utility functions for chess-related operations.
 
 import io
 import logging
-import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import chess.pgn
 
 logger = logging.getLogger(__name__)
+PGN_PARSE_EXCEPTIONS = (ValueError, TypeError, UnicodeError, AttributeError)
 
 
 def validate_pgn(pgn_text: str) -> Tuple[bool, Optional[str]]:
@@ -50,9 +50,9 @@ def validate_pgn(pgn_text: str) -> Tuple[bool, Optional[str]]:
             return False, "PGN contains no moves"
 
         return True, None
-    except Exception as e:
-        logger.error(f"Error validating PGN: {str(e)}")
-        return False, f"Invalid PGN format: {str(e)}"
+    except PGN_PARSE_EXCEPTIONS as e:
+        logger.error("Error validating PGN: %s", e)
+        return False, f"Invalid PGN format: {e}"
 
 
 def extract_metadata_from_pgn(pgn_text: str) -> Dict[str, Any]:
@@ -123,6 +123,6 @@ def extract_metadata_from_pgn(pgn_text: str) -> Dict[str, Any]:
             metadata["phase"] = "endgame"
 
         return metadata
-    except Exception as e:
-        logger.error(f"Error extracting PGN metadata: {str(e)}")
+    except PGN_PARSE_EXCEPTIONS as e:
+        logger.error("Error extracting PGN metadata: %s", e)
         return metadata

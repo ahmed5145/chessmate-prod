@@ -3,8 +3,7 @@ Batch analysis module for chess games.
 """
 
 import logging
-from datetime import datetime
-from django.conf import settings
+
 from django.utils import timezone
 
 from .tasks import analyze_game_task
@@ -16,6 +15,8 @@ task_manager = TaskManager()
 # Define constants to avoid settings dependency
 DEFAULT_ANALYSIS_DEPTH = 20
 DEFAULT_USE_AI = True
+TASK_START_EXCEPTIONS = (ValueError, TypeError, RuntimeError, OSError)
+
 
 def analyze_game_safely(game_id, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use_ai=DEFAULT_USE_AI):
     """
@@ -38,27 +39,29 @@ def analyze_game_safely(game_id, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use
                 "status": "error",
                 "message": "Game ID is required",
                 "game_id": None,
-                "timestamp": timezone.now().isoformat()
+                "timestamp": timezone.now().isoformat(),
             }
-        
+
         # Convert parameters to appropriate types to avoid type errors
         try:
             game_id = int(game_id)
             depth = int(depth) if depth is not None else DEFAULT_ANALYSIS_DEPTH
             use_ai = bool(use_ai) if use_ai is not None else DEFAULT_USE_AI
-        except (ValueError, TypeError) as e:
-            logger.error(f"Parameter type conversion error: {str(e)}")
+        except (ValueError, TypeError) as err:
+            logger.error("Parameter type conversion error: %s", err)
             return {
                 "status": "error",
-                "message": f"Invalid parameter format: {str(e)}",
+                "message": f"Invalid parameter format: {err}",
                 "game_id": game_id,
-                "timestamp": timezone.now().isoformat()
+                "timestamp": timezone.now().isoformat(),
             }
 
         lock = None
         lock_acquired = False
         if task_manager.redis_client is not None:
-            lock = task_manager.redis_client.lock(f"analysis_lock:game:{game_id}", timeout=15, blocking_timeout=3)
+            lock = task_manager.redis_client.lock(
+                f"analysis_lock:game:{game_id}", timeout=15, blocking_timeout=3
+            )
 
         try:
             if lock is not None:
@@ -68,13 +71,13 @@ def analyze_game_safely(game_id, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use
             active_tasks = task_manager.get_active_tasks_for_game(game_id)
             if active_tasks:
                 existing_task_id = active_tasks[0]
-                logger.warning(f"Found existing task {existing_task_id} for game {game_id}")
+                logger.warning("Found existing task %s for game %s", existing_task_id, game_id)
                 return {
                     "status": "already_running",
                     "message": "Analysis already in progress",
                     "task_id": existing_task_id,
                     "game_id": game_id,
-                    "timestamp": timezone.now().isoformat()
+                    "timestamp": timezone.now().isoformat(),
                 }
 
             # Start a new analysis task
@@ -88,38 +91,39 @@ def analyze_game_safely(game_id, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use
                     user_id=user_id,
                     game_id=game_id,
                 )
-            except Exception as task_error:
-                logger.error(f"Failed to create task for game {game_id}: {str(task_error)}", exc_info=True)
+            except TASK_START_EXCEPTIONS as task_error:
+                logger.error("Failed to create task for game %s: %s", game_id, task_error, exc_info=True)
                 return {
                     "status": "error",
-                    "message": f"Task creation failed: {str(task_error)}",
+                    "message": f"Task creation failed: {task_error}",
                     "game_id": game_id,
-                    "timestamp": timezone.now().isoformat()
+                    "timestamp": timezone.now().isoformat(),
                 }
         finally:
             if lock is not None and lock_acquired:
                 try:
                     lock.release()
-                except Exception:
+                except (RuntimeError, OSError):
                     logger.debug("Failed to release analysis lock", exc_info=True)
-        
-        logger.info(f"Analysis task {task_id} started for game {game_id}")
-        
+
+        logger.info("Analysis task %s started for game %s", task_id, game_id)
+
         return {
             "status": "success",
             "message": "Analysis started",
             "task_id": task_id,
             "game_id": game_id,
-            "timestamp": timezone.now().isoformat()
+            "timestamp": timezone.now().isoformat(),
         }
-    except Exception as e:
-        logger.error(f"Error starting analysis for game {game_id}: {str(e)}", exc_info=True)
+    except TASK_START_EXCEPTIONS as err:
+        logger.error("Error starting analysis for game %s: %s", game_id, err, exc_info=True)
         return {
             "status": "error",
-            "message": f"Error starting analysis: {str(e)}",
+            "message": f"Error starting analysis: {err}",
             "game_id": game_id,
-            "timestamp": timezone.now().isoformat()
+            "timestamp": timezone.now().isoformat(),
         }
+
 
 def batch_analyze_games_safely(game_ids, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use_ai=DEFAULT_USE_AI):
     """
@@ -135,13 +139,13 @@ def batch_analyze_games_safely(game_ids, user_id=None, depth=DEFAULT_ANALYSIS_DE
         Dictionary with task info for each game
     """
     results = {}
-    
+
     for game_id in game_ids:
         results[game_id] = analyze_game_safely(game_id, user_id, depth, use_ai)
-    
+
     return {
         "status": "success",
         "message": f"Started analysis for {len(game_ids)} games",
         "results": results,
-        "timestamp": timezone.now().isoformat()
-    } 
+        "timestamp": timezone.now().isoformat(),
+    }

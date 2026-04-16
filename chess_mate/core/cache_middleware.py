@@ -1,7 +1,9 @@
 """Middleware for automatic cache invalidation."""
 
+# pylint: disable=no-member
+
 import logging
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, List, Type
 
 from django.apps import apps
 from django.db.models import Model
@@ -9,8 +11,6 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from .redis_config import (
-    KEY_PREFIX_ANALYSIS,
-    KEY_PREFIX_GAME,
     KEY_PREFIX_USER,
     invalidate_analysis_cache,
     invalidate_game_cache,
@@ -22,6 +22,23 @@ from .redis_config import (
 
 # Configure logging
 logger = logging.getLogger(__name__)
+CACHE_INVALIDATION_EXCEPTIONS = (LookupError, AttributeError, TypeError, ValueError, RuntimeError)
+
+
+def invalidate_user_prefix(user_id: int) -> None:
+    redis_invalidate_by_prefix(f"{KEY_PREFIX_USER}{user_id}")
+
+
+def invalidate_game_for_instance(instance: Model) -> None:
+    invalidate_game_cache(instance.id)
+
+
+def invalidate_analysis_for_instance(instance: Model) -> None:
+    invalidate_analysis_cache(instance.id)
+
+
+def invalidate_user_games_for_user(user: Any) -> None:
+    invalidate_user_games_cache(user.id)
 
 # Model to cache mapping
 MODEL_CACHE_MAPPING = {
@@ -29,32 +46,32 @@ MODEL_CACHE_MAPPING = {
         "tags": ["games"],
         "fields": ["id", "status", "result"],
         "invalidate_functions": [
-            lambda instance: invalidate_game_cache(instance.id),
+            invalidate_game_for_instance,
         ],
         "related_invalidations": [
-            {"field": "user", "func": lambda user: invalidate_user_games_cache(user.id)}
+            {"field": "user", "func": invalidate_user_games_for_user}
         ],
     },
     "Player": {
         "tags": ["players", "games"],
         "invalidate_functions": [],
         "related_invalidations": [
-            {"field": "game_id", "func": lambda game_id: invalidate_game_cache(game_id)},
-            {"field": "user_id", "func": lambda user_id: invalidate_user_games_cache(user_id)},
+            {"field": "game_id", "func": invalidate_game_cache},
+            {"field": "user_id", "func": invalidate_user_games_cache},
         ],
     },
     "GameAnalysis": {
         "tags": ["analysis"],
         "invalidate_functions": [
-            lambda instance: invalidate_analysis_cache(instance.id),
+            invalidate_analysis_for_instance,
         ],
-        "related_invalidations": [{"field": "game_id", "func": lambda game_id: invalidate_game_cache(game_id)}],
+        "related_invalidations": [{"field": "game_id", "func": invalidate_game_cache}],
     },
     "Profile": {
         "tags": ["profiles", "users"],
         "invalidate_functions": [],
         "related_invalidations": [
-            {"field": "user_id", "func": lambda user_id: redis_invalidate_by_prefix(f"{KEY_PREFIX_USER}{user_id}")}
+            {"field": "user_id", "func": invalidate_user_prefix}
         ],
     },
 }
@@ -106,6 +123,7 @@ def invalidate_cache_on_save(sender: Type[Model], instance: Model, **kwargs) -> 
         sender: Model class
         instance: Model instance
     """
+    _ = kwargs
     model_name = sender.__name__
 
     # Skip if model not in mapping
@@ -115,7 +133,7 @@ def invalidate_cache_on_save(sender: Type[Model], instance: Model, **kwargs) -> 
     mapping = MODEL_CACHE_MAPPING[model_name]
 
     # Log invalidation
-    logger.debug(f"Invalidating cache for {model_name} {instance.id}")
+    logger.debug("Invalidating cache for %s %s", model_name, instance.id)
 
     # Invalidate by tags
     if mapping.get("tags"):
@@ -125,8 +143,8 @@ def invalidate_cache_on_save(sender: Type[Model], instance: Model, **kwargs) -> 
     for func in mapping.get("invalidate_functions", []):
         try:
             func(instance)
-        except Exception as e:
-            logger.error(f"Error in cache invalidation function: {str(e)}")
+        except CACHE_INVALIDATION_EXCEPTIONS as e:
+            logger.error("Error in cache invalidation function: %s", e)
 
     # Run related invalidations
     for related in mapping.get("related_invalidations", []):
@@ -138,8 +156,8 @@ def invalidate_cache_on_save(sender: Type[Model], instance: Model, **kwargs) -> 
             for value in related_values:
                 if value is not None:
                     invalidate_func(value)
-        except Exception as e:
-            logger.error(f"Error in related cache invalidation: {str(e)}")
+        except CACHE_INVALIDATION_EXCEPTIONS as e:
+            logger.error("Error in related cache invalidation: %s", e)
 
 
 @receiver(post_delete)
@@ -151,6 +169,7 @@ def invalidate_cache_on_delete(sender: Type[Model], instance: Model, **kwargs) -
         sender: Model class
         instance: Model instance
     """
+    _ = kwargs
     # Reuse the same logic as post_save
     invalidate_cache_on_save(sender, instance, **kwargs)
 
@@ -173,12 +192,12 @@ def setup_cache_invalidation():
                     continue
 
             if model:
-                logger.info(f"Registered cache invalidation for {model_name}")
+                logger.info("Registered cache invalidation for %s", model_name)
             else:
-                logger.warning(f"Could not find model {model_name}")
+                logger.warning("Could not find model %s", model_name)
 
-        except Exception as e:
-            logger.error(f"Error setting up cache invalidation for {model_name}: {str(e)}")
+        except CACHE_INVALIDATION_EXCEPTIONS as e:
+            logger.error("Error setting up cache invalidation for %s: %s", model_name, e)
 
 
 def invalidate_player_cache_for_game(game_id):
@@ -192,8 +211,8 @@ def invalidate_player_cache_for_game(game_id):
             if player.user_id:
                 invalidate_user_games_cache(player.user_id)
                 invalidate_player_cache(player.id)
-    except Exception as e:
-        logger.error(f"Error invalidating player cache for game {game_id}: {str(e)}")
+    except CACHE_INVALIDATION_EXCEPTIONS as e:
+        logger.error("Error invalidating player cache for game %s: %s", game_id, e)
 
 
 class CacheInvalidationMiddleware:
