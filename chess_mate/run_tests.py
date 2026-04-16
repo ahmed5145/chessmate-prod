@@ -6,9 +6,13 @@ This script properly configures the Python path and environment
 to run tests with the correct imports and paths.
 """
 
+# pylint: disable=unused-argument,redefined-outer-name,dangerous-default-value
+
 import os
 import sys
 import inspect
+from collections import namedtuple
+from typing import Any
 
 # Add the project directory to the Python path FIRST
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -17,9 +21,13 @@ sys.path.insert(0, BASE_DIR)
 # Patch inspect.formatargspec BEFORE any Django/Celery imports
 # This is needed for Python 3.12 compatibility with older packages like vine
 if not hasattr(inspect, 'formatargspec'):
+
     def formatargspec(args, varargs=None, varkw=None, defaults=None,
-                      kwonlyargs=(), kwonlydefaults={}, annotations={}):
+                      kwonlyargs=(), kwonlydefaults=None, annotations=None):
         """Replacement for inspect.formatargspec removed in Python 3.12"""
+        _ = defaults
+        kwonlydefaults = kwonlydefaults or {}
+        annotations = annotations or {}
         args = [str(arg) for arg in args]
         parts = []
         if args:
@@ -36,17 +44,21 @@ if not hasattr(inspect, 'formatargspec'):
         if annotations and 'return' in annotations:
             sig += f" -> {annotations['return']}"
         return sig
-    
-    inspect.formatargspec = formatargspec
+
+    inspect.formatargspec = formatargspec  # type: ignore[attr-defined,assignment]
+
+
+ArgSpec: Any = getattr(inspect, 'ArgSpec', namedtuple('ArgSpec', ['args', 'varargs', 'keywords', 'defaults']))
 
 if not hasattr(inspect, 'getargspec'):
+
     def getargspec(func):
         """Replacement for inspect.getargspec removed in Python 3.12"""
-        args, varargs, varkw, defaults, kwonlyargs, kwonlydefaults, annotations = \
-            inspect.getfullargspec(func)
-        return inspect.ArgSpec(args, varargs, varkw, defaults)
-    
-    inspect.getargspec = getargspec
+        args, varargs, varkw, defaults, kwonlyargs, kwonlydefaults, annotations = inspect.getfullargspec(func)
+        del kwonlyargs, kwonlydefaults, annotations
+        return ArgSpec(args, varargs, varkw, defaults or ())
+
+    inspect.getargspec = getargspec  # type: ignore[attr-defined,assignment]
 
 import django
 from django.conf import settings
@@ -77,12 +89,12 @@ def run_tests():
     test_runner = TestRunner(verbosity=2, interactive=True)
 
     # Run the tests
-    failures = test_runner.run_tests(["core.tests"])
+    failed_count = test_runner.run_tests(["core.tests"])
 
-    return failures
+    return failed_count
 
 
 if __name__ == "__main__":
     # Run the tests and exit with appropriate status code
-    failures = run_tests()
-    sys.exit(bool(failures))
+    failed_count = run_tests()
+    sys.exit(bool(failed_count))
