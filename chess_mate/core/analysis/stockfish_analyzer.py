@@ -8,7 +8,7 @@ import logging
 import os
 import threading
 import time
-from typing import Any, Dict, Optional, Union, cast, List
+from typing import Any, Dict, Optional, cast, List
 import io
 
 import chess
@@ -245,7 +245,7 @@ class StockfishAnalyzer:
             # Normalize score objects that expose perspective helpers (works with legacy mocks).
             if hasattr(score, "white") and callable(getattr(score, "white")):
                 score = score.white()
-                
+
             # Handle Score-like objects.
             if hasattr(score, "is_mate"):
                 # Safety check before calling methods
@@ -297,7 +297,7 @@ class StockfishAnalyzer:
             # Handle direct integer/float scores
             elif isinstance(score, (int, float)):
                 return float(score) / 100.0  # Convert centipawns to pawns
-                
+
             # Handle Mate object directly
             elif hasattr(score, 'moves') and hasattr(score, '__class__') and 'Mate' in score.__class__.__name__:
                 try:
@@ -307,7 +307,7 @@ class StockfishAnalyzer:
                 except Exception as e:
                     logger.error(f"Error handling Mate object: {e}")
                     return 0.0
-                    
+
             # Handle score as dictionary (from JSON)
             elif isinstance(score, dict):
                 if 'cp' in score:
@@ -324,7 +324,7 @@ class StockfishAnalyzer:
                     except Exception as e:
                         logger.error(f"Error converting score dict 'mate': {e}")
                         return 0.0
-            
+
             # Unknown score type
             logger.warning(f"Unknown score type: {type(score)}, value: {score}")
             return 0.0
@@ -687,7 +687,6 @@ class StockfishAnalyzer:
         """Calculate position complexity score (0.0 to 1.0)."""
         try:
             complexity_score = 0.0
-            total_pieces = len(board.piece_map())
 
             # Factor 1: Number of legal moves (more moves = more complex)
             num_legal_moves = len(list(board.legal_moves))
@@ -717,10 +716,10 @@ class StockfishAnalyzer:
             material_count += len(board.pieces(piece_type, chess.WHITE))
             material_count += len(board.pieces(piece_type, chess.BLACK))
         return material_count
-        
+
     def get_engine_version(self) -> str:
         """Get the version of the Stockfish engine.
-        
+
         Returns:
             A string containing the engine version or an error message if the engine is not initialized
         """
@@ -728,12 +727,12 @@ class StockfishAnalyzer:
             if not self._engine or not self._initialized:
                 logger.warning("Engine not initialized when attempting to get version")
                 return "Engine not initialized"
-                
+
             # Try to get the engine name and version
             engine_info = str(self._engine)
             if engine_info and "stockfish" in engine_info.lower():
                 return engine_info
-                
+
             # If the above doesn't work, return a fallback
             return f"Stockfish (initialized: {self._initialized})"
         except Exception as e:
@@ -743,38 +742,38 @@ class StockfishAnalyzer:
     def analyze_game(self, pgn: str) -> List[Dict[str, Any]]:
         """
         Analyze all positions in a chess game.
-        
+
         Args:
             pgn: PGN string of the game to analyze
-            
+
         Returns:
             List of dictionaries with move analysis
         """
         try:
             if not self._engine:
                 self._init_engine()
-            
+
             analyzed_moves = []
-            
+
             # Parse the PGN
             game = chess.pgn.read_game(io.StringIO(pgn))
             board = game.board()
-            
+
             moves_count = sum(1 for _ in game.mainline_moves())
             logger.info(f"Analyzing game with {moves_count} moves")
-            
+
             # Loop through the game and analyze each position
             for i, move in enumerate(game.mainline_moves()):
                 is_white = board.turn
                 result = self.analyze_position(board, depth=20, store_lines=i % 2 == 0)
-                
+
                 # Execute the move
                 board.push(move)
-                
+
                 # Get move in different formats
                 san = board.san(move)
                 uci = move.uci()
-                
+
                 # Store the analysis
                 analyzed_move = {
                     'move_number': i // 2 + 1,
@@ -789,15 +788,15 @@ class StockfishAnalyzer:
                     'depth': result['depth'],
                     'time': result['time'],
                 }
-                
+
                 if 'centipawn_loss' in result:
                     analyzed_move['centipawn_loss'] = result['centipawn_loss']
-                
+
                 if 'classification' in result:
                     analyzed_move['classification'] = result['classification']
-                
+
                 analyzed_moves.append(analyzed_move)
-            
+
             return analyzed_moves
         except Exception as e:
             logger.error(f"Error in analyze_game: {str(e)}")
@@ -814,37 +813,37 @@ class StockfishAnalyzer:
     def analyze_pgn_game(self, pgn_text, depth=20, callback=None):
         """
         Analyze all positions in a PGN game.
-        
+
         Args:
             pgn_text: PGN string of the game to analyze
             depth: Stockfish analysis depth
             callback: Optional callback function for progress updates (takes percentage and message)
-            
+
         Returns:
             List of dictionaries with move analysis
         """
         try:
             if not self._initialized or not self._engine:
                 self._init_engine()
-            
+
             analyzed_moves = []
-            
+
             # Parse the PGN
             pgn_io = io.StringIO(pgn_text)
             game = chess.pgn.read_game(pgn_io)
             if not game:
                 raise AnalysisError("Invalid PGN format")
-            
+
             board = game.board()
-            
+
             # Count moves for progress tracking
             moves_list = list(game.mainline_moves())
             total_moves = len(moves_list)
             logger.info(f"Analyzing game with {total_moves} moves")
-            
+
             if total_moves == 0:
                 return []
-            
+
             # Track per-side clock to estimate move spend when PGN clock tags are present.
             previous_clock_by_color = {True: None, False: None}
             node = game
@@ -869,32 +868,32 @@ class StockfishAnalyzer:
                         time_spent = estimated_spent
                 if isinstance(move_clock, (int, float)):
                     previous_clock_by_color[is_white] = float(move_clock)
-                
+
                 # Call progress callback if provided
                 if callback:
                     progress_percentage = (i / total_moves) * 100
                     callback(progress_percentage, f"Analyzing move {i+1}/{total_moves}")
-                
+
                 # Analyze position before move
                 position_before = self.analyze_position(board, depth=depth)
-                
+
                 # Execute the move
                 san = board.san(move)
                 board.push(move)
-                
+
                 # Analyze position after move
                 position_after = self.analyze_position(board, depth=depth)
-                
+
                 # Calculate evaluation change
                 eval_before = position_before.get("score", 0)
                 eval_after = position_after.get("score", 0)
-                
+
                 # Adjust for player perspective
                 if is_white:
                     eval_change = eval_after - eval_before
                 else:
                     eval_change = eval_before - eval_after
-                
+
                 # Classify move with best-move and mate-aware context.
                 best_move = position_before.get("pv", [])[0] if position_before.get("pv") else None
                 best_move_san = None
@@ -912,7 +911,7 @@ class StockfishAnalyzer:
                     played_move=move.uci(),
                     best_move=best_move,
                 )
-                
+
                 # Store the analysis
                 analyzed_move = {
                     'move_number': i // 2 + 1 if is_white else (i // 2) + 1,
@@ -932,25 +931,25 @@ class StockfishAnalyzer:
                     'time': time_spent,
                     'time_spent': time_spent,
                 }
-                
+
                 analyzed_moves.append(analyzed_move)
-            
+
             # Call callback with completion if provided
             if callback:
                 callback(100, "Move analysis complete")
-            
+
             return analyzed_moves
         except Exception as e:
             logger.error(f"Error analyzing PGN game: {str(e)}")
             raise AnalysisError(f"Failed to analyze PGN game: {str(e)}")
-        
+
     def _classify_move(self, eval_change, eval_before=None, eval_after=None, played_move=None, best_move=None):
         """
         Classify a move based on evaluation change.
-        
+
         Args:
             eval_change: The change in evaluation (positive is good for the player)
-            
+
         Returns:
             Classification string
         """
