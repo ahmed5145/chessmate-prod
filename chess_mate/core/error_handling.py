@@ -17,10 +17,10 @@ from django.http import JsonResponse
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.exceptions import (
-    APIException, 
-    AuthenticationFailed, 
+    APIException,
+    AuthenticationFailed,
     ParseError,
-    PermissionDenied, 
+    PermissionDenied,
     Throttled,
     ValidationError as DRFValidationError
 )
@@ -33,12 +33,14 @@ HANDLED_EXCEPTION_TYPES = (APIException, ValueError, TypeError, KeyError, Runtim
 # Thread-local storage for request_id
 _thread_local = threading.local()
 
+
 def get_request_id():
     """
     Get the current request ID from thread-local storage.
     If not set, returns a default value.
     """
     return getattr(_thread_local, "request_id", "no_request_id")
+
 
 # Define types for error response structure
 class ErrorResponseDict(TypedDict):
@@ -49,13 +51,14 @@ class ErrorResponseDict(TypedDict):
     details: Optional[Any]
     request_id: Optional[str]
 
+
 # Standard error response structure
 ERROR_RESPONSE_STRUCTURE: ErrorResponseDict = {
-    "status": "error", 
-    "code": None, 
-    "message": None, 
+    "status": "error",
+    "code": None,
+    "message": None,
     "error": None,
-    "details": None, 
+    "details": None,
     "request_id": None
 }
 
@@ -563,18 +566,18 @@ def create_success_response(
 def create_auth_error_response(message=None, detail=None, status_code=401):
     """
     Create a standardized authentication error response.
-    
+
     Args:
         message: Human-readable error message
         detail: Additional error details
         status_code: HTTP status code
-        
+
     Returns:
         Response object with standardized error format
     """
     if message is None:
         message = "Authentication required"
-        
+
     error_data = {
         "status": "error",
         "code": "authentication_error",
@@ -582,7 +585,7 @@ def create_auth_error_response(message=None, detail=None, status_code=401):
         "details": detail if detail else {},
         "request_id": get_request_id(),
     }
-    
+
     return Response(error_data, status=status_code)
 
 
@@ -590,16 +593,16 @@ def create_auth_error_response(message=None, detail=None, status_code=401):
 def handle_token_error(error, context=None):
     """
     Handle JWT token errors with descriptive messages.
-    
+
     Args:
         error: The token error exception
         context: Additional context about where the error occurred
-        
+
     Returns:
         Standardized error response
     """
     logger.warning("Token error: %s | Context: %s", error, context)
-    
+
     # Map common token errors to user-friendly messages
     error_str = str(error).lower()
     if "expired" in error_str:
@@ -614,7 +617,7 @@ def handle_token_error(error, context=None):
     else:
         message = "Authentication error. Please log in again."
         code = "token_error"
-    
+
     error_data = {
         "status": "error",
         "code": code,
@@ -625,24 +628,24 @@ def handle_token_error(error, context=None):
         },
         "request_id": get_request_id(),
     }
-    
+
     return Response(error_data, status=status.HTTP_401_UNAUTHORIZED)
 
 
 def handle_permission_error(message=None, detail=None):
     """
     Handle permission errors with descriptive messages.
-    
+
     Args:
         message: Human-readable error message
         detail: Additional error details
-        
+
     Returns:
         Standardized error response
     """
     if message is None:
         message = "You don't have permission to perform this action."
-        
+
     error_data = {
         "status": "error",
         "code": "permission_denied",
@@ -650,25 +653,25 @@ def handle_permission_error(message=None, detail=None):
         "details": detail if detail else {},
         "request_id": get_request_id(),
     }
-    
+
     return Response(error_data, status=status.HTTP_403_FORBIDDEN)
 
 
 def handle_throttled_error(wait_time=None, scope=None):
     """
     Handle rate limit errors with wait time information.
-    
+
     Args:
         wait_time: Time to wait before retrying (in seconds)
         scope: The rate limiting scope that was exceeded
-        
+
     Returns:
         Standardized error response
     """
     message = "Too many requests. Please slow down."
     if wait_time:
         message += f" Try again in {wait_time} seconds."
-    
+
     error_data = {
         "status": "error",
         "code": "rate_limit_exceeded",
@@ -679,11 +682,11 @@ def handle_throttled_error(wait_time=None, scope=None):
         },
         "request_id": get_request_id(),
     }
-    
+
     headers = {}
     if wait_time:
         headers["Retry-After"] = str(int(wait_time))
-    
+
     return Response(error_data, status=status.HTTP_429_TOO_MANY_REQUESTS, headers=headers)
 
 

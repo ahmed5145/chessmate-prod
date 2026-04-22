@@ -52,6 +52,7 @@ def invalidate_game_for_id(game_id: int) -> None:
 def invalidate_user_games_for_id(user_id: int) -> None:
     invalidate_user_games_cache(user_id)
 
+
 # Model to cache mapping
 MODEL_CACHE_MAPPING: Dict[str, Dict[str, Any]] = {
     "Game": {
