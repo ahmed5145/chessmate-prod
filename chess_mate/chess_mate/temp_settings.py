@@ -1,4 +1,6 @@
-from chess_mate.chess_mate.settings import *
+from . import settings as base_settings
+
+globals().update({name: getattr(base_settings, name) for name in dir(base_settings) if name.isupper()})
 
 # Test database settings
 DATABASES = {

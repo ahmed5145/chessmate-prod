@@ -21,8 +21,8 @@ except ImportError:
     # Use explicit typing to avoid incompatible redefinition errors
     def health_check_view(_request: HttpRequest) -> JsonResponse:  # type: ignore
         return JsonResponse({"status": "ok"})
-    
-        def readiness_check_view(_request: HttpRequest) -> JsonResponse:  # type: ignore
+
+    def readiness_check_view(_request: HttpRequest) -> JsonResponse:  # type: ignore
         return JsonResponse({"status": "ready"})
 
 urlpatterns = [

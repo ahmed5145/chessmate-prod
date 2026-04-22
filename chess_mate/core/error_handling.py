@@ -9,12 +9,11 @@ import json
 import logging
 import threading
 import traceback
-import uuid
-from typing import Any, Callable, Dict, List, Optional, Type, Union, Literal, TypedDict, cast
+from typing import Any, Callable, Dict, List, Optional, Literal, TypedDict, cast
 from functools import wraps
 
 from django.conf import settings
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.exceptions import (
@@ -29,6 +28,7 @@ from rest_framework.views import exception_handler as drf_exception_handler
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 logger = logging.getLogger(__name__)
+HANDLED_EXCEPTION_TYPES = (APIException, ValueError, TypeError, KeyError, RuntimeError, AttributeError)
 
 # Thread-local storage for request_id
 _thread_local = threading.local()
@@ -45,6 +45,7 @@ class ErrorResponseDict(TypedDict):
     status: Literal["error"]
     code: Optional[str]
     message: Optional[str]
+    error: Optional[str]
     details: Optional[Any]
     request_id: Optional[str]
 
@@ -53,6 +54,7 @@ ERROR_RESPONSE_STRUCTURE: ErrorResponseDict = {
     "status": "error", 
     "code": None, 
     "message": None, 
+    "error": None,
     "details": None, 
     "request_id": None
 }
@@ -115,7 +117,7 @@ class APIJsonResponse(JsonResponse):
     def data(self):
         try:
             return json.loads(self.content.decode("utf-8"))
-        except Exception:
+        except (ValueError, TypeError, UnicodeDecodeError):
             return {}
 
     def json(self):
@@ -144,7 +146,7 @@ def create_error_response(
     """
     error_code = ERROR_CODES.get(error_type, ERROR_CODES["internal_error"])
 
-    response_data = ERROR_RESPONSE_STRUCTURE.copy()
+    response_data = cast(Dict[str, Any], ERROR_RESPONSE_STRUCTURE.copy())
     response_data.update({"code": error_code, "message": message, "details": details, "request_id": request_id})
     response_data["error"] = message
 
@@ -163,7 +165,9 @@ def handle_view_exception(exc: Exception, request_id: Optional[str] = None) -> J
         JsonResponse with appropriate error details
     """
     # Log the exception with traceback
-    logger.error(f"Error handling request: {str(exc)}", exc_info=True, extra={"request_id": request_id})
+    logger.error("Error handling request: %s", exc, exc_info=True, extra={"request_id": request_id})
+
+    details: Any = None
 
     # Handle different types of exceptions
     if isinstance(exc, APIException):
@@ -235,7 +239,7 @@ def api_error_handler(view_func: Callable) -> Callable:
                 json_response = APIJsonResponse(response.data, status=response.status_code)
                 return json_response
             return response
-        except Exception as exc:
+        except HANDLED_EXCEPTION_TYPES as exc:
             return handle_view_exception(exc, request_id)
 
     return wrapper
@@ -253,7 +257,9 @@ def handle_api_error(exc: Exception, request_id: Optional[str] = None) -> Dict[s
         Dictionary with standardized error format
     """
     # Log the exception with traceback
-    logger.error(f"API Error: {str(exc)}", exc_info=True, extra={"request_id": request_id})
+    logger.error("API Error: %s", exc, exc_info=True, extra={"request_id": request_id})
+
+    details: Any = None
 
     # Handle different types of exceptions
     if isinstance(exc, BaseError):
@@ -464,7 +470,7 @@ class ResourceNotFoundError(APIException):
             detail = f"{resource_type} with ID {resource_id} not found"
         else:
             detail = f"{resource_type} not found"
-        super().__init__(detail)
+        super().__init__(detail)  # type: ignore[arg-type]
 
 
 class InvalidOperationError(APIException):
@@ -508,7 +514,7 @@ class ValidationError(APIException):
         # Set detail as a dict with message and errors for test compatibility
         super().__init__(detail)
         # Override detail to include both message and errors
-        self.detail = {"message": detail, "errors": errors}
+        self.detail = cast(Any, {"message": detail, "errors": errors})
 
 
 class TaskError(APIException):
@@ -592,7 +598,7 @@ def handle_token_error(error, context=None):
     Returns:
         Standardized error response
     """
-    logger.warning(f"Token error: {str(error)} | Context: {context}")
+    logger.warning("Token error: %s | Context: %s", error, context)
     
     # Map common token errors to user-friendly messages
     error_str = str(error).lower()
@@ -708,8 +714,8 @@ def auth_error_handler(func):
                 details={"errors": e.detail if hasattr(e, 'detail') else []},
                 status_code=status.HTTP_400_BAD_REQUEST
             )
-        except Exception as e:
-            logger.error(f"Unhandled error in {func.__name__}: {str(e)}", exc_info=True)
+        except HANDLED_EXCEPTION_TYPES as e:
+            logger.error("Unhandled error in %s: %s", func.__name__, e, exc_info=True)
             return create_error_response(
                 error_type="auth_error",
                 message="An unexpected error occurred during authentication.",
@@ -721,9 +727,7 @@ def auth_error_handler(func):
 
 class AnalysisError(Exception):
     """Exception raised when game analysis fails."""
-    pass
 
 
 class MetricsError(Exception):
     """Exception raised when metrics calculation fails."""
-    pass

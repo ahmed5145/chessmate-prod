@@ -3,13 +3,15 @@ Authentication-related views for the ChessMate application.
 Including user registration, login, logout, password reset, and email verification.
 """
 
+# pylint: disable=logging-fstring-interpolation,no-member,broad-exception-caught,raise-missing-from
+
 # Standard library imports
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Tuple
 
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, logout
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
@@ -23,30 +25,23 @@ from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.html import strip_tags
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 from .decorators import auth_csrf_exempt, rate_limit
 from .error_handling import (
-    CreditLimitError,
     InvalidOperationError,
-    ResourceNotFoundError,
     ValidationError as APIValidationError,
     api_error_handler,
     create_error_response,
-    create_success_response,
-    auth_error_handler
 )
 from .serializers import UserSerializer
 from .validators import validate_password_complexity
@@ -249,41 +244,6 @@ def register_view(request):
                     email_verification_sent_at=timezone.now(),
                 )
 
-        # Send verification email (commenting out for local testing/development)
-        """
-        try:
-            # Get domain from request
-            current_site = get_current_site(request)
-            domain = current_site.domain
-
-            # Create verification URL
-            uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
-            token = profile.email_verification_token
-            verification_link = f"http://{domain}/api/verify-email/{uidb64}/{token}/"
-
-            # Prepare email content
-            mail_subject = "Activate your ChessMate account"
-            message = render_to_string(
-                "email/account_activation_email.html",
-                {
-                    "user": user,
-                    "verification_link": verification_link,
-                },
-            )
-
-            # Send email
-            send_mail(
-                mail_subject,
-                strip_tags(message),
-                "noreply@chessmate.com",
-                [email],
-                html_message=message,
-            )
-        except Exception as email_err:
-            logger.error(f"Failed to send verification email: {str(email_err)}")
-            # Don't fail registration if email fails
-        """
-
         # For development, log the verification token
         logger.info(f"User {username} registered. Verification token: {profile.email_verification_token}")
 
@@ -292,7 +252,7 @@ def register_view(request):
         access_token = str(refresh.access_token)
 
         payload = {
-            "user_id": user.id,
+            "user_id": user.pk,
             "email": user.email,
             "username": user.username,
             "access": access_token,
@@ -318,7 +278,8 @@ def register_view(request):
         else:
             error_details["message"] = str(e)
         
-        raise InvalidOperationError("register user", "database integrity error", details=error_details)
+        reason = error_details.get("message") or "database integrity error"
+        raise InvalidOperationError("register user", reason) from e
     except Exception as e:
         logger.error(f"Unexpected error during registration: {str(e)}", exc_info=True)
         raise InvalidOperationError("register user", str(e))
@@ -495,13 +456,13 @@ def request_password_reset(request):
     # Prepare email content
     mail_subject = "Reset your ChessMate password"
     try:
-        message = render_to_string(
+        message = str(render_to_string(
             "email/password_reset_email.html",
             {
                 "user": user,
                 "reset_link": reset_link,
             },
-        )
+        ))
     except Exception:
         message = f"Use this link to reset your password: {reset_link}"
 
@@ -705,7 +666,7 @@ def verify_email(request, uidb64=None, token=None):
 
 
 @api_view(["GET"])
-def verify_email_token_only(request, token):
+def verify_email_token_only(_request, token):
     """Backward-compatible verification endpoint for token-only reverse calls."""
     profile = Profile.objects.filter(email_verification_token=token).first()
     if profile is not None:
@@ -737,10 +698,7 @@ def test_authentication(request):
         token = auth_header.split(' ')[1]
         logger.info(f"Token extracted: {token[:20]}...")
         
-        # Import JWT related functions
         from rest_framework_simplejwt.tokens import AccessToken
-        from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
-        from django.contrib.auth.models import User
         
         try:
             # Try to decode the token manually
@@ -926,7 +884,6 @@ def simple_test_auth(request):
                     
                     # Check expiration
                     if "exp" in payload_data:
-                        from datetime import datetime
                         exp_time = datetime.fromtimestamp(payload_data["exp"])
                         now = datetime.now()
                         response_data["token_expired"] = now > exp_time
@@ -936,10 +893,10 @@ def simple_test_auth(request):
                     response_data["token_payload_error"] = str(e)
                 
                 # Verify user existence if user_id is present
-                if "token_payload" in response_data and response_data["token_payload"]["user_id"]:
+                token_payload = response_data.get("token_payload")
+                if isinstance(token_payload, dict) and token_payload.get("user_id"):
                     try:
-                        from django.contrib.auth.models import User
-                        user_id = response_data["token_payload"]["user_id"]
+                        user_id = token_payload["user_id"]
                         user = User.objects.get(id=user_id)
                         response_data["user_exists"] = True
                         response_data["username"] = user.username

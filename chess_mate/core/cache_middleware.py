@@ -3,7 +3,7 @@
 # pylint: disable=no-member
 
 import logging
-from typing import Any, List, Type
+from typing import Any, Dict, List, Type
 
 from django.apps import apps
 from django.db.models import Model
@@ -29,19 +29,31 @@ def invalidate_user_prefix(user_id: int) -> None:
     redis_invalidate_by_prefix(f"{KEY_PREFIX_USER}{user_id}")
 
 
-def invalidate_game_for_instance(instance: Model) -> None:
-    invalidate_game_cache(instance.id)
+def invalidate_game_for_instance(instance: Any) -> None:
+    game_id = getattr(instance, "id", None)
+    if game_id is not None:
+        invalidate_game_cache(game_id)
 
 
-def invalidate_analysis_for_instance(instance: Model) -> None:
-    invalidate_analysis_cache(instance.id)
+def invalidate_analysis_for_instance(instance: Any) -> None:
+    analysis_id = getattr(instance, "id", None)
+    if analysis_id is not None:
+        invalidate_analysis_cache(analysis_id)
 
 
 def invalidate_user_games_for_user(user: Any) -> None:
     invalidate_user_games_cache(user.id)
 
+
+def invalidate_game_for_id(game_id: int) -> None:
+    invalidate_game_cache(game_id)
+
+
+def invalidate_user_games_for_id(user_id: int) -> None:
+    invalidate_user_games_cache(user_id)
+
 # Model to cache mapping
-MODEL_CACHE_MAPPING = {
+MODEL_CACHE_MAPPING: Dict[str, Dict[str, Any]] = {
     "Game": {
         "tags": ["games"],
         "fields": ["id", "status", "result"],
@@ -56,8 +68,8 @@ MODEL_CACHE_MAPPING = {
         "tags": ["players", "games"],
         "invalidate_functions": [],
         "related_invalidations": [
-            {"field": "game_id", "func": invalidate_game_cache},
-            {"field": "user_id", "func": invalidate_user_games_cache},
+            {"field": "game_id", "func": invalidate_game_for_id},
+            {"field": "user_id", "func": invalidate_user_games_for_id},
         ],
     },
     "GameAnalysis": {
@@ -65,7 +77,7 @@ MODEL_CACHE_MAPPING = {
         "invalidate_functions": [
             invalidate_analysis_for_instance,
         ],
-        "related_invalidations": [{"field": "game_id", "func": invalidate_game_cache}],
+        "related_invalidations": [{"field": "game_id", "func": invalidate_game_for_id}],
     },
     "Profile": {
         "tags": ["profiles", "users"],
@@ -77,7 +89,7 @@ MODEL_CACHE_MAPPING = {
 }
 
 
-def get_related_values(instance: Model, field_path: str) -> List[Any]:
+def get_related_values(instance: Any, field_path: str) -> List[Any]:
     """
     Get values from a related field path.
 
@@ -115,7 +127,7 @@ def get_related_values(instance: Model, field_path: str) -> List[Any]:
 
 
 @receiver(post_save)
-def invalidate_cache_on_save(sender: Type[Model], instance: Model, **kwargs) -> None:
+def invalidate_cache_on_save(sender: Type[Model], instance: Any, **kwargs) -> None:
     """
     Signal handler to invalidate cache when a model is saved.
 
@@ -130,24 +142,31 @@ def invalidate_cache_on_save(sender: Type[Model], instance: Model, **kwargs) -> 
     if model_name not in MODEL_CACHE_MAPPING:
         return
 
-    mapping = MODEL_CACHE_MAPPING[model_name]
+    mapping: Dict[str, Any] = MODEL_CACHE_MAPPING[model_name]
+    instance_id = getattr(instance, "id", None)
 
     # Log invalidation
-    logger.debug("Invalidating cache for %s %s", model_name, instance.id)
+    logger.debug("Invalidating cache for %s %s", model_name, instance_id)
 
     # Invalidate by tags
     if mapping.get("tags"):
-        redis_invalidate_by_tags(mapping["tags"])
+        tags = mapping["tags"]
+        if isinstance(tags, list):
+            redis_invalidate_by_tags(tags)
+        elif isinstance(tags, str):
+            redis_invalidate_by_tags(tags)
 
     # Run model-specific invalidation functions
-    for func in mapping.get("invalidate_functions", []):
+    invalidate_functions = mapping.get("invalidate_functions", [])
+    for func in invalidate_functions:
         try:
             func(instance)
         except CACHE_INVALIDATION_EXCEPTIONS as e:
             logger.error("Error in cache invalidation function: %s", e)
 
     # Run related invalidations
-    for related in mapping.get("related_invalidations", []):
+    related_invalidations = mapping.get("related_invalidations", [])
+    for related in related_invalidations:
         field_path = related["field"]
         invalidate_func = related["func"]
 
@@ -161,7 +180,7 @@ def invalidate_cache_on_save(sender: Type[Model], instance: Model, **kwargs) -> 
 
 
 @receiver(post_delete)
-def invalidate_cache_on_delete(sender: Type[Model], instance: Model, **kwargs) -> None:
+def invalidate_cache_on_delete(sender: Type[Model], instance: Any, **kwargs) -> None:
     """
     Signal handler to invalidate cache when a model is deleted.
 
@@ -207,7 +226,10 @@ def invalidate_player_cache_for_game(game_id):
         from .models import Game
         game = Game.objects.get(id=game_id)
         # Get all players through the game's players relationship
-        for player in game.players.all():
+        players_relation = getattr(game, "players", None)
+        if players_relation is None:
+            return
+        for player in players_relation.all():
             if player.user_id:
                 invalidate_user_games_cache(player.user_id)
                 invalidate_player_cache(player.id)
