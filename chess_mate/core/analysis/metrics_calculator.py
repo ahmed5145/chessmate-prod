@@ -6,11 +6,9 @@ Handles calculation of various game metrics and statistics.
 import logging
 import math
 import statistics
-from typing import Any, Dict, List, Optional, TypedDict, Union, cast
-import numpy as np
-from collections import Counter
+from typing import Any, Dict, List, TypedDict, cast
 
-from ..error_handling import ValidationError, MetricsError
+from ..error_handling import MetricsError
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -62,11 +60,11 @@ class MetricsCalculator:
     def calculate_game_metrics(moves: List[Dict[str, Any]], time_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Calculate comprehensive game metrics.
-        
+
         Args:
             moves: List of analyzed moves with their evaluations
             time_data: List of time data for each move
-            
+
         Returns:
             Dictionary containing all calculated metrics with consistent structure
         """
@@ -77,57 +75,57 @@ class MetricsCalculator:
 
             # Identify the player (white or black)
             is_white = moves[0].get("is_white", True)
-            
+
             # Calculate move quality metrics
             move_quality = MetricsCalculator._calculate_move_quality(moves)
-            
+
             # Calculate time management metrics
             time_management = MetricsCalculator._calculate_time_management(time_data)
-            
+
             # Calculate consistency metrics
             consistency = MetricsCalculator._calculate_consistency(moves)
-            
+
             # Detect phase transitions
             phases = MetricsCalculator._detect_phase_transitions(moves)
             opening_end = phases.get("opening", 0)
             middlegame_end = phases.get("middlegame", len(moves))
-            
+
             # Split moves by game phase
             opening_moves = moves[:opening_end] if opening_end > 0 else []
             middlegame_moves = moves[opening_end:middlegame_end] if middlegame_end > opening_end else []
             endgame_moves = moves[middlegame_end:] if middlegame_end < len(moves) else []
-            
+
             # Calculate phase-specific metrics
             opening_metrics = MetricsCalculator._calculate_phase_metrics(opening_moves, is_white)
             middlegame_metrics = MetricsCalculator._calculate_phase_metrics(middlegame_moves, is_white)
             endgame_metrics = MetricsCalculator._calculate_phase_metrics(endgame_moves, is_white)
-            
+
             # Compile phase metrics
             phase_metrics = {
                 "opening": opening_metrics,
                 "middlegame": middlegame_metrics,
                 "endgame": endgame_metrics
             }
-            
+
             # Calculate tactical metrics
             tactical_metrics = MetricsCalculator._calculate_tactical_metrics(moves, is_white)
-            
+
             # Calculate advantage metrics
             advantage_metrics = MetricsCalculator._calculate_advantage_metrics(moves, is_white)
-            
+
             # Calculate resourcefulness metrics
             resourcefulness_metrics = MetricsCalculator._calculate_resourcefulness_metrics(moves, is_white)
-            
+
             # Calculate overall metrics
             overall_metrics = MetricsCalculator._calculate_overall_metrics(moves, is_white)
-            
+
             # Compile all metrics with consistent structure
             metrics = {
-                    "overall": overall_metrics,
+                "overall": overall_metrics,
                 "move_quality": move_quality,
                 "time_management": time_management,
                 "consistency": consistency,
-                    "phases": phase_metrics,
+                "phases": phase_metrics,
                 "tactics": tactical_metrics,
                 "advantage": advantage_metrics,
                 "resourcefulness": resourcefulness_metrics,
@@ -139,27 +137,27 @@ class MetricsCalculator:
                     "endgame_length": len(moves) - middlegame_end
                 }
             }
-            
+
             # Validate and normalize metrics
             validated_metrics = MetricsCalculator._validate_metrics(metrics)
-            
+
             # Ensure all required sections are present and properly typed
             required_sections = [
                 "overall", "move_quality", "time_management", "consistency",
                 "phases", "tactics", "advantage", "resourcefulness"
             ]
-            
+
             for section in required_sections:
                 if section not in validated_metrics:
                     logger.warning(f"Missing required metrics section: {section}")
                     validated_metrics[section] = MetricsCalculator._get_default_metrics().get(section, {})
-            
+
                 # Ensure all numeric values are floats
                 if isinstance(validated_metrics[section], dict):
                     for key, value in validated_metrics[section].items():
                         if isinstance(value, (int, float)):
                             validated_metrics[section][key] = float(value)
-            
+
             return validated_metrics
 
         except Exception as e:
@@ -179,7 +177,6 @@ class MetricsCalculator:
 
             # Initialize phase transition points
             opening_end = min(10, total_moves)  # Default opening length
-            middlegame_start = opening_end
             endgame_start = total_moves * 2 // 3
 
             # Track material count
@@ -197,7 +194,6 @@ class MetricsCalculator:
                         or i >= 10
                     ):  # Hard limit on opening
                         opening_end = i
-                        middlegame_start = i
                         break
 
                 # Detect endgame start
@@ -427,11 +423,11 @@ class MetricsCalculator:
                     time_spent.append(float(time_val) if time_val is not None else 0.0)
                 except (ValueError, TypeError):
                     time_spent.append(0.0)
-            
+
             # If we have no valid time data, return defaults
             if not time_spent or all(t == 0 for t in time_spent):
                 return {"average_time": 0.0, "time_pressure_percentage": 0.0, "time_consistency": 0.0}
-                
+
             avg_time = statistics.mean(time_spent)
 
             # Calculate time pressure
@@ -489,10 +485,10 @@ class MetricsCalculator:
             # Evaluate phase time distribution
             opening_data = phase_times.get("opening", {})
             endgame_data = phase_times.get("endgame", {})
-            
+
             opening_time = float(opening_data.get("average_time", 0))
             endgame_time = float(endgame_data.get("average_time", 0))
-            
+
             if opening_time > 0 and endgame_time > 0:
                 ratio = endgame_time / opening_time
                 if ratio < 0.2:  # Too little time in endgame
@@ -575,7 +571,7 @@ class MetricsCalculator:
         """Calculate consistency score based on move quality streaks and error patterns."""
         if not moves:
             return 100.0  # Perfect consistency for empty game
-            
+
         # Calculate move quality streaks
         quality_streaks = []
         current_streak = 0
@@ -591,18 +587,22 @@ class MetricsCalculator:
                 current_streak = 0
         if current_streak > 0:
             quality_streaks.append(current_streak)
-            
+
         # Calculate error patterns
         mistakes_in_window = 0.0
         mistake_clusters = 0.0
         window_size = 5
         for i in range(len(moves)):
-            window = moves[i:i+window_size]
-            window_mistakes = sum(1 for m in window if MetricsCalculator._normalized_classification(m) in mistake_classes)
+            window = moves[i : i + window_size]
+            window_mistakes = sum(
+                1
+                for m in window
+                if MetricsCalculator._normalized_classification(m) in mistake_classes
+            )
             if window_mistakes > 1:
                 mistake_clusters += 1.0
             mistakes_in_window += float(window_mistakes)
-            
+
         # Calculate time consistency
         times = [move.get('time_spent', 0) for move in moves if move.get('time_spent') is not None]
         if not times:
@@ -617,7 +617,7 @@ class MetricsCalculator:
         streak_score = (sum(quality_streaks) / max(1.0, float(len(moves)))) * 100.0 if quality_streaks else 0.0
         error_score = max(0.0, 100.0 - (mistakes_in_window / max(1.0, float(len(moves))) * 100.0))
         cluster_score = max(0.0, 100.0 - (mistake_clusters / max(1.0, float(len(moves))) * 100.0))
-        
+
         final_score = (streak_score * 0.4 + error_score * 0.3 + cluster_score * 0.2 + time_consistency * 0.1)
         return max(0.0, min(100.0, final_score))
 
@@ -644,7 +644,6 @@ class MetricsCalculator:
             # Initialize metrics
             total_positions = 0
             successful = 0.0
-            missed = 0
             brilliant_moves = 0
             pattern_scores: List[float] = []
 
@@ -1443,10 +1442,10 @@ class MetricsCalculator:
     def _calculate_move_quality(moves: List[Dict[str, Any]]) -> Dict[str, float]:
         """
         Calculate move quality metrics.
-        
+
         Args:
             moves: List of analyzed moves with their evaluations
-            
+
         Returns:
             Dictionary containing move quality metrics
         """
@@ -1459,9 +1458,9 @@ class MetricsCalculator:
                     "inaccuracies": 0.0,
                     "quality_moves": 0.0
                 }
-            
+
             total_moves = float(len(moves))
-            
+
             # Count move types
             mistakes = sum(
                 1.0
@@ -1484,10 +1483,10 @@ class MetricsCalculator:
                 if m.get("is_best", False)
                 or MetricsCalculator._normalized_classification(m) in {"good", "excellent"}
             )
-            
+
             # Calculate percentages
             accuracy = ((total_moves - (mistakes + blunders + inaccuracies)) / total_moves) * 100.0
-            
+
             return {
                 "accuracy": max(0.0, min(100.0, accuracy)),
                 "mistakes": (mistakes / total_moves) * 100.0,
@@ -1495,7 +1494,7 @@ class MetricsCalculator:
                 "inaccuracies": (inaccuracies / total_moves) * 100.0,
                 "quality_moves": (quality_moves / total_moves) * 100.0
             }
-            
+
         except Exception as e:
             logger.error(f"Error calculating move quality: {str(e)}")
             raise MetricsError(f"Failed to calculate move quality: {str(e)}")
@@ -1504,41 +1503,48 @@ class MetricsCalculator:
     def _calculate_time_management(time_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Calculate time management metrics.
-        
+
         Args:
             time_data: List of time data for each move
-            
+
         Returns:
             Dictionary containing time management metrics
         """
         try:
             if not time_data:
                 return MetricsCalculator._get_default_time_metrics()
-            
+
             total_moves = float(len(time_data))
             total_time = sum(float(t.get("time_spent", 0.0)) for t in time_data)
 
             if total_time <= 0:
                 return MetricsCalculator._get_default_time_metrics()
-            
+
             # Calculate average time per move
             avg_time_per_move = total_time / total_moves if total_moves > 0 else 0.0
-            
+
             # Calculate time variations
             time_variations = []
             for i in range(1, len(time_data)):
-                prev_time = float(time_data[i-1].get("time_spent", 0.0))
+                prev_time = float(time_data[i - 1].get("time_spent", 0.0))
                 curr_time = float(time_data[i].get("time_spent", 0.0))
                 if prev_time > 0:
                     variation = abs(curr_time - prev_time) / prev_time
                     time_variations.append(variation)
-            
+
             # Calculate time consistency
             time_consistency = 100.0 * (1.0 - min(1.0, sum(time_variations) / max(1.0, float(len(time_variations)))))
-            
+
             # Calculate time pressure (percentage of moves with less than 10% of average time)
-            time_pressure = sum(1.0 for t in time_data 
-                              if float(t.get("time_spent", 0.0)) < 0.1 * avg_time_per_move) / total_moves * 100.0
+            time_pressure = (
+                sum(
+                    1.0
+                    for t in time_data
+                    if float(t.get("time_spent", 0.0)) < 0.1 * avg_time_per_move
+                )
+                / total_moves
+                * 100.0
+            )
             time_pressure_moves = int(
                 sum(1 for t in time_data if float(t.get("time_spent", 0.0)) < 0.1 * avg_time_per_move)
             )
@@ -1546,10 +1552,10 @@ class MetricsCalculator:
             # Calculate variance for compatibility with frontend metrics card
             time_values = [float(t.get("time_spent", 0.0)) for t in time_data]
             time_variance = statistics.variance(time_values) if len(time_values) > 1 else 0.0
-            
+
             # Calculate time usage (percentage of total time used)
             time_usage = min(100.0, (total_time / 3600.0) * 100.0)  # Assuming 1 hour game
-            
+
             return {
                 "average_time": avg_time_per_move,
                 "avg_time_per_move": avg_time_per_move,
@@ -1562,7 +1568,7 @@ class MetricsCalculator:
                 "time_management_score": max(0.0, min(100.0, (time_consistency + (100.0 - time_pressure)) / 2.0)),
                 "data_status": "available",
             }
-            
+
         except Exception as e:
             logger.error(f"Error calculating time management: {str(e)}")
             raise MetricsError(f"Failed to calculate time management: {str(e)}")
