@@ -4,21 +4,14 @@ Handles recognition and analysis of chess patterns and motifs.
 """
 
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import chess
 import chess.pgn
-from django.conf import settings
-from django.core.cache import cache
-from django.utils import timezone
 
-from ..cache import CACHE_BACKEND_REDIS, cache_delete, cache_get, cache_set
+from ..cache import CACHE_BACKEND_REDIS, cache_get, cache_set
 from ..error_handling import (
-    ExternalServiceError,
     ResourceNotFoundError,
-    TaskError,
-    ValidationError,
 )
 from ..models import Game
 
@@ -726,7 +719,6 @@ class PatternAnalyzer:
             for square in chess.SQUARES:
                 piece = board.piece_at(square)
                 if piece and piece.piece_type in [chess.KNIGHT, chess.BISHOP]:
-                    file = chess.square_file(square)
                     rank = chess.square_rank(square)
 
                     # Check if piece is in enemy territory

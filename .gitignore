@@ -118,3 +118,10 @@ deploy_script.sh
 *.bak
 *.swp
 *~
+
+# Ignore large test output files and local test helpers
+chess_mate/full_test_output.txt
+chess_mate/test_results.txt
+
+# Ignore local script helpers matching print_*.py
+chess_mate/scripts/print_*.py

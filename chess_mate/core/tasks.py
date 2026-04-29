@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 import redis
-from celery import Task, shared_task
+from celery import Task, shared_task, group, chord
 from celery.utils.log import get_task_logger
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
@@ -30,7 +30,10 @@ from .error_handling import (
 )
 from .game_analyzer import GameAnalyzer, AnalysisError
 from .analysis.metrics_calculator import MetricsError
-from .models import Game, GameAnalysis, Profile
+from .analysis.batch_aggregator import aggregate_batch, BatchAggregationError
+from .analysis.coaching_generator import generate_coaching_report, CoachingGeneratorError
+from .analysis.stockfish_game_result import build_game_result
+from .models import Game, GameAnalysis, Profile, BatchAnalysisReport
 from .task_manager import (
     TaskManager, 
     TASK_STATUS_PENDING,
@@ -799,3 +802,230 @@ def batch_analyze_games(
         status_value = "error"
 
     return {"status": status_value, "results": results, "game_ids": game_ids}
+
+
+# ============================================================================
+# Phase 1 Batch Analysis Tasks (PRD Section 11)
+# ============================================================================
+
+@shared_task(name="chess_mate.core.tasks.analyze_single_game_subtask", bind=False)
+def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: int) -> Dict[str, Any]:
+    """
+    Analyze a single game and return structured result envelope.
+    
+    This task is executed in parallel as part of a group() within analyze_batch_task.
+    It catches all exceptions and returns {"game_id", "status": "success|failed", "result"|"error"}.
+    Must never raise — exception safety is critical for chord callback.
+    
+    Args:
+        pgn: PGN string of the game
+        game_id: Game identifier (string for batch context)
+        batch_id: Batch identifier
+        user_id: User who owns the batch
+        
+    Returns:
+        {"game_id": game_id, "status": "success"|"failed", "result": {...} or "error": "..."}
+    """
+    try:
+        # Build per-game result using stockfish analysis
+        game_result = build_game_result(pgn, game_id=game_id)
+        
+        if not game_result:
+            return {
+                "game_id": game_id,
+                "status": "failed",
+                "error": "Failed to build game result (empty output)",
+            }
+        
+        return {
+            "game_id": game_id,
+            "status": "success",
+            "result": game_result,
+        }
+    
+    except Exception as exc:
+        logger.exception(f"Error analyzing game {game_id} in batch {batch_id}: {str(exc)}")
+        return {
+            "game_id": game_id,
+            "status": "failed",
+            "error": str(exc),
+        }
+
+
+@shared_task(name="chess_mate.core.tasks.aggregate_and_report_task", bind=False)
+def aggregate_and_report_task(task_results: List[Dict[str, Any]], batch_id: str, game_pgn_list: List[str], user_id: int) -> Dict[str, Any]:
+    """
+    Chord callback: aggregate per-game results and generate coaching report.
+    
+    This is the callback executed after all analyze_single_game_subtask tasks complete.
+    
+    Args:
+        task_results: List of results from all subtasks: [{"game_id", "status", "result"|"error"}, ...]
+        batch_id: Batch ID (task_id)
+        game_pgn_list: List of PGN strings (for date extraction)
+        user_id: User who owns the batch
+        
+    Returns:
+        {"status": "completed"|"partial"|"failed", "batch_id": batch_id, ...}
+    """
+    logger.info(f"Chord callback: aggregating results for batch {batch_id}")
+    
+    try:
+        # Lookup or create BatchAnalysisReport
+        try:
+            batch_report = BatchAnalysisReport.objects.get(task_id=batch_id, user_id=user_id)
+        except BatchAnalysisReport.DoesNotExist:
+            from django.contrib.auth.models import User
+            user_obj = User.objects.get(id=user_id)
+            batch_report = BatchAnalysisReport.objects.create(
+                user=user_obj,
+                task_id=batch_id,
+                status="in_progress",
+            )
+        
+        # Filter successful results
+        successful_results = [r for r in task_results if r.get("status") == "success"]
+        failed_results = [r for r in task_results if r.get("status") == "failed"]
+        
+        successful_count = len(successful_results)
+        
+        logger.info(f"Batch {batch_id}: {successful_count} succeeded, {len(failed_results)} failed out of {len(task_results)}")
+        
+        # Extract per_game_results (full objects) and per-game summaries (for AI)
+        per_game_results = [r.get("result") for r in successful_results if r.get("result")]
+        
+        # If fewer than 5 games succeeded, mark batch failed and stop
+        if successful_count < 5:
+            logger.warning(f"Batch {batch_id}: insufficient successful games ({successful_count} < 5), marking failed")
+            batch_report.status = "failed"
+            batch_report.per_game_results = per_game_results
+            batch_report.save(update_fields=["status", "per_game_results", "updated_at"])
+            
+            return {
+                "status": "failed",
+                "batch_id": batch_id,
+                "reason": f"Insufficient successful games ({successful_count} < 5)",
+                "successful_count": successful_count,
+            }
+        
+        # Aggregate batch summary from successful results
+        try:
+            batch_summary = aggregate_batch(per_game_results, pgn_list=game_pgn_list)
+        except BatchAggregationError as exc:
+            logger.error(f"Batch {batch_id}: aggregation failed: {str(exc)}")
+            batch_report.status = "failed"
+            batch_report.per_game_results = per_game_results
+            batch_report.save(update_fields=["status", "per_game_results", "updated_at"])
+            
+            return {
+                "status": "failed",
+                "batch_id": batch_id,
+                "reason": f"Aggregation validation failed: {str(exc)}",
+            }
+        
+        # Generate coaching report using OpenAI
+        coaching_report = None
+        try:
+            coaching_report = generate_coaching_report(batch_summary, per_game_results)
+            # Determine status: completed if all succeeded, partial if some failed
+            final_status = "completed" if failed_results == [] else "partial"
+            
+        except CoachingGeneratorError as exc:
+            # Degraded mode: coaching failure doesn't fail the entire batch
+            # Save what we have (batch_summary + per_game_results) and mark as partial
+            logger.warning(f"Batch {batch_id}: coaching generation failed (degraded mode): {str(exc)}")
+            coaching_report = None
+            final_status = "partial"
+        
+        # Persist to BatchAnalysisReport
+        batch_report.batch_summary = batch_summary
+        batch_report.per_game_results = per_game_results
+        batch_report.coaching_report = coaching_report
+        batch_report.status = final_status
+        batch_report.games_count = len(task_results)
+        batch_report.completed_games = [r.get("game_id") for r in successful_results]
+        batch_report.failed_games = [{"game_id": r.get("game_id"), "error": r.get("error")} for r in failed_results]
+        batch_report.save(update_fields=[
+            "batch_summary",
+            "per_game_results",
+            "coaching_report",
+            "status",
+            "games_count",
+            "completed_games",
+            "failed_games",
+            "updated_at",
+        ])
+        
+        logger.info(f"Batch {batch_id} completed with status {final_status}")
+        
+        return {
+            "status": final_status,
+            "batch_id": batch_id,
+            "games_analyzed": successful_count,
+            "games_failed": len(failed_results),
+        }
+        
+    except Exception as exc:
+        logger.exception(f"Error in aggregate_and_report_task for batch {batch_id}: {str(exc)}")
+        
+        try:
+            batch_report = BatchAnalysisReport.objects.get(task_id=batch_id, user_id=user_id)
+            batch_report.status = "failed"
+            batch_report.save(update_fields=["status", "updated_at"])
+        except Exception:
+            pass
+        
+        return {
+            "status": "failed",
+            "batch_id": batch_id,
+            "reason": f"Aggregation failed: {str(exc)}",
+        }
+
+
+@shared_task(name="chess_mate.core.tasks.analyze_batch_task", bind=False)
+def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) -> str:
+    """
+    Fan-out/fan-in batch analysis task.
+    
+    Creates a group of parallel analyze_single_game_subtask tasks, then chains to
+    aggregate_and_report_task via chord(). 
+    
+    Args:
+        batch_id: Batch identifier (will become task_id on BatchAnalysisReport)
+        game_pgn_list: List of PGN strings to analyze
+        user_id: User who owns the batch
+        
+    Returns:
+        Celery task ID or status string
+    """
+    logger.info(f"Starting batch analysis for batch {batch_id}: {len(game_pgn_list)} games")
+    
+    # Mark batch as in_progress
+    try:
+        from django.contrib.auth.models import User
+        user_obj = User.objects.get(id=user_id)
+        batch_report, created = BatchAnalysisReport.objects.get_or_create(
+            task_id=batch_id,
+            user_id=user_id,
+            defaults={"status": "pending"},
+        )
+        batch_report.status = "in_progress"
+        batch_report.games_count = len(game_pgn_list)
+        batch_report.game_ids = list(range(len(game_pgn_list)))  # Placeholder game IDs
+        batch_report.save(update_fields=["status", "games_count", "game_ids", "updated_at"])
+    except Exception as exc:
+        logger.error(f"Failed to create/update batch report for {batch_id}: {str(exc)}")
+    
+    # Build group of subtasks: one per game
+    subtasks = group(
+        analyze_single_game_subtask.s(pgn, f"game_{i}", batch_id, user_id)
+        for i, pgn in enumerate(game_pgn_list)
+    )
+    
+    # Chain group to callback
+    callback = aggregate_and_report_task.s(batch_id, game_pgn_list, user_id)
+    workflow = chord(subtasks)(callback)
+    
+    logger.info(f"Batch {batch_id} workflow initiated: {workflow.id}")
+    
+    return workflow.id

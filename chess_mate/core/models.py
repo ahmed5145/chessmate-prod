@@ -854,6 +854,14 @@ class GameAnalysis(models.Model):
 class BatchAnalysisReport(models.Model):
     """Persisted combined report for a completed batch analysis task."""
 
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("in_progress", "In Progress"),
+        ("completed", "Completed"),
+        ("partial", "Partial"),
+        ("failed", "Failed"),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="batch_analysis_reports")
     task_id = models.CharField(max_length=255, db_index=True)
     game_ids = models.JSONField(default=list, blank=True)
@@ -861,6 +869,13 @@ class BatchAnalysisReport(models.Model):
     completed_games = models.JSONField(default=list, blank=True)
     failed_games = models.JSONField(default=list, blank=True)
     aggregate_metrics = models.JSONField(default=dict, blank=True)
+    
+    # Phase 1 new fields (PRD section 11)
+    batch_summary = models.JSONField(null=True, blank=True, default=None)
+    per_game_results = models.JSONField(null=True, blank=True, default=None)
+    coaching_report = models.JSONField(null=True, blank=True, default=None)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

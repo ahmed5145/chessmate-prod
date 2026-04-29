@@ -290,21 +290,28 @@ class FeedbackGenerator:
 
         drill_library = {
             "opening": [
-                "Play through 5 master games in your main opening and note where development slows down.",
-                "After each opening move, ask whether every piece has a job and every pawn move has a reason.",
+                "Play through 5 master games in your main opening "
+                "and note where development slows down.",
+                "After each opening move, ask whether every piece has a job"
+                "and every pawn move has a reason.",
             ],
             "middlegame": [
-                "For 10 tactical positions, write down two candidate moves before looking at engine lines.",
+                "For 10 tactical positions, "
+                "write down two candidate moves before looking at engine lines.",
                 "Review your last 5 middlegame inaccuracies and classify each "
                 "as tactical, positional, or time-related.",
             ],
             "endgame": [
-                "Practice 5 endgames where the plan is to trade into the simplest winning conversion.",
-                "Before every endgame move, verify king activity, passed pawns, and whether you can simplify.",
+                "Practice 5 endgames where the plan is to trade into the simplest winning"
+                "conversion.",
+                "Before every endgame move, verify king activity, passed pawns, "
+                "and whether you can simplify.",
             ],
             "time_pressure": [
-                "Use a fixed decision budget per move in practical games and stop at the budget before overchecking.",
-                "Track where time is lost and compare it to the phase where accuracy drops the most.",
+                "Use a fixed decision budget per move in practical games "
+                "and stop at the budget before overchecking.",
+                "Track where time is lost and compare it to the phase where "
+                "accuracy drops the most.",
             ],
             "blunder_check": [
                 "Run a 3-step pre-move check: opponent threats, forcing moves, your hanging pieces.",
