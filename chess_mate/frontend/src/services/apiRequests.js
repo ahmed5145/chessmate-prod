@@ -303,6 +303,9 @@ export const fetchGameAnalysis = async (gameId) => {
     return fetchGameAnalysisService(gameId);
 };
 
+// DEPRECATED: Phase 1 task model — use createBatch() instead
+// This endpoint uses the old /api/v1/games/batch-analyze/ task-based model.
+// Kept for backward compatibility only. New code should use createBatch().
 export const analyzeBatchGames = async (
     numGames,
     timeControl = 'all',
@@ -354,6 +357,9 @@ export const analyzeBatchGames = async (
     }
 };
 
+// DEPRECATED: Phase 1 task model — use getBatchStatus() instead
+// This endpoint uses the old /api/v1/games/batch-status/{taskId}/ task-based model.
+// Kept for backward compatibility only. New code should use getBatchStatus().
 export const checkBatchAnalysisStatus = async (taskId) => {
     try {
         if (!taskId) {
@@ -428,6 +434,9 @@ export const checkBatchAnalysisStatus = async (taskId) => {
     }
 };
 
+// DEPRECATED: Phase 1 task model — use API directly for saved reports if needed
+// This endpoint lists old batch reports using /api/v1/games/batch-reports/ task-based model.
+// Kept for backward compatibility only.
 export const fetchBatchReportHistory = async (limit = 20) => {
     try {
         const response = await api.get('/api/v1/games/batch-reports/', {
@@ -445,6 +454,9 @@ export const fetchBatchReportHistory = async (limit = 20) => {
     }
 };
 
+// DEPRECATED: Phase 1 task model — use getBatchReport() instead
+// This endpoint fetches old batch reports using /api/v1/games/batch-reports/{reportId}/ task-based model.
+// Kept for backward compatibility only. New code should use getBatchReport().
 export const fetchBatchReportById = async (reportId) => {
     try {
         const response = await api.get(`/api/v1/games/batch-reports/${reportId}/`);
@@ -459,6 +471,245 @@ export const fetchBatchReportById = async (reportId) => {
         throw error.response?.data || new Error('Failed to fetch batch report');
     }
 };
+
+// ============================================================================
+// Phase 2: Batch API (new resource model)
+// ============================================================================
+// These functions use the new /api/v1/batches/ resource model with proper
+// separation of concerns: createBatch for submission, getBatchStatus for polling,
+// getBatchReport for fetching the full analysis after completion.
+
+/**
+ * Create a new batch analysis job.
+ * 
+ * @param {Array<string>} pgnList - Array of PGN strings
+ * @returns {Promise} Response with batch_id, task_id, status, and games_count
+ * 
+ * Expected response shape (202):
+ * {
+ *   batch_id: "model-uuid",
+ *   task_id: "celery-task-id",
+ *   status: "pending",
+ *   games_count: 10
+ * }
+ */
+export const createBatch = async (pgnList) => {
+    try {
+        if (!Array.isArray(pgnList)) {
+            throw new Error('pgnList must be an array of PGN strings');
+        }
+
+        if (pgnList.length < 5 || pgnList.length > 30) {
+            throw new Error('Batch size must be between 5 and 30 games');
+        }
+
+        const payload = {
+            games: pgnList.map((item) => typeof item === 'string' ? item : item.pgn)
+        };
+
+        const response = await api.post('/api/v1/batches/', payload);
+
+        if (!response.data) {
+            throw new Error('Invalid response from server');
+        }
+
+        const { batch_id, task_id, status, games_count } = response.data;
+
+        if (!batch_id) {
+            throw new Error('No batch ID received from server');
+        }
+
+        return {
+            batch_id,
+            task_id: task_id || batch_id,
+            status: status || 'pending',
+            games_count: games_count || pgnList.length
+        };
+    } catch (error) {
+        console.error('Error creating batch:', error);
+        throw error.response?.data || new Error('Failed to create batch');
+    }
+};
+
+/**
+ * Poll the status of an ongoing or completed batch.
+ * 
+ * @param {string} batchId - The batch ID from createBatch()
+ * @returns {Promise} Response with status, progress, completed/failed counts
+ * 
+ * Expected response shape (200):
+ * {
+ *   batch_id: "model-uuid",
+ *   task_id: "celery-task-id",
+ *   status: "pending" | "in_progress" | "completed" | "partial" | "failed",
+ *   games_count: 10,
+ *   completed_games: 8,
+ *   failed_games: 2,
+ *   progress: "8/10 games analyzed",
+ *   errors: [
+ *     { game_id: "game_0", message: "Invalid PGN" },
+ *     ...
+ *   ]
+ * }
+ */
+export const getBatchStatus = async (batchId) => {
+    try {
+        if (!batchId) {
+            throw new Error('Batch ID is required');
+        }
+
+        const response = await api.get(`/api/v1/batches/${batchId}/status/`);
+
+        if (!response.data) {
+            throw new Error('Invalid response from server');
+        }
+
+        const {
+            batch_id,
+            task_id,
+            status = 'failed',
+            games_count = 0,
+            completed_games = 0,
+            failed_games = 0,
+            progress = '',
+            errors = []
+        } = response.data;
+
+        return {
+            batch_id: batch_id || batchId,
+            task_id,
+            status,
+            games_count,
+            completed_games,
+            failed_games,
+            progress,
+            errors
+        };
+    } catch (error) {
+        console.error('Error checking batch status:', error);
+        throw error.response?.data || new Error('Failed to check batch status');
+    }
+};
+
+/**
+ * Fetch the complete analysis report for a batch.
+ * Call only after getBatchStatus() returns status !== pending/in_progress.
+ * 
+ * @param {string} batchId - The batch ID
+ * @returns {Promise} Full report payload, or 202 if still in progress
+ * 
+ * Expected response shapes:
+ * 
+ * While in progress (202):
+ * {
+ *   status: "pending" | "in_progress",
+ *   message: "Analysis in progress"
+ * }
+ * 
+ * On completion (200):
+ * {
+ *   id: "model-uuid",
+ *   task_id: "celery-task-id",
+ *   status: "completed" | "partial" | "failed",
+ *   games_count: 10,
+ *   batch_summary: {
+ *     games_analyzed: 10,
+ *     overall_accuracy: 0.85,
+ *     date_range: "2025-01-01 to 2025-01-10",
+ *     win_loss_draw: { wins: 6, losses: 2, draws: 2 },
+ *     phase_performance: { opening: 0.88, middlegame: 0.82, endgame: 0.80 },
+ *     recurring_weaknesses: [ ... ]
+ *   },
+ *   per_game_results: [
+ *     {
+ *       game_id: "game_0",
+ *       total_moves: 40,
+ *       result: "1-0",
+ *       player_color: "white",
+ *       opening_name: "Italian Game",
+ *       phase_breakdown: { ... },
+ *       move_quality: { blunder: 0, mistake: 1, inaccuracy: 4 },
+ *       critical_moments: [ ... ]
+ *     },
+ *     ...
+ *   ],
+ *   coaching_report: {
+ *     executive_summary: "...",
+ *     coaching_narrative: { opening: "...", middlegame: "...", endgame: "..." },
+ *     top_3_priorities: [
+ *       {
+ *         rank: 1,
+ *         title: "Tactical Vision",
+ *         why_it_matters: "...",
+ *         how_to_fix: "...",
+ *         specific_drill: "...",
+ *         estimated_study_hours: 10
+ *       },
+ *       ...
+ *     ],
+ *     training_plan: {
+ *       week_1: "...",
+ *       week_2: "...",
+ *       week_3: "...",
+ *       week_4: "..."
+ *     },
+ *     one_thing_to_do_today: "..."
+ *   } | null,  // null when status = partial (coaching generation failed)
+ *   created_at: "2025-01-20T10:00:00Z",
+ *   updated_at: "2025-01-20T10:15:00Z"
+ * }
+ * 
+ * On failure (200):
+ * {
+ *   status: "failed",
+ *   message: "Analysis failed — insufficient games succeeded"
+ * }
+ */
+export const getBatchReport = async (batchId) => {
+    try {
+        if (!batchId) {
+            throw new Error('Batch ID is required');
+        }
+
+        const response = await api.get(`/api/v1/batches/${batchId}/report/`);
+
+        if (!response.data) {
+            throw new Error('Invalid response from server');
+        }
+
+        const {
+            id,
+            task_id,
+            status,
+            games_count = 0,
+            batch_summary = null,
+            per_game_results = [],
+            coaching_report = null,
+            created_at,
+            updated_at,
+            message
+        } = response.data;
+
+        // Return full structure with all fields present
+        return {
+            id: id || batchId,
+            task_id,
+            status,
+            games_count,
+            batch_summary,
+            per_game_results,
+            coaching_report, // may be null when status = partial
+            created_at,
+            updated_at,
+            message // included for error cases
+        };
+    } catch (error) {
+        console.error('Error fetching batch report:', error);
+        throw error.response?.data || new Error('Failed to fetch batch report');
+    }
+};
+
+// ============================================================================
 
 // User profile functions
 export const getUserProfile = async () => {
