@@ -14,7 +14,6 @@
  *   - completedGames: number
  *   - totalGames: number
  *   - error: string | null
- *   - pollingErrorCount: number
  * 
  * Pure page component with polling side effects only.
  */
@@ -42,10 +41,10 @@ const BatchReport = () => {
   const [completedGames, setCompletedGames] = useState(0);
   const [totalGames, setTotalGames] = useState(0);
   const [error, setError] = useState(null);
-  const [pollingErrorCount, setPollingErrorCount] = useState(0);
   const intervalRef = useRef(null);
   const loadingReportRef = useRef(false);
   const finishedRef = useRef(false);
+  const pollingErrorCountRef = useRef(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -94,7 +93,7 @@ const BatchReport = () => {
           return;
         }
 
-        setPollingErrorCount(0);
+        pollingErrorCountRef.current = 0;
         setStatus(response?.status || 'failed');
         setProgress(response?.progress || '');
         setCompletedGames(Number(response?.completed_games) || 0);
@@ -108,15 +107,12 @@ const BatchReport = () => {
           return;
         }
 
-        setPollingErrorCount((previousCount) => {
-          const nextCount = previousCount + 1;
-          if (nextCount >= 3) {
-            clearPolling();
-            finishedRef.current = true;
-            setError('Unable to reach server. Please refresh the page.');
-          }
-          return nextCount;
-        });
+        pollingErrorCountRef.current += 1;
+        if (pollingErrorCountRef.current >= 3) {
+          clearPolling();
+          finishedRef.current = true;
+          setError('Unable to reach server. Please refresh the page.');
+        }
       }
     };
 
