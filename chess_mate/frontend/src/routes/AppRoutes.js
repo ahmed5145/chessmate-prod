@@ -13,6 +13,8 @@ import Games from '../components/Games';
 import SingleGameAnalysis from '../components/SingleGameAnalysis';
 import BatchAnalysis from '../components/BatchAnalysis';
 import BatchAnalysisResults from '../components/BatchAnalysisResults';
+import BatchUpload from '../components/batch/BatchUpload';
+import BatchReport from '../components/batch/BatchReport';
 import FetchGames from '../components/FetchGames';
 import PaymentSuccess from '../components/PaymentSuccess';
 import PaymentCancel from '../components/PaymentCancel';
@@ -88,6 +90,22 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <BatchAnalysis />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/batch"
+        element={
+          <ProtectedRoute>
+            <BatchUpload />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/batch-report/:batchId"
+        element={
+          <ProtectedRoute>
+            <BatchReport />
           </ProtectedRoute>
         }
       />
