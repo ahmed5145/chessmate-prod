@@ -1,0 +1,178 @@
+/**
+ * BatchReport.js
+ * 
+ * Page that polls batch status, loads the final report, and renders the
+ * analysis sections in the approved order.
+ * 
+ * Route params:
+ *   - batchId: string
+ * 
+ * State:
+ *   - batchReport: object | null
+ *   - status: string
+ *   - progress: string
+ *   - completedGames: number
+ *   - totalGames: number
+ *   - error: string | null
+ *   - pollingErrorCount: number
+ * 
+ * Pure page component with polling side effects only.
+ */
+
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import {
+  Alert,
+  Box,
+  Container
+} from '@mui/material';
+import BatchLoadingScreen from './BatchLoadingScreen';
+import ExecutiveSummary from './ExecutiveSummary';
+import PhaseBreakdown from './PhaseBreakdown';
+import TopPriorities from './TopPriorities';
+import TrainingPlan from './TrainingPlan';
+import GameAccordion from './GameAccordion';
+import { getBatchStatus, getBatchReport } from '../../services/apiRequests';
+
+const BatchReport = () => {
+  const { batchId } = useParams();
+  const [batchReport, setBatchReport] = useState(null);
+  const [status, setStatus] = useState('pending');
+  const [progress, setProgress] = useState('');
+  const [completedGames, setCompletedGames] = useState(0);
+  const [totalGames, setTotalGames] = useState(0);
+  const [error, setError] = useState(null);
+  const [pollingErrorCount, setPollingErrorCount] = useState(0);
+  const intervalRef = useRef(null);
+  const loadingReportRef = useRef(false);
+  const finishedRef = useRef(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const clearPolling = () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+
+    const loadBatchReport = async () => {
+      if (loadingReportRef.current || finishedRef.current) {
+        return;
+      }
+
+      loadingReportRef.current = true;
+      clearPolling();
+
+      try {
+        const report = await getBatchReport(batchId);
+        if (!isMounted) {
+          return;
+        }
+        setBatchReport(report);
+      } catch (reportError) {
+        if (!isMounted) {
+          return;
+        }
+        const message = reportError?.message || reportError?.detail || 'Failed to load batch report.';
+        setError(message);
+      } finally {
+        loadingReportRef.current = false;
+        finishedRef.current = true;
+      }
+    };
+
+    const pollStatus = async () => {
+      if (!batchId || finishedRef.current) {
+        return;
+      }
+
+      try {
+        const response = await getBatchStatus(batchId);
+        if (!isMounted) {
+          return;
+        }
+
+        setPollingErrorCount(0);
+        setStatus(response?.status || 'failed');
+        setProgress(response?.progress || '');
+        setCompletedGames(Number(response?.completed_games) || 0);
+        setTotalGames(Number(response?.games_count) || 0);
+
+        if (['completed', 'partial', 'failed'].includes(response?.status)) {
+          await loadBatchReport();
+        }
+      } catch (pollError) {
+        if (!isMounted) {
+          return;
+        }
+
+        setPollingErrorCount((previousCount) => {
+          const nextCount = previousCount + 1;
+          if (nextCount >= 3) {
+            clearPolling();
+            finishedRef.current = true;
+            setError('Unable to reach server. Please refresh the page.');
+          }
+          return nextCount;
+        });
+      }
+    };
+
+    if (!batchId) {
+      setError('Missing batch ID.');
+      return () => {
+        isMounted = false;
+        clearPolling();
+      };
+    }
+
+    pollStatus();
+    intervalRef.current = setInterval(pollStatus, 3000);
+
+    return () => {
+      isMounted = false;
+      clearPolling();
+    };
+  }, [batchId]);
+
+  const showReport = batchReport && ['completed', 'partial'].includes(status);
+
+  return (
+    <Box sx={{ minHeight: '100vh' }}>
+      <BatchLoadingScreen
+        status={status}
+        progress={progress}
+        completed_games={completedGames}
+        total_games={totalGames}
+      />
+
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        {error ? (
+          <Alert severity="error" sx={{ mb: 3, width: '100%' }}>
+            {error}
+          </Alert>
+        ) : null}
+
+        {status === 'failed' ? (
+          <Alert severity="error" sx={{ mb: 3, width: '100%' }}>
+            Analysis failed — insufficient games succeeded. Please try again with more games.
+          </Alert>
+        ) : null}
+
+        {showReport ? (
+          <Box sx={{ display: 'grid', gap: 4 }}>
+            <ExecutiveSummary coaching_report={batchReport.coaching_report} />
+            <PhaseBreakdown batch_summary={batchReport.batch_summary} />
+            <TopPriorities coaching_report={batchReport.coaching_report} />
+            <TrainingPlan coaching_report={batchReport.coaching_report} />
+            <GameAccordion per_game_results={batchReport.per_game_results} />
+          </Box>
+        ) : null}
+      </Container>
+    </Box>
+  );
+};
+
+export default BatchReport;
