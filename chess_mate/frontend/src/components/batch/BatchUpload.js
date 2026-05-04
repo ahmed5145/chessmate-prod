@@ -14,7 +14,7 @@ import {
   Container,
   Typography
 } from '@mui/material';
-import BatchUploadForm from './BatchUploadForm';
+import BatchGameSelector from './BatchGameSelector';
 import { createBatch } from '../../services/apiRequests';
 
 const BatchUpload = () => {
@@ -22,12 +22,12 @@ const BatchUpload = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleSubmit = async (pgnList) => {
+  const handleSubmit = async (selectedGameIds) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await createBatch(pgnList);
+      const response = await createBatch({ gameIds: selectedGameIds });
       navigate(`/batch-report/${response.batch_id}`);
     } catch (submitError) {
       const message = submitError?.message || submitError?.detail || 'Failed to start batch analysis.';
@@ -49,7 +49,7 @@ const BatchUpload = () => {
           </Alert>
         ) : null}
 
-        <BatchUploadForm onSubmit={handleSubmit} isLoading={isLoading} />
+        <BatchGameSelector onSubmit={handleSubmit} isLoading={isLoading} />
       </Box>
     </Container>
   );

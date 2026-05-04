@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 import chess.pgn
 from io import StringIO
 
-from .models import BatchAnalysisReport
+from .models import BatchAnalysisReport, Game
 
 
 class BatchCreateSerializer(serializers.Serializer):
@@ -14,7 +14,8 @@ class BatchCreateSerializer(serializers.Serializer):
     Validates and processes a batch of games for analysis.
     
     Accepts either:
-    - games: list of objects with 'pgn' string field
+    - games: list of PGN strings
+    - game_ids: list of saved game IDs to resolve to PGNs
     - files: multipart file upload (converted to PGN strings)
     
     Validates batch size (5-30) and PGN parsability.
@@ -26,6 +27,11 @@ class BatchCreateSerializer(serializers.Serializer):
         required=False,
         allow_empty=False,
     )
+    game_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=False,
+    )
     files = serializers.ListField(
         child=serializers.FileField(),
         required=False,
@@ -34,7 +40,9 @@ class BatchCreateSerializer(serializers.Serializer):
 
     def validate(self, data):
         """Validate batch size and PGN content."""
+        request = self.context.get("request")
         games = data.get("games", [])
+        game_ids = data.get("game_ids", [])
         files = data.get("files", [])
 
         # Collect PGN strings from both sources
@@ -56,6 +64,27 @@ class BatchCreateSerializer(serializers.Serializer):
                     raise serializers.ValidationError(
                         f"Failed to read uploaded file: {str(e)}"
                     )
+
+        # Resolve saved games to PGN strings when selected by ID.
+        if game_ids:
+            if request is None:
+                raise serializers.ValidationError("Request context is required for game selection.")
+
+            game_rows = list(
+                Game.objects.filter(id__in=game_ids, user=request.user).values_list("id", "pgn")
+            )
+            if len(game_rows) != len(game_ids):
+                raise serializers.ValidationError(
+                    "One or more game IDs are invalid or do not belong to you."
+                )
+
+            games_by_id = {game_id: pgn for game_id, pgn in game_rows}
+            try:
+                pgn_list.extend(games_by_id[game_id] for game_id in game_ids)
+            except KeyError as exc:
+                raise serializers.ValidationError(
+                    "One or more game IDs are invalid or do not belong to you."
+                ) from exc
 
         # Validate batch size
         batch_size = len(pgn_list)
@@ -110,8 +139,6 @@ class BatchStatusSerializer(serializers.Serializer):
     completed_games = serializers.SerializerMethodField()
     failed_games = serializers.SerializerMethodField()
     progress = serializers.SerializerMethodField()
-    errors = serializers.SerializerMethodField()
-
     def get_batch_id(self, obj):
         """Map id to batch_id."""
         return obj.get("id") or obj.get("batch_id")
@@ -148,6 +175,38 @@ class BatchStatusSerializer(serializers.Serializer):
                         "message": item.get("error", "Unknown error"),
                     })
         return errors
+
+    def to_representation(self, instance):
+        """Return the batch status payload expected by the frontend."""
+        completed_list = instance.get("completed_games", [])
+        failed_list = instance.get("failed_games", [])
+        completed_games = len(completed_list) if isinstance(completed_list, list) else 0
+        failed_games = len(failed_list) if isinstance(failed_list, list) else 0
+        errors = []
+
+        if isinstance(failed_list, list):
+            for item in failed_list:
+                if isinstance(item, dict):
+                    errors.append(
+                        {
+                            "game_id": item.get("game_id"),
+                            "message": item.get("error", "Unknown error"),
+                        }
+                    )
+
+        games_count = instance.get("games_count", 0)
+        batch_id = instance.get("id") or instance.get("batch_id")
+
+        return {
+            "batch_id": batch_id,
+            "task_id": instance.get("task_id"),
+            "status": instance.get("status"),
+            "games_count": games_count,
+            "completed_games": completed_games,
+            "failed_games": failed_games,
+            "progress": f"{completed_games}/{games_count} games analyzed",
+            "errors": errors,
+        }
 
 
 class BatchAnalysisReportSerializer(serializers.ModelSerializer):

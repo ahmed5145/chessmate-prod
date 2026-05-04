@@ -156,6 +156,8 @@ export const fetchUserGames = async () => {
                 result: game.result || 'unknown',
                 date_played: game.date_played || game.played_at || new Date().toISOString(),
                 opening_name: game.opening_name || 'Unknown Opening',
+                time_control: game.time_control || game.time_control_type || 'unknown',
+                time_control_type: game.time_control_type || game.time_control || 'unknown',
                 status: game.status || normalizedAnalysisStatus,
                 analysis_status: normalizedAnalysisStatus,
                 white: game.white || game.opponent || 'Unknown',
@@ -482,7 +484,9 @@ export const fetchBatchReportById = async (reportId) => {
 /**
  * Create a new batch analysis job.
  * 
- * @param {Array<string>} pgnList - Array of PGN strings
+ * @param {Object} options - Batch selection payload.
+ * @param {Array<number>|null} options.gameIds - Array of saved game IDs.
+ * @param {Array<string>|null} options.pgnList - Array of PGN strings.
  * @returns {Promise} Response with batch_id, task_id, status, and games_count
  * 
  * Expected response shape (202):
@@ -493,19 +497,24 @@ export const fetchBatchReportById = async (reportId) => {
  *   games_count: 10
  * }
  */
-export const createBatch = async (pgnList) => {
+export const createBatch = async ({ gameIds = null, pgnList = null } = {}) => {
     try {
-        if (!Array.isArray(pgnList)) {
-            throw new Error('pgnList must be an array of PGN strings');
+        const hasGameIds = Array.isArray(gameIds);
+        const hasPgnList = Array.isArray(pgnList);
+
+        if (!hasGameIds && !hasPgnList) {
+            throw new Error('Either gameIds or pgnList must be provided');
         }
 
-        if (pgnList.length < 5 || pgnList.length > 30) {
+        const selectedCount = hasGameIds ? gameIds.length : pgnList.length;
+
+        if (selectedCount < 5 || selectedCount > 30) {
             throw new Error('Batch size must be between 5 and 30 games');
         }
 
-        const payload = {
-            games: pgnList.map((item) => typeof item === 'string' ? item : item.pgn)
-        };
+        const payload = hasGameIds
+            ? { game_ids: gameIds }
+            : { games: pgnList };
 
         const response = await api.post('/api/v1/batches/', payload);
 
@@ -523,7 +532,7 @@ export const createBatch = async (pgnList) => {
             batch_id,
             task_id: task_id || batch_id,
             status: status || 'pending',
-            games_count: games_count || pgnList.length
+            games_count: games_count || selectedCount
         };
     } catch (error) {
         console.error('Error creating batch:', error);

@@ -36,7 +36,7 @@ def batch_create_view(request):
             "games_count": N
         }
     """
-    serializer = BatchCreateSerializer(data=request.data)
+    serializer = BatchCreateSerializer(data=request.data, context={'request': request})
     
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -60,7 +60,7 @@ def batch_create_view(request):
     
     return Response(
         {
-            "batch_id": batch_report.id,
+            "batch_id": batch_report.pk,
             "task_id": batch_id,
             "status": "pending",
             "games_count": len(pgn_list),
@@ -102,7 +102,7 @@ def batch_status_view(request, batch_id):
     
     # Build dict from model instance for serializer
     batch_dict = {
-        "id": batch_report.id,
+        "id": batch_report.pk,
         "task_id": batch_report.task_id,
         "status": batch_report.status,
         "games_count": batch_report.games_count,
