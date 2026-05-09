@@ -1,7 +1,10 @@
 import json
+import logging
 from typing import Any, Dict, List
 
 from core.analysis.coaching_schema import BATCH_COACHING_REPORT_SCHEMA
+
+logger = logging.getLogger(__name__)
 
 
 class CoachingGeneratorError(Exception):
@@ -131,6 +134,8 @@ def generate_coaching_report(batch_summary: Dict[str, Any], per_game_results: Li
             "json_schema": BATCH_COACHING_REPORT_SCHEMA,
         }
 
+        logger.info(f"Coaching generation prompt length: {len(user_message)} chars")
+
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -140,29 +145,21 @@ def generate_coaching_report(batch_summary: Dict[str, Any], per_game_results: Li
             response_format=response_format,
         )
 
-        # Accept either SDK-parsed output or raw content
-        parsed = None
-        if hasattr(response, "output_parsed"):
-            parsed = response.output_parsed
-        elif isinstance(response, dict) and response.get("output_parsed") is not None:
-            parsed = response.get("output_parsed")
-        else:
-            # Try to extract text and parse JSON
-            # different SDKs expose different structures; be permissive
-            try:
-                # New SDKs may provide output[0].content[0].text
-                output = getattr(response, "output", None) or response.get("output")
-                if output and len(output) > 0:
-                    content = output[0].get("content") if isinstance(output[0], dict) else None
-                    if content and len(content) > 0:
-                        text = content[0].get("text") if isinstance(content[0], dict) else None
-                        if text:
-                            parsed = json.loads(text)
-            except Exception:
-                parsed = None
+        # Extract JSON string from response.choices[0].message.content
+        content = response.choices[0].message.content
+        logger.info(f"OpenAI response (first 200 chars): {content[:200]}")
+        
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise CoachingGeneratorError(
+                f"OpenAI returned non-JSON response: {content[:200]}"
+            ) from e
 
-        if not parsed or not isinstance(parsed, dict):
-            raise CoachingGeneratorError("OpenAI returned no valid parsed JSON")
+        if not isinstance(parsed, dict):
+            raise CoachingGeneratorError(
+                f"OpenAI returned unexpected type: {type(parsed)}, content: {content[:200]}"
+            )
 
         return parsed
 

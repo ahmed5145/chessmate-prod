@@ -28,7 +28,15 @@ env_files = [
 ]
 for env_file in env_files:
     if os.path.exists(env_file):
+        # Load with python-dotenv first (preserve existing non-empty env vars),
+        # then also load via django-environ so `env()` and `os.environ` are
+        # consistently populated (django-environ writes into os.environ).
         load_dotenv(env_file, override=False)
+        try:
+            environ.Env.read_env(env_file)
+        except Exception:
+            # If django-environ fails to read, keep going — load_dotenv already ran.
+            pass
 
 # Testing mode flag - must be defined before any dependent settings
 TESTING: bool = env('TESTING', default='False').lower() == "true"
