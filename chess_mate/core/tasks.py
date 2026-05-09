@@ -853,7 +853,7 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
 
 
 @shared_task(name="chess_mate.core.tasks.aggregate_and_report_task", bind=False)
-def aggregate_and_report_task(task_results: List[Dict[str, Any]], batch_id: str, game_pgn_list: List[str], user_id: int, player_rating: Optional[int] = None) -> Dict[str, Any]:
+def aggregate_and_report_task(task_results: List[Dict[str, Any]], batch_id: str, game_pgn_list: List[str], user_id: int) -> Dict[str, Any]:
     """
     Chord callback: aggregate per-game results and generate coaching report.
     
@@ -910,7 +910,7 @@ def aggregate_and_report_task(task_results: List[Dict[str, Any]], batch_id: str,
         
         # Aggregate batch summary from successful results
         try:
-            batch_summary = aggregate_batch(per_game_results, pgn_list=game_pgn_list, player_rating=player_rating)
+            batch_summary = aggregate_batch(per_game_results, pgn_list=game_pgn_list)
         except BatchAggregationError as exc:
             logger.error(f"Batch {batch_id}: aggregation failed: {str(exc)}")
             batch_report.status = "failed"
@@ -926,6 +926,8 @@ def aggregate_and_report_task(task_results: List[Dict[str, Any]], batch_id: str,
         # Generate coaching report using OpenAI
         coaching_report = None
         try:
+            # Extract player_rating from batch_summary (derived from game ELOs)
+            player_rating = batch_summary.get('player_rating')
             coaching_report = generate_coaching_report(batch_summary, per_game_results, player_rating=player_rating)
             # Determine status: completed if all succeeded, partial if some failed
             final_status = "completed" if failed_results == [] else "partial"
@@ -983,7 +985,7 @@ def aggregate_and_report_task(task_results: List[Dict[str, Any]], batch_id: str,
 
 
 @shared_task(name="chess_mate.core.tasks.analyze_batch_task", bind=False)
-def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int, player_rating: Optional[int] = None) -> str:
+def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) -> str:
     """
     Fan-out/fan-in batch analysis task.
     
@@ -1023,7 +1025,7 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int, pl
     )
     
     # Chain group to callback
-    callback = aggregate_and_report_task.s(batch_id, game_pgn_list, user_id, player_rating)
+    callback = aggregate_and_report_task.s(batch_id, game_pgn_list, user_id)
     workflow = chord(subtasks)(callback)
     
     logger.info(f"Batch {batch_id} workflow initiated: {workflow.id}")

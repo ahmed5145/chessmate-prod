@@ -419,6 +419,9 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
     }
 
     # fill result.result and player_color from PGN header if available
+    # Also extract WhiteElo and BlackElo for rating derivation
+    white_elo = None
+    black_elo = None
     try:
         reader = io.StringIO(pgn)
         game = chess.pgn.read_game(reader)
@@ -426,7 +429,22 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
             result["result"] = game.headers.get("Result", "")
             # determine player's color as white by default
             result["player_color"] = "white"
+            # Extract ELO ratings from headers
+            try:
+                white_elo_str = game.headers.get("WhiteElo")
+                white_elo = int(white_elo_str) if white_elo_str else None
+            except (ValueError, TypeError):
+                white_elo = None
+            try:
+                black_elo_str = game.headers.get("BlackElo")
+                black_elo = int(black_elo_str) if black_elo_str else None
+            except (ValueError, TypeError):
+                black_elo = None
     except Exception:
         pass
+
+    # Add ELO ratings to result
+    result["white_elo"] = white_elo
+    result["black_elo"] = black_elo
 
     return result

@@ -17,7 +17,7 @@ class BatchAggregationError(Exception):
     pass
 
 
-def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[List[str]] = None, player_rating: Optional[int] = None) -> Dict[str, Any]:
+def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[List[str]] = None) -> Dict[str, Any]:
     """
     Aggregate per-game Stockfish results into cross-game patterns.
 
@@ -59,6 +59,27 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
         )
     
     per_game_results = valid_results
+
+    # Derive player_rating from game ELO ratings
+    # For each game, extract the ELO of the player's color, collect non-null values,
+    # take median, and round to nearest integer
+    player_elos = []
+    for game_result in per_game_results:
+        player_color = game_result.get("player_color", "white")
+        if player_color == "white":
+            white_elo = game_result.get("white_elo")
+            if white_elo is not None:
+                player_elos.append(white_elo)
+        else:
+            black_elo = game_result.get("black_elo")
+            if black_elo is not None:
+                player_elos.append(black_elo)
+    
+    # Compute median; if no ELO values, set to None
+    if player_elos:
+        player_rating = round(statistics.median(player_elos))
+    else:
+        player_rating = None
 
     # Extract basic counts
     games_analyzed = len(per_game_results)

@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import BatchAnalysisReport, Profile
+from .models import BatchAnalysisReport
 from .serializers_batches import (
     BatchCreateSerializer,
     BatchStatusSerializer,
@@ -43,12 +43,6 @@ def batch_create_view(request):
     
     # Extract validated PGN list
     pgn_list = serializer.validated_data["pgn_list"]
-
-    try:
-        profile = Profile.objects.get(user=request.user)
-        player_rating = profile.rating
-    except Profile.DoesNotExist:
-        player_rating = None
     
     # Generate batch_id as UUID string
     batch_id = str(uuid.uuid4())
@@ -62,7 +56,7 @@ def batch_create_view(request):
     )
     
     # Queue the analysis task
-    analyze_batch_task.delay(batch_id, pgn_list, request.user.id, player_rating=player_rating)
+    analyze_batch_task.delay(batch_id, pgn_list, request.user.id)
     
     return Response(
         {
