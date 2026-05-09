@@ -17,7 +17,7 @@ class BatchAggregationError(Exception):
     pass
 
 
-def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[List[str]] = None) -> Dict[str, Any]:
+def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[List[str]] = None, player_rating: Optional[int] = None) -> Dict[str, Any]:
     """
     Aggregate per-game Stockfish results into cross-game patterns.
 
@@ -89,6 +89,7 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
 
     result = {
         "games_analyzed": games_analyzed,
+        "player_rating": player_rating,
         "date_range": date_range,
         "overall_accuracy": overall_accuracy,
         "win_loss_draw": win_loss_draw,

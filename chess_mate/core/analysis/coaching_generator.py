@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from core.analysis.coaching_schema import BATCH_COACHING_REPORT_SCHEMA
 
@@ -63,7 +63,7 @@ def _build_per_game_summary(item: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def generate_coaching_report(batch_summary: Dict[str, Any], per_game_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+def generate_coaching_report(batch_summary: Dict[str, Any], per_game_results: List[Dict[str, Any]], player_rating: Optional[int] = None) -> Dict[str, Any]:
     """
     Generate a batch coaching report by calling the OpenAI API once with a
     structured JSON schema response_format.
@@ -92,11 +92,14 @@ def generate_coaching_report(batch_summary: Dict[str, Any], per_game_results: Li
         "You are a chess coach generating a batch improvement report from structured analysis data.\n"
         "Use only the provided aggregated metrics and per-game summaries. Do not invent openings, move numbers, tactical themes, or chess facts that are not present in the input. Be direct, specific, and practical. No generic advice. No motivational filler. No hedging. No markdown. No prose outside the JSON object.\n"
         "Return only valid JSON that exactly matches the supplied schema. Every field is required. Use concise coaching language. If some games failed or data is missing, reflect that succinctly inside the JSON fields rather than outside the schema.\n"
+        "If a player rating is provided, calibrate all advice, drills, and priorities to that skill level. A 1200-rated player needs fundamentals. A 1600-rated player needs pattern recognition and basic strategy. A 2000-rated player needs deep calculation, complex positional play, and advanced endgame technique — do not recommend beginner drills.\n"
         "CRITICAL: If a phase has trend: \"no_data\", do not reference it as a weakness or strength — skip it entirely in the coaching narrative for that phase and note data was insufficient."
     )
 
     user_template = (
         "Generate the batch coaching report from this data.\n\n"
+        "PLAYER_RATING:\n"
+        "{player_rating}\n\n"
         "BATCH_SUMMARY_JSON:\n"
         "{batch_summary_json}\n\n"
         "PER_GAME_SUMMARIES_JSON:\n"
@@ -109,8 +112,10 @@ def generate_coaching_report(batch_summary: Dict[str, Any], per_game_results: Li
     batch_summary_json = json.dumps(batch_summary)
     per_game_summaries_json = json.dumps(per_game_summaries)
     failed_games_json = json.dumps(failed_games)
+    player_rating_text = str(player_rating) if player_rating is not None else "Unknown"
 
     user_message = user_template.format(
+        player_rating=player_rating_text,
         batch_summary_json=batch_summary_json,
         per_game_summaries_json=per_game_summaries_json,
         failed_games_json=failed_games_json,
