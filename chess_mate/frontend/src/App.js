@@ -1,14 +1,25 @@
 import React from 'react';
 import { Toaster } from 'react-hot-toast';
-import { ThemeProvider } from './context/ThemeContext';
+import { ThemeProvider as TailwindThemeProvider, useTheme } from './context/ThemeContext';
+import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
 import { UserProvider } from './contexts/UserContext';
 import AppRoutes from './routes/AppRoutes';
 import Navbar from './components/Navbar';
 import './App.css';
 
-function App() {
+// Inner component that uses Tailwind theme context and provides MUI theme
+function AppContent() {
+  const { isDarkMode } = useTheme();
+
+  // Create MUI theme based on Tailwind dark mode state
+  const muiTheme = createTheme({
+    palette: {
+      mode: isDarkMode ? 'dark' : 'light',
+    },
+  });
+
   return (
-    <ThemeProvider>
+    <MuiThemeProvider theme={muiTheme}>
       <UserProvider>
         <div className="min-h-screen flex flex-col">
           <Navbar />
@@ -34,7 +45,15 @@ function App() {
           />
         </div>
       </UserProvider>
-    </ThemeProvider>
+    </MuiThemeProvider>
+  );
+}
+
+function App() {
+  return (
+    <TailwindThemeProvider>
+      <AppContent />
+    </TailwindThemeProvider>
   );
 }
 

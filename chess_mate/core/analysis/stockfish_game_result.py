@@ -148,8 +148,17 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
     metadata = metrics.get("metadata", {})
     total_moves = metadata.get("total_moves", len(analyzed_moves))
 
-    # Opening detection
-    opening_name, _ = _detect_opening_name_from_pgn(pgn)
+    # Extract opening name from ECO header tag (present in chess.com/lichess imports)
+    opening_name = "Unknown"
+    try:
+        pgn_io = io.StringIO(pgn)
+        pgn_game = chess.pgn.read_game(pgn_io)
+        if pgn_game:
+            eco_code = pgn_game.headers.get("ECO", "")
+            if eco_code:
+                opening_name = get_opening_name(eco_code) or "Unknown"
+    except Exception:
+        pass
 
     # Compute opening_accuracy: percentage of opening-phase moves that match engine top-3
     opening_length = int(metadata.get("opening_length", 0))
