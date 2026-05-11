@@ -1,5 +1,6 @@
 # Version control
 .git
+.github
 .gitignore
 
 # Python
@@ -14,7 +15,6 @@ venv
 !.env.example
 
 # Docker
-Dockerfile
 docker-compose*.yml
 .docker
 
@@ -54,6 +54,7 @@ k8s/
 Thumbs.db
 
 # Test coverage
+tests
 .coverage
 htmlcov/
 coverage/
@@ -72,3 +73,12 @@ data/
 
 # Exclude node_modules
 node_modules/
+chess_mate/frontend/node_modules
+chess_mate/frontend/build
+
+
+.venv311
+.venv
+venv
+venv311
+*.egg-info
