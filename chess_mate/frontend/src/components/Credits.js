@@ -7,7 +7,6 @@ import api from '../services/api';
 
 const Credits = () => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const { credits, fetchUserData } = useContext(UserContext);
   const { isDarkMode } = useTheme();
 

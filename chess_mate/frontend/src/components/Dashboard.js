@@ -1,32 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   ChevronRight,
   PieChart,
-  Clock,
   Target,
   Award,
   TrendingUp,
   Brain,
-  Zap,
   Crown,
-  BarChart2,
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Swords,
   BookOpen,
   BarChart,
-  Timer,
-  Clock4,
   Layout,
   Trophy,
   Coins
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
-import { formatDate, getRelativeTime } from '../utils/dateUtils';
+import { formatDate } from '../utils/dateUtils';
 import { fetchDashboardData } from '../services/apiRequests';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -305,76 +298,6 @@ const Dashboard = () => {
   if (!dashboardData) {
     return null;
   }
-
-  const quickActions = [
-    {
-      title: 'Analyze Game',
-      icon: Crown,
-      description: 'Upload and analyze your latest chess game',
-      to: '/games',
-      color: 'primary'
-    },
-    {
-      title: 'Batch Analysis',
-      icon: BarChart,
-      description: 'Analyze multiple games for patterns',
-      to: '/batch-analysis',
-      color: 'violet'
-    },
-    {
-      title: 'View Progress',
-      icon: TrendingUp,
-      description: 'Check your improvement over time',
-      to: '/profile',
-      color: 'emerald'
-    },
-    {
-      title: 'Get Credits',
-      icon: Award,
-      description: 'Purchase credits for game analysis',
-      to: '/credits',
-      color: 'amber'
-    }
-  ];
-
-  const insights = [
-    {
-      title: 'Performance Insights',
-      icon: Target,
-      insights: [
-        {
-          type: 'success',
-          text: 'Your endgame accuracy has improved by 12% in the last 10 games'
-        },
-        {
-          type: 'warning',
-          text: 'Consider working on your opening preparation - recent games show early mistakes'
-        },
-        {
-          type: 'error',
-          text: 'Time management needs attention, especially in complex positions'
-        }
-      ]
-    },
-    {
-      title: 'Recent Achievements',
-      icon: Award,
-      insights: [
-        {
-          type: 'success',
-          text: 'New personal best: 95% accuracy in your last game!'
-        },
-        {
-          type: 'success',
-          text: 'Analyzed 50 games - Keep up the great work!'
-        },
-        {
-          type: 'warning',
-          text: 'You\'re close to reaching the next rating milestone'
-        }
-      ]
-    }
-  ];
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'} py-8`}>

@@ -1,11 +1,10 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserContext } from '../contexts/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-hot-toast';
 import { fetchExternalGames, fetchProfileData } from '../services/apiRequests';
 import { Coins, AlertCircle, UserCircle, Loader2 } from 'lucide-react';
-import LoadingSpinner from './LoadingSpinner';
 
 const FetchGames = () => {
   const [platform, setPlatform] = useState('chess.com');
@@ -13,20 +12,18 @@ const FetchGames = () => {
   const [loading, setLoading] = useState(false);
   const [gameMode, setGameMode] = useState('all');
   const [numGames, setNumGames] = useState(10);
-  const { credits, refreshUserData } = useContext(UserContext);
+  const { credits } = useContext(UserContext);
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
-  const [linkedAccounts, setLinkedAccounts] = useState(null);
 
   // Function to fetch user's profile data
-  const loadProfileData = async () => {
+  const loadProfileData = useCallback(async () => {
     try {
       const data = await fetchProfileData();
       const accounts = {
         chesscom: data.chesscom_username,
         lichess: data.lichess_username
       };
-      setLinkedAccounts(accounts);
 
       // Auto-fill username based on current platform
       const platformUsername = platform === 'chess.com' ? accounts.chesscom : accounts.lichess;
@@ -37,12 +34,12 @@ const FetchGames = () => {
       console.error('Error fetching profile:', error);
       toast.error('Failed to load profile data');
     }
-  };
+  }, [platform]);
 
   // Fetch profile data on mount and when platform changes
   useEffect(() => {
     loadProfileData();
-  }, [platform]);
+  }, [loadProfileData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

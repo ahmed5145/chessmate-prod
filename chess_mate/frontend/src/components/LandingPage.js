@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Crown, Shield, Zap, Trophy, FileInput, Brain, Target, Star } from 'lucide-react';
+import { Crown, Zap, FileInput, Brain, Target, Star } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 

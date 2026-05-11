@@ -19,7 +19,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
-import { logoutUser, fetchProfileData } from '../services/apiRequests';
+import { logoutUser } from '../services/apiRequests';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);

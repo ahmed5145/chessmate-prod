@@ -1,33 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import {
-  ChevronRight,
   Trophy,
   Target,
   Brain,
-  Clock,
   Lock,
   TrendingUp,
-  BarChart2,
   Award,
-  Crown,
-  Swords,
-  Calendar,
-  Clock4,
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Zap,
-  Timer,
   Layout,
   Coins,
-  Star,
-  LineChart,
   Activity
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
-import { useUser } from '../contexts/UserContext';
 import { fetchProfileData } from '../services/apiRequests';
 import { default as LoadingSpinner } from '../components/LoadingSpinner';
 import api from '../services/api';
@@ -517,8 +504,6 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newUsernames, setNewUsernames] = useState({ chesscom: '', lichess: '' });
-  const [linking, setLinking] = useState(false);
-  const [ratingHistory, setRatingHistory] = useState([]);
   const [performanceStats, setPerformanceStats] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
 
@@ -534,17 +519,13 @@ const Profile = () => {
 
       // Format rating history data
       if (data.rating_history && Object.keys(data.rating_history).length > 0) {
-        const formattedHistory = Object.entries(data.rating_history).map(([date, ratings]) => ({
+        Object.entries(data.rating_history).map(([date, ratings]) => ({
           date: new Date(date).toLocaleDateString(),
           bullet: ratings?.bullet || 1200,
           blitz: ratings?.blitz || 1200,
           rapid: ratings?.rapid || 1200,
           classical: ratings?.classical || 1200
         }));
-        setRatingHistory(formattedHistory);
-      } else {
-        // Set default empty history with proper structure
-        setRatingHistory([]);
       }
 
       // Format performance stats with defaults
@@ -570,7 +551,6 @@ const Profile = () => {
 
   const handleLinkAccount = async (platform) => {
     try {
-      setLinking(true);
       const username = platform === 'chess.com' ? newUsernames.chesscom : newUsernames.lichess;
 
       if (!username) {
@@ -578,7 +558,7 @@ const Profile = () => {
         return;
       }
 
-      const response = await api.post('/api/profile/link-account/', {
+      await api.post('/api/profile/link-account/', {
         platform,
         username
       });
@@ -590,8 +570,6 @@ const Profile = () => {
     } catch (error) {
       console.error('Error linking account:', error);
       toast.error(error.response?.data?.message || error.message || 'Failed to link account');
-    } finally {
-      setLinking(false);
     }
   };
 
@@ -694,7 +672,7 @@ const Profile = () => {
         {/* Performance Statistics */}
         <div className="mb-8">
           <PerformanceStats stats={performanceStats} isDarkMode={isDarkMode} />
-              </div>
+        </div>
 
         {/* Statistics Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -732,8 +710,8 @@ const Profile = () => {
             <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Achievements
             </h3>
-            <div className="space-y-4">
-              <AchievementsSection achievements={profileData.achievements || []} />
+              <div className="space-y-4">
+                <AchievementsSection achievements={profileData.achievements || []} />
               </div>
             </div>
           </div>
