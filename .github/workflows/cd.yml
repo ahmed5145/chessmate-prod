@@ -52,7 +52,7 @@ jobs:
 
     - name: Install Frontend Dependencies
       working-directory: chess_mate/frontend
-      run: npm ci
+      run: npm install
 
     - name: Build frontend
       working-directory: chess_mate/frontend
@@ -149,7 +149,7 @@ jobs:
 
           # Build frontend
           cd chess_mate/frontend
-          npm ci
+          npm install
           npm run build
 
           # Collect static files and run migrations (from chess_mate directory)
