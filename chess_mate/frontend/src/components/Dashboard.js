@@ -4,6 +4,8 @@ import {
   ChevronRight,
   PieChart,
   Target,
+  Award,
+  TrendingUp,
   Brain,
   AlertTriangle,
   CheckCircle,
