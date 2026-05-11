@@ -2,6 +2,22 @@
 
 set -e
 
+# Map Elastic Beanstalk RDS variables to Django database variables
+if [ -z "$DB_HOST" ] && [ -n "$RDS_HOSTNAME" ]; then
+    export DB_HOST="$RDS_HOSTNAME"
+fi
+if [ -z "$DB_PORT" ] && [ -n "$RDS_PORT" ]; then
+    export DB_PORT="$RDS_PORT"
+fi
+if [ -z "$DB_NAME" ] && [ -n "$RDS_DB_NAME" ]; then
+    export DB_NAME="$RDS_DB_NAME"
+fi
+if [ -z "$DB_USER" ] && [ -n "$RDS_USERNAME" ]; then
+    export DB_USER="$RDS_USERNAME"
+fi
+if [ -z "$DB_PASSWORD" ] && [ -n "$RDS_PASSWORD" ]; then
+    export DB_PASSWORD="$RDS_PASSWORD"
+fi
 
 DB_WAIT_HOST="${DB_HOST:-$DATABASE_HOST}"
 DB_WAIT_PORT="${DB_PORT:-$DATABASE_PORT}"

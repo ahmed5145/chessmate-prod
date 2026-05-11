@@ -3,6 +3,7 @@ FROM python:3.10-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV ENVIRONMENT=production
 ENV DJANGO_SETTINGS_MODULE=chess_mate.settings
 ENV PYTHONPATH=/app
 
@@ -22,7 +23,7 @@ RUN apt-get update \
 WORKDIR /app
 
 # Install Python dependencies
-COPY chess_mate/requirements.txt /app/
+COPY requirements.txt /app/
 RUN pip install --upgrade pip \
     && pip install -r requirements.txt
 
