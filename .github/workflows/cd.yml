@@ -59,7 +59,9 @@ jobs:
       run: npm run build
 
     - name: Prune frontend dependencies from deploy bundle
-      run: rm -rf chess_mate/frontend/node_modules
+      run: |
+        rm -rf chess_mate/frontend/node_modules
+        rm -rf node_modules
 
     - name: Package application
       run: |
@@ -70,7 +72,13 @@ jobs:
           docker-entrypoint.sh \
           .dockerignore \
           requirements.txt \
-          README.md
+          README.md \
+          -x "*/node_modules/*" "node_modules/*"
+
+        if unzip -l chessmate-app.zip | grep -q "node_modules/"; then
+          echo "ERROR: node_modules found in deployment package"
+          exit 1
+        fi
 
     - name: Evaluate Deployment Preconditions
       id: deploy_precheck
