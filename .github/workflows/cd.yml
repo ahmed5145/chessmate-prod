@@ -63,6 +63,8 @@ jobs:
         zip -r chessmate-app.zip \
           chess_mate/ \
           chess_mate/frontend/build/ \
+          Dockerfile \
+          docker-entrypoint.sh \
           requirements.txt \
           README.md
 
