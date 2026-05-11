@@ -58,18 +58,6 @@ jobs:
       working-directory: chess_mate/frontend
       run: npm run build
 
-    - name: Collect static files
-      env:
-        DJANGO_SETTINGS_MODULE: chess_mate.settings
-      run: |
-        cd chess_mate
-        python manage.py collectstatic --noinput
-
-    - name: Run migrations
-      run: |
-        cd chess_mate
-        python manage.py migrate --noinput
-
     - name: Package application
       run: |
         zip -r chessmate-app.zip \

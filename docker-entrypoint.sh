@@ -2,25 +2,33 @@
 
 set -e
 
-# Wait for postgres
-if [ "$DATABASE_HOST" ]; then
-    echo "Waiting for postgres..."
-    while ! nc -z $DATABASE_HOST $DATABASE_PORT; do
+
+DB_WAIT_HOST="${DB_HOST:-$DATABASE_HOST}"
+DB_WAIT_PORT="${DB_PORT:-$DATABASE_PORT}"
+if [ "$DB_WAIT_HOST" ]; then
+    echo "Waiting for postgres at $DB_WAIT_HOST:$DB_WAIT_PORT..."
+    while ! nc -z $DB_WAIT_HOST $DB_WAIT_PORT; do
         sleep 0.1
     done
     echo "PostgreSQL started"
 fi
 
 # Wait for redis
-if [ "$REDIS_HOST" ]; then
+REDIS_WAIT_HOST="${REDIS_HOST:-}"
+REDIS_WAIT_PORT="${REDIS_PORT:-6379}"
+if [ "$REDIS_WAIT_HOST" ]; then
     echo "Waiting for redis..."
-    while ! nc -z $REDIS_HOST $REDIS_PORT; do
+    while ! nc -z $REDIS_WAIT_HOST $REDIS_WAIT_PORT; do
         sleep 0.1
     done
     echo "Redis started"
 fi
 
 cd chess_mate
+
+# Collect static files
+echo "Collecting static files..."
+python manage.py collectstatic --noinput
 
 # Apply database migrations
 echo "Applying database migrations..."
