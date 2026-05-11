@@ -58,6 +58,9 @@ jobs:
       working-directory: chess_mate/frontend
       run: npm run build
 
+    - name: Prune frontend dependencies from deploy bundle
+      run: rm -rf chess_mate/frontend/node_modules
+
     - name: Package application
       run: |
         zip -r chessmate-app.zip \
@@ -65,6 +68,7 @@ jobs:
           chess_mate/frontend/build/ \
           Dockerfile \
           docker-entrypoint.sh \
+          .dockerignore \
           requirements.txt \
           README.md
 
