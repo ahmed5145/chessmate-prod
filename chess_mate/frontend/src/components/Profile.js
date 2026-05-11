@@ -18,16 +18,7 @@ import { useTheme } from '../context/ThemeContext';
 import { fetchProfileData } from '../services/apiRequests';
 import { default as LoadingSpinner } from '../components/LoadingSpinner';
 import api from '../services/api';
-import {
-  LineChart as RechartsLineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer
-} from 'recharts';
+
 
 const StatCard = ({ title, value, icon: Icon, trend, color = 'indigo' }) => {
   const { isDarkMode } = useTheme();
@@ -84,45 +75,6 @@ const ProgressChart = ({ data, title }) => {
             </div>
           </div>
         ))}
-      </div>
-    </div>
-  );
-};
-
-const AchievementCard = ({ achievement }) => {
-  const { isDarkMode } = useTheme();
-
-  return (
-    <div className={`p-2 rounded-lg ${
-      isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
-    } shadow-sm transition-all duration-200 group relative`}>
-      <div className="flex items-center gap-2">
-        <div className={`p-2 rounded-lg ${
-          achievement.completed
-            ? isDarkMode ? 'bg-green-900/30' : 'bg-green-100'
-            : isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-        }`}>
-          {achievement.completed ? (
-            <Trophy className={`h-4 w-4 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
-          ) : (
-            <Lock className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h4 className={`font-medium text-sm truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            {achievement.name}
-          </h4>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 h-1 rounded-full mt-1">
-            <div
-              className="bg-indigo-500 h-1 rounded-full transition-all duration-300"
-              style={{ width: `${(achievement.progress / achievement.target) * 100}%` }}
-            />
-          </div>
-        </div>
-      </div>
-      {/* Tooltip with description */}
-      <div className="absolute z-10 w-48 p-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none -top-8 left-1/2 transform -translate-x-1/2">
-        {achievement.description}
       </div>
     </div>
   );
@@ -375,82 +327,6 @@ const AchievementsSection = ({ achievements }) => {
 
       {/* Achievement Modal */}
       <AchievementModal />
-    </div>
-  );
-};
-
-const RatingChart = ({ ratingHistory, isDarkMode }) => {
-  if (!ratingHistory || !ratingHistory.length) {
-    return (
-      <div className={`p-6 rounded-xl ${
-        isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-      } shadow-lg`}>
-        <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          No rating history available
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`p-6 rounded-xl ${
-      isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-    } shadow-lg`}>
-      <h3 className={`text-lg font-medium mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-        Rating History
-      </h3>
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <RechartsLineChart data={ratingHistory}>
-            <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#e5e7eb'} />
-            <XAxis
-              dataKey="date"
-              stroke={isDarkMode ? '#9CA3AF' : '#4B5563'}
-              tick={{ fill: isDarkMode ? '#9CA3AF' : '#4B5563' }}
-            />
-            <YAxis
-              stroke={isDarkMode ? '#9CA3AF' : '#4B5563'}
-              tick={{ fill: isDarkMode ? '#9CA3AF' : '#4B5563' }}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF',
-                border: `1px solid ${isDarkMode ? '#374151' : '#E5E7EB'}`,
-                color: isDarkMode ? '#F3F4F6' : '#111827'
-              }}
-            />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey="bullet"
-              stroke="#EF4444"
-              name="Bullet"
-              dot={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="blitz"
-              stroke="#F59E0B"
-              name="Blitz"
-              dot={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="rapid"
-              stroke="#10B981"
-              name="Rapid"
-              dot={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="classical"
-              stroke="#3B82F6"
-              name="Classical"
-              dot={false}
-            />
-          </RechartsLineChart>
-        </ResponsiveContainer>
-      </div>
     </div>
   );
 };

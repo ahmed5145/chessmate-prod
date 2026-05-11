@@ -6,14 +6,12 @@ import {
   X,
   Sun,
   Moon,
-  Home,
   LayoutDashboard,
   Crown,
   LineChart,
   User,
   LogIn,
   UserPlus,
-  BarChart,
   Coins
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -34,7 +32,7 @@ const Navbar = () => {
     if (isLoggedIn) {
       refreshUserData();
     }
-  }, [isLoggedIn, location.pathname]);
+  }, [isLoggedIn, location.pathname, refreshUserData]);
 
   const handleLogout = async () => {
     try {
