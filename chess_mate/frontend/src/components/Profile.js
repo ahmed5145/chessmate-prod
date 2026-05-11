@@ -5,7 +5,6 @@ import {
   Brain,
   Lock,
   TrendingUp,
-  Award,
   CheckCircle,
   XCircle,
   AlertTriangle,
@@ -518,16 +517,6 @@ const Profile = () => {
       setProfileData(data);
 
       // Format rating history data
-      if (data.rating_history && Object.keys(data.rating_history).length > 0) {
-        Object.entries(data.rating_history).map(([date, ratings]) => ({
-          date: new Date(date).toLocaleDateString(),
-          bullet: ratings?.bullet || 1200,
-          blitz: ratings?.blitz || 1200,
-          rapid: ratings?.rapid || 1200,
-          classical: ratings?.classical || 1200
-        }));
-      }
-
       // Format performance stats with defaults
       if (data.performance_stats) {
         setPerformanceStats(data.performance_stats);
