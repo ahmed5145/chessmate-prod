@@ -54,15 +54,51 @@ class Migration(migrations.Migration):
             name='chess_com_username',
             field=models.CharField(blank=True, max_length=50),
         ),
-        migrations.AlterField(
-            model_name='profile',
-            name='lichess_username',
-            field=models.CharField(blank=True, max_length=50),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql='''DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='core_profile' AND column_name='lichess_username'
+  ) THEN
+    ALTER TABLE core_profile ALTER COLUMN lichess_username TYPE varchar(50);
+  END IF;
+END $$;''',
+                    reverse_sql='-- no-op'
+                ),
+            ],
+            state_operations=[
+                migrations.AlterField(
+                    model_name='profile',
+                    name='lichess_username',
+                    field=models.CharField(blank=True, max_length=50),
+                ),
+            ],
         ),
-        migrations.AlterField(
-            model_name='profile',
-            name='user',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='profile', to=settings.AUTH_USER_MODEL),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql='''DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='core_profile' AND column_name='user_id'
+  ) THEN
+    ALTER TABLE core_profile ALTER COLUMN user_id SET NOT NULL;
+  END IF;
+END $$;''',
+                    reverse_sql='-- no-op'
+                ),
+            ],
+            state_operations=[
+                migrations.AlterField(
+                    model_name='profile',
+                    name='user',
+                    field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='profile', to=settings.AUTH_USER_MODEL),
+                ),
+            ],
         ),
         migrations.CreateModel(
             name='Subscription',
