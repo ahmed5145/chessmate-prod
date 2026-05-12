@@ -86,12 +86,29 @@ INSTALLED_APPS = [
 ] + INSTALLED_APPS
 
 # Redis settings
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+# Prefer a single `REDIS_URL` if provided by the environment (Elastic Beanstalk can set that).
+# If `REDIS_URL` is not present, build one from the individual REDIS_HOST/PORT/DB/USERNAME/PASSWORD vars.
+_env_redis_url = os.getenv("REDIS_URL")
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+REDIS_DB = os.getenv("REDIS_DB", "0")
 REDIS_USERNAME = os.getenv("REDIS_USERNAME", "")
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+if _env_redis_url and _env_redis_url.strip():
+    REDIS_URL = _env_redis_url
+else:
+    # Construct a URL safely; include username/password only when provided
+    auth = ""
+    if REDIS_USERNAME:
+        auth = REDIS_USERNAME
+        if REDIS_PASSWORD:
+            auth = f"{REDIS_USERNAME}:{REDIS_PASSWORD}"
+        auth = auth + "@"
+    elif REDIS_PASSWORD:
+        # Uncommon, but handle password without username
+        auth = f":{REDIS_PASSWORD}@"
+
+    REDIS_URL = f"redis://{auth}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 # Cache settings
 CACHES = {
