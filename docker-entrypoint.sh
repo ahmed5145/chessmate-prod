@@ -2,7 +2,15 @@
 
 set -e
 
-# Map Elastic Beanstalk RDS variables to Django database variables.
+# Enable debug output to see exactly where issues occur
+echo "=== ENTRYPOINT DEBUG MODE ENABLED ==="
+echo "Bash version: $(bash --version | head -1)"
+echo "Python version: $(python --version 2>&1)"
+echo "Current directory: $(pwd)"
+echo "Python path: $(python -c 'import sys; print(sys.path)' 2>&1 || echo 'FAILED')"
+echo "Django settings: $DJANGO_SETTINGS_MODULE"
+echo "=== END DEBUG HEADER ==="
+echo
 if [ -z "$DB_HOST" ] && [ -n "$RDS_HOSTNAME" ]; then
     export DB_HOST="$RDS_HOSTNAME"
 fi
@@ -122,16 +130,26 @@ cd chess_mate
 
 # Collect static files
 echo "Collecting static files..."
-python manage.py collectstatic --noinput
+if ! python manage.py collectstatic --noinput 2>&1; then
+    echo "ERROR: collectstatic failed"
+    exit 1
+fi
 
 # Apply database migrations
 echo "Applying database migrations..."
-python manage.py migrate --noinput
+if ! python manage.py migrate --noinput 2>&1; then
+    echo "ERROR: Database migration failed"
+    python manage.py migrate --noinput --verbosity 3 2>&1 || true
+    exit 1
+fi
+echo "Database migrations completed successfully"
 
 # Create superuser if DJANGO_SUPERUSER_* env vars are set
 if [[ -n "$DJANGO_SUPERUSER_USERNAME" ]] && [[ -n "$DJANGO_SUPERUSER_EMAIL" ]] && [[ -n "$DJANGO_SUPERUSER_PASSWORD" ]]; then
     echo "Creating superuser..."
-    python manage.py createsuperuser --noinput
+    if ! python manage.py createsuperuser --noinput 2>&1; then
+        echo "WARNING: Superuser creation failed (may already exist)"
+    fi
 fi
 
 # Start Celery worker in background
@@ -141,5 +159,5 @@ if [ "$ENABLE_CELERY" = "true" ]; then
 fi
 
 # Start Gunicorn
-echo "Starting application server..."
-exec gunicorn chess_mate.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120
+echo "=== STARTING GUNICORN ON PORT 8000 ==="
+exec gunicorn chess_mate.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120 --error-logfile - --access-logfile -
