@@ -11,6 +11,8 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'chess_mate.settings_prod')
+# Use DJANGO_SETTINGS_MODULE environment variable if set, otherwise default to settings
+if 'DJANGO_SETTINGS_MODULE' not in os.environ:
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'chess_mate.settings')
 
 application = get_wsgi_application()
