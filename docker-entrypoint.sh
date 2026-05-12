@@ -16,32 +16,37 @@ fi
 if [ -n "$DATABASE_URL" ]; then
     if [ -z "$DB_HOST" ] || [ -z "$DB_NAME" ] || [ -z "$DB_USER" ]; then
         echo "Parsing DATABASE_URL into DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD"
-        eval "$(python - <<'PY'
+        python - <<'PY' > /tmp/db_env_from_url.sh
 import os
+import shlex
 from urllib.parse import urlparse
-u=os.environ.get('DATABASE_URL')
+u = os.environ.get('DATABASE_URL')
 if not u:
     raise SystemExit(0)
-o=urlparse(u)
-host=o.hostname or ''
-port=o.port or ''
-user=o.username or ''
-passwd=o.password or ''
-db=o.path[1:] if o.path and o.path.startswith('/') else o.path or ''
-envs=[]
+o = urlparse(u)
+host = o.hostname or ''
+port = str(o.port) if o.port else ''
+user = o.username or ''
+passwd = o.password or ''
+db = o.path[1:] if o.path and o.path.startswith('/') else (o.path or '')
+
+# Emit shell-safe assignments only for empty target variables.
 if host:
-    envs.append(f"[ -z \"$DB_HOST\" ] && export DB_HOST=\"{host}\"")
+    print(f'[ -z "$DB_HOST" ] && DB_HOST={shlex.quote(host)}')
 if port:
-    envs.append(f"[ -z \"$DB_PORT\" ] && export DB_PORT=\"{port}\"")
+    print(f'[ -z "$DB_PORT" ] && DB_PORT={shlex.quote(port)}')
 if db:
-    envs.append(f"[ -z \"$DB_NAME\" ] && export DB_NAME=\"{db}\"")
+    print(f'[ -z "$DB_NAME" ] && DB_NAME={shlex.quote(db)}')
 if user:
-    envs.append(f"[ -z \"$DB_USER\" ] && export DB_USER=\"{user}\"")
+    print(f'[ -z "$DB_USER" ] && DB_USER={shlex.quote(user)}')
 if passwd:
-    envs.append(f"[ -z \"$DB_PASSWORD\" ] && export DB_PASSWORD=\"{passwd}\"")
-print("; ".join(envs))
+    print(f'[ -z "$DB_PASSWORD" ] && DB_PASSWORD={shlex.quote(passwd)}')
 PY
-        )"
+        set -a
+        # shellcheck source=/tmp/db_env_from_url.sh
+        . /tmp/db_env_from_url.sh
+        set +a
+        rm -f /tmp/db_env_from_url.sh
     fi
 fi
 if [ -z "$DB_NAME" ] && [ -n "$RDS_DB_NAME" ]; then
@@ -58,6 +63,8 @@ DB_WAIT_HOST="${DB_HOST:-$DATABASE_HOST}"
 DB_WAIT_PORT="${DB_PORT:-${DATABASE_PORT:-5432}}"
 DB_WAIT_USER="${DB_USER:-postgres}"
 DB_WAIT_NAME="${DB_NAME:-postgres}"
+
+echo "Resolved DB target: host=${DB_WAIT_HOST:-<empty>} port=${DB_WAIT_PORT} db=${DB_WAIT_NAME} user=${DB_WAIT_USER}"
 
 if [ -n "$DB_WAIT_HOST" ]; then
     echo "Waiting for postgres at $DB_WAIT_HOST:$DB_WAIT_PORT (max 120s)..."
@@ -93,6 +100,7 @@ fi
 # Wait for redis
 REDIS_WAIT_HOST="${REDIS_HOST:-}"
 REDIS_WAIT_PORT="${REDIS_PORT:-6379}"
+echo "Resolved Redis target: host=${REDIS_WAIT_HOST:-<empty>} port=${REDIS_WAIT_PORT}"
 if [ "$REDIS_WAIT_HOST" ]; then
     echo "Waiting for redis at $REDIS_WAIT_HOST:$REDIS_WAIT_PORT (max 30s)..."
     counter=0
