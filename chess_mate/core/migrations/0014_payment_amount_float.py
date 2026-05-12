@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("core", "0013_subscription_tier_nullable"),
+        ("core", "0013a_state_inject_payment"),
     ]
 
     operations = [
