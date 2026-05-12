@@ -5,6 +5,7 @@ Production settings for ChessMate project.
 import os
 from datetime import timedelta
 from pathlib import Path
+from typing import Optional
 from django.core.exceptions import ImproperlyConfigured
 
 import sentry_sdk
@@ -233,7 +234,7 @@ CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access
 CSRF_USE_SESSIONS = False  # Use cookie-based CSRF
 CSRF_COOKIE_NAME = "csrftoken"
 CSRF_HEADER_NAME = "HTTP_X_CSRFTOKEN"
-CSRF_COOKIE_AGE: int | None = None  # Session length
+CSRF_COOKIE_AGE: Optional[int] = None  # Session length
 CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
 
 # Static and Media Files
