@@ -10,7 +10,9 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 # Redis connection singleton
-_redis_client = None
+from typing import Optional
+
+_redis_client: Optional[redis.Redis] = None
 
 def get_redis_connection():
     """Get a Redis connection or return None if Redis is disabled or unreachable."""
