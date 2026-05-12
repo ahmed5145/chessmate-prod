@@ -1,8 +1,8 @@
-"""Add Payment and AiFeedback to migration state only.
+"""Add Payment and AiFeedback to migration state only (renamed to follow chain).
 
-This migration uses SeparateDatabaseAndState with empty database operations
-so Django's project state includes the models required by later migrations
-without executing any SQL (prevents ProgrammingError on missing tables).
+This migration injects model state without executing any SQL so it can be
+applied when the database is missing those tables. It depends on the
+existing latest migration in the `core` app to keep the migration graph linear.
 """
 from django.db import migrations, models
 import django.db.models.deletion
@@ -12,7 +12,7 @@ from django.utils import timezone
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("core", "0010_compatibility_models"),
+        ("core", "0018_add_batchanalysisreport_status"),
     ]
 
     operations = [
