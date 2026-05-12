@@ -9,6 +9,41 @@ fi
 if [ -z "$DB_PORT" ] && [ -n "$RDS_PORT" ]; then
     export DB_PORT="$RDS_PORT"
 fi
+
+# If a single DATABASE_URL is provided (e.g. from some platforms), parse it
+# into separate DB_* env vars so the application doesn't rely on a single DSN.
+# Only populate DB_* if they are not already set (respect explicit settings).
+if [ -n "$DATABASE_URL" ]; then
+    if [ -z "$DB_HOST" ] || [ -z "$DB_NAME" ] || [ -z "$DB_USER" ]; then
+        echo "Parsing DATABASE_URL into DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD"
+        eval "$(python - <<'PY'
+import os
+from urllib.parse import urlparse
+u=os.environ.get('DATABASE_URL')
+if not u:
+    raise SystemExit(0)
+o=urlparse(u)
+host=o.hostname or ''
+port=o.port or ''
+user=o.username or ''
+passwd=o.password or ''
+db=o.path[1:] if o.path and o.path.startswith('/') else o.path or ''
+envs=[]
+if host:
+    envs.append(f"[ -z \"$DB_HOST\" ] && export DB_HOST=\"{host}\"")
+if port:
+    envs.append(f"[ -z \"$DB_PORT\" ] && export DB_PORT=\"{port}\"")
+if db:
+    envs.append(f"[ -z \"$DB_NAME\" ] && export DB_NAME=\"{db}\"")
+if user:
+    envs.append(f"[ -z \"$DB_USER\" ] && export DB_USER=\"{user}\"")
+if passwd:
+    envs.append(f"[ -z \"$DB_PASSWORD\" ] && export DB_PASSWORD=\"{passwd}\"")
+print("; ".join(envs))
+PY
+        )"
+    fi
+fi
 if [ -z "$DB_NAME" ] && [ -n "$RDS_DB_NAME" ]; then
     export DB_NAME="$RDS_DB_NAME"
 fi
