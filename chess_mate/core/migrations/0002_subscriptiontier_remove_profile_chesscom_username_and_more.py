@@ -35,9 +35,19 @@ class Migration(migrations.Migration):
                 'ordering': ['price'],
             },
         ),
-        migrations.RemoveField(
-            model_name='profile',
-            name='chesscom_username',
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql='ALTER TABLE core_profile DROP COLUMN IF EXISTS chesscom_username;',
+                    reverse_sql='ALTER TABLE core_profile ADD COLUMN IF NOT EXISTS chesscom_username varchar(100) NULL;'
+                ),
+            ],
+            state_operations=[
+                migrations.RemoveField(
+                    model_name='profile',
+                    name='chesscom_username',
+                ),
+            ],
         ),
         migrations.AddField(
             model_name='profile',
