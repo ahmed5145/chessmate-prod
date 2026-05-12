@@ -132,7 +132,8 @@ jobs:
         region: ${{ secrets.AWS_REGION || vars.AWS_REGION || 'us-east-1' }}
         deployment_package: chessmate-app.zip
         use_existing_version_if_available: true
-        recovery_wait_time: 180
+        wait_for_environment_recovery: true
+        max_backoff_retries: 18
 
     - name: Skip Production Deploy (Missing AWS Credentials)
       if: ${{ (github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main') && steps.deploy_precheck.outputs.aws_ready != 'true' }}
