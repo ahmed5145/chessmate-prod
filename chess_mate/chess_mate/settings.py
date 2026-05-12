@@ -174,14 +174,19 @@ elif IS_PRODUCTION:
                 "keepalives_idle": 60,  # After 60s of inactivity, send keepalive
                 "keepalives_interval": 10,  # Retry every 10s
                 "keepalives_count": 5,  # Drop after 5 failed attempts
-                # Performance optimizations
-                "statement_timeout": 30000,  # 30s statement timeout to prevent long-running queries
-                "effective_cache_size": int(env('DB_CACHE_SIZE', default='4096')),  # Cache size for query planning
-                "work_mem": int(env('DB_WORK_MEM', default='16')),  # Memory for internal sort operations (MB)
-                "maintenance_work_mem": int(
-                    env('DB_MAINTENANCE_MEM', default='64')
-                ),  # Memory for maintenance operations (MB)
-                "max_connections": int(env('DB_MAX_CONNECTIONS', default='100')),  # Maximum concurrent connections
+                # Performance optimizations: set as session options via libpq `options`
+                # Use environment variables so these can be tuned without code changes.
+                "options": " ".join(
+                    filter(
+                        None,
+                        [
+                            f"-c statement_timeout={int(env('DB_STATEMENT_TIMEOUT', default='30000'))}",
+                            f"-c work_mem={int(env('DB_WORK_MEM', default='16'))}MB",
+                            f"-c maintenance_work_mem={int(env('DB_MAINTENANCE_MEM', default='64'))}MB",
+                            f"-c effective_cache_size={int(env('DB_CACHE_SIZE', default='4096'))}MB",
+                        ],
+                    )
+                ),
             },
             # Connection pooling settings
             "POOL_OPTIONS": {

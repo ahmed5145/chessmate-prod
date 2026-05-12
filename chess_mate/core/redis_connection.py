@@ -19,29 +19,44 @@ def get_redis_connection():
             logger.warning("Redis is disabled via settings")
             return None
 
-        redis_host = getattr(settings, "REDIS_HOST", "localhost")
-        redis_port = getattr(settings, "REDIS_PORT", 6379)  # Default Redis port is 6379, not 6380
-        redis_db = getattr(settings, "REDIS_DB", 0)
-        redis_password = getattr(settings, "REDIS_PASSWORD", None)
+        # Prefer a full URL (REDIS_URL) when available (easier for environment injection).
+        redis_url = getattr(settings, "REDIS_URL", None)
+        if redis_url:
+            # Don't log the full URL because it may contain credentials
+            logger.info("Creating Redis client from REDIS_URL (credentials hidden)")
+            # redis.from_url will create a client using a ConnectionPool internally
+            client = redis.from_url(
+                redis_url,
+                socket_timeout=5,
+                socket_connect_timeout=5,
+                retry_on_timeout=True,
+                health_check_interval=30,
+                max_connections=getattr(settings, "REDIS_CONNECTION_POOL_SIZE", 10),
+            )
+        else:
+            redis_host = getattr(settings, "REDIS_HOST", "localhost")
+            redis_port = int(getattr(settings, "REDIS_PORT", 6379))  # Default Redis port
+            redis_db = int(getattr(settings, "REDIS_DB", 0))
+            redis_password = getattr(settings, "REDIS_PASSWORD", None)
 
-        # Log connection details without password
-        logger.info(f"Creating Redis connection pool for {redis_host}:{redis_port} (attempt 1)")
+            # Log connection details without password
+            logger.info(f"Creating Redis connection pool for {redis_host}:{redis_port} (attempt 1)")
 
-        # Create a connection pool for better performance
-        pool = redis.ConnectionPool(
-            host=redis_host,
-            port=redis_port,
-            db=redis_db,
-            password=redis_password,
-            socket_timeout=5,  # 5 second timeout for operations
-            socket_connect_timeout=5,  # 5 second timeout for connections
-            retry_on_timeout=True,  # Retry on timeout
-            health_check_interval=30,  # Check connection health periodically
-            max_connections=10,  # Limit maximum connections
-        )
+            # Create a connection pool for better performance
+            pool = redis.ConnectionPool(
+                host=redis_host,
+                port=redis_port,
+                db=redis_db,
+                password=redis_password,
+                socket_timeout=5,  # 5 second timeout for operations
+                socket_connect_timeout=5,  # 5 second timeout for connections
+                retry_on_timeout=True,  # Retry on timeout
+                health_check_interval=30,  # Check connection health periodically
+                max_connections=getattr(settings, "REDIS_CONNECTION_POOL_SIZE", 10),
+            )
 
-        # Create a Redis client with the connection pool
-        client = redis.Redis(connection_pool=pool)
+            # Create a Redis client with the connection pool
+            client = redis.Redis(connection_pool=pool)
 
         # Test connection with ping
         client.ping()
