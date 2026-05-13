@@ -3,12 +3,20 @@ from django.db import migrations, models
 
 def add_depth_column_if_missing(apps, schema_editor):
     table_name = "core_gameanalysis"
-    with schema_editor.connection.cursor() as cursor:
-        columns = {
-            col.name for col in schema_editor.connection.introspection.get_table_description(cursor, table_name)
-        }
+    connection = schema_editor.connection
+    existing_tables = set(connection.introspection.table_names())
+
+    if table_name not in existing_tables:
+        game_analysis_model = apps.get_model("core", "GameAnalysis")
+        schema_editor.create_model(game_analysis_model)
+        with connection.cursor() as cursor:
+            cursor.execute(f"ALTER TABLE {schema_editor.quote_name(table_name)} ADD COLUMN depth integer")
+        return
+
+    with connection.cursor() as cursor:
+        columns = {col.name for col in connection.introspection.get_table_description(cursor, table_name)}
         if "depth" not in columns:
-            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN depth integer")
+            cursor.execute(f"ALTER TABLE {schema_editor.quote_name(table_name)} ADD COLUMN depth integer")
 
 
 class Migration(migrations.Migration):
