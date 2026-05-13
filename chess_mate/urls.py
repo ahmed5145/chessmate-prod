@@ -10,6 +10,7 @@ from django.contrib import admin  # type: ignore
 from django.urls import include, path  # type: ignore
 from django.views.generic import RedirectView
 from django.http import JsonResponse, HttpRequest
+from django.shortcuts import render
 
 # Import directly from the package-qualified core module with appropriate error handling
 try:
@@ -26,8 +27,8 @@ except ImportError:
         return JsonResponse({"status": "ready"})
 
 urlpatterns = [
-    # Redirect the root URL to the admin interface or API for now
-    path("", RedirectView.as_view(url="/admin/", permanent=False), name="index"),
+    # Serve a small landing page at root (avoid redirect to admin for public)
+    path("", lambda request: render(request, "index.html"), name="index"),
     
     # Health check endpoints at root level for load balancers and monitoring
     path("health/", health_check_view, name="health-check"),
