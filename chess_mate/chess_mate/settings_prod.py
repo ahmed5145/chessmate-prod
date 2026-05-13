@@ -28,24 +28,31 @@ if not SECRET_KEY or SECRET_KEY.startswith("django-insecure"):
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = [
-    "3.133.97.72",
-    "ec2-3-133-97-72.us-east-2.compute.amazonaws.com",
-    "localhost",
-    "127.0.0.1",
-    "chess-mate.online",
-    "www.chess-mate.online",
-    "chessmate.com",
-    "www.chessmate.com",
-    "api.chessmate.com",
-]
+# Default allowed hosts for production. Prefer an explicit comma-separated
+# `ALLOWED_HOSTS` environment variable (set in Elastic Beanstalk) to control
+# hosts precisely. If not provided, fall back to a conservative list and
+# always include the EB environment domain.
+_env_allowed = os.getenv("ALLOWED_HOSTS", "").strip()
+if _env_allowed:
+    # Support comma-separated list in env var
+    ALLOWED_HOSTS = [h.strip() for h in _env_allowed.split(",") if h.strip()]
+else:
+    ALLOWED_HOSTS = [
+        "3.133.97.72",
+        "ec2-3-133-97-72.us-east-2.compute.amazonaws.com",
+        "localhost",
+        "127.0.0.1",
+        "chess-mate.online",
+        "www.chess-mate.online",
+        "chessmate.com",
+        "www.chessmate.com",
+        "api.chessmate.com",
+    ]
 
-for host in [
-    "chessmate-prod.us-east-2.elasticbeanstalk.com",
-    "*",
-]:
-    if host not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(host)
+# Ensure the Elastic Beanstalk environment domain is allowed
+eb_host = "chessmate-prod.us-east-2.elasticbeanstalk.com"
+if eb_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(eb_host)
 
 # Application definition
 INSTALLED_APPS = [
@@ -63,15 +70,17 @@ INSTALLED_APPS = [
 ]
 
 # Security Settings
-SECURE_SSL_REDIRECT = False
-SECURE_HSTS_SECONDS = 31536000  # 1 year
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+# Allow toggling HTTPS redirect via env var. Default to True in production.
+SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True").lower() == "true"
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000"))  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "True").lower() == "true"
+SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "True").lower() == "true"
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
+# Only enable cookie security flags when HTTPS redirect is enabled (or explicit env)
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "").lower() == "true" or SECURE_SSL_REDIRECT
+CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "").lower() == "true" or SECURE_SSL_REDIRECT
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_HTTPONLY = True
 
@@ -82,7 +91,20 @@ USE_I18N = True
 USE_TZ = True
 
 # Session and CSRF settings
-CSRF_TRUSTED_ORIGINS = ["https://chess-mate.online", "https://www.chess-mate.online"]
+# Build CSRF_TRUSTED_ORIGINS from env or derive from ALLOWED_HOSTS so that
+# HTTPS frontends (ALB/CloudFront) are accepted. Allow overriding via
+# `CSRF_TRUSTED_ORIGINS` env var (comma-separated).
+_env_csrf = os.getenv("CSRF_TRUSTED_ORIGINS", "").strip()
+if _env_csrf:
+    CSRF_TRUSTED_ORIGINS = [u.strip() for u in _env_csrf.split(",") if u.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = []
+    scheme = "https" if SECURE_SSL_REDIRECT else "http"
+    for host in ALLOWED_HOSTS:
+        # skip localhost/internal addresses
+        if host.startswith("localhost") or host.startswith("127."):
+            continue
+        CSRF_TRUSTED_ORIGINS.append(f"{scheme}://{host}")
 
 # Ensure core app is in INSTALLED_APPS
 if "core" not in INSTALLED_APPS:
