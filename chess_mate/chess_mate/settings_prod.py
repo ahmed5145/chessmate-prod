@@ -33,14 +33,19 @@ ALLOWED_HOSTS = [
     "ec2-3-133-97-72.us-east-2.compute.amazonaws.com",
     "localhost",
     "127.0.0.1",
-    "chessmate-prod.us-east-2.elasticbeanstalk.com",
     "chess-mate.online",
     "www.chess-mate.online",
     "chessmate.com",
     "www.chessmate.com",
     "api.chessmate.com",
-    "*",
 ]
+
+for host in [
+    "chessmate-prod.us-east-2.elasticbeanstalk.com",
+    "*",
+]:
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 
 # Application definition
 INSTALLED_APPS = [
