@@ -91,6 +91,9 @@ STRIPE_PUBLISHABLE_KEY = env('STRIPE_PUBLISHABLE_KEY', default='')
 STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+if os.getenv('AWS_EXECUTION_ENV') or os.getenv('AWS_REGION') or os.getenv('EB_ENVIRONMENT_NAME'):
+    if '*' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('*')
 
 # Application definition
 INSTALLED_APPS = [
