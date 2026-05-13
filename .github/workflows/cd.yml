@@ -127,7 +127,7 @@ jobs:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         application_name: chessmate
-        environment_name: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'ChessMate-Production' || 'ChessMate-Staging') }}
+        environment_name: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'Chessmate-env-2' || 'ChessMate-Staging') }}
         version_label: chessmate-${{ github.run_number }}-${{ github.sha }}
         region: ${{ secrets.AWS_REGION || vars.AWS_REGION || 'us-east-1' }}
         deployment_package: chessmate-app.zip
