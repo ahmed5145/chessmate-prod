@@ -34,6 +34,7 @@ from typing import (
 )
 
 import redis
+from redis import Redis
 from django.conf import settings  # type: ignore
 from django.core.cache import cache, caches  # type: ignore
 from django.core.cache.backends.base import BaseCache  # type: ignore
@@ -103,7 +104,7 @@ def _resolve_patched_cache_symbol(symbol: str) -> Optional[Any]:
     return None
 
 
-def _build_redis_client(ensure_ping: bool = True) -> Optional["Redis"]:  # type: ignore
+def _build_redis_client(ensure_ping: bool = True) -> Optional[Redis]:
     """Build a direct Redis client from settings.
 
     This helper keeps Redis instantiation behavior centralized and testable.
@@ -202,7 +203,7 @@ def get_cache_instance(cache_alias: str = "default") -> BaseCache:
 _ORIGINAL_GET_CACHE_INSTANCE = get_cache_instance
 
 
-def get_redis_connection() -> Optional["Redis"]:  # type: ignore
+def get_redis_connection() -> Optional[Redis]:
     """
     Get a Redis connection for direct Redis operations.
     If Redis is disabled via settings, returns a dummy client.
@@ -231,27 +232,27 @@ def get_redis_connection() -> Optional["Redis"]:  # type: ignore
         if patched_get_cache:
             for attr in ("client", "_client"):
                 if attr in getattr(redis_cache, "__dict__", {}):
-                    return cast(Optional["Redis"], getattr(redis_cache, attr))
+                    return cast(Optional[Redis], getattr(redis_cache, attr))
 
             if "get_client" in getattr(redis_cache, "__dict__", {}):
                 get_client = getattr(redis_cache, "get_client")
                 if callable(get_client):
-                    return cast(Optional["Redis"], get_client())
+                    return cast(Optional[Redis], get_client())
 
             return None
 
         if redis_cache is not None and not isinstance(redis_cache, BaseCache):
-            return cast(Optional["Redis"], redis_cache)
+            return cast(Optional[Redis], redis_cache)
 
         for attr in ("client", "_client"):
             client = getattr(redis_cache, attr, None)
             if client is not None and not callable(client):
-                return cast(Optional["Redis"], client)
+                return cast(Optional[Redis], client)
         get_client = getattr(redis_cache, "get_client", None)
         if callable(get_client):
             maybe_client = get_client()
             if maybe_client is not None:
-                return cast(Optional["Redis"], maybe_client)
+                return cast(Optional[Redis], maybe_client)
     except Exception:
         pass
 

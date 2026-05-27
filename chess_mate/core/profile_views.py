@@ -771,6 +771,7 @@ def get_user_statistics(request):
     try:
         # Import Subscription here to avoid potential circular imports
         from .models import Subscription
+        from .serializers import SubscriptionSerializer
         
         try:
             subscription = Subscription.objects.get(user=user, is_active=True)
@@ -801,6 +802,7 @@ def get_subscription_tiers(request):
     try:
         # Import here to avoid circular imports
         from .models import SubscriptionTier
+        from .serializers import SubscriptionTierSerializer
         
         tiers = SubscriptionTier.objects.filter(is_active=True).order_by("price")
         serializer = SubscriptionTierSerializer(tiers, many=True)

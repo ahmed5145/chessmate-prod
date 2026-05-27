@@ -398,7 +398,7 @@ class LichessService:
         # Convert timestamp to date
         try:
             date = datetime.fromtimestamp(game_data.get("createdAt", 0) / 1000.0).strftime("%Y.%m.%d")
-        except:
+        except Exception:
             date = "????.??.??"
 
         # Get time control
