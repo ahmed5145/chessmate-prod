@@ -61,9 +61,7 @@ MODEL_CACHE_MAPPING: Dict[str, Dict[str, Any]] = {
         "invalidate_functions": [
             invalidate_game_for_instance,
         ],
-        "related_invalidations": [
-            {"field": "user", "func": invalidate_user_games_for_user}
-        ],
+        "related_invalidations": [{"field": "user", "func": invalidate_user_games_for_user}],
     },
     "Player": {
         "tags": ["players", "games"],
@@ -83,9 +81,7 @@ MODEL_CACHE_MAPPING: Dict[str, Dict[str, Any]] = {
     "Profile": {
         "tags": ["profiles", "users"],
         "invalidate_functions": [],
-        "related_invalidations": [
-            {"field": "user_id", "func": invalidate_user_prefix}
-        ],
+        "related_invalidations": [{"field": "user_id", "func": invalidate_user_prefix}],
     },
 }
 
@@ -225,6 +221,7 @@ def invalidate_player_cache_for_game(game_id):
     try:
         # Import here to avoid circular imports
         from .models import Game
+
         game = Game.objects.get(id=game_id)
         # Get all players through the game's players relationship
         players_relation = getattr(game, "players", None)

@@ -1,6 +1,7 @@
 """
 Tests for batch analysis serializers.
 """
+
 from io import BytesIO
 from unittest.mock import Mock, patch
 
@@ -22,10 +23,10 @@ class TestBatchCreateSerializer(TestCase):
     def test_rejects_fewer_than_5_games(self):
         """Batch with < 5 games rejected with specific message."""
         pgn_data = [
-            "[Event \"Test 1\"]\n1.e4 e5",
-            "[Event \"Test 2\"]\n1.d4 d5",
-            "[Event \"Test 3\"]\n1.c4 c5",
-            "[Event \"Test 4\"]\n1.Nf3 Nf6",
+            '[Event "Test 1"]\n1.e4 e5',
+            '[Event "Test 2"]\n1.d4 d5',
+            '[Event "Test 3"]\n1.c4 c5',
+            '[Event "Test 4"]\n1.Nf3 Nf6',
         ]
 
         with patch("core.serializers_batches.chess.pgn.read_game") as mock_parse:
@@ -35,15 +36,11 @@ class TestBatchCreateSerializer(TestCase):
             serializer = BatchCreateSerializer(data={"games": pgn_data})
 
             assert not serializer.is_valid()
-            assert "Batch analysis requires at least 5 games to detect patterns." in str(
-                serializer.errors
-            )
+            assert "Batch analysis requires at least 5 games to detect patterns." in str(serializer.errors)
 
     def test_rejects_more_than_30_games(self):
         """Batch with > 30 games rejected with specific message."""
-        pgn_data = [
-            f"[Event \"Test {i}\"]\n1.e4 e5" for i in range(31)
-        ]
+        pgn_data = [f'[Event "Test {i}"]\n1.e4 e5' for i in range(31)]
 
         with patch("core.serializers_batches.chess.pgn.read_game") as mock_parse:
             mock_parse.return_value = Mock()
@@ -51,18 +48,16 @@ class TestBatchCreateSerializer(TestCase):
             serializer = BatchCreateSerializer(data={"games": pgn_data})
 
             assert not serializer.is_valid()
-            assert "Batch analysis supports a maximum of 30 games." in str(
-                serializer.errors
-            )
+            assert "Batch analysis supports a maximum of 30 games." in str(serializer.errors)
 
     def test_rejects_invalid_pgn_with_index(self):
         """Invalid PGN rejected with index information."""
         pgn_data = [
-            "[Event \"Test 1\"]\n1.e4 e5",
-            "[Event \"Test 2\"]\n1.d4 d5",
-            "[Event \"Test 3\"]\n1.c4 c5",  # This one will fail
-            "[Event \"Test 4\"]\n1.Nf3 Nf6",
-            "[Event \"Test 5\"]\n1.g4 g5",
+            '[Event "Test 1"]\n1.e4 e5',
+            '[Event "Test 2"]\n1.d4 d5',
+            '[Event "Test 3"]\n1.c4 c5',  # This one will fail
+            '[Event "Test 4"]\n1.Nf3 Nf6',
+            '[Event "Test 5"]\n1.g4 g5',
         ]
 
         with patch("core.serializers_batches.chess.pgn.read_game") as mock_parse:
@@ -84,9 +79,7 @@ class TestBatchCreateSerializer(TestCase):
 
     def test_accepts_valid_batch_of_5_games(self):
         """Valid batch of exactly 5 games accepted."""
-        pgn_data = [
-            f"[Event \"Test {i}\"]\n1.e4 e5" for i in range(5)
-        ]
+        pgn_data = [f'[Event "Test {i}"]\n1.e4 e5' for i in range(5)]
 
         with patch("core.serializers_batches.chess.pgn.read_game") as mock_parse:
             mock_parse.return_value = Mock()
@@ -99,9 +92,7 @@ class TestBatchCreateSerializer(TestCase):
 
     def test_accepts_valid_batch_of_30_games(self):
         """Valid batch of exactly 30 games accepted."""
-        pgn_data = [
-            f"[Event \"Test {i}\"]\n1.e4 e5" for i in range(30)
-        ]
+        pgn_data = [f'[Event "Test {i}"]\n1.e4 e5' for i in range(30)]
 
         with patch("core.serializers_batches.chess.pgn.read_game") as mock_parse:
             mock_parse.return_value = Mock()
@@ -113,10 +104,8 @@ class TestBatchCreateSerializer(TestCase):
 
     def test_accepts_file_upload(self):
         """Batch accepts PGN files."""
-        pgn_content = b"[Event \"Test 1\"]\n1.e4 e5"
-        files = [
-            Mock(read=Mock(return_value=pgn_content)) for _ in range(5)
-        ]
+        pgn_content = b'[Event "Test 1"]\n1.e4 e5'
+        files = [Mock(read=Mock(return_value=pgn_content)) for _ in range(5)]
 
         with patch("core.serializers_batches.chess.pgn.read_game") as mock_parse:
             mock_parse.return_value = Mock()
@@ -129,14 +118,15 @@ class TestBatchCreateSerializer(TestCase):
     def test_rejects_invalid_pgn_parse_error(self):
         """Invalid PGN causing parse exception rejected with index."""
         pgn_data = [
-            "[Event \"Test 1\"]\n1.e4 e5",
-            "[Event \"Test 2\"]\n1.d4 d5",
-            "[Event \"Bad PGN\"]",  # This one will fail to parse
-            "[Event \"Test 4\"]\n1.Nf3 Nf6",
-            "[Event \"Test 5\"]\n1.g4 g5",
+            '[Event "Test 1"]\n1.e4 e5',
+            '[Event "Test 2"]\n1.d4 d5',
+            '[Event "Bad PGN"]',  # This one will fail to parse
+            '[Event "Test 4"]\n1.Nf3 Nf6',
+            '[Event "Test 5"]\n1.g4 g5',
         ]
 
         with patch("core.serializers_batches.chess.pgn.read_game") as mock_parse:
+
             def parse_side_effect(pgn_io):
                 content = pgn_io.read()
                 if "Bad PGN" in content:

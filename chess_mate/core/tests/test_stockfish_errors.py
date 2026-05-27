@@ -25,8 +25,11 @@ class TestStockfishErrors:
         )
 
         # Mock position_evaluator to raise AttributeError
-        with patch.object(self.analyzer.position_evaluator, "evaluate_position", 
-                         side_effect=AttributeError("'PositionEvaluator' has no method 'evaluate_position'")):
+        with patch.object(
+            self.analyzer.position_evaluator,
+            "evaluate_position",
+            side_effect=AttributeError("'PositionEvaluator' has no method 'evaluate_position'"),
+        ):
             result = self.analyzer.analyze_position(board)
             assert "error" in result
             assert result.get("score", 0) == 0

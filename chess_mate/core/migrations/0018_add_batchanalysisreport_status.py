@@ -9,48 +9,62 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('core', '0017_batchanalysisreport_phase1_fields'),
+        ("core", "0017_batchanalysisreport_phase1_fields"),
     ]
 
     operations = [
         migrations.RenameIndex(
-            model_name='batchanalysisreport',
-            new_name='core_batcha_user_id_0a868a_idx',
-            old_name='core_batcha_user_id_ae6e17_idx',
+            model_name="batchanalysisreport",
+            new_name="core_batcha_user_id_0a868a_idx",
+            old_name="core_batcha_user_id_ae6e17_idx",
         ),
         migrations.RenameIndex(
-            model_name='batchanalysisreport',
-            new_name='core_batcha_task_id_c6d46b_idx',
-            old_name='core_batcha_task_id_dd8906_idx',
+            model_name="batchanalysisreport",
+            new_name="core_batcha_task_id_c6d46b_idx",
+            old_name="core_batcha_task_id_dd8906_idx",
         ),
         migrations.AddField(
-            model_name='batchanalysisreport',
-            name='status',
-            field=models.CharField(choices=[('pending', 'Pending'), ('in_progress', 'In Progress'), ('completed', 'Completed'), ('partial', 'Partial'), ('failed', 'Failed')], default='pending', max_length=20),
+            model_name="batchanalysisreport",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("pending", "Pending"),
+                    ("in_progress", "In Progress"),
+                    ("completed", "Completed"),
+                    ("partial", "Partial"),
+                    ("failed", "Failed"),
+                ],
+                default="pending",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='player',
-            name='color',
-            field=models.CharField(blank=True, choices=[('white', 'White'), ('black', 'Black')], max_length=10, null=True),
+            model_name="player",
+            name="color",
+            field=models.CharField(
+                blank=True, choices=[("white", "White"), ("black", "Black")], max_length=10, null=True
+            ),
         ),
         migrations.AddField(
-            model_name='player',
-            name='game',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='core.game'),
+            model_name="player",
+            name="game",
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to="core.game"),
         ),
         migrations.AddField(
-            model_name='player',
-            name='rating',
+            model_name="player",
+            name="rating",
             field=models.IntegerField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='player',
-            name='user',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL),
+            model_name="player",
+            name="user",
+            field=models.ForeignKey(
+                blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='games',
-            field=models.ManyToManyField(blank=True, related_name='profiles', to='core.game'),
+            model_name="profile",
+            name="games",
+            field=models.ManyToManyField(blank=True, related_name="profiles", to="core.game"),
         ),
     ]

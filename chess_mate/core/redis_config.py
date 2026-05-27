@@ -54,34 +54,35 @@ TTL_STATS = 86400  # 24 hours
 # Initialize connection pool as None, will be created on first use
 connection_pool = None
 
+
 def get_redis_client() -> redis.Redis:
     """Get a Redis client from the connection pool with improved error handling and retries."""
     global connection_pool
-    
+
     # Check if Redis is disabled in settings
-    if getattr(settings, 'REDIS_DISABLED', False):
+    if getattr(settings, "REDIS_DISABLED", False):
         logger.info("Redis is disabled, using dummy client")
         return DummyRedisClient()
-        
+
     # Maximum number of retry attempts
     max_retries = 3
     retry_delay = 0.5  # seconds
-    
+
     # Create connection pool if it doesn't exist
     if connection_pool is None:
         for attempt in range(max_retries):
             try:
                 connection_pool = redis.ConnectionPool(
-                host=REDIS_HOST,
-                port=REDIS_PORT,
-                db=REDIS_DB,
-                password=REDIS_PASSWORD,
-                socket_timeout=REDIS_SOCKET_TIMEOUT,
-                socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
-                retry_on_timeout=REDIS_RETRY_ON_TIMEOUT,
-                max_connections=REDIS_MAX_CONNECTIONS,
-                decode_responses=False,
-                health_check_interval=30,  # Periodically check connections
+                    host=REDIS_HOST,
+                    port=REDIS_PORT,
+                    db=REDIS_DB,
+                    password=REDIS_PASSWORD,
+                    socket_timeout=REDIS_SOCKET_TIMEOUT,
+                    socket_connect_timeout=REDIS_SOCKET_CONNECT_TIMEOUT,
+                    retry_on_timeout=REDIS_RETRY_ON_TIMEOUT,
+                    max_connections=REDIS_MAX_CONNECTIONS,
+                    decode_responses=False,
+                    health_check_interval=30,  # Periodically check connections
                 )
                 logger.info(f"Created Redis connection pool for {REDIS_HOST}:{REDIS_PORT} (attempt {attempt+1})")
                 break
@@ -89,16 +90,17 @@ def get_redis_client() -> redis.Redis:
                 logger.error(f"Failed to create Redis connection pool (attempt {attempt+1}): {str(e)}")
                 if attempt < max_retries - 1:
                     import time
+
                     time.sleep(retry_delay)
                 else:
                     logger.critical(f"Max retries ({max_retries}) reached for creating Redis connection pool")
                     return DummyRedisClient()
-    
+
     # Get client from pool with retries
     for attempt in range(max_retries):
         try:
             client = redis.Redis(connection_pool=connection_pool)
-            
+
             # Test connection with a ping
             if client.ping():
                 return client
@@ -110,15 +112,17 @@ def get_redis_client() -> redis.Redis:
             logger.error(f"Redis timeout error (attempt {attempt+1}): {str(e)}")
         except Exception as e:
             logger.error(f"Failed to get Redis client (attempt {attempt+1}): {str(e)}")
-        
+
         # Retry after delay if this isn't the last attempt
         if attempt < max_retries - 1:
             import time
+
             time.sleep(retry_delay)
-    
+
     # Return dummy client if all attempts failed
     logger.critical(f"All {max_retries} attempts to get Redis client failed, using dummy client")
     return DummyRedisClient()
+
 
 # Dummy client for when Redis is unavailable
 class DummyRedisClient:
@@ -126,77 +130,78 @@ class DummyRedisClient:
     Dummy Redis client that provides fallback behaviors when Redis is unavailable.
     This class logs operations and returns reasonable defaults for all Redis methods.
     """
-    
+
     def __init__(self):
         self._local_cache = {}
         self._pipeline_commands = []
         logger.warning("Using DummyRedisClient - Redis operations will be simulated")
-    
+
     def __getattr__(self, name):
         def dummy_method(*args, **kwargs):
             # Log the attempted operation
-            arg_str = ', '.join([str(a) for a in args])
-            kwargs_str = ', '.join([f"{k}={v}" for k, v in kwargs.items()])
+            arg_str = ", ".join([str(a) for a in args])
+            kwargs_str = ", ".join([f"{k}={v}" for k, v in kwargs.items()])
             all_args = ", ".join(filter(None, [arg_str, kwargs_str]))
             logger.debug(f"DummyRedisClient: {name}({all_args}) called but Redis is unavailable")
-            
+
             # Simulate common Redis commands with local in-memory operations
-            if name == 'get':
+            if name == "get":
                 key = args[0]
                 return self._local_cache.get(key)
-            elif name == 'set':
+            elif name == "set":
                 key = args[0]
                 value = args[1]
                 if isinstance(value, str):
-                    value = value.encode('utf-8')
+                    value = value.encode("utf-8")
                 self._local_cache[key] = value
                 return True
-            elif name == 'setex':
+            elif name == "setex":
                 key = args[0]
                 value = args[2]  # args[1] is the TTL
                 if isinstance(value, str):
-                    value = value.encode('utf-8')
+                    value = value.encode("utf-8")
                 self._local_cache[key] = value
                 return True
-            elif name == 'delete' or name == 'del':
+            elif name == "delete" or name == "del":
                 key = args[0]
                 if key in self._local_cache:
                     del self._local_cache[key]
                     return 1
                 return 0
-            elif name == 'exists':
+            elif name == "exists":
                 key = args[0]
                 return 1 if key in self._local_cache else 0
-            elif name == 'keys':
+            elif name == "keys":
                 pattern = args[0]
                 import fnmatch
+
                 return [k for k in self._local_cache.keys() if fnmatch.fnmatch(k, pattern)]
-            elif name == 'hget':
+            elif name == "hget":
                 return None
-            elif name == 'hgetall':
+            elif name == "hgetall":
                 return {}
-            elif name == 'incr' or name == 'incrby':
+            elif name == "incr" or name == "incrby":
                 key = args[0]
-                increment = args[1] if len(args) > 1 and name == 'incrby' else 1
+                increment = args[1] if len(args) > 1 and name == "incrby" else 1
                 if key not in self._local_cache:
                     self._local_cache[key] = 0
                 self._local_cache[key] += increment
                 return self._local_cache[key]
-            elif name == 'ping':
+            elif name == "ping":
                 return True
-            elif name == 'info':
-                return {'redis_version': 'dummy'}
-            elif name in ('hset', 'hmset', 'rpush', 'lpush', 'sadd', 'zadd'):
+            elif name == "info":
+                return {"redis_version": "dummy"}
+            elif name in ("hset", "hmset", "rpush", "lpush", "sadd", "zadd"):
                 return 1  # Simulate success for write operations
             else:
-                return None if name in ('get', 'hget', 'hgetall') else False
-        
+                return None if name in ("get", "hget", "hgetall") else False
+
         return dummy_method
-    
+
     def pipeline(self):
         logger.debug("DummyRedisClient: Creating pipeline but Redis is unavailable")
         return self
-    
+
     def execute(self):
         logger.debug(f"DummyRedisClient: Executing {len(self._pipeline_commands)} pipeline commands")
         results = []
@@ -205,10 +210,10 @@ class DummyRedisClient:
             results.append(method(*args, **kwargs))
         self._pipeline_commands = []  # Reset after execution
         return results
-        
+
     def __enter__(self):
         return self
-        
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         return False
 
@@ -838,13 +843,13 @@ def get_cached_player(source: str, username: str) -> Optional[Dict[str, Any]]:
 def invalidate_player_cache(player_id):
     """
     Invalidate cache for a specific player.
-    
+
     Args:
         player_id: Player ID
     """
     if not player_id:
         return
-    
+
     key = f"{KEY_PREFIX_PLAYER}{player_id}"
     redis_invalidate_by_prefix(key)
 

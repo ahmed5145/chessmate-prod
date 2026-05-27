@@ -105,12 +105,14 @@ def dashboard_view(request):
         loss_count = game_stats["losses"]
         draw_count = game_stats["draws"]
 
-        analyzed_game_stats = Game.objects.filter(user=user).filter(  # type: ignore[attr-defined]
-            Q(status="analyzed") | Q(analysis_status="analyzed")
-        ).aggregate(
-            wins=Count(Case(When(result="win", then=1), output_field=IntegerField())),
-            losses=Count(Case(When(result="loss", then=1), output_field=IntegerField())),
-            draws=Count(Case(When(result="draw", then=1), output_field=IntegerField())),
+        analyzed_game_stats = (
+            Game.objects.filter(user=user)
+            .filter(Q(status="analyzed") | Q(analysis_status="analyzed"))  # type: ignore[attr-defined]
+            .aggregate(
+                wins=Count(Case(When(result="win", then=1), output_field=IntegerField())),
+                losses=Count(Case(When(result="loss", then=1), output_field=IntegerField())),
+                draws=Count(Case(When(result="draw", then=1), output_field=IntegerField())),
+            )
         )
         analyzed_win_count = analyzed_game_stats["wins"]
         analyzed_loss_count = analyzed_game_stats["losses"]

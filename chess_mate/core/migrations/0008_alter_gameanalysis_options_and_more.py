@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0007_game_game_url'),
+        ("core", "0007_game_game_url"),
     ]
 
     operations = [
@@ -15,85 +15,87 @@ class Migration(migrations.Migration):
             database_operations=[],
             state_operations=[
                 migrations.AlterModelOptions(
-                    name='gameanalysis',
-                    options={'verbose_name': 'Game Analysis', 'verbose_name_plural': 'Game Analyses'},
+                    name="gameanalysis",
+                    options={"verbose_name": "Game Analysis", "verbose_name_plural": "Game Analyses"},
                 ),
                 migrations.RemoveIndex(
-                    model_name='gameanalysis',
-                    name='game_analys_cache_k_738172_idx',
+                    model_name="gameanalysis",
+                    name="game_analys_cache_k_738172_idx",
                 ),
                 migrations.RenameIndex(
-                    model_name='gameanalysis',
-                    new_name='core_gamean_created_23259a_idx',
-                    old_name='game_analys_created_b2b4a9_idx',
+                    model_name="gameanalysis",
+                    new_name="core_gamean_created_23259a_idx",
+                    old_name="game_analys_created_b2b4a9_idx",
                 ),
                 migrations.RemoveField(
-                    model_name='gameanalysis',
-                    name='analysis_metadata',
+                    model_name="gameanalysis",
+                    name="analysis_metadata",
                 ),
                 migrations.RemoveField(
-                    model_name='gameanalysis',
-                    name='cache_key',
+                    model_name="gameanalysis",
+                    name="cache_key",
                 ),
                 migrations.RemoveField(
-                    model_name='gameanalysis',
-                    name='metrics',
+                    model_name="gameanalysis",
+                    name="metrics",
                 ),
                 migrations.RemoveField(
-                    model_name='gameanalysis',
-                    name='phase_metrics',
+                    model_name="gameanalysis",
+                    name="phase_metrics",
                 ),
                 migrations.RemoveField(
-                    model_name='gameanalysis',
-                    name='positional_metrics',
+                    model_name="gameanalysis",
+                    name="positional_metrics",
                 ),
                 migrations.RemoveField(
-                    model_name='gameanalysis',
-                    name='study_plan',
+                    model_name="gameanalysis",
+                    name="study_plan",
                 ),
                 migrations.RemoveField(
-                    model_name='gameanalysis',
-                    name='tactical_metrics',
+                    model_name="gameanalysis",
+                    name="tactical_metrics",
                 ),
                 migrations.RemoveField(
-                    model_name='gameanalysis',
-                    name='time_control_feedback',
+                    model_name="gameanalysis",
+                    name="time_control_feedback",
                 ),
                 migrations.RemoveField(
-                    model_name='gameanalysis',
-                    name='time_metrics',
+                    model_name="gameanalysis",
+                    name="time_metrics",
                 ),
                 migrations.AddField(
-                    model_name='gameanalysis',
-                    name='accuracy_black',
+                    model_name="gameanalysis",
+                    name="accuracy_black",
                     field=models.FloatField(blank=True, null=True),
                 ),
                 migrations.AddField(
-                    model_name='gameanalysis',
-                    name='accuracy_white',
+                    model_name="gameanalysis",
+                    name="accuracy_white",
                     field=models.FloatField(blank=True, null=True),
                 ),
                 migrations.AddField(
-                    model_name='gameanalysis',
-                    name='analysis_data',
+                    model_name="gameanalysis",
+                    name="analysis_data",
                     field=models.JSONField(blank=True, default=dict),
                 ),
                 migrations.AlterField(
-                    model_name='gameanalysis',
-                    name='feedback',
+                    model_name="gameanalysis",
+                    name="feedback",
                     field=models.TextField(blank=True, null=True),
                 ),
                 migrations.AlterField(
-                    model_name='gameanalysis',
-                    name='game',
-                    field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='gameanalysis', to='core.game'),
+                    model_name="gameanalysis",
+                    name="game",
+                    field=models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE, related_name="gameanalysis", to="core.game"
+                    ),
                 ),
                 migrations.AddIndex(
-                    model_name='gameanalysis',
-                    index=models.Index(fields=['game'], name='core_gamean_game_id_dc376d_idx'),
+                    model_name="gameanalysis",
+                    index=models.Index(fields=["game"], name="core_gamean_game_id_dc376d_idx"),
                 ),
                 migrations.AlterModelTable(
-                    name='gameanalysis',
+                    name="gameanalysis",
                     table=None,
                 ),
             ],

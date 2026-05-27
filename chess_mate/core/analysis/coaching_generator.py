@@ -63,7 +63,9 @@ def _build_per_game_summary(item: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def generate_coaching_report(batch_summary: Dict[str, Any], per_game_results: List[Dict[str, Any]], player_rating: Optional[int] = None) -> Dict[str, Any]:
+def generate_coaching_report(
+    batch_summary: Dict[str, Any], per_game_results: List[Dict[str, Any]], player_rating: Optional[int] = None
+) -> Dict[str, Any]:
     """
     Generate a batch coaching report by calling the OpenAI API once with a
     structured JSON schema response_format.
@@ -93,7 +95,7 @@ def generate_coaching_report(batch_summary: Dict[str, Any], per_game_results: Li
         "Use only the provided aggregated metrics and per-game summaries. Do not invent openings, move numbers, tactical themes, or chess facts that are not present in the input. Be direct, specific, and practical. No generic advice. No motivational filler. No hedging. No markdown. No prose outside the JSON object.\n"
         "Return only valid JSON that exactly matches the supplied schema. Every field is required. Use concise coaching language. If some games failed or data is missing, reflect that succinctly inside the JSON fields rather than outside the schema.\n"
         "If a player rating is provided, calibrate all advice, drills, and priorities to that skill level. A 1200-rated player needs fundamentals. A 1600-rated player needs pattern recognition and basic strategy. A 2000-rated player needs deep calculation, complex positional play, and advanced endgame technique — do not recommend beginner drills.\n"
-        "CRITICAL: If a phase has trend: \"no_data\", do not reference it as a weakness or strength — skip it entirely in the coaching narrative for that phase and note data was insufficient."
+        'CRITICAL: If a phase has trend: "no_data", do not reference it as a weakness or strength — skip it entirely in the coaching narrative for that phase and note data was insufficient.'
     )
 
     user_template = (
@@ -153,18 +155,14 @@ def generate_coaching_report(batch_summary: Dict[str, Any], per_game_results: Li
         # Extract JSON string from response.choices[0].message.content
         content = response.choices[0].message.content
         logger.info(f"OpenAI response (first 200 chars): {content[:200]}")
-        
+
         try:
             parsed = json.loads(content)
         except json.JSONDecodeError as e:
-            raise CoachingGeneratorError(
-                f"OpenAI returned non-JSON response: {content[:200]}"
-            ) from e
+            raise CoachingGeneratorError(f"OpenAI returned non-JSON response: {content[:200]}") from e
 
         if not isinstance(parsed, dict):
-            raise CoachingGeneratorError(
-                f"OpenAI returned unexpected type: {type(parsed)}, content: {content[:200]}"
-            )
+            raise CoachingGeneratorError(f"OpenAI returned unexpected type: {type(parsed)}, content: {content[:200]}")
 
         return parsed
 

@@ -397,9 +397,9 @@ def get_basic_profile(request):
             logger.warning("Unauthenticated user tried to access basic profile")
             return Response(
                 {"status": "error", "message": "Authentication credentials were not provided"},
-                status=status.HTTP_401_UNAUTHORIZED
+                status=status.HTTP_401_UNAUTHORIZED,
             )
-            
+
         # Create response with user data
         basic_data = {
             "user": {
@@ -408,41 +408,41 @@ def get_basic_profile(request):
                 "email": request.user.email,
                 "first_name": request.user.first_name,
                 "last_name": request.user.last_name,
-                "date_joined": request.user.date_joined.isoformat() if hasattr(request.user, 'date_joined') else None,
-                "is_active": request.user.is_active
+                "date_joined": request.user.date_joined.isoformat() if hasattr(request.user, "date_joined") else None,
+                "is_active": request.user.is_active,
             },
-            "profile": {"credits": 0}  # Default empty profile
+            "profile": {"credits": 0},  # Default empty profile
         }
-        
+
         # Try to access profile via the relation if it exists
-        if hasattr(request.user, 'profile'):
+        if hasattr(request.user, "profile"):
             try:
                 profile = request.user.profile
                 profile_data = {
-                    "credits": getattr(profile, 'credits', 0),
-                    "chess_com_username": getattr(profile, 'chess_com_username', ""),
-                    "lichess_username": getattr(profile, 'lichess_username', ""),
-                    "email_verified": getattr(profile, 'email_verified', False),
+                    "credits": getattr(profile, "credits", 0),
+                    "chess_com_username": getattr(profile, "chess_com_username", ""),
+                    "lichess_username": getattr(profile, "lichess_username", ""),
+                    "email_verified": getattr(profile, "email_verified", False),
                 }
                 basic_data["profile"] = profile_data
             except Exception as e:
                 logger.error(f"Error accessing profile attributes: {str(e)}")
-        
+
         return Response({"status": "success", "data": basic_data}, status=status.HTTP_200_OK)
-        
+
     except Exception as e:
         logger.error(f"Error in get_basic_profile: {str(e)}", exc_info=True)
         # Return a minimal response with error handling
         return Response(
             {
-                "status": "success", 
+                "status": "success",
                 "data": {
                     "user": {
                         "username": getattr(request.user, "username", "unknown"),
-                        "email": getattr(request.user, "email", "unknown")
+                        "email": getattr(request.user, "email", "unknown"),
                     },
-                    "profile": {"credits": 0}
-                }
+                    "profile": {"credits": 0},
+                },
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )

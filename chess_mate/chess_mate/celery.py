@@ -108,11 +108,7 @@ app.conf.update(
     broker_heartbeat=0,
     broker_connection_timeout=30,
     result_expires=3600,
-    result_backend_transport_options={
-        'retry_policy': {
-            'timeout': 5.0
-        }
-    },
+    result_backend_transport_options={"retry_policy": {"timeout": 5.0}},
     task_acks_late=True,  # Only acknowledge after task completion
     task_reject_on_worker_lost=True,  # Reject tasks if worker disconnects
     task_default_queue="default",

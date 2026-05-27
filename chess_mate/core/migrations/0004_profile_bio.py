@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0003_fix_lichess_username_field'),
+        ("core", "0003_fix_lichess_username_field"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='profile',
-            name='bio',
-            field=models.TextField(blank=True, default=''),
+            model_name="profile",
+            name="bio",
+            field=models.TextField(blank=True, default=""),
         ),
     ]

@@ -356,7 +356,9 @@ def version_check(request):
 def trigger_error(request):
     """Legacy debug endpoint expected by tests."""
     if not request.user or not request.user.is_authenticated:
-        return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED
+        )
     return Response({"message": "Deliberate error triggered"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -365,7 +367,9 @@ def trigger_error(request):
 def rate_limiter_info(request):
     """Return rate limiter diagnostics for authenticated callers."""
     if not request.user or not request.user.is_authenticated:
-        return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED
+        )
 
     limiter = rate_limiter
     for module_name in (

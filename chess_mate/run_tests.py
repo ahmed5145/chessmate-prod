@@ -20,10 +20,11 @@ sys.path.insert(0, BASE_DIR)
 
 # Patch inspect.formatargspec BEFORE any Django/Celery imports
 # This is needed for Python 3.12 compatibility with older packages like vine
-if not hasattr(inspect, 'formatargspec'):
+if not hasattr(inspect, "formatargspec"):
 
-    def formatargspec(args, varargs=None, varkw=None, defaults=None,
-                      kwonlyargs=(), kwonlydefaults=None, annotations=None):
+    def formatargspec(
+        args, varargs=None, varkw=None, defaults=None, kwonlyargs=(), kwonlydefaults=None, annotations=None
+    ):
         """Replacement for inspect.formatargspec removed in Python 3.12"""
         _ = defaults
         kwonlydefaults = kwonlydefaults or {}
@@ -41,16 +42,16 @@ if not hasattr(inspect, 'formatargspec'):
         if varkw:
             parts.append(f"**{varkw}")
         sig = "(" + ", ".join(parts) + ")"
-        if annotations and 'return' in annotations:
+        if annotations and "return" in annotations:
             sig += f" -> {annotations['return']}"
         return sig
 
     inspect.formatargspec = formatargspec  # type: ignore[attr-defined,assignment]
 
 
-ArgSpec: Any = getattr(inspect, 'ArgSpec', namedtuple('ArgSpec', ['args', 'varargs', 'keywords', 'defaults']))
+ArgSpec: Any = getattr(inspect, "ArgSpec", namedtuple("ArgSpec", ["args", "varargs", "keywords", "defaults"]))
 
-if not hasattr(inspect, 'getargspec'):
+if not hasattr(inspect, "getargspec"):
 
     def getargspec(func):
         """Replacement for inspect.getargspec removed in Python 3.12"""

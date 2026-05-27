@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Import and run the vine patch
 try:
     import vine_patch
+
     print("Applied Vine patch for Python 3.12")
 except Exception as e:
     print(f"Failed to apply Vine patch: {e}")
@@ -21,8 +22,8 @@ except Exception as e:
 # Now start the Celery worker
 try:
     print("Starting Celery worker...")
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'chess_mate.settings')
-    
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.settings")
+
     # Import Celery app
     from chess_mate.celery import app
 
@@ -31,4 +32,4 @@ try:
     app.worker_main(argv)
 except Exception as e:
     print(f"Failed to start Celery worker: {e}")
-    sys.exit(1) 
+    sys.exit(1)

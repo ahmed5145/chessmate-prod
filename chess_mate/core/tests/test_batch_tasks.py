@@ -1,6 +1,7 @@
 """
 Tests for Phase 1 batch analysis Celery tasks.
 """
+
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -19,7 +20,7 @@ class TestAnalyzeSingleGameSubtask(TestCase):
 
     def test_subtask_success(self):
         """Subtask returns success envelope with result."""
-        pgn = "[Event \"Test\"]\n1.e4 e5 2.Nf3 Nc6"
+        pgn = '[Event "Test"]\n1.e4 e5 2.Nf3 Nc6'
         game_id = "test_game_1"
         batch_id = "batch_001"
         user_id = 1
@@ -37,7 +38,7 @@ class TestAnalyzeSingleGameSubtask(TestCase):
 
     def test_subtask_exception_handling(self):
         """Subtask catches exceptions and returns failed envelope."""
-        pgn = "[Event \"Bad PGN\"]"
+        pgn = '[Event "Bad PGN"]'
         game_id = "test_game_bad"
         batch_id = "batch_001"
         user_id = 1
@@ -53,7 +54,7 @@ class TestAnalyzeSingleGameSubtask(TestCase):
 
     def test_subtask_empty_result(self):
         """Subtask handles empty result from build_game_result."""
-        pgn = "[Event \"Test\"]"
+        pgn = '[Event "Test"]'
         game_id = "test_game_empty"
         batch_id = "batch_001"
         user_id = 1
@@ -104,9 +105,7 @@ class TestAggregateAndReportTask(TestCase):
                 mock_agg.return_value = {"games_analyzed": 5}
                 mock_coach.return_value = {"executive_summary": "Good"}
 
-                result = aggregate_and_report_task(
-                    task_results, batch_id, game_pgn_list, user_id
-                )
+                result = aggregate_and_report_task(task_results, batch_id, game_pgn_list, user_id)
 
                 # Verify coaching was called once
                 assert mock_coach.call_count == 1
@@ -153,9 +152,7 @@ class TestAggregateAndReportTask(TestCase):
                 mock_agg.return_value = {"games_analyzed": 7}
                 mock_coach.return_value = {"executive_summary": "Good"}
 
-                result = aggregate_and_report_task(
-                    task_results, batch_id, game_pgn_list, user_id
-                )
+                result = aggregate_and_report_task(task_results, batch_id, game_pgn_list, user_id)
 
                 # Verify status is partial
                 assert result["status"] == "partial"
@@ -197,9 +194,7 @@ class TestAggregateAndReportTask(TestCase):
 
         with patch("core.tasks.aggregate_batch") as mock_agg:
             with patch("core.tasks.generate_coaching_report") as mock_coach:
-                result = aggregate_and_report_task(
-                    task_results, batch_id, game_pgn_list, user_id
-                )
+                result = aggregate_and_report_task(task_results, batch_id, game_pgn_list, user_id)
 
                 # Verify status is failed
                 assert result["status"] == "failed"
@@ -246,9 +241,7 @@ class TestAggregateAndReportTask(TestCase):
                 mock_agg.return_value = {"games_analyzed": 5, "overall_accuracy": 0.85}
                 mock_coach.side_effect = CoachingGeneratorError("OpenAI API timeout")
 
-                result = aggregate_and_report_task(
-                    task_results, batch_id, game_pgn_list, user_id
-                )
+                result = aggregate_and_report_task(task_results, batch_id, game_pgn_list, user_id)
 
                 assert result["status"] == "partial"
                 assert result["batch_id"] == batch_id

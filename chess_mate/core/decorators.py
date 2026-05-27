@@ -62,7 +62,7 @@ def auth_csrf_exempt(view_func):
 
         # Check for Bearer token auth - exempt CSRF for API clients using JWT
         auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-        if auth_header and auth_header.startswith('Bearer '):
+        if auth_header and auth_header.startswith("Bearer "):
             csrf_exempt_view = csrf_exempt(view_func)
             return csrf_exempt_view(request, *args, **kwargs)
 
@@ -184,6 +184,7 @@ def api_login_required(view_func: F) -> F:
     Decorator for API views that checks that the user is logged in via JWT.
     More suitable for REST API views than the standard login_required.
     """
+
     @functools.wraps(view_func)
     def wrapped_view(request, *args, **kwargs):
         # Try to authenticate with JWT
@@ -197,22 +198,13 @@ def api_login_required(view_func: F) -> F:
                 return view_func(request, *args, **kwargs)
 
             # No valid JWT token found, return 401
-            return JsonResponse(
-                {"status": "error", "message": "Authentication required"},
-                status=401
-            )
+            return JsonResponse({"status": "error", "message": "Authentication required"}, status=401)
 
         except AuthenticationFailed:
             # Invalid token
-            return JsonResponse(
-                {"status": "error", "message": "Invalid or expired token"},
-                status=401
-            )
+            return JsonResponse({"status": "error", "message": "Invalid or expired token"}, status=401)
         except (ValueError, TypeError, RuntimeError, AttributeError) as e:
             logger.error("Error in api_login_required: %s", e, exc_info=True)
-            return JsonResponse(
-                {"status": "error", "message": "Authentication error"},
-                status=401
-            )
+            return JsonResponse({"status": "error", "message": "Authentication error"}, status=401)
 
     return cast(F, wrapped_view)

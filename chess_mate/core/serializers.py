@@ -43,7 +43,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at", "email_verified", "email_verified_at"]
         extra_kwargs = {
-            'email_verification_token': {'write_only': True},
+            "email_verification_token": {"write_only": True},
         }
 
 

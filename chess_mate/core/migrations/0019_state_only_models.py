@@ -4,6 +4,7 @@ This migration injects model state without executing any SQL so it can be
 applied when the database is missing those tables. It depends on the
 existing latest migration in the `core` app to keep the migration graph linear.
 """
+
 import django.db.models.deletion
 from django.db import migrations, models
 from django.utils import timezone
@@ -22,7 +23,12 @@ class Migration(migrations.Migration):
                 migrations.CreateModel(
                     name="AiFeedback",
                     fields=[
-                        ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                        (
+                            "id",
+                            models.BigAutoField(
+                                auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                            ),
+                        ),
                         ("content", models.JSONField(default=dict)),
                         ("model_used", models.CharField(max_length=100)),
                         ("credits_used", models.IntegerField(default=0)),
@@ -46,7 +52,12 @@ class Migration(migrations.Migration):
                 migrations.CreateModel(
                     name="Payment",
                     fields=[
-                        ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                        (
+                            "id",
+                            models.BigAutoField(
+                                auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                            ),
+                        ),
                         ("amount", models.DecimalField(decimal_places=2, default=0, max_digits=10)),
                         ("credit_amount", models.IntegerField(default=0)),
                         ("stripe_payment_id", models.CharField(blank=True, max_length=100, null=True)),

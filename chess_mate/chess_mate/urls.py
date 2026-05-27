@@ -36,11 +36,9 @@ except ImportError:
 urlpatterns = [
     # Redirect the root URL to the admin interface or API
     path("", RedirectView.as_view(url="/admin/", permanent=False), name="index"),
-
     # Health check endpoints at root level for load balancers
     path("health/", health_check, name="health-check"),
     path("readiness/", readiness_check, name="readiness-check"),
-
     # Admin and API endpoints
     path("admin/", admin.site.urls),
     path("api/v1/", include("core.urls")),  # Include core.urls for API v1

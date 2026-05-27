@@ -26,14 +26,13 @@ except ImportError:
     def readiness_check_view(_request: HttpRequest) -> JsonResponse:  # type: ignore
         return JsonResponse({"status": "ready"})
 
+
 urlpatterns = [
     # Serve a small landing page at root (avoid redirect to admin for public)
     path("", lambda request: render(request, "index.html"), name="index"),
-    
     # Health check endpoints at root level for load balancers and monitoring
     path("health/", health_check_view, name="health-check"),
     path("readiness/", readiness_check_view, name="readiness-check"),
-    
     # Admin and API endpoints
     path("admin/", admin.site.urls),
     path("api/v1/", include("chess_mate.core.urls")),
@@ -43,10 +42,11 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    
+
     # Add debug toolbar if available - will be installed by install_project.py
     try:
         import debug_toolbar  # type: ignore
+
         urlpatterns = [
             path("__debug__/", include(debug_toolbar.urls)),
         ] + urlpatterns

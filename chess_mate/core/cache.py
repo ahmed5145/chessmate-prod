@@ -150,7 +150,9 @@ def get_cache_instance(cache_alias: str = "default") -> BaseCache:
     # Some tests patch `core.cache.get_cache_instance` while callers use
     # `chess_mate.core.cache` imports; prefer patched alias when present.
     patched_impl = _resolve_patched_cache_symbol("get_cache_instance")
-    if patched_impl is not None and (_ORIGINAL_GET_CACHE_INSTANCE is None or patched_impl is not _ORIGINAL_GET_CACHE_INSTANCE):
+    if patched_impl is not None and (
+        _ORIGINAL_GET_CACHE_INSTANCE is None or patched_impl is not _ORIGINAL_GET_CACHE_INSTANCE
+    ):
         return cast(BaseCache, patched_impl(cache_alias))
 
     if cache_alias in {CACHE_BACKEND_DEFAULT, CACHE_BACKEND_MEMORY}:
@@ -295,12 +297,12 @@ def cache_key(prefix: str, *args: Any, **kwargs: Any) -> str:
 def cache_get(key: str, default: Any = None, backend_name: str = CACHE_BACKEND_DEFAULT) -> Any:
     """
     Get a value from cache with error handling.
-    
+
     Args:
         key: Cache key
         default: Default value if key not found
         backend_name: Cache backend name
-        
+
     Returns:
         Cached value or default
     """
@@ -400,7 +402,9 @@ def cache_set(
         return False
 
 
-def cache_delete(key: str, backend_name: str = CACHE_BACKEND_DEFAULT, backend: Optional[str] = None) -> Union[bool, int]:
+def cache_delete(
+    key: str, backend_name: str = CACHE_BACKEND_DEFAULT, backend: Optional[str] = None
+) -> Union[bool, int]:
     """
     Delete a value from the specified cache backend.
 

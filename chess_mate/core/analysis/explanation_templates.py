@@ -92,9 +92,7 @@ _THEME_HANDLERS = {
 }
 
 
-def get_explanation(
-    tactical_theme: str, played_move: str, best_move: str, context: dict
-) -> str:
+def get_explanation(tactical_theme: str, played_move: str, best_move: str, context: dict) -> str:
     """
     Generate a human-readable explanation for a chess move based on tactical theme.
 

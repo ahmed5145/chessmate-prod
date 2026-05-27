@@ -1,6 +1,7 @@
 """
 Serializers for batch analysis operations (PRD section 11).
 """
+
 from io import StringIO
 from typing import Any, Dict, List
 
@@ -13,12 +14,12 @@ from .models import BatchAnalysisReport, Game
 class BatchCreateSerializer(serializers.Serializer):
     """
     Validates and processes a batch of games for analysis.
-    
+
     Accepts either:
     - games: list of PGN strings
     - game_ids: list of saved game IDs to resolve to PGNs
     - files: multipart file upload (converted to PGN strings)
-    
+
     Validates batch size (5-30) and PGN parsability.
     Returns cleaned list of PGN strings.
     """
@@ -62,43 +63,31 @@ class BatchCreateSerializer(serializers.Serializer):
                         content = content.decode("utf-8")
                     pgn_list.append(content)
                 except Exception as e:
-                    raise serializers.ValidationError(
-                        f"Failed to read uploaded file: {str(e)}"
-                    )
+                    raise serializers.ValidationError(f"Failed to read uploaded file: {str(e)}")
 
         # Resolve saved games to PGN strings when selected by ID.
         if game_ids:
             if request is None:
                 raise serializers.ValidationError("Request context is required for game selection.")
 
-            game_rows = list(
-                Game.objects.filter(id__in=game_ids, user=request.user).values_list("id", "pgn")
-            )
+            game_rows = list(Game.objects.filter(id__in=game_ids, user=request.user).values_list("id", "pgn"))
             if len(game_rows) != len(game_ids):
-                raise serializers.ValidationError(
-                    "One or more game IDs are invalid or do not belong to you."
-                )
+                raise serializers.ValidationError("One or more game IDs are invalid or do not belong to you.")
 
             games_by_id = {game_id: pgn for game_id, pgn in game_rows}
             try:
                 pgn_list.extend(games_by_id[game_id] for game_id in game_ids)
             except KeyError as exc:
-                raise serializers.ValidationError(
-                    "One or more game IDs are invalid or do not belong to you."
-                ) from exc
+                raise serializers.ValidationError("One or more game IDs are invalid or do not belong to you.") from exc
 
         # Validate batch size
         batch_size = len(pgn_list)
 
         if batch_size < 5:
-            raise serializers.ValidationError(
-                "Batch analysis requires at least 5 games to detect patterns."
-            )
+            raise serializers.ValidationError("Batch analysis requires at least 5 games to detect patterns.")
 
         if batch_size > 30:
-            raise serializers.ValidationError(
-                "Batch analysis supports a maximum of 30 games."
-            )
+            raise serializers.ValidationError("Batch analysis supports a maximum of 30 games.")
 
         # Validate each PGN is parseable
         validated_pgns = []
@@ -108,16 +97,12 @@ class BatchCreateSerializer(serializers.Serializer):
                 pgn_io = StringIO(pgn_str)
                 game = chess.pgn.read_game(pgn_io)
                 if game is None:
-                    raise serializers.ValidationError(
-                        f"Game at index {index}: Invalid or empty PGN."
-                    )
+                    raise serializers.ValidationError(f"Game at index {index}: Invalid or empty PGN.")
                 # Store the original PGN string (not parsed game)
                 validated_pgns.append(pgn_str)
             except Exception as e:
                 # Include index in error message
-                raise serializers.ValidationError(
-                    f"Game at index {index}: Failed to parse PGN: {str(e)}"
-                )
+                raise serializers.ValidationError(f"Game at index {index}: Failed to parse PGN: {str(e)}")
 
         data["pgn_list"] = validated_pgns
         return data
@@ -140,6 +125,7 @@ class BatchStatusSerializer(serializers.Serializer):
     completed_games = serializers.SerializerMethodField()
     failed_games = serializers.SerializerMethodField()
     progress = serializers.SerializerMethodField()
+
     def get_batch_id(self, obj):
         """Map id to batch_id."""
         return obj.get("id") or obj.get("batch_id")
@@ -171,10 +157,12 @@ class BatchStatusSerializer(serializers.Serializer):
         if isinstance(failed_list, list):
             for item in failed_list:
                 if isinstance(item, dict):
-                    errors.append({
-                        "game_id": item.get("game_id"),
-                        "message": item.get("error", "Unknown error"),
-                    })
+                    errors.append(
+                        {
+                            "game_id": item.get("game_id"),
+                            "message": item.get("error", "Unknown error"),
+                        }
+                    )
         return errors
 
     def to_representation(self, instance):

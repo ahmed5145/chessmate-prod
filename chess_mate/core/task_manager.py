@@ -164,6 +164,7 @@ class TaskManager:
         async_result_cls = self._resolve_async_result_cls()
         try:
             from chess_mate.celery import app as celery_app
+
             return async_result_cls(task_id, app=celery_app)
         except TypeError:
             # Compatibility with mocks/legacy call signatures.
@@ -262,21 +263,13 @@ class TaskManager:
             try:
                 # Store task info
                 task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
-                self.redis_client.setex(
-                    task_key,
-                    self.task_timeout,
-                    json.dumps(task_info)
-                )
+                self.redis_client.setex(task_key, self.task_timeout, json.dumps(task_info))
                 logger.debug(f"Stored task {task_id} in Redis")
 
                 # If game_id is provided, store a mapping from game to task
                 if game_id is not None:
                     game_task_key = f"{self.GAME_TASK_KEY_PREFIX}{game_id}"
-                    self.redis_client.setex(
-                        game_task_key,
-                        self.task_timeout,
-                        task_id
-                    )
+                    self.redis_client.setex(game_task_key, self.task_timeout, task_id)
                     logger.debug(f"Stored game {game_id} to task {task_id} mapping in Redis")
             except Exception as e:
                 logger.error(f"Error registering task {task_id} in Redis: {str(e)}")
@@ -328,20 +321,12 @@ class TaskManager:
             try:
                 # Store task info
                 task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
-                self.redis_client.setex(
-                    task_key,
-                    self.task_timeout,
-                    json.dumps(task_info)
-                )
+                self.redis_client.setex(task_key, self.task_timeout, json.dumps(task_info))
 
                 # Store mappings from each game to the task
                 for game_id in game_ids:
                     game_task_key = f"{self.GAME_TASK_KEY_PREFIX}{game_id}"
-                    self.redis_client.setex(
-                        game_task_key,
-                        self.task_timeout,
-                        task_id
-                    )
+                    self.redis_client.setex(game_task_key, self.task_timeout, task_id)
                     self.game_tasks[str(game_id)] = task_id
             except Exception as e:
                 logger.error(f"Error registering batch task {task_id} in Redis: {str(e)}")
@@ -486,11 +471,7 @@ class TaskManager:
                 try:
                     task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
                     # Set with timeout to auto-expire old tasks
-                    self.redis_client.setex(
-                        task_key,
-                        self.task_timeout,
-                        json.dumps(task_info)
-                    )
+                    self.redis_client.setex(task_key, self.task_timeout, json.dumps(task_info))
                     logger.debug(f"Updated Redis task status for {task_id}")
 
                     # Verify the update was written to Redis by reading it back
@@ -498,7 +479,7 @@ class TaskManager:
                         data = self.redis_client.get(task_key)
                         if data:
                             if isinstance(data, bytes):
-                                data_str = data.decode('utf-8')
+                                data_str = data.decode("utf-8")
                             else:
                                 data_str = str(data)
                             redis_task_info = json.loads(data_str)
@@ -580,7 +561,7 @@ class TaskManager:
                     try:
                         # Handle bytes data from Redis
                         if isinstance(task_data, bytes):
-                            redis_info = json.loads(task_data.decode('utf-8'))
+                            redis_info = json.loads(task_data.decode("utf-8"))
                         else:
                             redis_info = json.loads(str(task_data))
 
@@ -845,13 +826,11 @@ class TaskManager:
             )
 
         # Extract status information from task_info
-        status = task_info.get('status', 'PENDING')
-        message = task_info.get('message', '')
-        progress = task_info.get('progress', 0)
+        status = task_info.get("status", "PENDING")
+        message = task_info.get("message", "")
+        progress = task_info.get("progress", 0)
 
-        if str(status).upper() == TASK_STATUS_PENDING and (
-            not message or message.lower() == 'task pending'
-        ):
+        if str(status).upper() == TASK_STATUS_PENDING and (not message or message.lower() == "task pending"):
             message = "Task queued, waiting for worker availability"
 
         # Ensure progress is consistent with status
@@ -865,11 +844,11 @@ class TaskManager:
 
         # Return properly formatted status dictionary
         return {
-            'status': status,
-            'message': message,
-            'progress': progress,
-            'task_id': task_id,
-            'metadata': task_info.get('metadata', {})
+            "status": status,
+            "message": message,
+            "progress": progress,
+            "task_id": task_id,
+            "metadata": task_info.get("metadata", {}),
         }
 
     def _default_status(
@@ -882,12 +861,12 @@ class TaskManager:
     ) -> Dict[str, Any]:
         """Helper to create consistent status responses"""
         return {
-            'status': status,
-            'message': message,
-            'progress': progress,
-            'task_id': task_id,
-            'game_id': game_id,
-            'metadata': {}
+            "status": status,
+            "message": message,
+            "progress": progress,
+            "task_id": task_id,
+            "game_id": game_id,
+            "metadata": {},
         }
 
     def _is_newer_task_info(self, info1, info2):
@@ -957,11 +936,7 @@ class TaskManager:
         task_info = self.get_task_info(task_id)
         if not task_info:
             # Return default status instead of checking Celery
-            return {
-                "status": "PENDING",
-                "message": "Task not found or not started",
-                "progress": 0
-            }
+            return {"status": "PENDING", "message": "Task not found or not started", "progress": 0}
 
         return task_info
 
@@ -993,7 +968,7 @@ class TaskManager:
                     if task_id:
                         # Decode bytes to string if returned from Redis
                         if isinstance(task_id, bytes):
-                            task_id = task_id.decode('utf-8')
+                            task_id = task_id.decode("utf-8")
                         logger.debug(f"Found task for game {game_id} in Redis: {task_id}")
                         # Update in-memory cache
                         self.game_tasks[game_id_str] = task_id
@@ -1092,7 +1067,7 @@ class TaskManager:
         user_id: Optional[int] = None,
         task_type: Optional[str] = None,
         parameters: Optional[Dict[str, Any]] = None,
-        **kwargs
+        **kwargs,
     ) -> str:
         """
         Create a new task with initial pending status.
@@ -1167,11 +1142,7 @@ class TaskManager:
             # Store the task info
             for attempt in range(max_retries):
                 try:
-                    self.redis_client.setex(
-                        task_key,
-                        self.task_timeout,
-                        task_json
-                    )
+                    self.redis_client.setex(task_key, self.task_timeout, task_json)
                     # Store succeeded, break the retry loop
                     logger.debug(f"Stored task {task_id} in Redis (attempt {attempt+1})")
                     break
@@ -1187,11 +1158,7 @@ class TaskManager:
 
                 for attempt in range(max_retries):
                     try:
-                        self.redis_client.setex(
-                            game_task_key,
-                            self.task_timeout,
-                            task_id
-                        )
+                        self.redis_client.setex(game_task_key, self.task_timeout, task_id)
                         # Store succeeded, break the retry loop
                         logger.debug(f"Stored game {game_id} to task {task_id} mapping in Redis (attempt {attempt+1})")
                         break
@@ -1247,7 +1214,7 @@ class TaskManager:
                     if task_id:
                         # Convert bytes to string if needed
                         if isinstance(task_id, bytes):
-                            task_id = task_id.decode('utf-8')
+                            task_id = task_id.decode("utf-8")
 
                         # Cache in memory for future lookups
                         self.game_tasks[game_id_str] = task_id

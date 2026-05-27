@@ -7,7 +7,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0008_alter_gameanalysis_options_and_more'),
+        ("core", "0008_alter_gameanalysis_options_and_more"),
     ]
 
     operations = []

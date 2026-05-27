@@ -24,11 +24,12 @@ class CoreConfig(AppConfig):
         """
         # Import and initialize custom components
         from .cache_middleware import setup_cache_invalidation
+
         setup_cache_invalidation()
 
         # Register signal handlers
         self._register_signals()
-        
+
         # Configure REST Framework after Django has loaded all apps
         self._configure_rest_framework()
 
@@ -42,33 +43,33 @@ class CoreConfig(AppConfig):
         def create_user_profile(sender, instance, created, **kwargs):
             """Legacy hook retained for compatibility; profile creation is handled explicitly."""
             return None
-        
+
         # Connect the signal handler properly - not using decorator syntax
         post_save.connect(create_user_profile, sender=User)
-        
+
     def _configure_rest_framework(self):
         """
         Configure REST Framework settings after app initialization.
         This avoids the AppRegistryNotReady error during imports.
         """
         from django.conf import settings
-        
+
         logger.info("Configuring REST Framework authentication classes")
-        
+
         # Only update if REST_FRAMEWORK is defined
-        if hasattr(settings, 'REST_FRAMEWORK'):
+        if hasattr(settings, "REST_FRAMEWORK"):
             try:
                 # Add authentication classes
-                settings.REST_FRAMEWORK.update({
-                    'EXCEPTION_HANDLER': 'core.error_handling.exception_handler',
-                    'DEFAULT_AUTHENTICATION_CLASSES': (
-                        'rest_framework_simplejwt.authentication.JWTAuthentication',
-                        'rest_framework.authentication.SessionAuthentication',
-                    ),
-                    'DEFAULT_PERMISSION_CLASSES': (
-                        'rest_framework.permissions.IsAuthenticated',
-                    ),
-                })
+                settings.REST_FRAMEWORK.update(
+                    {
+                        "EXCEPTION_HANDLER": "core.error_handling.exception_handler",
+                        "DEFAULT_AUTHENTICATION_CLASSES": (
+                            "rest_framework_simplejwt.authentication.JWTAuthentication",
+                            "rest_framework.authentication.SessionAuthentication",
+                        ),
+                        "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+                    }
+                )
                 logger.info("REST Framework authentication classes configured successfully")
             except Exception as e:
                 # Log the error but don't prevent app startup

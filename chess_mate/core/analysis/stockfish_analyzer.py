@@ -299,7 +299,7 @@ class StockfishAnalyzer:
                 return float(score) / 100.0  # Convert centipawns to pawns
 
             # Handle Mate object directly
-            elif hasattr(score, 'moves') and hasattr(score, '__class__') and 'Mate' in score.__class__.__name__:
+            elif hasattr(score, "moves") and hasattr(score, "__class__") and "Mate" in score.__class__.__name__:
                 try:
                     moves = score.moves
                     sign = 1 if moves > 0 else -1
@@ -310,15 +310,15 @@ class StockfishAnalyzer:
 
             # Handle score as dictionary (from JSON)
             elif isinstance(score, dict):
-                if 'cp' in score:
+                if "cp" in score:
                     try:
-                        return float(score['cp']) / 100.0
+                        return float(score["cp"]) / 100.0
                     except (ValueError, TypeError) as e:
                         logger.error(f"Error converting score dict 'cp': {e}")
                         return 0.0
-                elif 'mate' in score:
+                elif "mate" in score:
                     try:
-                        moves = score['mate']
+                        moves = score["mate"]
                         sign = 1 if moves > 0 else -1
                         return sign * (1000.0 - min(abs(moves), 20))
                     except Exception as e:
@@ -776,24 +776,24 @@ class StockfishAnalyzer:
 
                 # Store the analysis
                 analyzed_move = {
-                    'move_number': i // 2 + 1,
-                    'move': uci,
-                    'san': san,
-                    'is_white': is_white,
-                    'fen': result['fen'],
-                    'position_score': result['score'],
-                    'evaluation': result['score'],
-                    'best_move': result['pv'][0] if result['pv'] else '',
-                    'best_line': result['pv'][:5] if result['pv'] else [],
-                    'depth': result['depth'],
-                    'time': result['time'],
+                    "move_number": i // 2 + 1,
+                    "move": uci,
+                    "san": san,
+                    "is_white": is_white,
+                    "fen": result["fen"],
+                    "position_score": result["score"],
+                    "evaluation": result["score"],
+                    "best_move": result["pv"][0] if result["pv"] else "",
+                    "best_line": result["pv"][:5] if result["pv"] else [],
+                    "depth": result["depth"],
+                    "time": result["time"],
                 }
 
-                if 'centipawn_loss' in result:
-                    analyzed_move['centipawn_loss'] = result['centipawn_loss']
+                if "centipawn_loss" in result:
+                    analyzed_move["centipawn_loss"] = result["centipawn_loss"]
 
-                if 'classification' in result:
-                    analyzed_move['classification'] = result['classification']
+                if "classification" in result:
+                    analyzed_move["classification"] = result["classification"]
 
                 analyzed_moves.append(analyzed_move)
 
@@ -914,22 +914,22 @@ class StockfishAnalyzer:
 
                 # Store the analysis
                 analyzed_move = {
-                    'move_number': i // 2 + 1 if is_white else (i // 2) + 1,
-                    'move': move.uci(),
-                    'san': san,
-                    'is_white': is_white,
-                    'eval_before': eval_before,
-                    'eval_after': eval_after,
-                    'eval_change': eval_change,
-                    'classification': classification,
-                    'best_move': best_move,
-                    'best_move_san': best_move_san,
-                    'is_best': bool(best_move and move.uci() == best_move),
-                    'is_critical': abs(float(eval_change)) >= 1.0,
-                    'best_line': position_before.get("pv", [])[:5] if position_before.get("pv") else [],
-                    'position': position_before.get("fen", board.fen()),
-                    'time': time_spent,
-                    'time_spent': time_spent,
+                    "move_number": i // 2 + 1 if is_white else (i // 2) + 1,
+                    "move": move.uci(),
+                    "san": san,
+                    "is_white": is_white,
+                    "eval_before": eval_before,
+                    "eval_after": eval_after,
+                    "eval_change": eval_change,
+                    "classification": classification,
+                    "best_move": best_move,
+                    "best_move_san": best_move_san,
+                    "is_best": bool(best_move and move.uci() == best_move),
+                    "is_critical": abs(float(eval_change)) >= 1.0,
+                    "best_line": position_before.get("pv", [])[:5] if position_before.get("pv") else [],
+                    "position": position_before.get("fen", board.fen()),
+                    "time": time_spent,
+                    "time_spent": time_spent,
                 }
 
                 analyzed_moves.append(analyzed_move)

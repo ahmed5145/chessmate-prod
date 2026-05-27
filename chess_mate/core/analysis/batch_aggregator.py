@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class BatchAggregationError(Exception):
     """Raised when batch aggregation fails due to insufficient or invalid data."""
+
     pass
 
 
@@ -27,37 +28,37 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
 
     Returns:
         Dict matching batch_summary schema from PRD section 11
-        
+
     Raises:
         BatchAggregationError: If fewer than 5 valid results after filtering
     """
     if not per_game_results:
         return {}
-    
+
     # Defensive validation: filter out malformed results
     required_fields = ["game_id", "phase_breakdown", "move_quality"]
     valid_results = []
-    
+
     for idx, result in enumerate(per_game_results):
         missing_fields = [f for f in required_fields if f not in result or result[f] is None]
         if missing_fields:
             logger.warning(f"Filtering out malformed per-game result at index {idx}: missing fields {missing_fields}")
             continue
-        
+
         # Skip games marked as analysis failures
         if result.get("analysis_failed", False):
             logger.warning(f"Filtering out failed analysis for game {result.get('game_id', 'unknown')}")
             continue
-        
+
         valid_results.append(result)
-    
+
     # Check we have minimum viable data
     if len(valid_results) < 5:
         raise BatchAggregationError(
             f"Insufficient valid game results for aggregation: {len(valid_results)} valid out of {len(per_game_results)} total. "
             f"Minimum 5 required."
         )
-    
+
     per_game_results = valid_results
 
     # Derive player_rating from game ELO ratings
@@ -74,7 +75,7 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
             black_elo = game_result.get("black_elo")
             if black_elo is not None:
                 player_elos.append(black_elo)
-    
+
     # Compute median; if no ELO values, set to None
     if player_elos:
         player_rating = round(statistics.median(player_elos))
@@ -309,8 +310,8 @@ def _find_recurring_weaknesses(per_game_results: List[Dict[str, Any]]) -> List[D
 
     # Count games containing each tactical_theme
     theme_game_counts = {}  # theme -> count of games with this theme
-    theme_swings = {}       # theme -> list of eval_swings
-    theme_games = {}        # theme -> list of game_ids
+    theme_swings = {}  # theme -> list of eval_swings
+    theme_games = {}  # theme -> list of game_ids
 
     for result in per_game_results:
         game_id = result.get("game_id", "unknown")
@@ -353,13 +354,15 @@ def _find_recurring_weaknesses(per_game_results: List[Dict[str, Any]]) -> List[D
 
             frequency_str = f"{game_count}/{len(per_game_results)} games"
 
-            recurring.append({
-                "pattern": theme,
-                "frequency": frequency_str,
-                "avg_eval_swing": round(avg_swing, 2),
-                "impact": impact,
-                "example_game_ids": example_ids,
-            })
+            recurring.append(
+                {
+                    "pattern": theme,
+                    "frequency": frequency_str,
+                    "avg_eval_swing": round(avg_swing, 2),
+                    "impact": impact,
+                    "example_game_ids": example_ids,
+                }
+            )
 
     return recurring
 
@@ -406,11 +409,13 @@ def _find_strength_patterns(per_game_results: List[Dict[str, Any]]) -> List[Dict
         else:
             detail = "Opening phase performance was consistently strong across the analyzed games."
 
-        patterns.append({
-            "pattern": "opening_preparation",
-            "frequency": f"{strong_opening_count}/{len(per_game_results)} games",
-            "detail": detail,
-        })
+        patterns.append(
+            {
+                "pattern": "opening_preparation",
+                "frequency": f"{strong_opening_count}/{len(per_game_results)} games",
+                "detail": detail,
+            }
+        )
 
     return patterns
 

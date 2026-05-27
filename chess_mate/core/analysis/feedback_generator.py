@@ -132,8 +132,7 @@ class FeedbackGenerator:
                 "weakest_phase": target_phase,
                 "motifs": [],
                 "correction_rule": (
-                    "Review the phase without overloading on engine lines; "
-                    "focus on one repeatable checklist."
+                    "Review the phase without overloading on engine lines; " "focus on one repeatable checklist."
                 ),
             }
 
@@ -200,8 +199,7 @@ class FeedbackGenerator:
 
         rule_library = {
             "tactical slip": (
-                "Scan for checks, captures, and forcing replies before committing "
-                "to the first promising move."
+                "Scan for checks, captures, and forcing replies before committing " "to the first promising move."
             ),
             "positional drift": (
                 "When there is no forcing tactic, improve piece activity, king safety, "
@@ -226,8 +224,7 @@ class FeedbackGenerator:
                     "evidence": data["evidence"],
                     "correction_rule": rule_library.get(
                         name,
-                        "Pause, review candidate moves, and pick the line "
-                        "that keeps the position stable.",
+                        "Pause, review candidate moves, and pick the line " "that keeps the position stable.",
                     ),
                 }
             )
@@ -250,9 +247,7 @@ class FeedbackGenerator:
         overall = game_metrics.get("overall", {}) if isinstance(game_metrics.get("overall", {}), dict) else {}
         phases = game_metrics.get("phases", {}) if isinstance(game_metrics.get("phases", {}), dict) else {}
         time_mgmt = (
-            game_metrics.get("time_management", {})
-            if isinstance(game_metrics.get("time_management", {}), dict)
-            else {}
+            game_metrics.get("time_management", {}) if isinstance(game_metrics.get("time_management", {}), dict) else {}
         )
 
         impact = cls._derive_impact_metrics(game_metrics)
@@ -268,20 +263,26 @@ class FeedbackGenerator:
 
         focus_areas = []
         if weakest_phase == "opening":
-            focus_areas.extend([
-                "Opening development and piece coordination",
-                "Avoiding early inaccuracies that derail the plan",
-            ])
+            focus_areas.extend(
+                [
+                    "Opening development and piece coordination",
+                    "Avoiding early inaccuracies that derail the plan",
+                ]
+            )
         elif weakest_phase == "middlegame":
-            focus_areas.extend([
-                "Candidate-move calculation in middlegame positions",
-                "Identifying and converting tactical opportunities",
-            ])
+            focus_areas.extend(
+                [
+                    "Candidate-move calculation in middlegame positions",
+                    "Identifying and converting tactical opportunities",
+                ]
+            )
         else:
-            focus_areas.extend([
-                "Endgame conversion technique",
-                "King activity and pawn-structure precision",
-            ])
+            focus_areas.extend(
+                [
+                    "Endgame conversion technique",
+                    "King activity and pawn-structure precision",
+                ]
+            )
 
         if time_status == "available" and time_pressure >= 20:
             focus_areas.append("Time allocation under pressure")
@@ -290,28 +291,22 @@ class FeedbackGenerator:
 
         drill_library = {
             "opening": [
-                "Play through 5 master games in your main opening "
-                "and note where development slows down.",
-                "After each opening move, ask whether every piece has a job"
-                "and every pawn move has a reason.",
+                "Play through 5 master games in your main opening " "and note where development slows down.",
+                "After each opening move, ask whether every piece has a job" "and every pawn move has a reason.",
             ],
             "middlegame": [
-                "For 10 tactical positions, "
-                "write down two candidate moves before looking at engine lines.",
+                "For 10 tactical positions, " "write down two candidate moves before looking at engine lines.",
                 "Review your last 5 middlegame inaccuracies and classify each "
                 "as tactical, positional, or time-related.",
             ],
             "endgame": [
-                "Practice 5 endgames where the plan is to trade into the simplest winning"
-                "conversion.",
-                "Before every endgame move, verify king activity, passed pawns, "
-                "and whether you can simplify.",
+                "Practice 5 endgames where the plan is to trade into the simplest winning" "conversion.",
+                "Before every endgame move, verify king activity, passed pawns, " "and whether you can simplify.",
             ],
             "time_pressure": [
                 "Use a fixed decision budget per move in practical games "
                 "and stop at the budget before overchecking.",
-                "Track where time is lost and compare it to the phase where "
-                "accuracy drops the most.",
+                "Track where time is lost and compare it to the phase where " "accuracy drops the most.",
             ],
             "blunder_check": [
                 "Run a 3-step pre-move check: opponent threats, forcing moves, your hanging pieces.",
@@ -326,10 +321,12 @@ class FeedbackGenerator:
             drills.extend(drill_library["time_pressure"])
         if blunders > 0 or inaccuracies >= max(8.0, total_moves * 0.12):
             drills.extend(drill_library["blunder_check"])
-        drills.extend([
-            f"Review the two most costly moments in the {weakest_phase} "
-            "and explain the correction in one sentence each.",
-        ])
+        drills.extend(
+            [
+                f"Review the two most costly moments in the {weakest_phase} "
+                "and explain the correction in one sentence each.",
+            ]
+        )
 
         checklist = [
             f"Identify the weakest phase ({weakest_phase}) before the next study session.",
@@ -340,8 +337,7 @@ class FeedbackGenerator:
             checklist.append("Set a time budget and keep one reserve minute for the final phase.")
         if phase_accuracy < 65:
             checklist.append(
-                f"Spend extra review time on {weakest_phase} positions "
-                "until accuracy reaches at least 70%."
+                f"Spend extra review time on {weakest_phase} positions " "until accuracy reaches at least 70%."
             )
 
         phase_risk_value = impact["phase_risk"].get(weakest_phase, 0.0)
@@ -442,8 +438,8 @@ class FeedbackGenerator:
         if not moves:
             return "No moves in this phase"
 
-        good_moves = sum(1 for m in moves if self._normalized_classification(m) in ['good', 'excellent'])
-        mistakes = sum(1 for m in moves if self._normalized_classification(m) in ['mistake', 'blunder', 'inaccuracy'])
+        good_moves = sum(1 for m in moves if self._normalized_classification(m) in ["good", "excellent"])
+        mistakes = sum(1 for m in moves if self._normalized_classification(m) in ["mistake", "blunder", "inaccuracy"])
         accuracy = (good_moves / len(moves) * 100) if moves else 0.0
 
         return f"Accuracy: {accuracy:.1f}%, Good moves: {good_moves}, Mistakes: {mistakes}"
@@ -457,7 +453,7 @@ class FeedbackGenerator:
         current_streak = 0
 
         for move in moves:
-            if self._normalized_classification(move) in ['good', 'excellent']:
+            if self._normalized_classification(move) in ["good", "excellent"]:
                 current_streak += 1
             else:
                 if current_streak > 0:
@@ -759,14 +755,10 @@ class FeedbackGenerator:
             normalized_metrics = game_metrics
             if "overall" not in normalized_metrics:
                 metrics_wrapper = (
-                    game_metrics.get("metrics", {})
-                    if isinstance(game_metrics.get("metrics"), dict)
-                    else {}
+                    game_metrics.get("metrics", {}) if isinstance(game_metrics.get("metrics"), dict) else {}
                 )
                 summary_wrapper = (
-                    metrics_wrapper.get("summary", {})
-                    if isinstance(metrics_wrapper.get("summary"), dict)
-                    else {}
+                    metrics_wrapper.get("summary", {}) if isinstance(metrics_wrapper.get("summary"), dict) else {}
                 )
                 if isinstance(summary_wrapper, dict) and "overall" in summary_wrapper:
                     normalized_metrics = summary_wrapper
@@ -776,9 +768,7 @@ class FeedbackGenerator:
                 total_moves = len(moves)
                 good_moves = sum(1 for m in moves if self._normalized_classification(m) in {"good", "excellent"})
                 mistakes = sum(
-                    1
-                    for m in moves
-                    if self._normalized_classification(m) in {"mistake", "blunder", "inaccuracy"}
+                    1 for m in moves if self._normalized_classification(m) in {"mistake", "blunder", "inaccuracy"}
                 )
                 normalized_metrics = {
                     "overall": {
@@ -930,8 +920,8 @@ class FeedbackGenerator:
             if not opening_metrics:
                 return {"feedback": "No data available for opening phase analysis"}
 
-            accuracy = opening_metrics.get('accuracy', 0)
-            mistakes = opening_metrics.get('mistakes', 0)
+            accuracy = opening_metrics.get("accuracy", 0)
+            mistakes = opening_metrics.get("mistakes", 0)
 
             if accuracy > 80:
                 quality = "excellent"
@@ -957,10 +947,10 @@ class FeedbackGenerator:
             if not middlegame_metrics:
                 return {"feedback": "No data available for middlegame phase analysis"}
 
-            accuracy = middlegame_metrics.get('accuracy', 0)
-            mistakes = middlegame_metrics.get('mistakes', 0)
-            tactical_opportunities = middlegame_metrics.get('tactical_opportunities', 0)
-            tactical_success = middlegame_metrics.get('tactical_success', 0)
+            accuracy = middlegame_metrics.get("accuracy", 0)
+            mistakes = middlegame_metrics.get("mistakes", 0)
+            tactical_opportunities = middlegame_metrics.get("tactical_opportunities", 0)
+            tactical_success = middlegame_metrics.get("tactical_success", 0)
 
             if accuracy > 80:
                 quality = "excellent"
@@ -993,8 +983,8 @@ class FeedbackGenerator:
             if not endgame_metrics:
                 return {"feedback": "No data available for endgame phase analysis"}
 
-            accuracy = endgame_metrics.get('accuracy', 0)
-            mistakes = endgame_metrics.get('mistakes', 0)
+            accuracy = endgame_metrics.get("accuracy", 0)
+            mistakes = endgame_metrics.get("mistakes", 0)
 
             if accuracy > 80:
                 quality = "excellent"
@@ -1018,29 +1008,29 @@ class FeedbackGenerator:
         """Identify player strengths based on metrics."""
         try:
             strengths = []
-            overall = metrics.get('overall', {})
-            phases = metrics.get('phases', {})
-            tactics = metrics.get('tactics', {})
-            time_mgmt = metrics.get('time_management', {})
+            overall = metrics.get("overall", {})
+            phases = metrics.get("phases", {})
+            tactics = metrics.get("tactics", {})
+            time_mgmt = metrics.get("time_management", {})
 
             # Check overall accuracy
-            accuracy = overall.get('accuracy', 0)
+            accuracy = overall.get("accuracy", 0)
             if accuracy > 80:
                 strengths.append(f"Strong overall play with {accuracy:.1f}% accuracy")
 
             # Check phase-specific strengths
             for phase_name, phase_data in phases.items():
-                phase_accuracy = phase_data.get('accuracy', 0)
+                phase_accuracy = phase_data.get("accuracy", 0)
                 if phase_accuracy > 75:
                     strengths.append(f"Strong {phase_name} play ({phase_accuracy:.1f}% accuracy)")
 
             # Check tactical awareness
-            tactical_success = tactics.get('success_rate', 0)
+            tactical_success = tactics.get("success_rate", 0)
             if tactical_success > 70:
                 strengths.append(f"Good tactical awareness ({tactical_success:.1f}% success rate)")
 
             # Check time management
-            time_score = time_mgmt.get('time_management_score', 0)
+            time_score = time_mgmt.get("time_management_score", 0)
             if time_score > 70:
                 strengths.append(f"Effective time management ({time_score:.1f}% efficiency)")
 
@@ -1057,36 +1047,36 @@ class FeedbackGenerator:
         """Identify player weaknesses based on metrics."""
         try:
             weaknesses = []
-            overall = metrics.get('overall', {})
-            phases = metrics.get('phases', {})
-            tactics = metrics.get('tactics', {})
-            time_mgmt = metrics.get('time_management', {})
+            overall = metrics.get("overall", {})
+            phases = metrics.get("phases", {})
+            tactics = metrics.get("tactics", {})
+            time_mgmt = metrics.get("time_management", {})
 
             # Check overall accuracy
-            accuracy = overall.get('accuracy', 0)
+            accuracy = overall.get("accuracy", 0)
             if accuracy < 50:
                 weaknesses.append(f"Inconsistent overall play ({accuracy:.1f}% accuracy)")
 
             # Check mistakes and blunders
-            mistakes = overall.get('mistakes', 0)
-            blunders = overall.get('blunders', 0)
+            mistakes = overall.get("mistakes", 0)
+            blunders = overall.get("blunders", 0)
             if mistakes + blunders > 3:
                 weaknesses.append(f"Made {mistakes} mistakes and {blunders} blunders")
 
             # Check phase-specific weaknesses
             for phase_name, phase_data in phases.items():
-                phase_accuracy = phase_data.get('accuracy', 0)
+                phase_accuracy = phase_data.get("accuracy", 0)
                 if phase_accuracy < 50:
                     weaknesses.append(f"Struggles in {phase_name} ({phase_accuracy:.1f}% accuracy)")
 
             # Check tactical awareness
-            tactical_success = tactics.get('success_rate', 0)
-            tactical_opportunities = tactics.get('opportunities', 0)
+            tactical_success = tactics.get("success_rate", 0)
+            tactical_opportunities = tactics.get("opportunities", 0)
             if tactical_success < 40 and tactical_opportunities > 2:
                 weaknesses.append(f"Missed tactical opportunities ({tactical_success:.1f}% success rate)")
 
             # Check time management
-            time_score = time_mgmt.get('time_management_score', 0)
+            time_score = time_mgmt.get("time_management_score", 0)
             if time_score < 40:
                 weaknesses.append(f"Poor time management ({time_score:.1f}% efficiency)")
 
@@ -1109,17 +1099,15 @@ class FeedbackGenerator:
 
             # Sort moves by evaluation change (largest absolute value first)
             sorted_moves = sorted(
-                [m for m in moves if 'eval_change' in m],
-                key=lambda x: abs(x.get('eval_change', 0)),
-                reverse=True
+                [m for m in moves if "eval_change" in m], key=lambda x: abs(x.get("eval_change", 0)), reverse=True
             )
 
             # Take the top 3 most significant moves
             for _, move in enumerate(sorted_moves[:3]):
-                move_number = move.get('move_number', 0)
-                move_san = move.get('san', move.get('move', '?'))
-                eval_change_cp = self._eval_change_to_cp(move.get('eval_change', 0))
-                is_white = move.get('is_white', True)
+                move_number = move.get("move_number", 0)
+                move_san = move.get("san", move.get("move", "?"))
+                eval_change_cp = self._eval_change_to_cp(move.get("eval_change", 0))
+                is_white = move.get("is_white", True)
                 side = "White" if is_white else "Black"
 
                 if abs(eval_change_cp) < 50:
@@ -1135,12 +1123,14 @@ class FeedbackGenerator:
                         moment_type = "excellent move"
 
                 description = f"Move {move_number}: {side}'s {moment_type} {move_san}"
-                critical_moments.append({
-                    "move_number": move_number,
-                    "description": description,
-                    "type": moment_type,
-                    "eval_change": eval_change_cp
-                })
+                critical_moments.append(
+                    {
+                        "move_number": move_number,
+                        "description": description,
+                        "type": moment_type,
+                        "eval_change": eval_change_cp,
+                    }
+                )
 
             return critical_moments
         except (AttributeError, TypeError, ValueError) as e:
@@ -1151,15 +1141,15 @@ class FeedbackGenerator:
         """Generate suggested improvement areas based on metrics and identified weaknesses."""
         try:
             improvement_areas = []
-            overall = metrics.get('overall', {})
-            phases = metrics.get('phases', {})
+            overall = metrics.get("overall", {})
+            phases = metrics.get("phases", {})
 
             # Look for the weakest phase
             weakest_phase = None
             lowest_accuracy = 100
 
             for phase_name, phase_data in phases.items():
-                phase_accuracy = phase_data.get('accuracy', 0)
+                phase_accuracy = phase_data.get("accuracy", 0)
                 if phase_accuracy < lowest_accuracy:
                     lowest_accuracy = phase_accuracy
                     weakest_phase = phase_name
@@ -1169,8 +1159,8 @@ class FeedbackGenerator:
                 improvement_areas.append(f"Study {weakest_phase} positions and principles")
 
             # Look at overall metrics
-            mistakes = overall.get('mistakes', 0)
-            blunders = overall.get('blunders', 0)
+            mistakes = overall.get("mistakes", 0)
+            blunders = overall.get("blunders", 0)
 
             if blunders > 2:
                 improvement_areas.append("Practice calculation and double-check moves before playing them")
@@ -1180,7 +1170,7 @@ class FeedbackGenerator:
 
             # Add general improvement areas
             if not improvement_areas:
-                accuracy = overall.get('accuracy', 0)
+                accuracy = overall.get("accuracy", 0)
                 if accuracy < 90:
                     improvement_areas.append("Continue practicing tactics and game analysis")
                 if accuracy < 70:

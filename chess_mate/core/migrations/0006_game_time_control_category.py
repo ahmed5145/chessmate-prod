@@ -6,13 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0005_profile_last_credit_purchase'),
+        ("core", "0005_profile_last_credit_purchase"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='game',
-            name='time_control_category',
-            field=models.CharField(choices=[('bullet', 'Bullet'), ('blitz', 'Blitz'), ('rapid', 'Rapid'), ('classical', 'Classical')], default='blitz', max_length=20),
+            model_name="game",
+            name="time_control_category",
+            field=models.CharField(
+                choices=[("bullet", "Bullet"), ("blitz", "Blitz"), ("rapid", "Rapid"), ("classical", "Classical")],
+                default="blitz",
+                max_length=20,
+            ),
         ),
     ]

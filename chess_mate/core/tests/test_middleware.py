@@ -79,7 +79,11 @@ class TestRequestValidationMiddleware:
     def test_invalid_email_format(self, authenticated_client):
         """Test that a request with invalid email format is rejected."""
         url = reverse("register")
-        data = {"email": "not_an_email", "password": "Secure.Password.123", "username": "newuser"}  # Invalid email format
+        data = {
+            "email": "not_an_email",
+            "password": "Secure.Password.123",
+            "username": "newuser",
+        }  # Invalid email format
         response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST

@@ -10,6 +10,7 @@ from django.core.cache import caches
 
 logger = logging.getLogger(__name__)
 
+
 class RateLimiter:
     """Rate limiting implementation using Redis."""
 
@@ -20,11 +21,11 @@ class RateLimiter:
 
     def _parse_rate(self, rate: str) -> Tuple[int, int]:
         """Parse rate string into number of requests and time window."""
-        if not rate or '/' not in rate:
+        if not rate or "/" not in rate:
             return 100, 3600  # Default: 100 per hour
-            
+
         try:
-            requests, seconds = rate.split('/', 1)
+            requests, seconds = rate.split("/", 1)
             return int(requests), int(seconds)
         except (ValueError, TypeError):
             logger.warning(f"Invalid rate format: {rate}. Using default.")
@@ -37,16 +38,16 @@ class RateLimiter:
     def is_rate_limited(self, key_type: str, identifier: str, rate: str) -> bool:
         """Check if the request should be rate limited."""
         key = self._get_cache_key(key_type, identifier)
-        
+
         # Parse rate
         max_requests, _ = self._parse_rate(rate)
-        
+
         # Get current count
         try:
             # Get current count, ensure it's an integer
             current_str = self.cache.get(key)
             current = int(current_str) if current_str else 0
-            
+
             # Compare with max requests
             return current >= max_requests
         except (ValueError, TypeError) as e:
@@ -59,15 +60,15 @@ class RateLimiter:
     def increment(self, key_type: str, identifier: str, rate: str) -> None:
         """Increment the request counter for rate limiting."""
         key = self._get_cache_key(key_type, identifier)
-        
+
         # Parse rate
         _, window = self._parse_rate(rate)
-        
+
         try:
             # Get current count
             current_str = self.cache.get(key)
             current = int(current_str) if current_str is not None else 0
-            
+
             # Increment and save as string to ensure compatibility
             self.cache.set(key, str(current + 1), window)
         except (ValueError, TypeError) as e:
@@ -78,15 +79,15 @@ class RateLimiter:
     def get_remaining(self, key_type: str, identifier: str, rate: str) -> int:
         """Get the number of remaining requests allowed."""
         key = self._get_cache_key(key_type, identifier)
-        
+
         # Parse rate
         max_requests, _ = self._parse_rate(rate)
-        
+
         try:
             # Get current count
             current_str = self.cache.get(key)
             current = int(current_str) if current_str is not None else 0
-            
+
             # Calculate remaining
             return max(0, max_requests - current)
         except (ValueError, TypeError) as e:
@@ -96,5 +97,6 @@ class RateLimiter:
             logger.error(f"Unexpected error in remaining calculation: {str(e)}")
             return 0
 
+
 # Global instance
-limiter = RateLimiter() 
+limiter = RateLimiter()

@@ -1,9 +1,9 @@
 """
-    Windows worker for RQ.
-    Handles worker processes and logging in the background.
-    Uses Redis for job processing.
-    Manages multiple worker processes and restarts them if they die.
-    Provides detailed logging and error handling.
+Windows worker for RQ.
+Handles worker processes and logging in the background.
+Uses Redis for job processing.
+Manages multiple worker processes and restarts them if they die.
+Provides detailed logging and error handling.
 """
 
 import logging

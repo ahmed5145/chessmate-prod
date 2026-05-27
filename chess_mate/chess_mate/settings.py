@@ -19,7 +19,7 @@ env = environ.Env()
 
 # Read .env files in precedence order so local overrides win while preserving
 # any values already present in the process environment.
-environment_name = os.environ.get('ENVIRONMENT', 'development')
+environment_name = os.environ.get("ENVIRONMENT", "development")
 env_files = [
     os.path.join(PROJECT_ROOT, f".env.{environment_name}.local"),
     os.path.join(PROJECT_ROOT, ".env.local"),
@@ -39,10 +39,10 @@ for env_file in env_files:
             pass
 
 # Testing mode flag - must be defined before any dependent settings
-TESTING: bool = env('TESTING', default='False').lower() == "true"
+TESTING: bool = env("TESTING", default="False").lower() == "true"
 
 # Environment detection
-ENVIRONMENT = env('ENVIRONMENT', default='development')
+ENVIRONMENT = env("ENVIRONMENT", default="development")
 IS_PRODUCTION = ENVIRONMENT.lower() == "production"
 
 # Quick-start development settings - unsuitable for production
@@ -50,19 +50,17 @@ IS_PRODUCTION = ENVIRONMENT.lower() == "production"
 
 # SECURITY WARNING: keep the secret key used in production secret!
 if IS_PRODUCTION and not TESTING:
-    SECRET_KEY = env('SECRET_KEY', default='').strip()
-    if not SECRET_KEY or SECRET_KEY.startswith('django-insecure'):
-        raise ImproperlyConfigured(
-            "SECRET_KEY must be set to a strong value when ENVIRONMENT=production"
-        )
+    SECRET_KEY = env("SECRET_KEY", default="").strip()
+    if not SECRET_KEY or SECRET_KEY.startswith("django-insecure"):
+        raise ImproperlyConfigured("SECRET_KEY must be set to a strong value when ENVIRONMENT=production")
 else:
-    SECRET_KEY = env('SECRET_KEY', default='django-insecure-dev-only-change-me')
+    SECRET_KEY = env("SECRET_KEY", default="django-insecure-dev-only-change-me")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool('DEBUG', default=False)
+DEBUG = env.bool("DEBUG", default=False)
 
 # OpenAI Settings
-OPENAI_API_KEY = env('OPENAI_API_KEY', default='').strip()
+OPENAI_API_KEY = env("OPENAI_API_KEY", default="").strip()
 if not OPENAI_API_KEY:
     for fallback_file in (
         os.path.join(PROJECT_ROOT, ".env.prod"),
@@ -78,28 +76,28 @@ OPENAI_MODEL = "gpt-3.5-turbo"
 OPENAI_MAX_TOKENS = 500
 OPENAI_TEMPERATURE = 0.7
 OPENAI_RATE_LIMIT = {
-    "max_requests": 100 if env('TEST_MODE', default='False').lower() == "true" else 50,
-    "window_seconds": 60 if env('TEST_MODE', default='False').lower() == "true" else 3600,
-    "min_interval": 0.1 if env('TEST_MODE', default='False').lower() == "true" else 0.5,
+    "max_requests": 100 if env("TEST_MODE", default="False").lower() == "true" else 50,
+    "window_seconds": 60 if env("TEST_MODE", default="False").lower() == "true" else 3600,
+    "min_interval": 0.1 if env("TEST_MODE", default="False").lower() == "true" else 0.5,
 }
 OPENAI_CACHE_KEY = "openai_rate_limit"
 OPENAI_CACHE_TIMEOUT = 3600
 
 # Stripe Settings
-STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
-STRIPE_PUBLISHABLE_KEY = env('STRIPE_PUBLISHABLE_KEY', default='')
-STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
+STRIPE_PUBLISHABLE_KEY = env("STRIPE_PUBLISHABLE_KEY", default="")
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
 
 ALLOWED_HOSTS = env.list(
-    'ALLOWED_HOSTS',
+    "ALLOWED_HOSTS",
     default=[
-        'localhost',
-        '127.0.0.1',
+        "localhost",
+        "127.0.0.1",
     ],
 )
 for host in [
-    'chessmate-prod.us-east-2.elasticbeanstalk.com',
-    '*',
+    "chessmate-prod.us-east-2.elasticbeanstalk.com",
+    "*",
 ]:
     if host not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(host)
@@ -171,12 +169,12 @@ elif IS_PRODUCTION:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": env('DB_NAME', default='chessmate'),
-            "USER": env('DB_USER', default='postgres'),
-            "PASSWORD": env('DB_PASSWORD', default=''),
-            "HOST": env('DB_HOST', default='localhost'),
-            "PORT": env('DB_PORT', default='5432'),
-            "CONN_MAX_AGE": int(env('DB_CONN_MAX_AGE', default='300')),  # 5 minutes persistent connection
+            "NAME": env("DB_NAME", default="chessmate"),
+            "USER": env("DB_USER", default="postgres"),
+            "PASSWORD": env("DB_PASSWORD", default=""),
+            "HOST": env("DB_HOST", default="localhost"),
+            "PORT": env("DB_PORT", default="5432"),
+            "CONN_MAX_AGE": int(env("DB_CONN_MAX_AGE", default="300")),  # 5 minutes persistent connection
             "OPTIONS": {
                 "connect_timeout": 10,  # Reduced timeout for faster error detection
                 "client_encoding": "UTF8",
@@ -202,10 +200,10 @@ elif IS_PRODUCTION:
             },
             # Connection pooling settings
             "POOL_OPTIONS": {
-                "POOL_SIZE": int(env('DB_POOL_SIZE', default='20')),  # Increased pool size for higher concurrency
-                "MAX_OVERFLOW": int(env('DB_MAX_OVERFLOW', default='30')),  # Allow more overflow connections under load
-                "RECYCLE": int(env('DB_RECYCLE_SECONDS', default='300')),  # Recycle connections after 5 minutes
-                "TIMEOUT": int(env('DB_POOL_TIMEOUT', default='30')),  # Timeout for acquiring connection from pool
+                "POOL_SIZE": int(env("DB_POOL_SIZE", default="20")),  # Increased pool size for higher concurrency
+                "MAX_OVERFLOW": int(env("DB_MAX_OVERFLOW", default="30")),  # Allow more overflow connections under load
+                "RECYCLE": int(env("DB_RECYCLE_SECONDS", default="300")),  # Recycle connections after 5 minutes
+                "TIMEOUT": int(env("DB_POOL_TIMEOUT", default="30")),  # Timeout for acquiring connection from pool
                 "RETRY_ON_TIMEOUT": True,  # Retry on connection timeout
                 "MAX_RETRIES": 3,  # Maximum number of retries
                 "RETRY_DELAY": 0.1,  # Delay between retries (seconds)
@@ -223,13 +221,13 @@ else:
 # Database connection pooling configuration - used by django-db-connection-pool
 if IS_PRODUCTION:
     DATABASE_POOL_ARGS = {
-        "max_overflow": int(env('DB_MAX_OVERFLOW', default='30')),
-        "pool_size": int(env('DB_POOL_SIZE', default='20')),
-        "recycle": int(env('DB_RECYCLE_SECONDS', default='300')),
+        "max_overflow": int(env("DB_MAX_OVERFLOW", default="30")),
+        "pool_size": int(env("DB_POOL_SIZE", default="20")),
+        "recycle": int(env("DB_RECYCLE_SECONDS", default="300")),
         "retry_on_timeout": True,
         "max_retries": 3,
         "retry_delay": 0.1,
-        "timeout": int(env('DB_POOL_TIMEOUT', default='30')),
+        "timeout": int(env("DB_POOL_TIMEOUT", default="30")),
         "echo": DEBUG,
         "echo_pool": DEBUG,
     }
@@ -283,33 +281,35 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Redis settings
-REDIS_DISABLED = os.getenv('REDIS_DISABLED', 'False').lower() == 'true'
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost').strip()
-REDIS_PORT = os.getenv('REDIS_PORT', '6379').strip()
-REDIS_DB = os.getenv('REDIS_DB', '0').strip()
-REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '').strip()
+REDIS_DISABLED = os.getenv("REDIS_DISABLED", "False").lower() == "true"
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost").strip()
+REDIS_PORT = os.getenv("REDIS_PORT", "6379").strip()
+REDIS_DB = os.getenv("REDIS_DB", "0").strip()
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "").strip()
 
 # Construct Redis URL
 REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 if REDIS_PASSWORD:
     REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
-REDIS_SOCKET_TIMEOUT = int(env('REDIS_SOCKET_TIMEOUT', default=5))
-REDIS_SOCKET_CONNECT_TIMEOUT = int(env('REDIS_SOCKET_CONNECT_TIMEOUT', default=5))
-REDIS_RETRY_ON_TIMEOUT = env('REDIS_RETRY_ON_TIMEOUT', default='true').lower() == "true"
-REDIS_CONNECTION_POOL_SIZE = int(env('REDIS_CONNECTION_POOL_SIZE', default=20))
-REDIS_MAX_CONNECTIONS = int(env('REDIS_MAX_CONNECTIONS', default=100))
+REDIS_SOCKET_TIMEOUT = int(env("REDIS_SOCKET_TIMEOUT", default=5))
+REDIS_SOCKET_CONNECT_TIMEOUT = int(env("REDIS_SOCKET_CONNECT_TIMEOUT", default=5))
+REDIS_RETRY_ON_TIMEOUT = env("REDIS_RETRY_ON_TIMEOUT", default="true").lower() == "true"
+REDIS_CONNECTION_POOL_SIZE = int(env("REDIS_CONNECTION_POOL_SIZE", default=20))
+REDIS_MAX_CONNECTIONS = int(env("REDIS_MAX_CONNECTIONS", default=100))
 
 # Basic REST Framework Configuration without imports that might cause circular dependencies
 REST_FRAMEWORK = {
-    'DEFAULT_RENDERER_CLASSES': (
-        'rest_framework.renderers.JSONRenderer',
-    ) if not DEBUG else (
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
+    "DEFAULT_RENDERER_CLASSES": (
+        ("rest_framework.renderers.JSONRenderer",)
+        if not DEBUG
+        else (
+            "rest_framework.renderers.JSONRenderer",
+            "rest_framework.renderers.BrowsableAPIRenderer",
+        )
     ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
 }
 
 # The rest of the REST_FRAMEWORK configuration will be set up during application initialization
@@ -318,25 +318,22 @@ REST_FRAMEWORK = {
 # Cache settings - use local memory when Redis is disabled
 if REDIS_DISABLED:
     CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'chessmate-default',
-            'TIMEOUT': 300,
-            'OPTIONS': {
-                'MAX_ENTRIES': 1000,
-                'CULL_FREQUENCY': 3
-            }
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "chessmate-default",
+            "TIMEOUT": 300,
+            "OPTIONS": {"MAX_ENTRIES": 1000, "CULL_FREQUENCY": 3},
         }
     }
 else:
     CACHES = {
-        'default': {
+        "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": REDIS_URL,
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
             },
-            'TIMEOUT': 300,
+            "TIMEOUT": 300,
         }
     }
 
@@ -474,26 +471,29 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_IMPORTS = ("core.tasks",)
 
 # Game Analysis settings
-ANALYSIS_COST = int(env('ANALYSIS_COST', default=5))  # Credits per analysis
-ANALYSIS_DEPTH = int(env('ANALYSIS_DEPTH', default=20))  # Stockfish analysis depth
-ANALYSIS_MOVE_TIME = int(env('ANALYSIS_MOVE_TIME', default=100))  # ms per move for Stockfish
-MAX_POSITIONS_PER_GAME = int(env('MAX_POSITIONS_PER_GAME', default=300))  # Max positions to analyze per game
+ANALYSIS_COST = int(env("ANALYSIS_COST", default=5))  # Credits per analysis
+ANALYSIS_DEPTH = int(env("ANALYSIS_DEPTH", default=20))  # Stockfish analysis depth
+ANALYSIS_MOVE_TIME = int(env("ANALYSIS_MOVE_TIME", default=100))  # ms per move for Stockfish
+MAX_POSITIONS_PER_GAME = int(env("MAX_POSITIONS_PER_GAME", default=300))  # Max positions to analyze per game
 
 # Use our custom Redis client
 REDIS_CLIENT_CLASS = "chess_mate.core.redis_config.get_redis_client"
 
 # Stockfish settings
-STOCKFISH_PATH = env('STOCKFISH_PATH', default=r'C:\Users\PCAdmin\Downloads\stockfish-windows-x86-64-avx2\stockfish\stockfish-windows-x86-64-avx2.exe') # Needs to be changed in prod
-STOCKFISH_THREADS = int(env('STOCKFISH_THREADS', default=4))
-STOCKFISH_HASH_SIZE = int(env('STOCKFISH_HASH_SIZE', default=128))  # MB
+STOCKFISH_PATH = env(
+    "STOCKFISH_PATH",
+    default=r"C:\Users\PCAdmin\Downloads\stockfish-windows-x86-64-avx2\stockfish\stockfish-windows-x86-64-avx2.exe",
+)  # Needs to be changed in prod
+STOCKFISH_THREADS = int(env("STOCKFISH_THREADS", default=4))
+STOCKFISH_HASH_SIZE = int(env("STOCKFISH_HASH_SIZE", default=128))  # MB
 
 # Security configuration
-SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=False)
-SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=False)
-CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=False)
-SECURE_HSTS_SECONDS = int(env('SECURE_HSTS_SECONDS', default='31536000' if IS_PRODUCTION else '0'))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=IS_PRODUCTION)
-SECURE_HSTS_PRELOAD = env.bool('SECURE_HSTS_PRELOAD', default=IS_PRODUCTION)
+SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)
+SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=False)
+CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=False)
+SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", default="31536000" if IS_PRODUCTION else "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=IS_PRODUCTION)
+SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=IS_PRODUCTION)
 
 # CSRF Configuration
 CSRF_COOKIE_HTTPONLY = False  # Frontend needs access to CSRF cookie
@@ -525,7 +525,7 @@ CORS_ALLOW_HEADERS = [
     "access-control-allow-credentials",
     "baggage",
     "sentry-trace",
-    "cache-control"
+    "cache-control",
 ]
 CORS_PREFLIGHT_MAX_AGE = 86400  # Cache preflight requests for 24 hours
 CORS_ALLOW_METHODS = [
@@ -539,7 +539,7 @@ CORS_ALLOW_METHODS = [
 
 # JWT Settings (with improved security and compatibility)
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),   # Increased for testing
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),  # Increased for testing
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -548,7 +548,7 @@ SIMPLE_JWT = {
     "SIGNING_KEY": SECRET_KEY,
     "VERIFYING_KEY": None,
     "AUTH_HEADER_TYPES": ("Bearer",),
-    "USER_ID_FIELD": "id", 
+    "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
     "TOKEN_TYPE_CLAIM": "token_type",
@@ -557,9 +557,9 @@ SIMPLE_JWT = {
 
 # Authentication and authorization
 AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
+    "django.contrib.auth.backends.ModelBackend",
 ]
 
 # Set the login URL to point to the frontend login page instead of Django's default
-LOGIN_URL = '/api/v1/auth/login/'
-LOGIN_REDIRECT_URL = '/'
+LOGIN_URL = "/api/v1/auth/login/"
+LOGIN_REDIRECT_URL = "/"

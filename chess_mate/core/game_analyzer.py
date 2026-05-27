@@ -209,7 +209,9 @@ class GameAnalyzer:
         )
         return batch_task.delay(**task_kwargs)
 
-    def generate_feedback(self, analysis_results: Union[Dict[str, Any], List[Dict[str, Any]]], game: Optional[Game] = None) -> Dict[str, Any]:
+    def generate_feedback(
+        self, analysis_results: Union[Dict[str, Any], List[Dict[str, Any]]], game: Optional[Game] = None
+    ) -> Dict[str, Any]:
         """Backward-compatible wrapper used by legacy analysis tests."""
         if isinstance(analysis_results, list):
             feedback = self.feedback_generator.generate_feedback({"moves": analysis_results})
@@ -290,7 +292,9 @@ class GameAnalyzer:
         feedback.setdefault("tactical_opportunities", [])
         return feedback
 
-    def _generate_ai_feedback(self, game_analysis: List[Dict[str, Any]], game: Optional[Game] = None) -> Optional[Dict[str, Any]]:
+    def _generate_ai_feedback(
+        self, game_analysis: List[Dict[str, Any]], game: Optional[Game] = None
+    ) -> Optional[Dict[str, Any]]:
         """Generate structured AI feedback for legacy tests and compatibility callers."""
         try:
             response = self.openai_client.chat.completions.create(
@@ -333,50 +337,49 @@ class GameAnalyzer:
             logger.error("Error generating OpenAI feedback: %s", str(e))
             return None
 
-    def analyze_game(self, game: Game, depth=20, use_ai=True, progress_callback=None, task_id=None, force_reanalyze=False):
+    def analyze_game(
+        self, game: Game, depth=20, use_ai=True, progress_callback=None, task_id=None, force_reanalyze=False
+    ):
         """
         Analyze a chess game and save the results.
-        
+
         Args:
             game: Game instance to analyze
             depth: Stockfish analysis depth
             use_ai: Whether to use AI for feedback generation
             progress_callback: Optional callback function to report progress
             task_id: Optional task ID for tracking in the task manager
-            
+
         Returns:
             GameAnalysis model instance with the analysis results
         """
         analysis_result = None
-        
+
         try:
             # Init progress tracking
             if progress_callback:
                 progress_callback(10, "Parsing game data")
-            
+
             # Extract game details
             pgn = game.pgn
             if not pgn:
                 raise ValidationError("Game has no PGN data")
-                
+
             # If we have a task ID, update its status
             if task_id and self.task_manager:
                 self.task_manager.update_task_status(
-                    task_id=task_id, 
-                    status="PROCESSING",
-                    progress=15,
-                    message="Analyzing game"
+                    task_id=task_id, status="PROCESSING", progress=15, message="Analyzing game"
                 )
-            
+
             # Check if we already have an analysis for this game
             try:
                 existing_analysis = GameAnalysis.objects.get(game=game)
                 logger.info(f"Found existing analysis for game {game.id}")
-                
+
                 # Check if analysis is complete by looking at analysis_data
                 if (
                     not force_reanalyze
-                    and existing_analysis.analysis_data.get('status') == 'complete'
+                    and existing_analysis.analysis_data.get("status") == "complete"
                     and existing_analysis.moves
                 ):
                     if progress_callback:
@@ -384,45 +387,38 @@ class GameAnalyzer:
                     # Update task if we have one
                     if task_id and self.task_manager:
                         self.task_manager.update_task_status(
-                            task_id=task_id, 
-                            status="SUCCESS",
-                            progress=100,
-                            message="Analysis complete (cached)"
+                            task_id=task_id, status="SUCCESS", progress=100, message="Analysis complete (cached)"
                         )
                     return existing_analysis
-                    
+
                 # Otherwise, continue with new analysis
                 logger.info(f"Existing analysis is incomplete, recreating for game {game.id}")
                 analysis_result = existing_analysis
                 # Mark as in progress
-                analysis_result.analysis_data['status'] = 'in_progress'
+                analysis_result.analysis_data["status"] = "in_progress"
                 analysis_result.save(update_fields=["analysis_data"])
             except GameAnalysis.DoesNotExist:
                 # Create a new analysis
                 logger.info(f"Creating new analysis for game {game.id}")
-                analysis_result = GameAnalysis.objects.create(
-                    game=game,
-                    analysis_data={'status': 'in_progress'}
-                )
-            
+                analysis_result = GameAnalysis.objects.create(game=game, analysis_data={"status": "in_progress"})
+
             # Initialize Stockfish analyzer
             if progress_callback:
                 progress_callback(15, "Initializing chess engine")
-                
+
             if task_id and self.task_manager:
                 self.task_manager.update_task_status(
-                    task_id=task_id,
-                    status="PROCESSING",
-                    progress=20,
-                    message="Initializing chess engine"
+                    task_id=task_id, status="PROCESSING", progress=20, message="Initializing chess engine"
                 )
-            
+
             # Analyze the game with Stockfish
             if progress_callback:
                 progress_callback(20, "Analyzing moves with Stockfish")
-                
+
             analyzed_moves = self.engine.analyze_pgn_game(
-                pgn, depth=depth, callback=lambda p, m: progress_callback(20 + int(p * 0.5), m) if progress_callback else None
+                pgn,
+                depth=depth,
+                callback=lambda p, m: progress_callback(20 + int(p * 0.5), m) if progress_callback else None,
             )
 
             # Backward-compatible fallback used by legacy unit tests where the
@@ -436,18 +432,15 @@ class GameAnalyzer:
                     return result
                 except Exception as legacy_error:
                     return {"error": str(legacy_error)}
-            
+
             if progress_callback:
                 progress_callback(70, "Calculating metrics")
-                
+
             if task_id and self.task_manager:
                 self.task_manager.update_task_status(
-                    task_id=task_id,
-                    status="PROCESSING",
-                    progress=70,
-                    message="Calculating metrics"
+                    task_id=task_id, status="PROCESSING", progress=70, message="Calculating metrics"
                 )
-                
+
             # Calculate metrics
             time_data = []  # Extract time data if available
             try:
@@ -463,147 +456,129 @@ class GameAnalyzer:
                     "positional": {},
                     "advantage": {},
                     "resourcefulness": {},
-                    "calculation_error": str(me)
+                    "calculation_error": str(me),
                 }
                 if progress_callback:
                     progress_callback(75, f"Using fallback metrics due to calculation error: {str(me)}")
-                
+
                 if task_id and self.task_manager:
                     self.task_manager.update_task_status(
                         task_id=task_id,
                         status="PROCESSING",
                         progress=75,
-                        message=f"Using fallback metrics due to calculation error"
+                        message=f"Using fallback metrics due to calculation error",
                     )
-            
+
             # Generate feedback with AI if requested
             feedback = {}
             if use_ai and self.feedback_generator:
                 if progress_callback:
                     progress_callback(80, "Generating AI feedback")
-                
+
                 if task_id and self.task_manager:
                     self.task_manager.update_task_status(
-                        task_id=task_id,
-                        status="PROCESSING",
-                        progress=80,
-                        message="Generating AI feedback"
+                        task_id=task_id, status="PROCESSING", progress=80, message="Generating AI feedback"
                     )
-                
+
                 try:
                     # Create a combined analysis result dict to match the expected format
-                    analysis_data = {
-                        "moves": analyzed_moves,
-                        "metrics": {
-                            "summary": metrics
-                        }
-                    }
-                    
+                    analysis_data = {"moves": analyzed_moves, "metrics": {"summary": metrics}}
+
                     # Call with a single argument (the combined analysis result)
                     feedback = self.feedback_generator.generate_feedback(analysis_data)
-                    
+
                     # Update progress after successful feedback generation
                     if progress_callback:
                         progress_callback(85, "AI feedback generated successfully")
-                        
+
                     if task_id and self.task_manager:
                         self.task_manager.update_task_status(
                             task_id=task_id,
                             status="PROCESSING",
                             progress=85,
-                            message="AI feedback generated successfully"
+                            message="AI feedback generated successfully",
                         )
                 except Exception as e:
                     logger.error(f"Error generating AI feedback: {str(e)}")
                     # Continue without AI feedback but update progress
                     feedback = {"error": f"Failed to generate AI feedback: {str(e)}"}
-                    
+
                     if progress_callback:
                         progress_callback(85, "Skipping AI feedback due to error")
-                        
+
                     if task_id and self.task_manager:
                         self.task_manager.update_task_status(
                             task_id=task_id,
                             status="PROCESSING",
                             progress=85,
-                            message="Skipping AI feedback due to error"
+                            message="Skipping AI feedback due to error",
                         )
-            
+
             if progress_callback:
                 progress_callback(90, "Saving analysis results")
-                
+
             if task_id and self.task_manager:
                 self.task_manager.update_task_status(
-                    task_id=task_id,
-                    status="PROCESSING",
-                    progress=90,
-                    message="Saving analysis results"
+                    task_id=task_id, status="PROCESSING", progress=90, message="Saving analysis results"
                 )
-                
+
             # Save the analysis data
             analysis_data = analysis_result.analysis_data
-            analysis_data['metrics'] = metrics
-            analysis_data['status'] = 'complete'
-            analysis_data['completed_at'] = timezone.now().isoformat()
-            analysis_data['engine_version'] = self.engine.get_engine_version()
+            analysis_data["metrics"] = metrics
+            analysis_data["status"] = "complete"
+            analysis_data["completed_at"] = timezone.now().isoformat()
+            analysis_data["engine_version"] = self.engine.get_engine_version()
             if isinstance(feedback, dict):
-                analysis_data['feedback'] = feedback
-            
+                analysis_data["feedback"] = feedback
+
             analysis_result.analysis_data = analysis_data
             analysis_result.feedback = feedback if isinstance(feedback, dict) else {"raw_feedback": str(feedback)}
-            
+
             # Save moves separately using moves property
-            analysis_result.analysis_data['moves'] = analyzed_moves
-            
+            analysis_result.analysis_data["moves"] = analyzed_moves
+
             # If the model has accuracy fields, update them
-            if hasattr(analysis_result, 'accuracy_white') and 'overall' in metrics:
-                analysis_result.accuracy_white = metrics.get('overall', {}).get('white_accuracy', 0)
-            if hasattr(analysis_result, 'accuracy_black') and 'overall' in metrics:
-                analysis_result.accuracy_black = metrics.get('overall', {}).get('black_accuracy', 0)
-                
+            if hasattr(analysis_result, "accuracy_white") and "overall" in metrics:
+                analysis_result.accuracy_white = metrics.get("overall", {}).get("white_accuracy", 0)
+            if hasattr(analysis_result, "accuracy_black") and "overall" in metrics:
+                analysis_result.accuracy_black = metrics.get("overall", {}).get("black_accuracy", 0)
+
             analysis_result.save()
-            
+
             if progress_callback:
                 progress_callback(100, "Analysis complete")
-                
+
             if task_id and self.task_manager:
                 self.task_manager.update_task_status(
-                    task_id=task_id,
-                    status="SUCCESS",
-                    progress=100,
-                    message="Analysis complete"
+                    task_id=task_id, status="SUCCESS", progress=100, message="Analysis complete"
                 )
 
             return analysis_result
 
         except Exception as e:
             logger.exception(f"Error during game analysis: {str(e)}")
-            
+
             # Update the analysis status if we created one
             if analysis_result:
                 try:
                     # Mark analysis as failed
                     analysis_data = analysis_result.analysis_data
-                    analysis_data['status'] = 'failed'
-                    analysis_data['error'] = str(e)
+                    analysis_data["status"] = "failed"
+                    analysis_data["error"] = str(e)
                     analysis_result.analysis_data = analysis_data
                     analysis_result.save()
                 except Exception as save_error:
                     logger.error(f"Error updating analysis status: {str(save_error)}")
-            
+
             # Update task status if we have a task ID
             if task_id and self.task_manager:
                 self.task_manager.update_task_status(
-                    task_id=task_id,
-                    status="FAILURE",
-                    progress=0,
-                    message=f"Analysis failed: {str(e)}",
-                    error=str(e)
+                    task_id=task_id, status="FAILURE", progress=0, message=f"Analysis failed: {str(e)}", error=str(e)
                 )
-            
+
             # Re-raise as AnalysisError
             raise AnalysisError(f"Game analysis failed: {str(e)}")
-            
+
         finally:
             # Always clean up resources
             try:
@@ -615,12 +590,12 @@ class GameAnalyzer:
     def _perform_analysis(self, game: Game, depth: int, progress_callback=None) -> Dict[str, Any]:
         """
         Perform the actual game analysis.
-        
+
         Args:
             game: The game to analyze
             depth: Stockfish analysis depth
             progress_callback: Optional callback function to report progress
-        
+
         Returns:
             Dictionary containing analysis results
         """
@@ -628,7 +603,7 @@ class GameAnalyzer:
             # Extract game data
             if progress_callback:
                 progress_callback(15, "Extracting game data")
-                
+
             game_data = self._get_game_data(game.pgn)
             if not game_data:
                 raise AnalysisError("Failed to extract game data from PGN")
@@ -636,7 +611,7 @@ class GameAnalyzer:
             # Analyze moves
             if progress_callback:
                 progress_callback(30, "Analyzing moves")
-                
+
             moves_analysis = self._analyze_moves(game_data["moves"], depth, progress_callback)
             if not moves_analysis:
                 raise AnalysisError("Failed to analyze moves")
@@ -644,7 +619,7 @@ class GameAnalyzer:
             # Analyze positions
             if progress_callback:
                 progress_callback(60, "Analyzing positions")
-                
+
             positions_analysis = self._analyze_positions(game_data["positions"], depth, progress_callback)
             if not positions_analysis:
                 raise AnalysisError("Failed to analyze positions")
@@ -652,11 +627,10 @@ class GameAnalyzer:
             # Calculate metrics
             if progress_callback:
                 progress_callback(80, "Calculating metrics")
-            
-            try:    
+
+            try:
                 metrics = self.metrics_calculator.calculate_game_metrics(
-                    moves=moves_analysis,
-                    time_data=game_data.get("time_data", [])
+                    moves=moves_analysis, time_data=game_data.get("time_data", [])
                 )
             except MetricsError as e:
                 logger.error(f"Metrics calculation error: {str(e)}")
@@ -666,17 +640,13 @@ class GameAnalyzer:
 
             # Compile results
             analysis_result = {
-                "analysis_results": {
-                    "moves": moves_analysis,
-                    "positions": positions_analysis,
-                    "metrics": metrics
-                },
+                "analysis_results": {"moves": moves_analysis, "positions": positions_analysis, "metrics": metrics},
                 "metadata": {
-                "game_id": game.id,
+                    "game_id": game.id,
                     "analysis_depth": depth,
                     "analysis_timestamp": timezone.now().isoformat(),
-                    "engine_version": self.engine.get_engine_version()
-                }
+                    "engine_version": self.engine.get_engine_version(),
+                },
             }
 
             return analysis_result
@@ -770,7 +740,7 @@ class GameAnalyzer:
                 if progress_callback and total_moves > 0:
                     move_progress = progress_base + (progress_range * i) // total_moves
                     progress_callback(move_progress, f"Analyzing move {i+1}/{total_moves}")
-                
+
                 move_number = move_data["move_number"]
                 move_uci = move_data["move"]
                 is_white = move_data["is_white"]
@@ -815,7 +785,9 @@ class GameAnalyzer:
             logger.error(f"Failed to analyze moves: {str(e)}")
             raise TaskError(f"Failed to analyze moves: {str(e)}")
 
-    def _analyze_positions(self, positions: List[Dict[str, Any]], depth: int, progress_callback=None) -> List[Dict[str, Any]]:
+    def _analyze_positions(
+        self, positions: List[Dict[str, Any]], depth: int, progress_callback=None
+    ) -> List[Dict[str, Any]]:
         """
         Analyze chess positions.
 
@@ -830,7 +802,7 @@ class GameAnalyzer:
         try:
             results = []
             total_positions = len(positions)
-            progress_base = 60   # Starting progress percentage
+            progress_base = 60  # Starting progress percentage
             progress_range = 20  # Progress range allocated to position analysis
 
             for i, position_data in enumerate(positions):
@@ -838,7 +810,7 @@ class GameAnalyzer:
                 if progress_callback and total_positions > 0:
                     position_progress = progress_base + (progress_range * i) // total_positions
                     progress_callback(position_progress, f"Analyzing position {i+1}/{total_positions}")
-                
+
                 fen = position_data["fen"]
                 move_number = position_data["move_number"]
 
@@ -915,12 +887,7 @@ class GameAnalyzer:
                 )
 
                 # Analyze game - pass the task_id
-                analysis_result = self.analyze_game(
-                    game, 
-                    depth, 
-                    use_ai, 
-                    task_id=task_id
-                )
+                analysis_result = self.analyze_game(game, depth, use_ai, task_id=task_id)
 
                 # Task status already updated in analyze_game
 
@@ -939,12 +906,12 @@ class GameAnalyzer:
     def analyze_batch_games(self, games: List[Game], depth: int = 20, use_ai: bool = True) -> List[Dict[str, Any]]:
         """
         Backward-compatible wrapper for analyzing a batch of Game objects.
-        
+
         Args:
             games: List of Game objects to analyze
             depth: Analysis depth
             use_ai: Whether to use AI feedback
-            
+
         Returns:
             List of analysis results
         """
@@ -956,15 +923,15 @@ class GameAnalyzer:
     def analyze_games(self, games: List[Game], depth: int = 20, use_ai: bool = True) -> List[Dict[str, Any]]:
         """
         Alias for analyze_batch_games - validate input and call batch analyzer.
-        
+
         Args:
             games: List of Game objects to analyze
             depth: Analysis depth
             use_ai: Whether to use AI feedback
-            
+
         Returns:
             List of analysis results
-            
+
         Raises:
             ValueError: If games list is empty
         """
@@ -972,15 +939,17 @@ class GameAnalyzer:
             raise ValueError("No games provided for analysis")
         return self.analyze_batch_games(games, depth=depth, use_ai=use_ai)
 
-    def save_analysis(self, game: Game, analysis_result: Dict[str, Any], feedback_result: Dict[str, Any]) -> GameAnalysis:
+    def save_analysis(
+        self, game: Game, analysis_result: Dict[str, Any], feedback_result: Dict[str, Any]
+    ) -> GameAnalysis:
         """
         Save analysis results to the database.
-        
+
         Args:
             game: The Game object
             analysis_result: Analysis results from engine
             feedback_result: Feedback from AI
-            
+
         Returns:
             GameAnalysis object
         """
@@ -990,18 +959,18 @@ class GameAnalyzer:
             defaults={
                 "analysis_data": analysis_result,
                 "feedback": feedback_result,
-            }
+            },
         )[0]
-        
+
         return analysis
 
     def get_analysis(self, game: Game) -> Optional[Dict[str, Any]]:
         """
         Retrieve analysis results for a game.
-        
+
         Args:
             game: The Game object
-            
+
         Returns:
             Dict with 'analysis' and 'feedback' keys, or None if not found
         """

@@ -21,9 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
 if not SECRET_KEY or SECRET_KEY.startswith("django-insecure"):
-    raise ImproperlyConfigured(
-        "SECRET_KEY must be configured in production and cannot use insecure defaults"
-    )
+    raise ImproperlyConfigured("SECRET_KEY must be configured in production and cannot use insecure defaults")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"

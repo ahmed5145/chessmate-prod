@@ -30,9 +30,9 @@ class Player(models.Model):
 
     username = models.CharField(max_length=100, unique=True)
     date_joined = models.DateTimeField(auto_now_add=True)
-    game = models.ForeignKey('Game', on_delete=models.CASCADE, null=True, blank=True)
+    game = models.ForeignKey("Game", on_delete=models.CASCADE, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    color = models.CharField(max_length=10, choices=[('white', 'White'), ('black', 'Black')], null=True, blank=True)
+    color = models.CharField(max_length=10, choices=[("white", "White"), ("black", "Black")], null=True, blank=True)
     rating = models.IntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
@@ -43,7 +43,7 @@ class Profile(models.Model):
     """User profile model."""
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
-    bio = models.TextField(blank=True, default='')
+    bio = models.TextField(blank=True, default="")
     credits = models.IntegerField(default=10)
     elo_rating = models.IntegerField(default=1200)
     analysis_count = models.IntegerField(default=0)
@@ -60,11 +60,11 @@ class Profile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     # Add chess platform usernames
-    chess_com_username = models.CharField(max_length=50, blank=True, default='')
-    lichess_username = models.CharField(max_length=50, blank=True, default='')
+    chess_com_username = models.CharField(max_length=50, blank=True, default="")
+    lichess_username = models.CharField(max_length=50, blank=True, default="")
     rating_history = models.JSONField(default=dict, blank=True)  # Store rating history
-    games = models.ManyToManyField('Game', blank=True, related_name='profiles')
-    
+    games = models.ManyToManyField("Game", blank=True, related_name="profiles")
+
     @property
     def rating(self) -> int:
         """Get the user's highest rating across all time controls."""
@@ -775,21 +775,21 @@ class GameAnalysis(models.Model):
     game = models.OneToOneField("Game", on_delete=models.CASCADE, related_name="gameanalysis")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     # Store overall analysis statistics
     accuracy_white = models.FloatField(null=True, blank=True)
     accuracy_black = models.FloatField(null=True, blank=True)
-    
+
     # If metrics field is causing errors because it doesn't exist in the database schema,
     # we'll provide a property that safely returns metrics data from the analysis_data
-    
+
     # Store the detailed analysis as JSON
     analysis_data = models.JSONField(default=dict, blank=True)
-    
+
     # Store the AI-generated feedback
     feedback = models.JSONField(default=dict, blank=True)
     depth = models.IntegerField(null=True, blank=True, default=20)
-    
+
     class Meta:
         verbose_name = "Game Analysis"
         verbose_name_plural = "Game Analyses"
@@ -801,52 +801,52 @@ class GameAnalysis(models.Model):
     @property
     def metrics(self):
         """Safely get metrics from analysis_data."""
-        if not hasattr(self, 'analysis_data') or not self.analysis_data:
+        if not hasattr(self, "analysis_data") or not self.analysis_data:
             return {}
-        return self.analysis_data.get('metrics', {})
-    
+        return self.analysis_data.get("metrics", {})
+
     @property
     def moves(self):
         """Get analyzed moves from analysis data."""
-        if not hasattr(self, 'analysis_data') or not self.analysis_data:
+        if not hasattr(self, "analysis_data") or not self.analysis_data:
             return []
-        return self.analysis_data.get('moves', [])
+        return self.analysis_data.get("moves", [])
 
     @property
     def moves_analysis(self):
         """Backward-compatible alias for legacy test expectations."""
-        if not hasattr(self, 'analysis_data') or not self.analysis_data:
+        if not hasattr(self, "analysis_data") or not self.analysis_data:
             return {}
-        return self.analysis_data.get('moves_analysis', self.analysis_data.get('moves', {}))
+        return self.analysis_data.get("moves_analysis", self.analysis_data.get("moves", {}))
 
     @moves_analysis.setter
     def moves_analysis(self, value):
         """Set moves_analysis in analysis_data."""
         if not self.analysis_data:
             self.analysis_data = {}
-        self.analysis_data['moves_analysis'] = value
+        self.analysis_data["moves_analysis"] = value
 
     @property
     def summary(self):
         """Backward-compatible alias for legacy test expectations."""
-        if not hasattr(self, 'analysis_data') or not self.analysis_data:
+        if not hasattr(self, "analysis_data") or not self.analysis_data:
             return {}
-        return self.analysis_data.get('summary', {})
+        return self.analysis_data.get("summary", {})
 
     @summary.setter
     def summary(self, value):
         """Set summary in analysis_data."""
         if not self.analysis_data:
             self.analysis_data = {}
-        self.analysis_data['summary'] = value
-    
-    @property 
+        self.analysis_data["summary"] = value
+
+    @property
     def evaluation(self):
         """Get game evaluation from analysis data."""
-        if not hasattr(self, 'analysis_data') or not self.analysis_data:
+        if not hasattr(self, "analysis_data") or not self.analysis_data:
             return {}
-        return self.analysis_data.get('evaluation', {})
-    
+        return self.analysis_data.get("evaluation", {})
+
     def __str__(self):
         return f"Analysis for Game {self.game_id} - Created: {self.created_at.strftime('%Y-%m-%d')}"
 
@@ -869,13 +869,13 @@ class BatchAnalysisReport(models.Model):
     completed_games = models.JSONField(default=list, blank=True)
     failed_games = models.JSONField(default=list, blank=True)
     aggregate_metrics = models.JSONField(default=dict, blank=True)
-    
+
     # Phase 1 new fields (PRD section 11)
     batch_summary = models.JSONField(null=True, blank=True, default=None)
     per_game_results = models.JSONField(null=True, blank=True, default=None)
     coaching_report = models.JSONField(null=True, blank=True, default=None)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

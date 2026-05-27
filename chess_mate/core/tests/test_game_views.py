@@ -207,7 +207,9 @@ class TestGameViews:
 
         with patch("core.tasks.analyze_game_task.delay") as mock_task:
             with patch("core.game_views._get_compat_task_managers", return_value=[game_views.task_manager]):
-                with patch.object(game_views.task_manager, "get_active_tasks_for_game", return_value=["existing-task-id"]):
+                with patch.object(
+                    game_views.task_manager, "get_active_tasks_for_game", return_value=["existing-task-id"]
+                ):
                     with patch.object(game_views.task_manager, "register_task") as mock_register:
                         url = reverse("analyze_game", kwargs={"game_id": test_game.id})
                         response = authenticated_client.post(url)

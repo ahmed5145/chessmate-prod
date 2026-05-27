@@ -1,6 +1,7 @@
 """
 Tests for batch analysis views (PRD section 11, Step 9).
 """
+
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -29,11 +30,11 @@ class TestBatchViews(TestCase):
     def test_post_batch_create_returns_202(self):
         """POST /api/v1/batches/ creates batch and returns 202."""
         pgn_data = [
-            "[Event \"Test 1\"]\n1.e4 e5",
-            "[Event \"Test 2\"]\n1.d4 d5",
-            "[Event \"Test 3\"]\n1.c4 c5",
-            "[Event \"Test 4\"]\n1.Nf3 Nf6",
-            "[Event \"Test 5\"]\n1.g4 g5",
+            '[Event "Test 1"]\n1.e4 e5',
+            '[Event "Test 2"]\n1.d4 d5',
+            '[Event "Test 3"]\n1.c4 c5',
+            '[Event "Test 4"]\n1.Nf3 Nf6',
+            '[Event "Test 5"]\n1.g4 g5',
         ]
 
         with patch("core.serializers_batches.chess.pgn.read_game") as mock_parse:
@@ -210,7 +211,7 @@ class TestBatchViews(TestCase):
     def test_post_batch_unauthenticated(self):
         """POST /api/v1/batches/ requires JWT authentication."""
         client = APIClient()  # No auth
-        pgn_data = [f"[Event \"Test {i}\"]\n1.e4 e5" for i in range(5)]
+        pgn_data = [f'[Event "Test {i}"]\n1.e4 e5' for i in range(5)]
 
         response = client.post(
             "/api/v1/batches/",
@@ -250,7 +251,7 @@ class TestBatchViews(TestCase):
 
     def test_post_batch_invalid_pgn(self):
         """POST /api/v1/batches/ rejects invalid PGN."""
-        pgn_data = [f"[Event \"Test {i}\"]\n1.e4 e5" for i in range(3)]  # Only 3
+        pgn_data = [f'[Event "Test {i}"]\n1.e4 e5' for i in range(3)]  # Only 3
 
         with patch("core.serializers_batches.chess.pgn.read_game") as mock_parse:
             mock_parse.return_value = Mock()

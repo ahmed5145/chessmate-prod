@@ -14,6 +14,7 @@ from typing import Optional
 
 _redis_client: Optional[redis.Redis] = None
 
+
 def get_redis_connection():
     """Get a Redis connection or return None if Redis is disabled or unreachable."""
     try:
@@ -70,4 +71,4 @@ def get_redis_connection():
         return None
     except Exception as e:
         logger.warning(f"Unexpected error creating Redis connection: {str(e)}")
-        return None 
+        return None

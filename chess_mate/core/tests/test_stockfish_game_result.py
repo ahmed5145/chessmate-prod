@@ -31,6 +31,7 @@ def _mock_stockfish_analyzer(monkeypatch):
         staticmethod(lambda: fake),
     )
 
+
 # Two small PGN examples embedded for tests
 CLEAN_GAME_PGN = """
 [Event "Test"]

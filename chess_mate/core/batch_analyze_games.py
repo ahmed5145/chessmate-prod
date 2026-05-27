@@ -21,13 +21,13 @@ TASK_START_EXCEPTIONS = (ValueError, TypeError, RuntimeError, OSError)
 def analyze_game_safely(game_id, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use_ai=DEFAULT_USE_AI):
     """
     A safer version of game analysis that doesn't rely on existing GameAnalysis table.
-    
+
     Args:
         game_id: ID of the game to analyze
         user_id: ID of the user requesting the analysis
         depth: Analysis depth (default: 20)
         use_ai: Whether to use AI for analysis (default: True)
-        
+
     Returns:
         Dictionary with task info
     """
@@ -59,9 +59,7 @@ def analyze_game_safely(game_id, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use
         lock = None
         lock_acquired = False
         if task_manager.redis_client is not None:
-            lock = task_manager.redis_client.lock(
-                f"analysis_lock:game:{game_id}", timeout=15, blocking_timeout=3
-            )
+            lock = task_manager.redis_client.lock(f"analysis_lock:game:{game_id}", timeout=15, blocking_timeout=3)
 
         try:
             if lock is not None:
@@ -128,13 +126,13 @@ def analyze_game_safely(game_id, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use
 def batch_analyze_games_safely(game_ids, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use_ai=DEFAULT_USE_AI):
     """
     Safely analyze multiple games without relying on GameAnalysis table.
-    
+
     Args:
         game_ids: List of game IDs to analyze
         user_id: ID of the user requesting the analysis
         depth: Analysis depth (default: 20)
         use_ai: Whether to use AI for analysis (default: True)
-        
+
     Returns:
         Dictionary with task info for each game
     """

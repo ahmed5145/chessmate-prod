@@ -122,7 +122,9 @@ VALIDATION_SCHEMAS: Dict[str, MethodSchema] = {
             },
         }
     },
-    r"^/api(?:/v1)?/login/$": {"POST": {"required": ["email", "password"], "type_validation": {"email": str, "password": str}}},
+    r"^/api(?:/v1)?/login/$": {
+        "POST": {"required": ["email", "password"], "type_validation": {"email": str, "password": str}}
+    },
     # Game endpoints
     r"^/api(?:/v1)?/games/\d+/analyze/$": {
         "POST": {
@@ -210,7 +212,7 @@ DEFAULT_ERROR_RESPONSE: Dict[str, Any] = {
 class RequestIDMiddleware:
     """
     Middleware that adds a unique ID to each request.
-    
+
     This ID is stored in both the request object and thread-local storage,
     allowing it to be accessed anywhere during the request/response cycle.
     """
@@ -221,21 +223,21 @@ class RequestIDMiddleware:
     def __call__(self, request: HttpRequest) -> HttpResponse:
         # Generate a unique request ID
         request_id = str(uuid.uuid4())
-        
+
         # Store the request ID in the request object
         request.request_id = request_id
-        
+
         # Also store in thread-local for access in other parts of the app
         set_request_id(request_id)
-        
+
         # Add the request ID as response header
         response = self.get_response(request)
         if hasattr(response, "headers"):
             response.headers["X-Request-ID"] = request_id
-        
+
         # Clean up thread-local storage after request is complete
         clear_request_id()
-        
+
         return response
 
 
@@ -330,22 +332,24 @@ class RequestValidationMiddleware:
                                 try:
                                     # Use isinstance to check types, handling special cases
                                     is_valid_type = isinstance(data[field], field_type)
-                                    
+
                                     if not is_valid_type:
-                                        type_name = field_type.__name__ if hasattr(field_type, "__name__") else str(field_type)
+                                        type_name = (
+                                            field_type.__name__ if hasattr(field_type, "__name__") else str(field_type)
+                                        )
                                         value_type = type(data[field]).__name__
-                                        
-                                        errors.append({
-                                            "field": field,
-                                            "message": f"Field must be of type {type_name}",
-                                            "detail": f"Got {value_type}",
-                                        })
+
+                                        errors.append(
+                                            {
+                                                "field": field,
+                                                "message": f"Field must be of type {type_name}",
+                                                "detail": f"Got {value_type}",
+                                            }
+                                        )
                                 except Exception as e:
-                                    errors.append({
-                                        "field": field, 
-                                        "message": "Type validation error", 
-                                        "detail": str(e)
-                                    })
+                                    errors.append(
+                                        {"field": field, "message": "Type validation error", "detail": str(e)}
+                                    )
 
                         # Validate field values
                         value_validation = schema.get("value_validation", {})
@@ -353,17 +357,15 @@ class RequestValidationMiddleware:
                             if field in data and data[field] is not None:
                                 try:
                                     if callable(validator) and not validator(data[field]):
-                                        errors.append({
-                                            "field": field, 
-                                            "message": "Field failed validation",
-                                            "detail": "Value did not meet the requirements"
-                                        })
+                                        errors.append(
+                                            {
+                                                "field": field,
+                                                "message": "Field failed validation",
+                                                "detail": "Value did not meet the requirements",
+                                            }
+                                        )
                                 except Exception as e:
-                                    errors.append({
-                                        "field": field, 
-                                        "message": "Validation error", 
-                                        "detail": str(e)
-                                    })
+                                    errors.append({"field": field, "message": "Validation error", "detail": str(e)})
 
                         # Apply custom validators
                         custom_validators = schema.get("custom_validators", {})
@@ -371,17 +373,17 @@ class RequestValidationMiddleware:
                             if field in data and data[field] is not None:
                                 try:
                                     if callable(validator) and not validator(data[field]):
-                                        errors.append({
-                                            "field": field, 
-                                            "message": "Invalid value",
-                                            "detail": "Value did not meet custom validation rules"
-                                        })
+                                        errors.append(
+                                            {
+                                                "field": field,
+                                                "message": "Invalid value",
+                                                "detail": "Value did not meet custom validation rules",
+                                            }
+                                        )
                                 except Exception as e:
-                                    errors.append({
-                                        "field": field, 
-                                        "message": "Value validation error", 
-                                        "detail": str(e)
-                                    })
+                                    errors.append(
+                                        {"field": field, "message": "Value validation error", "detail": str(e)}
+                                    )
 
                         # Break after first matching schema
                         break
@@ -438,10 +440,10 @@ class RateLimitMiddleware:
 
         # Rate limit not exceeded, process request
         response = self.get_response(request)
-        
+
         # Add rate limit headers
         self._add_rate_limit_headers(response, keys, endpoint_type)
-        
+
         return response
 
     def _should_rate_limit(self, path):
@@ -470,14 +472,14 @@ class RateLimitMiddleware:
     def _get_rate_limit_keys(self, request, endpoint_type):
         """Get the keys for rate limiting based on request."""
         keys = {}
-        
+
         # Always add IP-based rate limiting
-        keys["ip"] = request.META.get('REMOTE_ADDR', '127.0.0.1')
-        
+        keys["ip"] = request.META.get("REMOTE_ADDR", "127.0.0.1")
+
         # Add user-based rate limiting if authenticated
-        if hasattr(request, 'user') and request.user.is_authenticated:
+        if hasattr(request, "user") and request.user.is_authenticated:
             keys["user"] = str(request.user.id)
-        
+
         return keys
 
     def _get_primary_rate_limit_key(self, request, endpoint_type):
@@ -579,31 +581,31 @@ class RateLimitMiddleware:
 
 class SecurityHeadersMiddleware:
     """Middleware to add security headers to all responses."""
-    
+
     def __init__(self, get_response):
         self.get_response = get_response
         self.logger = logging.getLogger(__name__)
         self.logger.info("SecurityHeadersMiddleware initialized")
-    
+
     def __call__(self, request):
         response = self.get_response(request)
-        
+
         # Add security headers to HTTP responses
-        if hasattr(response, 'headers'):
+        if hasattr(response, "headers"):
             # Only add these headers if not already present
-            if 'X-Content-Type-Options' not in response:
-                response['X-Content-Type-Options'] = 'nosniff'
-            if 'X-Frame-Options' not in response:
-                response['X-Frame-Options'] = 'DENY'
-                
+            if "X-Content-Type-Options" not in response:
+                response["X-Content-Type-Options"] = "nosniff"
+            if "X-Frame-Options" not in response:
+                response["X-Frame-Options"] = "DENY"
+
             # Add Access-Control-Allow-Headers if it exists
-            if 'Access-Control-Allow-Headers' in response:
+            if "Access-Control-Allow-Headers" in response:
                 # Ensure Access-Control-Allow-Credentials is in the allowed headers
-                allowed_headers = response['Access-Control-Allow-Headers'].split(', ')
-                if 'access-control-allow-credentials' not in [h.lower() for h in allowed_headers]:
-                    allowed_headers.append('access-control-allow-credentials')
-                    response['Access-Control-Allow-Headers'] = ', '.join(allowed_headers)
-            
+                allowed_headers = response["Access-Control-Allow-Headers"].split(", ")
+                if "access-control-allow-credentials" not in [h.lower() for h in allowed_headers]:
+                    allowed_headers.append("access-control-allow-credentials")
+                    response["Access-Control-Allow-Headers"] = ", ".join(allowed_headers)
+
         return response
 
 
@@ -635,133 +637,148 @@ class RequestIDFilter(logging.Filter):
 
 class RequestFixMiddleware:
     """Middleware to fix common request issues, particularly with authentication headers."""
-    
+
     def __init__(self, get_response):
         self.get_response = get_response
         self.logger = logging.getLogger(__name__)
         self.logger.info("RequestFixMiddleware initialized")
-    
+
     def __call__(self, request):
         # Check for authentication headers in different formats and normalize them
         auth_header = None
         original_auth = None
-        
+
         # First check for standard HTTP_AUTHORIZATION
-        if 'HTTP_AUTHORIZATION' in request.META:
-            auth_header = request.META['HTTP_AUTHORIZATION']
+        if "HTTP_AUTHORIZATION" in request.META:
+            auth_header = request.META["HTTP_AUTHORIZATION"]
             original_auth = "HTTP_AUTHORIZATION"
             self.logger.debug(f"Found HTTP_AUTHORIZATION header: {auth_header[:20]}..." if auth_header else "None")
-        
+
         # Then check for Authorization in headers (common with JavaScript fetch)
-        elif hasattr(request, 'headers') and 'Authorization' in request.headers:
-            auth_header = request.headers.get('Authorization')
+        elif hasattr(request, "headers") and "Authorization" in request.headers:
+            auth_header = request.headers.get("Authorization")
             original_auth = "headers.Authorization"
-            self.logger.debug(f"Found Authorization in request.headers: {auth_header[:20]}..." if auth_header else "None")
-            
+            self.logger.debug(
+                f"Found Authorization in request.headers: {auth_header[:20]}..." if auth_header else "None"
+            )
+
         # Next check for Authorization in cookies (possible alternative auth method)
-        elif 'Authorization' in request.COOKIES:
-            auth_header = request.COOKIES.get('Authorization')
+        elif "Authorization" in request.COOKIES:
+            auth_header = request.COOKIES.get("Authorization")
             original_auth = "COOKIES.Authorization"
             self.logger.debug(f"Found Authorization in cookies: {auth_header[:20]}..." if auth_header else "None")
-            
+
         # Check for access_token in cookies (used with simplejwt cookie auth)
-        elif 'access_token' in request.COOKIES:
+        elif "access_token" in request.COOKIES:
             auth_header = f"Bearer {request.COOKIES.get('access_token')}"
             original_auth = "COOKIES.access_token"
-            self.logger.debug(f"Found access_token in cookies, converted to Bearer format: {auth_header[:20]}..." if auth_header else "None")
-            
+            self.logger.debug(
+                f"Found access_token in cookies, converted to Bearer format: {auth_header[:20]}..."
+                if auth_header
+                else "None"
+            )
+
         # Check if token is in the request GET parameters (not recommended for production but useful for debugging)
-        elif 'token' in request.GET:
+        elif "token" in request.GET:
             auth_header = f"Bearer {request.GET.get('token')}"
             original_auth = "GET.token"
-            self.logger.debug(f"Found token in GET parameters, converted to Bearer format: {auth_header[:20]}..." if auth_header else "None")
-            
+            self.logger.debug(
+                f"Found token in GET parameters, converted to Bearer format: {auth_header[:20]}..."
+                if auth_header
+                else "None"
+            )
+
         # Check if access_token is in the request POST data (sometimes used in form submissions)
-        elif 'access_token' in request.POST:
+        elif "access_token" in request.POST:
             auth_header = f"Bearer {request.POST.get('access_token')}"
             original_auth = "POST.access_token"
-            self.logger.debug(f"Found access_token in POST data, converted to Bearer format: {auth_header[:20]}..." if auth_header else "None")
-        
+            self.logger.debug(
+                f"Found access_token in POST data, converted to Bearer format: {auth_header[:20]}..."
+                if auth_header
+                else "None"
+            )
+
         # If an auth header was found in any form, normalize it and add to META
         if auth_header:
             # Ensure it has Bearer prefix if it's a JWT token
-            if not auth_header.startswith('Bearer ') and ' ' not in auth_header:
+            if not auth_header.startswith("Bearer ") and " " not in auth_header:
                 # Looks like a raw token without 'Bearer' prefix
                 auth_header = f"Bearer {auth_header}"
                 self.logger.debug(f"Added Bearer prefix to raw token: {auth_header[:20]}..." if auth_header else "None")
-            
+
             # Set the authorization header in multiple places to ensure it's recognized
-            request.META['HTTP_AUTHORIZATION'] = auth_header
-            
+            request.META["HTTP_AUTHORIZATION"] = auth_header
+
             # For Django REST Framework specifically
-            if hasattr(request, '_request'):
-                request._request.META['HTTP_AUTHORIZATION'] = auth_header
-                
+            if hasattr(request, "_request"):
+                request._request.META["HTTP_AUTHORIZATION"] = auth_header
+
             # Make sure it's also in the standard headers dict
-            if hasattr(request, 'headers') and isinstance(request.headers, dict):
-                request.headers['Authorization'] = auth_header
-                
+            if hasattr(request, "headers") and isinstance(request.headers, dict):
+                request.headers["Authorization"] = auth_header
+
             # Fix Django 3.x vs Django 4.x compatibility issues
             # Django 4.x uses Authorization directly in some cases
-            request.META['Authorization'] = auth_header
-            
+            request.META["Authorization"] = auth_header
+
             # Log the token for debugging
-            token = auth_header.split(' ')[1] if auth_header.startswith('Bearer ') else auth_header
+            token = auth_header.split(" ")[1] if auth_header.startswith("Bearer ") else auth_header
             self.logger.debug(f"Auth normalized from {original_auth} - Token: {token[:15]}..." if token else "None")
-            
+
             # Try to decode the token payload (without verification) for debugging
-            if auth_header.startswith('Bearer '):
-                token = auth_header.split(' ')[1]
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
                 try:
                     import base64
                     import json
 
                     # Get the payload part (second segment of JWT)
-                    parts = token.split('.')
+                    parts = token.split(".")
                     if len(parts) >= 2:
                         # Add padding if needed
                         payload = parts[1]
                         padding_needed = 4 - (len(payload) % 4)
                         if padding_needed < 4:
-                            payload += '=' * padding_needed
-                        
+                            payload += "=" * padding_needed
+
                         # Decode and log user_id
                         try:
-                            decoded = base64.urlsafe_b64decode(payload).decode('utf-8')
+                            decoded = base64.urlsafe_b64decode(payload).decode("utf-8")
                             payload_data = json.loads(decoded)
-                            if 'user_id' in payload_data:
+                            if "user_id" in payload_data:
                                 self.logger.debug(f"Token contains user_id: {payload_data['user_id']}")
-                                
+
                                 # For debugging only - load user info
                                 try:
                                     from django.contrib.auth.models import User
-                                    user = User.objects.get(id=payload_data['user_id'])
+
+                                    user = User.objects.get(id=payload_data["user_id"])
                                     self.logger.debug(f"Found user: {user.username}")
-                                    
+
                                     # For JWT auth specifically, set user on request
                                     # This helps with authentication issues
                                     request.user = user
                                     request._force_auth_user = user
                                 except Exception as user_e:
                                     self.logger.debug(f"Could not load user from token: {str(user_e)}")
-                            elif 'id' in payload_data:
+                            elif "id" in payload_data:
                                 self.logger.debug(f"Token contains id: {payload_data['id']}")
                         except Exception as e:
                             self.logger.debug(f"Error decoding token payload: {str(e)}")
                 except Exception as e:
                     self.logger.debug(f"Error processing token (for debugging only): {str(e)}")
-        
+
         # Process the request
         response = self.get_response(request)
-        
+
         # Add security headers to response
-        if hasattr(response, 'headers'):
+        if hasattr(response, "headers"):
             # Only add these headers if not already present
-            if 'X-Content-Type-Options' not in response:
-                response['X-Content-Type-Options'] = 'nosniff'
-            if 'X-Frame-Options' not in response:
-                response['X-Frame-Options'] = 'DENY'
-            
+            if "X-Content-Type-Options" not in response:
+                response["X-Content-Type-Options"] = "nosniff"
+            if "X-Frame-Options" not in response:
+                response["X-Frame-Options"] = "DENY"
+
         return response
 
 
@@ -769,20 +786,22 @@ def get_request_id() -> str:
     """
     Get the current request ID from thread-local storage.
     If no request ID is set, returns a default value.
-    
+
     Returns:
         str: The current request ID or a default value
     """
     return getattr(_thread_local, "request_id", "no_request_id")
 
+
 def set_request_id(request_id: str) -> None:
     """
     Set the request ID in thread-local storage.
-    
+
     Args:
         request_id: The request ID to store
     """
     setattr(_thread_local, "request_id", request_id)
+
 
 def clear_request_id() -> None:
     """

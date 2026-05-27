@@ -347,25 +347,25 @@ class ChessComService:
         """
         Get games for a user from Chess.com.
         This is a wrapper around fetch_games that returns a list of game data objects.
-        
+
         Args:
             username: The Chess.com username
             limit: Maximum number of games to fetch (default: 10)
             game_type: Type of games to fetch (blitz, bullet, rapid, classical, all)
-            
+
         Returns:
             List of game data objects
         """
         try:
             # Create a dummy user if needed for testing/API functionality
             user, _ = User.objects.get_or_create(username="api_system_user")
-            
+
             # Fetch games
             result = self.fetch_games(username, user, game_type, limit)
             logger.info(f"Retrieved {len(result.get('games', []))} games for {username}")
-            
+
             # Return the games list
-            return result.get('games', [])
+            return result.get("games", [])
         except Exception as e:
             logger.error(f"Error getting games for {username}: {str(e)}", exc_info=True)
             return []
@@ -672,25 +672,25 @@ class LichessService:
         """
         Get games for a user from Lichess.
         This is a wrapper around fetch_games that returns a list of game data objects.
-        
+
         Args:
             username: The Lichess username
             limit: Maximum number of games to fetch (default: 10)
             game_type: Type of games to fetch (blitz, bullet, rapid, classical, all)
-            
+
         Returns:
             List of game data objects
         """
         try:
             # Create a dummy user if needed for testing/API functionality
             user, _ = User.objects.get_or_create(username="api_system_user")
-            
+
             # Fetch games
             result = self.fetch_games(username, user, game_type, limit)
             logger.info(f"Retrieved {len(result.get('games', []))} games for {username}")
-            
+
             # Return the games list
-            return result.get('games', [])
+            return result.get("games", [])
         except Exception as e:
             logger.error(f"Error getting games for {username}: {str(e)}", exc_info=True)
             return []
@@ -731,14 +731,14 @@ def save_game(game: Dict[str, Any], username: str, user: User) -> Optional[Game]
         # First check for duplicate games by game_id if available
         game_id = game.get("game_id")
         game_url = game.get("url")
-        
+
         # Log the game information for debugging
         logger.info(f"Checking for duplicate game - ID: {game_id}, URL: {game_url}, User: {user.id}")
-        
+
         if game_id and Game.objects.filter(game_id=game_id, user=user).exists():
             logger.info(f"Game with ID {game_id} already exists for user {user.id}. Skipping.")
             return None
-        
+
         # Also check by URL as fallback
         if game_url and Game.objects.filter(game_url=game_url, user=user).exists():
             logger.info(f"Game with URL {game_url} already exists for user {user.id}. Skipping.")

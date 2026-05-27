@@ -82,14 +82,14 @@ class BaseAnalysisTask(Task):
 def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_reanalyze=False):
     """
     Analyze a chess game in a background Celery task.
-    
+
     Args:
         self: Celery task instance
         game_id: ID of the game to analyze
         user_id: ID of the user who requested the analysis
         depth: Stockfish analysis depth
         use_ai: Whether to generate AI feedback
-        
+
     Returns:
         Dict with analysis results or error information
     """
@@ -214,10 +214,10 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
                 "error": str(exc),
                 "game_id": game_id,
             }
-    
+
     # Initialize the task manager
     task_manager = TaskManager()
-    
+
     # Check if there's already an active task for this game
     active_tasks = task_manager.get_active_tasks_for_game(game_id)
     if active_tasks:
@@ -228,55 +228,43 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
                 "status": "already_running",
                 "message": "Analysis already in progress",
                 "task_id": existing_task_id,
-                "game_id": game_id
+                "game_id": game_id,
             }
-    
+
     # Create task entry in task manager with the Celery task ID
     task_manager.create_task(
         task_id=task_id,  # Use the actual Celery task ID
         game_id=game_id,
         user_id=user_id,
         task_type=task_manager.TYPE_ANALYSIS,
-        parameters={"depth": depth, "use_ai": use_ai}
+        parameters={"depth": depth, "use_ai": use_ai},
     )
-    
+
     # Also create our internal task ID and create a mapping to the Celery task ID
     internal_task_id = f"analysis_{int(time.time())}_{os.urandom(4).hex()}"
     logger.info(f"[{task_id}] Created internal task ID {internal_task_id} for game {game_id}")
-    
+
     # Store both mappings - from game_id to both task IDs
     if task_manager.redis_client:
         try:
             # Map game to Celery task ID
             game_task_key = f"{task_manager.GAME_TASK_KEY_PREFIX}{game_id}"
-            task_manager.redis_client.setex(
-                game_task_key,
-                task_manager.task_timeout,
-                task_id
-            )
-            
+            task_manager.redis_client.setex(game_task_key, task_manager.task_timeout, task_id)
+
             # Store Celery task ID to internal task ID mapping
             celery_to_internal_key = f"celery_to_internal:{task_id}"
-            task_manager.redis_client.setex(
-                celery_to_internal_key,
-                task_manager.task_timeout,
-                internal_task_id
-            )
-            
+            task_manager.redis_client.setex(celery_to_internal_key, task_manager.task_timeout, internal_task_id)
+
             # Store internal task ID to Celery task ID mapping
             internal_to_celery_key = f"internal_to_celery:{internal_task_id}"
-            task_manager.redis_client.setex(
-                internal_to_celery_key,
-                task_manager.task_timeout,
-                task_id
-            )
-            
+            task_manager.redis_client.setex(internal_to_celery_key, task_manager.task_timeout, task_id)
+
             logger.debug(f"[{task_id}] Created mappings between Celery task ID and internal task ID {internal_task_id}")
         except Exception as e:
             logger.error(f"[{task_id}] Error creating task ID mappings: {str(e)}")
-    
+
     logger.info(f"[{task_id}] Retrieving game {game_id}")
-    
+
     try:
         # Get the game object
         game = Game.objects.get(id=game_id)
@@ -286,19 +274,16 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
             **status_target,
             status="FAILURE",
             message=f"Game {game_id} not found",
-            error=f"Game with ID {game_id} does not exist"
+            error=f"Game with ID {game_id} does not exist",
         )
         return {"status": "error", "message": f"Game {game_id} not found", "game_id": game_id}
     except Exception as e:
         logger.error(f"[{task_id}] Error retrieving game {game_id}: {str(e)}")
         task_manager.update_task_status(
-            **status_target,
-            status="FAILURE",
-            message=f"Error retrieving game {game_id}",
-            error=str(e)
+            **status_target, status="FAILURE", message=f"Error retrieving game {game_id}", error=str(e)
         )
         return {"status": "error", "message": f"Error: {str(e)}", "game_id": game_id}
-    
+
     # Mark game as being analyzed in the database
     try:
         game.analysis_status = "in_progress"
@@ -312,7 +297,7 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
         cache_delete(f"game_{game.id}")
     except Exception as e:
         logger.warning(f"[{task_id}] Cache invalidation error: {str(e)}")
-    
+
     # Initialize progress tracker
     def update_progress(progress, message=None):
         """Update task progress."""
@@ -322,60 +307,55 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
             progress_int = int(progress)
         except (ValueError, TypeError):
             progress_int = 0
-        
+
         # Ensure progress is within bounds
         progress_int = max(0, min(100, progress_int))
 
         # Update task status
-        task_manager.update_task_status(
-            **status_target,
-            status="PROCESSING",
-            progress=progress_int,
-            message=message
-        )
-        
+        task_manager.update_task_status(**status_target, status="PROCESSING", progress=progress_int, message=message)
+
         # Also update the game's analysis status
         try:
             status_text = f"in_progress:{progress_int}"
             if progress_int >= 100:
                 status_text = "completed"
-            
+
             game.analysis_status = status_text
             game.save(update_fields=["analysis_status"])
         except Exception as e:
             logger.error(f"[{task_id}] Error updating game status: {str(e)}")
-            
+
         # Send a signal to Celery to update task state
         self.update_state(
             state="PROGRESS",
             meta={
-                'progress': progress_int,
-                'message': message or f"Analysis in progress: {progress_int}%",
-                'game_id': game_id
-            }
+                "progress": progress_int,
+                "message": message or f"Analysis in progress: {progress_int}%",
+                "game_id": game_id,
+            },
         )
 
     try:
         # Create game analyzer
         game_analyzer = GameAnalyzer()
         logger.info(f"[{task_id}] Starting analysis for game {game_id} (depth={depth}, use_ai={use_ai})")
-        
+
         # Update progress to indicate we're starting
         update_progress(5, "Starting analysis...")
-        
+
         # Run the analysis
         logger.info(f"[{task_id}] Running analysis with progress callback")
         analysis_result = game_analyzer.analyze_game(
-            game=game, 
-            depth=depth, 
-            use_ai=use_ai, 
+            game=game,
+            depth=depth,
+            use_ai=use_ai,
             progress_callback=update_progress,
             task_id=task_id,
             force_reanalyze=force_reanalyze,
         )
-        
+
         # Ensure we have valid results
-        if not analysis_result or not hasattr(analysis_result, 'id'):
+        if not analysis_result or not hasattr(analysis_result, "id"):
             logger.error(f"[{task_id}] Analysis failed: No valid results returned")
             # Update task status to failure
             task_manager.update_task_status(
@@ -383,7 +363,7 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
                 status="FAILURE",
                 progress=0,
                 message="Analysis failed: No valid results returned",
-                error="No valid results returned"
+                error="No valid results returned",
             )
             # Update game status
             game.analysis_status = "failed"
@@ -392,9 +372,9 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
                 "status": "error",
                 "message": "Analysis failed: No valid results returned",
                 "error": "No valid results returned",
-                "game_id": game_id
+                "game_id": game_id,
             }
-        
+
         # Clear cached data for this game
         try:
             cache_delete(f"game_{game.id}")
@@ -402,54 +382,50 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
             logger.info(f"[{task_id}] Cache cleared for game {game.id}")
         except Exception as cache_error:
             logger.warning(f"[{task_id}] Cache invalidation error: {str(cache_error)}")
-        
+
         # Update task status to success
         task_manager.update_task_status(
             **status_target,
             status="SUCCESS",
             progress=100,
             message="Analysis completed successfully",
-            result={"analysis_id": analysis_result.id}
+            result={"analysis_id": analysis_result.id},
         )
-        
+
         # Update game status
         game.analysis_status = "completed"
         game.save(update_fields=["analysis_status"])
-        
+
         # Return success response
         logger.info(f"[{task_id}] Analysis for game {game_id} completed successfully")
         return {
             "status": "success",
             "message": "Analysis completed successfully",
             "analysis_id": analysis_result.id,
-            "game_id": game_id
+            "game_id": game_id,
         }
-        
+
     except Exception as e:
         logger.exception(f"[{task_id}] Error analyzing game {game_id}: {str(e)}")
-        
+
         error_message = str(e)
         error_type = type(e).__name__
-        
+
         # Update task status to failure
         task_manager.update_task_status(
-            **status_target,
-            status="FAILURE",
-            progress=0,
-            message=f"Analysis failed: {error_type}",
-            error=error_message
+            **status_target, status="FAILURE", progress=0, message=f"Analysis failed: {error_type}", error=error_message
         )
-        
+
         # Update game status
         game.analysis_status = "failed"
         game.save(update_fields=["analysis_status"])
-        
+
         # Return error response
         return {
             "status": "error",
             "message": f"Analysis failed: {error_type}",
             "error": error_message,
-            "game_id": game_id
+            "game_id": game_id,
         }
 
 
@@ -811,41 +787,42 @@ def batch_analyze_games(
 # Phase 1 Batch Analysis Tasks (PRD Section 11)
 # ============================================================================
 
+
 @shared_task(name="chess_mate.core.tasks.analyze_single_game_subtask", bind=False)
 def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: int) -> Dict[str, Any]:
     """
     Analyze a single game and return structured result envelope.
-    
+
     This task is executed in parallel as part of a group() within analyze_batch_task.
     It catches all exceptions and returns {"game_id", "status": "success|failed", "result"|"error"}.
     Must never raise — exception safety is critical for chord callback.
-    
+
     Args:
         pgn: PGN string of the game
         game_id: Game identifier (string for batch context)
         batch_id: Batch identifier
         user_id: User who owns the batch
-        
+
     Returns:
         {"game_id": game_id, "status": "success"|"failed", "result": {...} or "error": "..."}
     """
     try:
         # Build per-game result using stockfish analysis
         game_result = build_game_result(pgn, game_id=game_id)
-        
+
         if not game_result:
             return {
                 "game_id": game_id,
                 "status": "failed",
                 "error": "Failed to build game result (empty output)",
             }
-        
+
         return {
             "game_id": game_id,
             "status": "success",
             "result": game_result,
         }
-    
+
     except Exception as exc:
         logger.exception(f"Error analyzing game {game_id} in batch {batch_id}: {str(exc)}")
         return {
@@ -856,61 +833,66 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
 
 
 @shared_task(name="chess_mate.core.tasks.aggregate_and_report_task", bind=False)
-def aggregate_and_report_task(task_results: List[Dict[str, Any]], batch_id: str, game_pgn_list: List[str], user_id: int) -> Dict[str, Any]:
+def aggregate_and_report_task(
+    task_results: List[Dict[str, Any]], batch_id: str, game_pgn_list: List[str], user_id: int
+) -> Dict[str, Any]:
     """
     Chord callback: aggregate per-game results and generate coaching report.
-    
+
     This is the callback executed after all analyze_single_game_subtask tasks complete.
-    
+
     Args:
         task_results: List of results from all subtasks: [{"game_id", "status", "result"|"error"}, ...]
         batch_id: Batch ID (task_id)
         game_pgn_list: List of PGN strings (for date extraction)
         user_id: User who owns the batch
-        
+
     Returns:
         {"status": "completed"|"partial"|"failed", "batch_id": batch_id, ...}
     """
     logger.info(f"Chord callback: aggregating results for batch {batch_id}")
-    
+
     try:
         # Lookup or create BatchAnalysisReport
         try:
             batch_report = BatchAnalysisReport.objects.get(task_id=batch_id, user_id=user_id)
         except BatchAnalysisReport.DoesNotExist:
             from django.contrib.auth.models import User
+
             user_obj = User.objects.get(id=user_id)
             batch_report = BatchAnalysisReport.objects.create(
                 user=user_obj,
                 task_id=batch_id,
                 status="in_progress",
             )
-        
+
         # Filter successful results
         successful_results = [r for r in task_results if r.get("status") == "success"]
         failed_results = [r for r in task_results if r.get("status") == "failed"]
-        
+
         successful_count = len(successful_results)
-        
-        logger.info(f"Batch {batch_id}: {successful_count} succeeded, {len(failed_results)} failed out of {len(task_results)}")
-        
+
+        logger.info(
+            f"Batch {batch_id}: {successful_count} succeeded, {len(failed_results)} failed out of {len(task_results)}"
+        )
+
         # Extract per_game_results (full objects) and per-game summaries (for AI)
         per_game_results = [r.get("result") for r in successful_results if r.get("result")]
-        
+
         # If fewer than 5 games succeeded, mark batch failed and stop
         if successful_count < 5:
             logger.warning(f"Batch {batch_id}: insufficient successful games ({successful_count} < 5), marking failed")
             batch_report.status = "failed"
             batch_report.per_game_results = per_game_results
             batch_report.save(update_fields=["status", "per_game_results", "updated_at"])
-            
+
             return {
                 "status": "failed",
                 "batch_id": batch_id,
                 "reason": f"Insufficient successful games ({successful_count} < 5)",
                 "successful_count": successful_count,
             }
-        
+
         # Aggregate batch summary from successful results
         try:
             batch_summary = aggregate_batch(per_game_results, pgn_list=game_pgn_list)
@@ -919,29 +901,29 @@ def aggregate_and_report_task(task_results: List[Dict[str, Any]], batch_id: str,
             batch_report.status = "failed"
             batch_report.per_game_results = per_game_results
             batch_report.save(update_fields=["status", "per_game_results", "updated_at"])
-            
+
             return {
                 "status": "failed",
                 "batch_id": batch_id,
                 "reason": f"Aggregation validation failed: {str(exc)}",
             }
-        
+
         # Generate coaching report using OpenAI
         coaching_report = None
         try:
             # Extract player_rating from batch_summary (derived from game ELOs)
-            player_rating = batch_summary.get('player_rating')
+            player_rating = batch_summary.get("player_rating")
             coaching_report = generate_coaching_report(batch_summary, per_game_results, player_rating=player_rating)
             # Determine status: completed if all succeeded, partial if some failed
             final_status = "completed" if failed_results == [] else "partial"
-            
+
         except CoachingGeneratorError as exc:
             # Degraded mode: coaching failure doesn't fail the entire batch
             # Save what we have (batch_summary + per_game_results) and mark as partial
             logger.warning(f"Batch {batch_id}: coaching generation failed (degraded mode): {str(exc)}")
             coaching_report = None
             final_status = "partial"
-        
+
         # Persist to BatchAnalysisReport
         batch_report.batch_summary = batch_summary
         batch_report.per_game_results = per_game_results
@@ -950,36 +932,38 @@ def aggregate_and_report_task(task_results: List[Dict[str, Any]], batch_id: str,
         batch_report.games_count = len(task_results)
         batch_report.completed_games = [r.get("game_id") for r in successful_results]
         batch_report.failed_games = [{"game_id": r.get("game_id"), "error": r.get("error")} for r in failed_results]
-        batch_report.save(update_fields=[
-            "batch_summary",
-            "per_game_results",
-            "coaching_report",
-            "status",
-            "games_count",
-            "completed_games",
-            "failed_games",
-            "updated_at",
-        ])
-        
+        batch_report.save(
+            update_fields=[
+                "batch_summary",
+                "per_game_results",
+                "coaching_report",
+                "status",
+                "games_count",
+                "completed_games",
+                "failed_games",
+                "updated_at",
+            ]
+        )
+
         logger.info(f"Batch {batch_id} completed with status {final_status}")
-        
+
         return {
             "status": final_status,
             "batch_id": batch_id,
             "games_analyzed": successful_count,
             "games_failed": len(failed_results),
         }
-        
+
     except Exception as exc:
         logger.exception(f"Error in aggregate_and_report_task for batch {batch_id}: {str(exc)}")
-        
+
         try:
             batch_report = BatchAnalysisReport.objects.get(task_id=batch_id, user_id=user_id)
             batch_report.status = "failed"
             batch_report.save(update_fields=["status", "updated_at"])
         except Exception:
             pass
-        
+
         return {
             "status": "failed",
             "batch_id": batch_id,
@@ -991,23 +975,24 @@ def aggregate_and_report_task(task_results: List[Dict[str, Any]], batch_id: str,
 def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) -> str:
     """
     Fan-out/fan-in batch analysis task.
-    
+
     Creates a group of parallel analyze_single_game_subtask tasks, then chains to
-    aggregate_and_report_task via chord(). 
-    
+    aggregate_and_report_task via chord().
+
     Args:
         batch_id: Batch identifier (will become task_id on BatchAnalysisReport)
         game_pgn_list: List of PGN strings to analyze
         user_id: User who owns the batch
-        
+
     Returns:
         Celery task ID or status string
     """
     logger.info(f"Starting batch analysis for batch {batch_id}: {len(game_pgn_list)} games")
-    
+
     # Mark batch as in_progress
     try:
         from django.contrib.auth.models import User
+
         user_obj = User.objects.get(id=user_id)
         batch_report, created = BatchAnalysisReport.objects.get_or_create(
             task_id=batch_id,
@@ -1020,17 +1005,16 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
         batch_report.save(update_fields=["status", "games_count", "game_ids", "updated_at"])
     except Exception as exc:
         logger.error(f"Failed to create/update batch report for {batch_id}: {str(exc)}")
-    
+
     # Build group of subtasks: one per game
     subtasks = group(
-        analyze_single_game_subtask.s(pgn, f"game_{i}", batch_id, user_id)
-        for i, pgn in enumerate(game_pgn_list)
+        analyze_single_game_subtask.s(pgn, f"game_{i}", batch_id, user_id) for i, pgn in enumerate(game_pgn_list)
     )
-    
+
     # Chain group to callback
     callback = aggregate_and_report_task.s(batch_id, game_pgn_list, user_id)
     workflow = chord(subtasks)(callback)
-    
+
     logger.info(f"Batch {batch_id} workflow initiated: {workflow.id}")
-    
+
     return workflow.id

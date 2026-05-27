@@ -101,22 +101,22 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
 
             # Store the analysis similar to analyzer.analyze_game
             analyzed_move = {
-                'move_number': i // 2 + 1,
-                'move': uci,
-                'san': san,
-                'is_white': is_white,
-                'fen': result.get('fen', fen_before),
-                'position_score': result.get('score', 0.0),
-                'evaluation': result.get('score', 0.0),
-                'best_move': (result.get('pv') and result.get('pv')[0]) or '',
-                'best_line': result.get('pv', [])[:5] if result.get('pv') else [],
-                'depth': result.get('depth', 0),
-                'time': result.get('time', 0.0),
+                "move_number": i // 2 + 1,
+                "move": uci,
+                "san": san,
+                "is_white": is_white,
+                "fen": result.get("fen", fen_before),
+                "position_score": result.get("score", 0.0),
+                "evaluation": result.get("score", 0.0),
+                "best_move": (result.get("pv") and result.get("pv")[0]) or "",
+                "best_line": result.get("pv", [])[:5] if result.get("pv") else [],
+                "depth": result.get("depth", 0),
+                "time": result.get("time", 0.0),
             }
-            if 'centipawn_loss' in result:
-                analyzed_move['centipawn_loss'] = result['centipawn_loss']
-            if 'classification' in result:
-                analyzed_move['classification'] = result['classification']
+            if "centipawn_loss" in result:
+                analyzed_move["centipawn_loss"] = result["centipawn_loss"]
+            if "classification" in result:
+                analyzed_move["classification"] = result["classification"]
 
             analyzed_moves.append(analyzed_move)
     except Exception as e:
@@ -136,7 +136,15 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
                 "middlegame": {"moves": 0, "avg_eval_drop": 0.0, "blunders": 0, "mistakes": 0},
                 "endgame": {"moves": 0, "avg_eval_drop": 0.0, "blunders": 0, "mistakes": 0},
             },
-            "move_quality": {"brilliant": 0, "best": 0, "excellent": 0, "good": 0, "inaccuracy": 0, "mistake": 0, "blunder": 0},
+            "move_quality": {
+                "brilliant": 0,
+                "best": 0,
+                "excellent": 0,
+                "good": 0,
+                "inaccuracy": 0,
+                "mistake": 0,
+                "blunder": 0,
+            },
             "critical_moments": [],
             "tactical_patterns_missed": [],
             "analysis_failed": True,
@@ -181,13 +189,15 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
     # Compute avg_eval_drop per phase by scanning moves
     # Build per-move eval_before using position_score and approximate eval_after by next move's position_score
     eval_befores = [m.get("position_score", 0.0) for m in analyzed_moves]
-    eval_afters = [eval_befores[i + 1] if i + 1 < len(eval_befores) else eval_befores[i] for i in range(len(eval_befores))]
+    eval_afters = [
+        eval_befores[i + 1] if i + 1 < len(eval_befores) else eval_befores[i] for i in range(len(eval_befores))
+    ]
     eval_drops = [max(0.0, eval_befores[i] - eval_afters[i]) for i in range(len(eval_befores))]
 
     # Determine phase boundaries (in move indices, not half-moves)
     opening_end = int(metadata.get("opening_length", 0))
     middlegame_end = int(metadata.get("middlegame_length", opening_end))
-    
+
     # Clamp boundaries to total moves to ensure no moves are double-counted
     opening_end = min(opening_end, len(analyzed_moves))
     middlegame_end = min(middlegame_end, len(analyzed_moves))
@@ -227,8 +237,8 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
     # Compute move classifications and deteriorations in a single pass
     # This ensures move_quality and critical_moments use the same logic
     move_classifications = {}  # idx -> classification string
-    move_deteriorations = {}   # idx -> positive float (magnitude of deterioration)
-    has_mate = {}              # idx -> bool (mate score detected)
+    move_deteriorations = {}  # idx -> positive float (magnitude of deterioration)
+    has_mate = {}  # idx -> bool (mate score detected)
 
     for i in range(len(analyzed_moves)):
         eval_before = float(eval_befores[i])
@@ -288,9 +298,7 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
 
     # Critical moments: top 3 worst moves by deterioration (only >= 0.2 threshold)
     critical_moves_candidates = [
-        (idx, move_deteriorations[idx])
-        for idx in range(len(analyzed_moves))
-        if move_deteriorations[idx] >= 0.2
+        (idx, move_deteriorations[idx]) for idx in range(len(analyzed_moves)) if move_deteriorations[idx] >= 0.2
     ]
     # Sort by deterioration (descending)
     critical_moves_candidates.sort(key=lambda x: x[1], reverse=True)
@@ -316,7 +324,9 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
 
         fen = mv.get("fen") or ""
         played_move = mv.get("san") or mv.get("move")
-        best_move = mv.get("best_move") or (mv.get("best_line") and mv.get("best_line")[0] if mv.get("best_line") else "")
+        best_move = mv.get("best_move") or (
+            mv.get("best_line") and mv.get("best_line")[0] if mv.get("best_line") else ""
+        )
 
         # Determine tactical theme using heuristics
         try:
@@ -367,7 +377,11 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
                 if tactical_theme == "missed_tactic":
                     for sq in chess.SQUARES:
                         piece = board_after.piece_at(sq)
-                        if piece and piece.color == (not board_after.turn) and piece.piece_type in [chess.BISHOP, chess.ROOK, chess.QUEEN]:
+                        if (
+                            piece
+                            and piece.color == (not board_after.turn)
+                            and piece.piece_type in [chess.BISHOP, chess.ROOK, chess.QUEEN]
+                        ):
                             # check rays
                             for dir_sq in chess.SQUARES:
                                 # naive: skip complex ray logic; check if this attacker attacks a queen and behind is rook
@@ -377,21 +391,28 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
                     # detect hanging: moved-to square attacked and not defended
                     if move_obj:
                         to_sq = move_obj.to_square
-                        if board_after.is_attacked_by(not board_after.turn, to_sq) and not board_after.is_attacked_by(board_after.turn, to_sq):
+                        if board_after.is_attacked_by(not board_after.turn, to_sq) and not board_after.is_attacked_by(
+                            board_after.turn, to_sq
+                        ):
                             tactical_theme = "hanging_piece"
 
             except Exception:
                 tactical_theme = "missed_tactic"
 
         # generate explanation via template
-        explanation = get_explanation(tactical_theme, played_move, best_move, {
-            "lost_piece_name": mv.get("captured_piece_name", "piece"),
-            "attacking_piece_name": "opponent piece",
-            "pinned_piece_name": mv.get("captured_piece_name", "piece"),
-            "valuable_piece_name": "your queen",
-            "less_valuable_piece_name": "a rook",
-            "eval_difference": abs(eval_swing),
-        })
+        explanation = get_explanation(
+            tactical_theme,
+            played_move,
+            best_move,
+            {
+                "lost_piece_name": mv.get("captured_piece_name", "piece"),
+                "attacking_piece_name": "opponent piece",
+                "pinned_piece_name": mv.get("captured_piece_name", "piece"),
+                "valuable_piece_name": "your queen",
+                "less_valuable_piece_name": "a rook",
+                "eval_difference": abs(eval_swing),
+            },
+        )
 
         moment = {
             "move_number": move_number,

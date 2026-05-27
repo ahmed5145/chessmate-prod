@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0004_profile_bio'),
+        ("core", "0004_profile_bio"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='profile',
-            name='last_credit_purchase',
+            model_name="profile",
+            name="last_credit_purchase",
             field=models.DateTimeField(blank=True, null=True),
         ),
     ]

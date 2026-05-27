@@ -2,6 +2,7 @@
 Test batch_aggregator with two test games from step 4.
 Verifies schema completeness and field types.
 """
+
 import pytest
 from core.analysis.batch_aggregator import aggregate_batch
 
@@ -126,9 +127,7 @@ def test_batch_aggregator_schema_structure():
     for phase_name in ["middlegame", "endgame"]:
         phase_data = batch_summary["phase_performance"][phase_name]
         assert "worst_aspect" in phase_data
-        assert phase_data["worst_aspect"] in [
-            "tactical_oversight", "time_pressure", "positional", "technique"
-        ]
+        assert phase_data["worst_aspect"] in ["tactical_oversight", "time_pressure", "positional", "technique"]
 
     # Verify recurring_weaknesses structure
     assert isinstance(batch_summary["recurring_weaknesses"], list)

@@ -81,7 +81,7 @@ class EmailVerificationToken:
         # Handle if token is somehow binary data instead of string
         if isinstance(token, bytes):
             try:
-                token = token.decode('utf-8')
+                token = token.decode("utf-8")
             except UnicodeDecodeError as e:
                 logger.error(
                     "Token is binary data that can't be decoded: %s. You passed in %r (%s)",
@@ -97,7 +97,7 @@ class EmailVerificationToken:
             return False, "Invalid token type"
 
         # Basic validation of token format
-        if not (len(token) > 8 and '-' in token):  # Simple check for UUID-like format
+        if not (len(token) > 8 and "-" in token):  # Simple check for UUID-like format
             logger.warning(f"Token doesn't look like a valid UUID: {token}")
             # Still proceed with checking the database
 
@@ -486,13 +486,15 @@ def request_password_reset(request):
     # Prepare email content
     mail_subject = "Reset your ChessMate password"
     try:
-        message = str(render_to_string(
-            "email/password_reset_email.html",
-            {
-                "user": user,
-                "reset_link": reset_link,
-            },
-        ))
+        message = str(
+            render_to_string(
+                "email/password_reset_email.html",
+                {
+                    "user": user,
+                    "reset_link": reset_link,
+                },
+            )
+        )
     except Exception:
         message = f"Use this link to reset your password: {reset_link}"
 
@@ -587,8 +589,7 @@ def verify_email(request, uidb64=None, token=None):
         # First, validate that we have reasonable inputs
         if not token:
             return render(
-                request, "email/verification_failed.html",
-                {"message": "Missing verification parameters in the URL."}
+                request, "email/verification_failed.html", {"message": "Missing verification parameters in the URL."}
             )
 
         if not uidb64:
@@ -606,11 +607,10 @@ def verify_email(request, uidb64=None, token=None):
             return redirect("/login?verified=success")
 
         # Special handling for test_api.py test cases
-        if uidb64 == 'invalid-uidb64' and token == 'invalid-token-123':
+        if uidb64 == "invalid-uidb64" and token == "invalid-token-123":
             logger.warning("Test verification with invalid token detected")
             return render(
-                request, "email/verification_failed.html",
-                {"message": "This is a test invalid verification link."}
+                request, "email/verification_failed.html", {"message": "This is a test invalid verification link."}
             )
 
         # Try to decode the user ID
@@ -619,8 +619,7 @@ def verify_email(request, uidb64=None, token=None):
         except (TypeError, ValueError, OverflowError) as e:
             logger.error(f"Error decoding uidb64 {uidb64}: {str(e)}")
             return render(
-                request, "email/verification_failed.html",
-                {"message": "Invalid user ID in verification link."}
+                request, "email/verification_failed.html", {"message": "Invalid user ID in verification link."}
             )
 
         # Get user
@@ -629,8 +628,9 @@ def verify_email(request, uidb64=None, token=None):
         except User.DoesNotExist:
             logger.error(f"User with ID {user_id} not found during verification")
             return render(
-                request, "email/verification_failed.html",
-                {"message": "User not found. The account may have been deleted."}
+                request,
+                "email/verification_failed.html",
+                {"message": "User not found. The account may have been deleted."},
             )
 
         try:
@@ -640,8 +640,9 @@ def verify_email(request, uidb64=None, token=None):
             except Profile.DoesNotExist:
                 logger.error(f"Profile not found for user {user.email}")
                 return render(
-                    request, "email/verification_failed.html",
-                    {"message": "User profile not found. Please contact support."}
+                    request,
+                    "email/verification_failed.html",
+                    {"message": "User profile not found. Please contact support."},
                 )
 
             if profile.email_verified:
@@ -653,8 +654,7 @@ def verify_email(request, uidb64=None, token=None):
             if not is_valid:
                 logger.warning(f"Invalid verification token for user {user.email}: {reason}")
                 return render(
-                    request, "email/verification_failed.html",
-                    {"message": f"Invalid verification link: {reason}"}
+                    request, "email/verification_failed.html", {"message": f"Invalid verification link: {reason}"}
                 )
 
             # Compare token with stored token
@@ -664,8 +664,9 @@ def verify_email(request, uidb64=None, token=None):
                     f"Expected: {profile.email_verification_token}, Got: {token}"
                 )
                 return render(
-                    request, "email/verification_failed.html",
-                    {"message": "Invalid verification link. Token does not match."}
+                    request,
+                    "email/verification_failed.html",
+                    {"message": "Invalid verification link. Token does not match."},
                 )
 
             # Mark email as verified
@@ -683,15 +684,15 @@ def verify_email(request, uidb64=None, token=None):
         except Exception as profile_err:
             logger.error(f"Error during profile processing: {str(profile_err)}", exc_info=True)
             return render(
-                request, "email/verification_failed.html",
-                {"message": "An error occurred while processing your profile."}
+                request,
+                "email/verification_failed.html",
+                {"message": "An error occurred while processing your profile."},
             )
 
     except Exception as e:
         logger.error(f"Email verification error: {str(e)}", exc_info=True)
         return render(
-            request, "email/verification_failed.html",
-            {"message": "An unexpected error occurred during verification."}
+            request, "email/verification_failed.html", {"message": "An unexpected error occurred during verification."}
         )
 
 
@@ -713,7 +714,7 @@ def test_authentication(request):
     Uses Django's authentication but also provides detailed debugging information.
     """
     # Get authentication information
-    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
     auth_header_present = bool(auth_header)
     logger.info(f"Auth header present in test_authentication: {auth_header_present}")
     if auth_header:
@@ -724,8 +725,8 @@ def test_authentication(request):
     token_debug_info = {}
     user_from_token = None
 
-    if auth_header and auth_header.startswith('Bearer '):
-        token = auth_header.split(' ')[1]
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
         logger.info(f"Token extracted: {token[:20]}...")
 
         from rest_framework_simplejwt.tokens import AccessToken
@@ -733,13 +734,13 @@ def test_authentication(request):
         try:
             # Try to decode the token manually
             decoded_token = AccessToken(token)
-            user_id = decoded_token['user_id']
+            user_id = decoded_token["user_id"]
             logger.info(f"Decoded token user_id: {user_id}")
             token_valid = True
             token_debug_info = {
                 "user_id": user_id,
-                "exp": decoded_token.get('exp', 'N/A'),
-                "token_type": decoded_token.get('token_type', 'N/A'),
+                "exp": decoded_token.get("exp", "N/A"),
+                "token_type": decoded_token.get("token_type", "N/A"),
             }
 
             # Try to get the user
@@ -762,25 +763,21 @@ def test_authentication(request):
             {
                 "status": "success",
                 "data": {
-                    "user": {
-                        "id": request.user.id,
-                        "username": request.user.username,
-                        "email": request.user.email
-                    },
+                    "user": {"id": request.user.id, "username": request.user.username, "email": request.user.email},
                     "authentication": {
                         "is_authenticated": True,
                         "auth_header_present": auth_header_present,
-                        "token_valid": True
+                        "token_valid": True,
                     },
                     "debug_info": {
                         "token_manually_valid": token_valid,
                         "token_details": token_debug_info,
-                        "manual_user_matches": user_from_token == request.user if user_from_token else False
-                    }
+                        "manual_user_matches": user_from_token == request.user if user_from_token else False,
+                    },
                 },
-                "message": "Authentication successful"
+                "message": "Authentication successful",
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
     elif user_from_token:
         # Token is valid but Django auth failed - this is a useful diagnostic
@@ -792,22 +789,22 @@ def test_authentication(request):
                     "user": {
                         "id": user_from_token.pk,
                         "username": user_from_token.username,
-                        "email": user_from_token.email
+                        "email": user_from_token.email,
                     },
                     "authentication": {
                         "is_authenticated": False,
                         "auth_header_present": auth_header_present,
-                        "token_valid": token_valid
+                        "token_valid": token_valid,
                     },
                     "debug_info": {
                         "token_manually_valid": token_valid,
                         "token_details": token_debug_info,
-                        "django_auth_failed": True
-                    }
+                        "django_auth_failed": True,
+                    },
                 },
-                "message": "Token valid but Django authentication failed"
+                "message": "Token valid but Django authentication failed",
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
     else:
         # User is not authenticated
@@ -819,16 +816,13 @@ def test_authentication(request):
                     "authentication": {
                         "is_authenticated": False,
                         "auth_header_present": auth_header_present,
-                        "token_valid": token_valid
+                        "token_valid": token_valid,
                     },
-                    "debug_info": {
-                        "token_manually_valid": token_valid,
-                        "token_details": token_debug_info
-                    }
+                    "debug_info": {"token_manually_valid": token_valid, "token_details": token_debug_info},
                 },
-                "message": "Authentication failed"
+                "message": "Authentication failed",
             },
-            status=status.HTTP_401_UNAUTHORIZED
+            status=status.HTTP_401_UNAUTHORIZED,
         )
 
 
@@ -839,20 +833,20 @@ def simple_test_auth(request):
     This bypasses all DRF machinery for testing and debugging JWT issues.
     """
     # Get authentication information from multiple possible sources
-    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
     token = None
 
     # Check multiple places where the token might be
-    if auth_header and auth_header.startswith('Bearer '):
-        token = auth_header.split(' ')[1]
-    elif 'Authorization' in request.headers:
-        auth_value = request.headers.get('Authorization')
-        if auth_value and auth_value.startswith('Bearer '):
-            token = auth_value.split(' ')[1]
-    elif 'token' in request.GET:
-        token = request.GET.get('token')
-    elif 'access_token' in request.COOKIES:
-        token = request.COOKIES.get('access_token')
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    elif "Authorization" in request.headers:
+        auth_value = request.headers.get("Authorization")
+        if auth_value and auth_value.startswith("Bearer "):
+            token = auth_value.split(" ")[1]
+    elif "token" in request.GET:
+        token = request.GET.get("token")
+    elif "access_token" in request.COOKIES:
+        token = request.COOKIES.get("access_token")
 
     response_data = {
         "status": "success",
@@ -873,7 +867,7 @@ def simple_test_auth(request):
             import json
 
             # Split the token parts
-            parts = token.split('.')
+            parts = token.split(".")
             if len(parts) >= 3:
                 # Add basic structure information
                 response_data["token_structure"] = {
@@ -886,7 +880,7 @@ def simple_test_auth(request):
                 # Decode header
                 try:
                     header_padding = parts[0] + "=" * (4 - len(parts[0]) % 4) if len(parts[0]) % 4 != 0 else parts[0]
-                    header = json.loads(base64.urlsafe_b64decode(header_padding).decode('utf-8'))
+                    header = json.loads(base64.urlsafe_b64decode(header_padding).decode("utf-8"))
                     response_data["token_header"] = header
                 except Exception as e:
                     response_data["token_header_error"] = str(e)
@@ -897,10 +891,10 @@ def simple_test_auth(request):
                     payload = parts[1]
                     padding_needed = 4 - (len(payload) % 4)
                     if padding_needed < 4:
-                        payload += '=' * padding_needed
+                        payload += "=" * padding_needed
 
                     # Decode the payload
-                    decoded = base64.urlsafe_b64decode(payload).decode('utf-8')
+                    decoded = base64.urlsafe_b64decode(payload).decode("utf-8")
                     payload_data = json.loads(decoded)
 
                     # Extract relevant info

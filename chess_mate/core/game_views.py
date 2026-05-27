@@ -382,14 +382,18 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
             phases[phase_name]["best_moves"] += _safe_float(phase.get("best_moves"))
             phases[phase_name]["opportunities"] += _safe_float(phase.get("opportunities"))
 
-        metrics_time = metrics.get("time_management", {}) if isinstance(metrics.get("time_management", {}), dict) else {}
+        metrics_time = (
+            metrics.get("time_management", {}) if isinstance(metrics.get("time_management", {}), dict) else {}
+        )
         if str(metrics_time.get("data_status", "")).lower() != "unavailable":
             time_management["avg_time_per_move"] += _safe_float(metrics_time.get("avg_time_per_move"))
             time_management["time_pressure_percentage"] += _safe_float(metrics_time.get("time_pressure_percentage"))
             time_management["samples"] += 1
 
         strengths_raw.extend(feedback.get("strengths", []) if isinstance(feedback.get("strengths", []), list) else [])
-        weaknesses_raw.extend(feedback.get("weaknesses", []) if isinstance(feedback.get("weaknesses", []), list) else [])
+        weaknesses_raw.extend(
+            feedback.get("weaknesses", []) if isinstance(feedback.get("weaknesses", []), list) else []
+        )
         improvements_raw.extend(
             feedback.get("improvement_areas", []) if isinstance(feedback.get("improvement_areas", []), list) else []
         )
@@ -463,10 +467,12 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
 
     time_samples = time_management["samples"]
     time_summary = {
-        "avg_time_per_move": round((time_management["avg_time_per_move"] / time_samples), 1) if time_samples > 0 else 0.0,
-        "time_pressure_percentage": round((time_management["time_pressure_percentage"] / time_samples), 1)
-        if time_samples > 0
-        else 0.0,
+        "avg_time_per_move": (
+            round((time_management["avg_time_per_move"] / time_samples), 1) if time_samples > 0 else 0.0
+        ),
+        "time_pressure_percentage": (
+            round((time_management["time_pressure_percentage"] / time_samples), 1) if time_samples > 0 else 0.0
+        ),
         "data_status": "available" if time_samples > 0 else "unavailable",
     }
 
@@ -543,7 +549,9 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
     summary_bits.append(f"Batch profile: {performance_tier}.")
     if top_weaknesses:
         summary_bits.append(f"Main recurring weakness: {top_weaknesses[0]}.")
-    summary_bits.append(f"Weakest phase: {weakest_phase.title()} ({phase_metrics[weakest_phase]['accuracy']}% accuracy).")
+    summary_bits.append(
+        f"Weakest phase: {weakest_phase.title()} ({phase_metrics[weakest_phase]['accuracy']}% accuracy)."
+    )
     if top_strengths:
         summary_bits.append(f"Reliable strength: {top_strengths[0]}.")
     action_plan = []
@@ -748,7 +756,9 @@ class GameViewSet(viewsets.ModelViewSet):
                 }
             )
 
-        except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+        except (
+            Exception
+        ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
             return create_error_response(
                 error_type="external_service_error", message=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -788,7 +798,9 @@ class GameViewSet(viewsets.ModelViewSet):
             return create_error_response(
                 error_type="validation_failed", message=str(e), status_code=status.HTTP_400_BAD_REQUEST
             )
-        except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+        except (
+            Exception
+        ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
             return create_error_response(
                 error_type="external_service_error", message=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -801,42 +813,36 @@ class GameViewSet(viewsets.ModelViewSet):
             if pk is not None:
                 logger.debug("Analysis status requested for pk %s by user %s", pk, request.user.id)
             game = self.get_object()
-            
+
             # First check if we already have a complete analysis in the database
             try:
                 analysis = GameAnalysis.objects.get(game_id=game.id)
-                if analysis.analysis_data and analysis.analysis_data.get('status') == 'complete':
-                    return Response({
-                        "status": "SUCCESS",
-                        "message": "Analysis completed",
-                        "progress": 100
-                    })
+                if analysis.analysis_data and analysis.analysis_data.get("status") == "complete":
+                    return Response({"status": "SUCCESS", "message": "Analysis completed", "progress": 100})
             except GameAnalysis.DoesNotExist:
                 # No completed analysis exists, continue with task status
                 pass
-            
+
             # Get task status for the game (passing game_id instead of task_id)
             task_info = task_manager.get_task_status(game_id=game.id)
-            
+
             # Log what we got from the task manager for debugging
             logger.debug("Raw task info for game %s: %s", game.id, task_info)
 
             if not task_info:
-                return Response({
-                    "status": "not_found", 
-                    "message": "No analysis task found",
-                    "progress": 0
-                })
-            
+                return Response({"status": "not_found", "message": "No analysis task found", "progress": 0})
+
             # Check specific case for error status
             if task_info.get("status") == "ERROR" or task_info.get("status") == "FAILURE":
-                return Response({
-                    "status": "ERROR",
-                    "message": task_info.get("message", "Analysis failed"),
-                    "error": task_info.get("error", "Unknown error"),
-                    "progress": task_info.get("progress", 0)
-                })
-            
+                return Response(
+                    {
+                        "status": "ERROR",
+                        "message": task_info.get("message", "Analysis failed"),
+                        "error": task_info.get("error", "Unknown error"),
+                        "progress": task_info.get("progress", 0),
+                    }
+                )
+
             # Build a standardized response format
             response_data = {
                 "status": task_info.get("status", "UNKNOWN").upper(),
@@ -847,19 +853,20 @@ class GameViewSet(viewsets.ModelViewSet):
                     "id": task_info.get("task_id", ""),
                     "status": task_info.get("status", "UNKNOWN").upper(),
                     "progress": task_info.get("progress", 0),
-                    "message": task_info.get("message", "Checking analysis status...")
-                }
+                    "message": task_info.get("message", "Checking analysis status..."),
+                },
             }
-            
+
             return Response(response_data)
 
-        except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+        except (
+            Exception
+        ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.error("Error checking analysis status: %s", str(e), exc_info=True)
-            return Response({
-                "status": "ERROR",
-                "message": f"Error retrieving analysis status: {str(e)}",
-                "progress": 0
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"status": "ERROR", "message": f"Error retrieving analysis status: {str(e)}", "progress": 0},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     @action(detail=False, methods=["get"])
     def search(self, request) -> Any:
@@ -911,7 +918,9 @@ class GameViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(queryset, many=True)
             return Response({"results": serializer.data, "count": total_count, "limit": limit, "offset": offset})
 
-        except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+        except (
+            Exception
+        ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
             return create_error_response(
                 error_type="validation_failed", message=str(e), status_code=status.HTTP_400_BAD_REQUEST
             )
@@ -948,7 +957,9 @@ def get_user_games(request):
 
         return Response(game_list, status=status.HTTP_200_OK)
 
-    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+    except (
+        Exception
+    ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         return Response({"status": "error", "message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -977,7 +988,9 @@ def import_game(request):
         ).first()
 
         if existing_game_any:
-            return JsonResponse({"status": "success", "message": "Game already exists", "game_id": existing_game_any.id})
+            return JsonResponse(
+                {"status": "success", "message": "Game already exists", "game_id": existing_game_any.id}
+            )
 
         # Create new game
         with transaction.atomic():
@@ -1010,7 +1023,9 @@ def import_game(request):
 
         return JsonResponse({"status": "success", "message": "Game imported successfully", "game_id": game_any.id})
 
-    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+    except (
+        Exception
+    ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         return handle_api_error(e, "Error importing game")
 
 
@@ -1041,7 +1056,9 @@ def get_game(request):
 
         # Check permission
         if not request.user.is_staff and game.user.id != request.user.id:  # type: ignore[attr-defined]
-            return JsonResponse({"status": "error", "message": "You do not have permission to view this game"}, status=403)
+            return JsonResponse(
+                {"status": "error", "message": "You do not have permission to view this game"}, status=403
+            )
 
         # Format response
         game_data = {
@@ -1069,11 +1086,13 @@ def get_game(request):
 
         return JsonResponse({"status": "success", "game": game_data})
 
-    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+    except (
+        Exception
+    ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         return handle_api_error(e, "Error retrieving game")
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([AllowAny])
 @auth_csrf_exempt
 @track_request_time
@@ -1094,18 +1113,14 @@ def analyze_game(request, game_id=None):
 
         # Validate inputs
         if not game_id:
-            return Response(
-                {"status": "error", "message": "Game ID is required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"status": "error", "message": "Game ID is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Get game from database
         try:
             game: Any = Game.objects.get(id=game_id)
         except Game.DoesNotExist:
             return Response(
-                {"status": "error", "message": f"Game not found: {game_id}"},
-                status=status.HTTP_404_NOT_FOUND
+                {"status": "error", "message": f"Game not found: {game_id}"}, status=status.HTTP_404_NOT_FOUND
             )
 
         # Check permission
@@ -1113,14 +1128,14 @@ def analyze_game(request, game_id=None):
             # Check if the user is the owner of the game
             if game.user_id != request.user.id:  # type: ignore[attr-defined]
                 return Response(
-                    {"status": "error", "message": "You do not have permission to analyze this game"}, 
-                    status=status.HTTP_403_FORBIDDEN
+                    {"status": "error", "message": "You do not have permission to analyze this game"},
+                    status=status.HTTP_403_FORBIDDEN,
                 )
 
-        # Use hardcoded default values 
+        # Use hardcoded default values
         DEFAULT_ANALYSIS_DEPTH = 20
         DEFAULT_USE_AI = True
-        
+
         # Get analysis parameters
         depth = data.get("depth", DEFAULT_ANALYSIS_DEPTH)
         use_ai = data.get("use_ai", DEFAULT_USE_AI)
@@ -1186,16 +1201,18 @@ def analyze_game(request, game_id=None):
             status=status.HTTP_202_ACCEPTED,
         )
 
-    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+    except (
+        Exception
+    ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         # Log the full error for debugging
         logger.error("Error analyzing game: %s", str(e), exc_info=True)
         return Response(
             {"status": "error", "message": f"Error analyzing game: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @auth_csrf_exempt
 @track_request_time
@@ -1219,7 +1236,9 @@ def import_external_games(request):
             raise ValidationError([{"field": "platform", "message": "Platform/source is required"}])
 
         if platform not in ["chess.com", "lichess"]:
-            raise ValidationError([{"field": "platform", "message": "Invalid platform. Must be 'chess.com' or 'lichess'"}])
+            raise ValidationError(
+                [{"field": "platform", "message": "Invalid platform. Must be 'chess.com' or 'lichess'"}]
+            )
 
         if not username:
             # Try to get username from profile
@@ -1230,7 +1249,9 @@ def import_external_games(request):
                 else:
                     username = profile.lichess_username
             except Profile.DoesNotExist as exc:
-                raise ValidationError([{"field": "username", "message": f"Username for {platform} is required"}]) from exc
+                raise ValidationError(
+                    [{"field": "username", "message": f"Username for {platform} is required"}]
+                ) from exc
 
         if not username:
             raise ValidationError([{"field": "username", "message": f"Username for {platform} is required"}])
@@ -1284,7 +1305,9 @@ def import_external_games(request):
                 if saved_game:
                     imported_count += 1
                     saved_games.append(imported_count - 1)
-            except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+            except (
+                Exception
+            ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 logger.error("Error saving game: %s", str(e))
 
         # Deduct credits if not staff
@@ -1301,14 +1324,16 @@ def import_external_games(request):
                 "message": f"Imported {imported_count} games from {platform}",
                 "imported_count": imported_count,
                 "saved_games": saved_games,
-                "games": games[:5] if isinstance(games, list) else []  # Return preview of first 5 games
+                "games": games[:5] if isinstance(games, list) else [],  # Return preview of first 5 games
             },
             status=status.HTTP_200_OK,
         )
 
     except ValidationError as ve:
         return Response({"status": "error", "errors": ve.args[0]}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+    except (
+        Exception
+    ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         logger.error("Error importing games: %s", str(e), exc_info=True)
         return Response(
             {"status": "error", "message": f"Error importing games: {str(e)}"},
@@ -1328,71 +1353,74 @@ def get_task_status(request, game_id=None):
         if game_id:
             # Resolve by game ID, not positional task_id.
             task_info = task_manager.get_task_status(game_id=game_id)
-            
+
             if not task_info:
                 # No task found for this game
-                return JsonResponse({
-                    "status": "not_found",
-                    "message": "No analysis task found for this game",
-                    "progress": 0
-                })
-            
+                return JsonResponse(
+                    {"status": "not_found", "message": "No analysis task found for this game", "progress": 0}
+                )
+
             # If task_info already contains a 'task' key, return it directly
-            if 'task' in task_info:
+            if "task" in task_info:
                 return JsonResponse(task_info)
-            
+
             # Log the actual task info for debugging
             logger.debug("Raw task info for game %s: %s", game_id, task_info)
-            
+
             # Otherwise wrap it in a response with a 'task' key for frontend compatibility
-            return JsonResponse({
-                "status": "success", 
-                "task": {
-                    "id": task_info.get("id") or task_info.get("task_id", ""),
-                    "status": task_info.get("status", "UNKNOWN"),
-                    "progress": task_info.get("progress", 0),
-                    "message": task_info.get("message", "Analyzing game..."),
-                    "error": task_info.get("error", None)
+            return JsonResponse(
+                {
+                    "status": "success",
+                    "task": {
+                        "id": task_info.get("id") or task_info.get("task_id", ""),
+                        "status": task_info.get("status", "UNKNOWN"),
+                        "progress": task_info.get("progress", 0),
+                        "message": task_info.get("message", "Analyzing game..."),
+                        "error": task_info.get("error", None),
+                    },
                 }
-            })
+            )
         else:
             # Otherwise check for task_id in query params
             task_id = request.GET.get("task_id")
             if not task_id:
-                return JsonResponse({
-                    "status": "error", 
-                    "message": "Either game_id in URL path or task_id query parameter is required"
-                }, status=400)
+                return JsonResponse(
+                    {"status": "error", "message": "Either game_id in URL path or task_id query parameter is required"},
+                    status=400,
+                )
 
             # Get task status
             task_info = task_manager.get_task_status_by_id(task_id)
 
             # Log the actual task info for debugging
             logger.debug("Raw task info for task %s: %s", task_id, task_info)
-            
-            # Wrap the task info in a response with a 'task' key for frontend compatibility
-            return JsonResponse({
-            "status": "success",
-            "task": {
-                "id": task_id,
-                    "status": task_info.get("status", "UNKNOWN"),
-                "progress": task_info.get("progress", 0),
-                    "message": task_info.get("message", "Analyzing game..."),
-                    "error": task_info.get("error", None)
-                }
-            })
 
-    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+            # Wrap the task info in a response with a 'task' key for frontend compatibility
+            return JsonResponse(
+                {
+                    "status": "success",
+                    "task": {
+                        "id": task_id,
+                        "status": task_info.get("status", "UNKNOWN"),
+                        "progress": task_info.get("progress", 0),
+                        "message": task_info.get("message", "Analyzing game..."),
+                        "error": task_info.get("error", None),
+                    },
+                }
+            )
+
+    except (
+        Exception
+    ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         logger.error("Error retrieving task status: %s", str(e), exc_info=True)
-        return JsonResponse({
-            "status": "error",
-            "message": f"Error retrieving task status: {str(e)}",
-            "task": {
-                "status": "ERROR",
-                "progress": 0,
-                "message": f"Error: {str(e)}"
-            }
-        }, status=500)
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": f"Error retrieving task status: {str(e)}",
+                "task": {"status": "ERROR", "progress": 0, "message": f"Error: {str(e)}"},
+            },
+            status=500,
+        )
 
 
 @api_view(["GET"])
@@ -1437,7 +1465,9 @@ def check_analysis_status(request, task_id):
     if state == "PROGRESS":
         state = "IN_PROGRESS"
 
-    return Response({"status": state, "progress": _legacy_status_progress(task_id, task_info)}, status=status.HTTP_200_OK)
+    return Response(
+        {"status": state, "progress": _legacy_status_progress(task_id, task_info)}, status=status.HTTP_200_OK
+    )
 
 
 @api_view(["GET"])
@@ -1711,7 +1741,9 @@ def batch_analyze_games(request):
             status=status.HTTP_202_ACCEPTED,
         )
 
-    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+    except (
+        Exception
+    ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         logger.error("Error starting batch game analysis: %s", str(e), exc_info=True)
         return create_error_response(
             error_type="external_service_error",
@@ -1730,37 +1762,31 @@ def batch_get_analysis_status(request):
         # Get the game IDs from the request data
         data = json.loads(request.body) if isinstance(request.body, bytes) else request.body
         game_ids = data.get("game_ids", [])
-        
+
         if not game_ids:
             return JsonResponse({"status": "error", "message": "No game IDs provided"}, status=400)
-            
+
         # Limit the number of games to check at once
         if len(game_ids) > 20:
-            return JsonResponse(
-                {"status": "error", "message": "Too many games requested. Maximum is 20."}, 
-                status=400
-            )
-            
+            return JsonResponse({"status": "error", "message": "Too many games requested. Maximum is 20."}, status=400)
+
         # Verify the user has access to these games
         if not request.user.is_staff:
-            authorized_count = Game.objects.filter(
-                id__in=game_ids, 
-                user_id=request.user.id
-            ).count()
-            
+            authorized_count = Game.objects.filter(id__in=game_ids, user_id=request.user.id).count()
+
             if authorized_count != len(game_ids):
                 return JsonResponse(
-                    {"status": "error", "message": "You don't have permission to access some of these games"}, 
-                    status=403
+                    {"status": "error", "message": "You don't have permission to access some of these games"},
+                    status=403,
                 )
-        
+
         # Get status for each game
         statuses = {}
         for game_id in game_ids:
             try:
                 # First check if there's a task for this game
                 task_info = task_manager.get_task_status(game_id=game_id)
-                
+
                 if task_info:
                     # Task exists, return its status
                     statuses[str(game_id)] = task_info
@@ -1772,29 +1798,35 @@ def batch_get_analysis_status(request):
                         "progress": 0,
                         "message": "Analysis not started yet or database inconsistency",
                     }
-            except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+            except (
+                Exception
+            ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 logger.warning("Error checking status for game %s: %s", game_id, str(e))
                 # Return a safe default in case of errors
                 statuses[str(game_id)] = {
                     "status": "PENDING",
                     "message": f"Status check error: {str(e)[:50]}",
                 }
-        
+
         # Return the statuses
-        return JsonResponse({
-            "status": "success", 
-            "statuses": statuses,
-            "auth_info": {
-                "user_id": request.user.id,
-                "username": request.user.username,
-                "is_authenticated": request.user.is_authenticated,
-                "is_staff": request.user.is_staff
+        return JsonResponse(
+            {
+                "status": "success",
+                "statuses": statuses,
+                "auth_info": {
+                    "user_id": request.user.id,
+                    "username": request.user.username,
+                    "is_authenticated": request.user.is_authenticated,
+                    "is_staff": request.user.is_staff,
+                },
             }
-        })
-        
+        )
+
     except ValidationError as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=400)
-    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+    except (
+        Exception
+    ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         logger.error("Error checking batch analysis status: %s", str(e))
         return JsonResponse({"status": "error", "message": f"Error: {str(e)}"}, status=500)
 
@@ -1831,12 +1863,16 @@ def search_external_player(request):
         # Get player details
         player_fetcher = getattr(service, "get_player_info", None)
         if not callable(player_fetcher):
-            raise ValidationError([{"field": "source", "message": f"Player search is not supported for source: {source}"}])
+            raise ValidationError(
+                [{"field": "source", "message": f"Player search is not supported for source: {source}"}]
+            )
         player_info = player_fetcher(username)
 
         return JsonResponse({"status": "success", "player": player_info})
 
-    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+    except (
+        Exception
+    ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         return handle_api_error(e, f"Error searching for player on {request.GET.get('source', 'external platform')}")
 
 
@@ -1883,7 +1919,7 @@ def get_game_analysis(request, game_id):
                 },
             }
             return Response(response_payload, status=status.HTTP_200_OK)
-            
+
         except GameAnalysis.DoesNotExist:
             if game.analysis:
                 payload = game.analysis if isinstance(game.analysis, dict) else {}
@@ -1899,15 +1935,20 @@ def get_game_analysis(request, game_id):
                     },
                 }
                 return Response(response_payload, status=status.HTTP_200_OK)
-            return Response({"status": "not_found", "message": "No analysis found for this game"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+            return Response(
+                {"status": "not_found", "message": "No analysis found for this game"}, status=status.HTTP_404_NOT_FOUND
+            )
+        except (
+            Exception
+        ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.error("Error retrieving game analysis: %s", str(e), exc_info=True)
             # Return structured error for better frontend handling
-            return Response({
-                "status": "error",
-                "message": f"Error retrieving analysis: {str(e)}",
-                "error": str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"status": "error", "message": f"Error retrieving analysis: {str(e)}", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-    except Exception as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+    except (
+        Exception
+    ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         return handle_api_error(e, "Error retrieving game analysis")

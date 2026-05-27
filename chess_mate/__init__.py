@@ -12,11 +12,11 @@ __version__ = "1.0.0"
 builtins.chess_mate = sys.modules[__name__]
 
 try:
-	import core as _core
-	import core.redis_config as _redis_config
+    import core as _core
+    import core.redis_config as _redis_config
 
-	core = _core
-	sys.modules.setdefault("chess_mate.core", _core)
-	sys.modules.setdefault("chess_mate.core.redis_config", _redis_config)
+    core = _core
+    sys.modules.setdefault("chess_mate.core", _core)
+    sys.modules.setdefault("chess_mate.core.redis_config", _redis_config)
 except Exception:
-	pass
+    pass

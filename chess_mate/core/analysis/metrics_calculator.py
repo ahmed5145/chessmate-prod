@@ -101,11 +101,7 @@ class MetricsCalculator:
             endgame_metrics = MetricsCalculator._calculate_phase_metrics(endgame_moves, is_white)
 
             # Compile phase metrics
-            phase_metrics = {
-                "opening": opening_metrics,
-                "middlegame": middlegame_metrics,
-                "endgame": endgame_metrics
-            }
+            phase_metrics = {"opening": opening_metrics, "middlegame": middlegame_metrics, "endgame": endgame_metrics}
 
             # Calculate tactical metrics
             tactical_metrics = MetricsCalculator._calculate_tactical_metrics(moves, is_white)
@@ -134,8 +130,8 @@ class MetricsCalculator:
                     "total_moves": len(moves),
                     "opening_length": opening_end,
                     "middlegame_length": middlegame_end - opening_end,
-                    "endgame_length": len(moves) - middlegame_end
-                }
+                    "endgame_length": len(moves) - middlegame_end,
+                },
             }
 
             # Validate and normalize metrics
@@ -143,8 +139,14 @@ class MetricsCalculator:
 
             # Ensure all required sections are present and properly typed
             required_sections = [
-                "overall", "move_quality", "time_management", "consistency",
-                "phases", "tactics", "advantage", "resourcefulness"
+                "overall",
+                "move_quality",
+                "time_management",
+                "consistency",
+                "phases",
+                "tactics",
+                "advantage",
+                "resourcefulness",
             ]
 
             for section in required_sections:
@@ -595,16 +597,14 @@ class MetricsCalculator:
         for i in range(len(moves)):
             window = moves[i : i + window_size]
             window_mistakes = sum(
-                1
-                for m in window
-                if MetricsCalculator._normalized_classification(m) in mistake_classes
+                1 for m in window if MetricsCalculator._normalized_classification(m) in mistake_classes
             )
             if window_mistakes > 1:
                 mistake_clusters += 1.0
             mistakes_in_window += float(window_mistakes)
 
         # Calculate time consistency
-        times = [move.get('time_spent', 0) for move in moves if move.get('time_spent') is not None]
+        times = [move.get("time_spent", 0) for move in moves if move.get("time_spent") is not None]
         if not times:
             time_consistency = 100.0
         else:
@@ -618,7 +618,7 @@ class MetricsCalculator:
         error_score = max(0.0, 100.0 - (mistakes_in_window / max(1.0, float(len(moves))) * 100.0))
         cluster_score = max(0.0, 100.0 - (mistake_clusters / max(1.0, float(len(moves))) * 100.0))
 
-        final_score = (streak_score * 0.4 + error_score * 0.3 + cluster_score * 0.2 + time_consistency * 0.1)
+        final_score = streak_score * 0.4 + error_score * 0.3 + cluster_score * 0.2 + time_consistency * 0.1
         return max(0.0, min(100.0, final_score))
 
     @staticmethod
@@ -1189,8 +1189,7 @@ class MetricsCalculator:
             quality_moves = sum(
                 1
                 for m in moves
-                if m.get("is_best", False)
-                or MetricsCalculator._normalized_classification(m) in {"good", "excellent"}
+                if m.get("is_best", False) or MetricsCalculator._normalized_classification(m) in {"good", "excellent"}
             )
 
             # Keep overall accuracy consistent with move_quality accuracy shown in UI.
@@ -1451,13 +1450,7 @@ class MetricsCalculator:
         """
         try:
             if not moves:
-                return {
-                    "accuracy": 0.0,
-                    "mistakes": 0.0,
-                    "blunders": 0.0,
-                    "inaccuracies": 0.0,
-                    "quality_moves": 0.0
-                }
+                return {"accuracy": 0.0, "mistakes": 0.0, "blunders": 0.0, "inaccuracies": 0.0, "quality_moves": 0.0}
 
             total_moves = float(len(moves))
 
@@ -1480,8 +1473,7 @@ class MetricsCalculator:
             quality_moves = sum(
                 1.0
                 for m in moves
-                if m.get("is_best", False)
-                or MetricsCalculator._normalized_classification(m) in {"good", "excellent"}
+                if m.get("is_best", False) or MetricsCalculator._normalized_classification(m) in {"good", "excellent"}
             )
 
             # Calculate percentages
@@ -1492,7 +1484,7 @@ class MetricsCalculator:
                 "mistakes": (mistakes / total_moves) * 100.0,
                 "blunders": (blunders / total_moves) * 100.0,
                 "inaccuracies": (inaccuracies / total_moves) * 100.0,
-                "quality_moves": (quality_moves / total_moves) * 100.0
+                "quality_moves": (quality_moves / total_moves) * 100.0,
             }
 
         except Exception as e:
@@ -1537,11 +1529,7 @@ class MetricsCalculator:
 
             # Calculate time pressure (percentage of moves with less than 10% of average time)
             time_pressure = (
-                sum(
-                    1.0
-                    for t in time_data
-                    if float(t.get("time_spent", 0.0)) < 0.1 * avg_time_per_move
-                )
+                sum(1.0 for t in time_data if float(t.get("time_spent", 0.0)) < 0.1 * avg_time_per_move)
                 / total_moves
                 * 100.0
             )

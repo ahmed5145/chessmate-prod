@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0002_subscriptiontier_remove_profile_chesscom_username_and_more'),
+        ("core", "0002_subscriptiontier_remove_profile_chesscom_username_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='profile',
-            name='chess_com_username',
-            field=models.CharField(blank=True, default='', max_length=50),
+            model_name="profile",
+            name="chess_com_username",
+            field=models.CharField(blank=True, default="", max_length=50),
         ),
         migrations.AlterField(
-            model_name='profile',
-            name='lichess_username',
-            field=models.CharField(blank=True, default='', max_length=50),
+            model_name="profile",
+            name="lichess_username",
+            field=models.CharField(blank=True, default="", max_length=50),
         ),
     ]

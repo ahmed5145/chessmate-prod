@@ -59,7 +59,7 @@ ERROR_RESPONSE_STRUCTURE: ErrorResponseDict = {
     "message": None,
     "error": None,
     "details": None,
-    "request_id": None
+    "request_id": None,
 }
 
 # Error code mapping
@@ -622,10 +622,7 @@ def handle_token_error(error, context=None):
         "status": "error",
         "code": code,
         "message": message,
-        "details": {
-            "error": str(error),
-            "context": context
-        },
+        "details": {"error": str(error), "context": context},
         "request_id": get_request_id(),
     }
 
@@ -676,10 +673,7 @@ def handle_throttled_error(wait_time=None, scope=None):
         "status": "error",
         "code": "rate_limit_exceeded",
         "message": message,
-        "details": {
-            "wait_time": wait_time,
-            "scope": scope
-        },
+        "details": {"wait_time": wait_time, "scope": scope},
         "request_id": get_request_id(),
     }
 
@@ -696,6 +690,7 @@ def auth_error_handler(func):
     Decorator for handling authentication-related errors consistently.
     Similar to api_error_handler but specifically for auth views.
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -709,13 +704,13 @@ def auth_error_handler(func):
         except PermissionDenied as e:
             return handle_permission_error(message=str(e))
         except Throttled as e:
-            return handle_throttled_error(wait_time=getattr(e, 'wait', None))
+            return handle_throttled_error(wait_time=getattr(e, "wait", None))
         except DRFValidationError as e:
             return create_error_response(
                 error_type="validation_failed",
                 message=str(e),
-                details={"errors": e.detail if hasattr(e, 'detail') else []},
-                status_code=status.HTTP_400_BAD_REQUEST
+                details={"errors": e.detail if hasattr(e, "detail") else []},
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
         except HANDLED_EXCEPTION_TYPES as e:
             logger.error("Unhandled error in %s: %s", func.__name__, e, exc_info=True)
@@ -723,8 +718,9 @@ def auth_error_handler(func):
                 error_type="auth_error",
                 message="An unexpected error occurred during authentication.",
                 details={"error": str(e)} if settings.DEBUG else {},
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
     return wrapper
 
 

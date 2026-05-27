@@ -193,7 +193,7 @@ if SENTRY_DSN:
 
         # Get the root level from LOGGING dict safely
         root_level = LOGGING.get("root", {}).get("level", DEBUG_LEVEL)
-        
+
         # Get the numeric logging level for the specified level string
         root_level_int = getattr(logging, root_level) if isinstance(root_level, str) else root_level
 
