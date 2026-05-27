@@ -807,8 +807,47 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
         {"game_id": game_id, "status": "success"|"failed", "result": {...} or "error": "..."}
     """
     try:
+        # Resolve the build_game_result function robustly across import paths.
+        # Some CI environments import modules under both `core` and
+        # `chess_mate.core`, which can cause mocks/patches to attach to a
+        # different module object. Try several candidates and prefer a
+        # patched/callable function when available.
+        builder = None
+        # 1) Prefer local global if present
+        builder = globals().get("build_game_result")
+
+        # 2) Check common module names for patched attributes
+        import sys
+        if not callable(builder):
+            mod = sys.modules.get("core.tasks")
+            if mod is not None:
+                builder = getattr(mod, "build_game_result", None)
+
+        if not callable(builder):
+            mod = sys.modules.get("chess_mate.core.tasks")
+            if mod is not None:
+                builder = getattr(mod, "build_game_result", None)
+
+        # 3) Fallback to importing the implementation directly
+        if not callable(builder):
+            try:
+                from importlib import import_module
+
+                mod_impl = None
+                try:
+                    mod_impl = import_module("core.analysis.stockfish_game_result")
+                except Exception:
+                    mod_impl = import_module("chess_mate.core.analysis.stockfish_game_result")
+
+                builder = getattr(mod_impl, "build_game_result", None)
+            except Exception:
+                builder = None
+
+        if not callable(builder):
+            raise RuntimeError("build_game_result implementation not found")
+
         # Build per-game result using stockfish analysis
-        game_result = build_game_result(pgn, game_id=game_id)
+        game_result = builder(pgn, game_id=game_id)
 
         if not game_result:
             return {
