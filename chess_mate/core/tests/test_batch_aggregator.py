@@ -3,20 +3,57 @@ Test batch_aggregator with two test games from step 4.
 Verifies schema completeness and field types.
 """
 import pytest
-from core.analysis.stockfish_game_result import build_game_result
 from core.analysis.batch_aggregator import aggregate_batch
-from core.tests.test_stockfish_game_result import CLEAN_GAME_PGN, BLUNDER_GAME_PGN
+
+
+def _make_game_result(
+    game_id: str,
+    result: str,
+    opening_name: str,
+    opening_drop: float,
+    endgame_drop: float,
+    tactical_theme: str,
+):
+    """Create a lightweight per-game result fixture for batch aggregation tests."""
+    return {
+        "game_id": game_id,
+        "result": result,
+        "player_color": "white",
+        "opening_name": opening_name,
+        "analysis_failed": False,
+        "phase_breakdown": {
+            "opening": {"moves": 8, "avg_eval_drop": opening_drop, "blunders": 0, "mistakes": 1},
+            # Keep middlegame empty to validate no_data sentinel behavior
+            "middlegame": {"moves": 0, "avg_eval_drop": 0.0, "blunders": 0, "mistakes": 0},
+            "endgame": {"moves": 6, "avg_eval_drop": endgame_drop, "blunders": 1, "mistakes": 0},
+        },
+        "move_quality": {
+            "brilliant": 0,
+            "best": 1,
+            "excellent": 2,
+            "good": 6,
+            "inaccuracy": 1,
+            "mistake": 1,
+            "blunder": 1,
+        },
+        "critical_moments": [
+            {
+                "phase": "endgame",
+                "tactical_theme": tactical_theme,
+                "eval_swing": 0.9,
+            }
+        ],
+    }
 
 
 def test_batch_aggregator_schema_structure():
     """Test that batch aggregator produces all required fields with correct types."""
-    # Build per-game results
-    clean_result = build_game_result(CLEAN_GAME_PGN, game_id="clean-1")
-    blunder_result = build_game_result(BLUNDER_GAME_PGN, game_id="blunder-1")
-    # Add three more simple fixtures to meet minimum batch size for aggregation
-    clean_result_2 = build_game_result(CLEAN_GAME_PGN, game_id="clean-2")
-    clean_result_3 = build_game_result(CLEAN_GAME_PGN, game_id="clean-3")
-    blunder_result_2 = build_game_result(BLUNDER_GAME_PGN, game_id="blunder-2")
+    # Use lightweight fixtures instead of engine-backed analysis to keep test deterministic.
+    clean_result = _make_game_result("clean-1", "1-0", "Italian Game", 0.18, 0.22, "pin")
+    blunder_result = _make_game_result("blunder-1", "0-1", "Sicilian Defense", 0.38, 0.70, "fork")
+    clean_result_2 = _make_game_result("clean-2", "1-0", "Italian Game", 0.12, 0.25, "pin")
+    clean_result_3 = _make_game_result("clean-3", "1/2-1/2", "French Defense", 0.20, 0.28, "hanging_piece")
+    blunder_result_2 = _make_game_result("blunder-2", "0-1", "Caro-Kann Defense", 0.42, 0.75, "fork")
 
     per_game_results = [
         clean_result,
@@ -25,7 +62,13 @@ def test_batch_aggregator_schema_structure():
         clean_result_3,
         blunder_result_2,
     ]
-    pgn_list = [CLEAN_GAME_PGN, BLUNDER_GAME_PGN, CLEAN_GAME_PGN, CLEAN_GAME_PGN, BLUNDER_GAME_PGN]
+    pgn_list = [
+        '[Date "2026.05.01"]',
+        '[Date "2026.05.02"]',
+        '[Date "2026.05.03"]',
+        '[Date "2026.05.04"]',
+        '[Date "2026.05.05"]',
+    ]
 
     # Aggregate
     batch_summary = aggregate_batch(per_game_results, pgn_list)
@@ -126,11 +169,11 @@ def test_batch_aggregator_schema_structure():
 
 def test_batch_aggregator_data_consistency():
     """Test that aggregated data makes logical sense."""
-    clean_result = build_game_result(CLEAN_GAME_PGN, game_id="clean-1")
-    blunder_result = build_game_result(BLUNDER_GAME_PGN, game_id="blunder-1")
-    clean_result_2 = build_game_result(CLEAN_GAME_PGN, game_id="clean-2")
-    clean_result_3 = build_game_result(CLEAN_GAME_PGN, game_id="clean-3")
-    blunder_result_2 = build_game_result(BLUNDER_GAME_PGN, game_id="blunder-2")
+    clean_result = _make_game_result("clean-1", "1-0", "Italian Game", 0.18, 0.22, "pin")
+    blunder_result = _make_game_result("blunder-1", "0-1", "Sicilian Defense", 0.38, 0.70, "fork")
+    clean_result_2 = _make_game_result("clean-2", "1-0", "Italian Game", 0.12, 0.25, "pin")
+    clean_result_3 = _make_game_result("clean-3", "1/2-1/2", "French Defense", 0.20, 0.28, "hanging_piece")
+    blunder_result_2 = _make_game_result("blunder-2", "0-1", "Caro-Kann Defense", 0.42, 0.75, "fork")
 
     per_game_results = [
         clean_result,
@@ -139,7 +182,13 @@ def test_batch_aggregator_data_consistency():
         clean_result_3,
         blunder_result_2,
     ]
-    pgn_list = [CLEAN_GAME_PGN, BLUNDER_GAME_PGN, CLEAN_GAME_PGN, CLEAN_GAME_PGN, BLUNDER_GAME_PGN]
+    pgn_list = [
+        '[Date "2026.05.01"]',
+        '[Date "2026.05.02"]',
+        '[Date "2026.05.03"]',
+        '[Date "2026.05.04"]',
+        '[Date "2026.05.05"]',
+    ]
 
     batch_summary = aggregate_batch(per_game_results, pgn_list)
 
