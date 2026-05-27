@@ -49,6 +49,8 @@ describe("ForgotPassword Component", () => {
 
     await waitFor(() => {
       expect(requestPasswordReset).toHaveBeenCalledWith("test@example.com");
+    });
+    await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith("Password reset instructions sent to your email");
     });
 
@@ -73,6 +75,8 @@ describe("ForgotPassword Component", () => {
 
     await waitFor(() => {
       expect(requestPasswordReset).toHaveBeenCalledWith("invalid@example.com");
+    });
+    await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Invalid email");
     });
 

@@ -62,6 +62,8 @@ describe("ResetPassword Component", () => {
 
     await waitFor(() => {
       expect(resetPassword).toHaveBeenCalledWith("test-token", "Newpassword123!");
+    });
+    await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith("Password reset successful!");
     });
 
@@ -90,6 +92,8 @@ describe("ResetPassword Component", () => {
 
     await waitFor(() => {
       expect(resetPassword).toHaveBeenCalledWith("test-token", "Newpassword123!");
+    });
+    await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Invalid token");
     });
 

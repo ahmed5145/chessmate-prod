@@ -4,6 +4,7 @@ import App from './App';
 
 jest.mock('./context/ThemeContext', () => ({
   ThemeProvider: ({ children }) => <>{children}</>,
+  useTheme: () => ({ isDarkMode: false, toggleDarkMode: jest.fn() }),
 }));
 
 jest.mock('./contexts/UserContext', () => ({

@@ -51,7 +51,11 @@ describe("UserProfile Component", () => {
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("testuser")).toBeInTheDocument();
+    });
+    await waitFor(() => {
       expect(screen.getByDisplayValue("test@example.com")).toBeInTheDocument();
+    });
+    await waitFor(() => {
       expect(screen.getByDisplayValue("1500")).toBeInTheDocument();
     });
 
@@ -126,6 +130,8 @@ describe("UserProfile Component", () => {
           autoAnalyze: true,
         },
       });
+    });
+    await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith("Profile updated successfully");
     });
   });
@@ -154,6 +160,8 @@ describe("UserProfile Component", () => {
 
     await waitFor(() => {
       expect(updateUserProfile).toHaveBeenCalled();
+    });
+    await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(mockError.error);
     });
   });

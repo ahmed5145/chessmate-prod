@@ -1,6 +1,35 @@
 import pytest
 from core.analysis.stockfish_game_result import build_game_result
 
+
+class _FakeAnalyzer:
+    """Deterministic analyzer used to keep tests engine-free and fast in CI."""
+
+    def __init__(self):
+        self._calls = 0
+
+    def analyze_position(self, _board, depth=20):
+        # Monotonic decreasing score creates at least one critical moment.
+        score = float(-self._calls)
+        self._calls += 1
+        return {
+            "score": score,
+            "depth": depth,
+            "pv": ["e2e4", "e7e5", "g1f3"],
+            "time": 0.01,
+            "nodes": 1000,
+        }
+
+
+@pytest.fixture(autouse=True)
+def _mock_stockfish_analyzer(monkeypatch):
+    """Prevent spawning real Stockfish in schema tests."""
+    fake = _FakeAnalyzer()
+    monkeypatch.setattr(
+        "core.analysis.stockfish_game_result.StockfishAnalyzer.get_instance",
+        lambda: fake,
+    )
+
 # Two small PGN examples embedded for tests
 CLEAN_GAME_PGN = """
 [Event "Test"]
