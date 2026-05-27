@@ -34,11 +34,11 @@ import redis
 from django.conf import settings
 from django.core.cache import cache
 from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.utils.cache import add_never_cache_headers
 from django.utils.deprecation import MiddlewareMixin
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
-from django.utils.cache import add_never_cache_headers
 
 from .cache import CACHE_BACKEND_REDIS, cache_delete, cache_get, cache_set
 from .error_handling import create_error_response
@@ -715,7 +715,7 @@ class RequestFixMiddleware:
                 try:
                     import base64
                     import json
-                    
+
                     # Get the payload part (second segment of JWT)
                     parts = token.split('.')
                     if len(parts) >= 2:

@@ -13,6 +13,7 @@ import uuid
 from typing import Any, Dict
 
 import redis
+
 try:
     import psutil
 except ImportError:
@@ -33,10 +34,10 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from .cache import cache_stats
-from .redis_connection import get_redis_connection
 
 # Local application imports
 from .error_handling import api_error_handler, create_success_response
+from .redis_connection import get_redis_connection
 
 # Configure logging
 logger = logging.getLogger(__name__)

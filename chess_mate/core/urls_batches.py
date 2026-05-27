@@ -2,6 +2,7 @@
 URL configuration for batch analysis endpoints (PRD section 11, Step 9).
 """
 from django.urls import path
+
 from . import views_batches
 
 urlpatterns = [

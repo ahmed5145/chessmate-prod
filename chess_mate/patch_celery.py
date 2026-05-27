@@ -4,8 +4,8 @@ Script to patch Vine for Python 3.12 and then run the Django server
 """
 
 import os
-import sys
 import subprocess
+import sys
 
 # First add the current directory to the path so we can import vine_patch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

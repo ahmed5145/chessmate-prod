@@ -3,8 +3,8 @@
 Depends on 0013 so it runs before 0014 which alters `payment.amount`.
 Creates both database tables and Django model state.
 """
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 from django.utils import timezone
 
 

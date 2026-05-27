@@ -1,6 +1,5 @@
 import pytest
-from core.analysis.stockfish_game_result import build_game_result
-import core.analysis.stockfish_game_result as stockfish_game_result
+from core.analysis.stockfish_game_result import StockfishAnalyzer, build_game_result
 
 
 class _FakeAnalyzer:
@@ -27,7 +26,7 @@ def _mock_stockfish_analyzer(monkeypatch):
     """Prevent spawning real Stockfish in schema tests."""
     fake = _FakeAnalyzer()
     monkeypatch.setattr(
-        stockfish_game_result.StockfishAnalyzer,
+        StockfishAnalyzer,
         "get_instance",
         staticmethod(lambda: fake),
     )

@@ -11,18 +11,17 @@ This test exercises the full pipeline:
 External services (Stockfish, OpenAI) are mocked.
 Celery runs synchronously (CELERY_TASK_ALWAYS_EAGER).
 """
+import time
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from celery import current_app
+from core.models import BatchAnalysisReport
+from core.tasks import analyze_batch_task
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-import time
-
-from core.models import BatchAnalysisReport
-from core.tasks import analyze_batch_task
-from celery import current_app
-
 
 # Fixture: Valid PGN games
 VALID_PGNS = [

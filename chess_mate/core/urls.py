@@ -3,6 +3,7 @@ URL configuration for the ChessMate application.
 """
 
 from django.urls import include, path
+
 from . import game_views
 
 # Use this pattern to create a modular URL structure

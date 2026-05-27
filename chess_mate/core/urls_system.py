@@ -4,19 +4,19 @@ URL configuration for system-related endpoints.
 
 from django.urls import path
 
-from .views import clear_cache, check_task_status, app_info
 from .health_checks import system_status_view
 from .util_views import (
-    health_check,
-    get_system_constants,
-    version_check,
-    get_server_time,
-    debug_request,
     api_documentation,
+    debug_request,
+    get_server_time,
+    get_system_constants,
+    health_check,
     openapi_spec,
-    trigger_error,
     rate_limiter_info,
+    trigger_error,
+    version_check,
 )
+from .views import app_info, check_task_status, clear_cache
 
 urlpatterns = [
     path("health/", health_check, name="health_check"),

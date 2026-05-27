@@ -2,8 +2,9 @@
 Application configuration for the core app.
 """
 
-from django.apps import AppConfig
 import logging
+
+from django.apps import AppConfig
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,8 @@ class CoreConfig(AppConfig):
     def _register_signals(self):
         """Register signal handlers."""
         # Importing here to avoid circular imports
-        from django.db.models.signals import post_save
         from django.contrib.auth.models import User
+        from django.db.models.signals import post_save
 
         # Define the signal handler function
         def create_user_profile(sender, instance, created, **kwargs):

@@ -4,8 +4,8 @@ Script to patch Vine for Python 3.12 and then run Celery worker
 """
 
 import os
-import sys
 import subprocess
+import sys
 
 # First add the current directory to the path so we can import vine_patch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -25,7 +25,7 @@ try:
     
     # Import Celery app
     from chess_mate.celery import app
-    
+
     # Start the worker
     argv = ["celery", "worker", "--app=chess_mate", "-l", "info"]
     app.worker_main(argv)

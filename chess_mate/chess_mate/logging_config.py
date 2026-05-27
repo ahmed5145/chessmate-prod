@@ -10,8 +10,8 @@ This module provides a comprehensive logging configuration with:
 - Sentry integration for error tracking (optional)
 """
 
-import os
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict  # Add type imports
 

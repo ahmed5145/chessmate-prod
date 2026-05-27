@@ -2,16 +2,17 @@
 Views for batch analysis operations (PRD section 11, Step 9).
 """
 import uuid
+
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
 
 from .models import BatchAnalysisReport
 from .serializers_batches import (
+    BatchAnalysisReportSerializer,
     BatchCreateSerializer,
     BatchStatusSerializer,
-    BatchAnalysisReportSerializer,
 )
 from .tasks import analyze_batch_task
 

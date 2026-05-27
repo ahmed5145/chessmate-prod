@@ -6,6 +6,7 @@ import inspect
 import sys
 import warnings
 
+
 def patch_vine():
     """
     Apply a monkey patch to the vine.five module to fix 
@@ -13,7 +14,7 @@ def patch_vine():
     """
     try:
         import vine.five
-        
+
         # Check if we're on Python 3.12+ where formatargspec was removed
         if not hasattr(inspect, 'formatargspec'):
             # Define our own formatargspec function

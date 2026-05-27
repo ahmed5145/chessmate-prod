@@ -1,10 +1,11 @@
 """
 Serializers for batch analysis operations (PRD section 11).
 """
-from rest_framework import serializers
-from typing import List, Dict, Any
-import chess.pgn
 from io import StringIO
+from typing import Any, Dict, List
+
+import chess.pgn
+from rest_framework import serializers
 
 from .models import BatchAnalysisReport, Game
 

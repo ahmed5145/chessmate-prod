@@ -5,13 +5,14 @@ The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/4.2/topics/http/urls/
 """
 
+from typing import Any, Callable
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import HttpRequest, JsonResponse
 from django.urls import include, path
 from django.views.generic import RedirectView
-from typing import Any, Callable
 
 # Define type for views to prevent linter errors
 ViewType = Callable[[HttpRequest], Any]

@@ -7,10 +7,10 @@ This is a minimal configuration for testing purposes.
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin  # type: ignore
+from django.http import HttpRequest, JsonResponse
+from django.shortcuts import render
 from django.urls import include, path  # type: ignore
 from django.views.generic import RedirectView
-from django.http import JsonResponse, HttpRequest
-from django.shortcuts import render
 
 # Import directly from the package-qualified core module with appropriate error handling
 try:

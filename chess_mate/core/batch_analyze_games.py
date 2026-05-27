@@ -6,8 +6,8 @@ import logging
 
 from django.utils import timezone
 
-from .tasks import analyze_game_task
 from .task_manager import TaskManager
+from .tasks import analyze_game_task
 
 logger = logging.getLogger(__name__)
 task_manager = TaskManager()

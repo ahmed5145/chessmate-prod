@@ -8,9 +8,9 @@ to run tests with the correct imports and paths.
 
 # pylint: disable=unused-argument,redefined-outer-name,dangerous-default-value
 
+import inspect
 import os
 import sys
-import inspect
 from collections import namedtuple
 from typing import Any
 

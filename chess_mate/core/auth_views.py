@@ -11,13 +11,13 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Tuple
 
-from django.contrib.auth import authenticate, logout
 from django.conf import settings
+from django.contrib.auth import authenticate, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.sites.shortcuts import get_current_site
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core import mail
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from django.db import transaction
 from django.db.utils import IntegrityError
@@ -29,7 +29,7 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.html import strip_tags
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import AuthenticationFailed
@@ -39,15 +39,17 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .decorators import auth_csrf_exempt, rate_limit
 from .error_handling import (
     InvalidOperationError,
-    ValidationError as APIValidationError,
+)
+from .error_handling import ValidationError as APIValidationError
+from .error_handling import (
     api_error_handler,
     create_error_response,
 )
-from .serializers import UserSerializer
-from .validators import validate_password_complexity
 
 # Import models directly for actual usage
 from .models import Profile
+from .serializers import UserSerializer
+from .validators import validate_password_complexity
 
 # Configure logging
 logger = logging.getLogger(__name__)

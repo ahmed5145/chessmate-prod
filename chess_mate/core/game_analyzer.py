@@ -10,11 +10,11 @@ import logging
 import os
 import random
 import re
+import sys
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, TypedDict, Union, cast
 
-import sys
 import chess
 import chess.engine
 import chess.pgn
@@ -30,15 +30,15 @@ from .analysis.metrics_calculator import MetricsCalculator, MetricsError
 from .analysis.stockfish_analyzer import StockfishAnalyzer
 from .cache import CACHE_BACKEND_REDIS, cache_delete, cache_get, cache_set
 from .error_handling import (
+    AnalysisError,
     ExternalServiceError,
+    MetricsError,
     ResourceNotFoundError,
     TaskError,
     ValidationError,
-    AnalysisError,
-    MetricsError
 )
 from .models import Game, GameAnalysis
-from .task_manager import (TASK_STATUS_FAILURE, TASK_STATUS_SUCCESS, TaskManager)
+from .task_manager import TASK_STATUS_FAILURE, TASK_STATUS_SUCCESS, TaskManager
 
 # Configure logging
 logger = logging.getLogger(__name__)

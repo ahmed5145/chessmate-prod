@@ -10,6 +10,9 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+# Third-party imports
+import stripe
+
 # Django imports
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -22,8 +25,11 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-# Third-party imports
-import stripe
+# Local imports - Cache utilities
+from .cache import CACHE_BACKEND_REDIS, cacheable, invalidate_cache_for
+
+# Local imports - Constants
+from .constants import CREDIT_VALUES
 
 # Local imports - Error handling
 from .error_handling import (
@@ -31,12 +37,6 @@ from .error_handling import (
     create_error_response,
     create_success_response,
 )
-
-# Local imports - Cache utilities
-from .cache import CACHE_BACKEND_REDIS, cacheable, invalidate_cache_for
-
-# Local imports - Constants
-from .constants import CREDIT_VALUES
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -347,8 +347,9 @@ def update_profile(request):
     """
     try:
         # Import here to avoid circular imports
-        from .models import Profile
         from django.contrib.auth.models import User
+
+        from .models import Profile
         
         user = request.user
 
@@ -1090,8 +1091,8 @@ def minimal_profile_view(request):
             token = auth_header.split(' ')[1]
             logger.info(f"Attempting manual token authentication")
             
-            from rest_framework_simplejwt.tokens import AccessToken
             from django.contrib.auth.models import User
+            from rest_framework_simplejwt.tokens import AccessToken
             
             try:
                 # Decode the token

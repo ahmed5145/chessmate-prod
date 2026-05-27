@@ -8,7 +8,7 @@
 
 import logging
 import multiprocessing
- 
+
 from redis import Redis
 from rq import Worker
 

@@ -4,6 +4,7 @@ Validation utility functions for the ChessMate application.
 
 import logging
 import re
+
 from django.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)

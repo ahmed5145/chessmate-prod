@@ -1,10 +1,9 @@
+import json
 import sys
 import types
 from types import SimpleNamespace
-import json
 
 import pytest
-
 from core.analysis import coaching_generator as cg
 
 

@@ -13,12 +13,11 @@ import hashlib
 import inspect
 import json
 import logging
-import sys
-import unittest.mock
 import random
+import sys
 import time
+import unittest.mock
 import uuid
-from urllib.parse import urlparse
 from functools import wraps
 from typing import (
     Any,
@@ -32,14 +31,15 @@ from typing import (
     Union,
     cast,
 )
+from urllib.parse import urlparse
 
 import redis
-from redis import Redis
 from django.conf import settings  # type: ignore
 from django.core.cache import cache, caches  # type: ignore
 from django.core.cache.backends.base import BaseCache  # type: ignore
 from django.db.models import Model  # type: ignore
 from django.http import HttpRequest, HttpResponse  # type: ignore
+from redis import Redis
 from redis.exceptions import RedisError
 from rest_framework.response import Response  # type: ignore
 

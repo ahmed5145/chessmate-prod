@@ -6,21 +6,28 @@ import json
 import logging
 import os
 import time
+import traceback
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 import redis
-from celery import Task, shared_task, group, chord
-from celery.utils.log import get_task_logger
+from celery import Task, chord, group, shared_task
 from celery.exceptions import MaxRetriesExceededError
+from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 from openai import OpenAI, OpenAIError
-import traceback
 
 from .ai_feedback import AIFeedbackGenerator
+from .analysis.batch_aggregator import BatchAggregationError, aggregate_batch
+from .analysis.coaching_generator import (
+    CoachingGeneratorError,
+    generate_coaching_report,
+)
+from .analysis.metrics_calculator import MetricsError
+from .analysis.stockfish_game_result import build_game_result
 from .cache import cache_delete, cache_get, cache_set, cacheable
 from .error_handling import (
     ExternalServiceError,
@@ -28,20 +35,16 @@ from .error_handling import (
     TaskError,
     ValidationError,
 )
-from .game_analyzer import GameAnalyzer, AnalysisError
-from .analysis.metrics_calculator import MetricsError
-from .analysis.batch_aggregator import aggregate_batch, BatchAggregationError
-from .analysis.coaching_generator import generate_coaching_report, CoachingGeneratorError
-from .analysis.stockfish_game_result import build_game_result
-from .models import Game, GameAnalysis, Profile, BatchAnalysisReport
+from .game_analyzer import AnalysisError, GameAnalyzer
+from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 from .task_manager import (
-    TaskManager, 
+    TASK_STATUS_FAILURE,
     TASK_STATUS_PENDING,
+    TASK_STATUS_RETRY,
+    TASK_STATUS_REVOKED,
     TASK_STATUS_STARTED,
     TASK_STATUS_SUCCESS,
-    TASK_STATUS_FAILURE,
-    TASK_STATUS_REVOKED,
-    TASK_STATUS_RETRY
+    TaskManager,
 )
 
 logger = get_task_logger(__name__)

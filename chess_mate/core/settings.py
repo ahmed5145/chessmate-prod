@@ -23,6 +23,7 @@ REST_FRAMEWORK = {
 
 # JWT settings
 from datetime import timedelta
+
 JWT_SIGNING_KEY = globals().get('SECRET_KEY', 'chessmate-dev-jwt-signing-key')
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),

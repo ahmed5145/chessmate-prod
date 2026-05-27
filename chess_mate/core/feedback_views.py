@@ -3,10 +3,9 @@ AI Feedback-related views for the ChessMate application.
 Includes endpoints for generating and retrieving AI-powered game analysis feedback.
 """
 
-import sys
-
 # Standard library imports
 import logging
+import sys
 from typing import Any, Dict
 
 # Django imports

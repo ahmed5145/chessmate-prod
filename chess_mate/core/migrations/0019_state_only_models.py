@@ -4,8 +4,8 @@ This migration injects model state without executing any SQL so it can be
 applied when the database is missing those tables. It depends on the
 existing latest migration in the `core` app to keep the migration graph linear.
 """
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 from django.utils import timezone
 
 

@@ -7,6 +7,7 @@ but type stubs to assist with type checking.
 """
 
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union
+
 from django.db.models import Manager, Model, QuerySet
 
 # Type variables for models

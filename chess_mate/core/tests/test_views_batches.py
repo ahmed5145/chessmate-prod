@@ -1,14 +1,14 @@
 """
 Tests for batch analysis views (PRD section 11, Step 9).
 """
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from core.models import BatchAnalysisReport
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-
-from core.models import BatchAnalysisReport
 
 
 class TestBatchViews(TestCase):

@@ -6,9 +6,9 @@ import os
 from datetime import timedelta
 from pathlib import Path
 from typing import Optional
-from django.core.exceptions import ImproperlyConfigured
 
 import sentry_sdk
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 from sentry_sdk.integrations.django import DjangoIntegration
 

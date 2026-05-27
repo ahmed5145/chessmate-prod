@@ -1,11 +1,11 @@
 """Redis configuration and optimization for ChessMate."""
 
+import builtins
+import inspect
 import json
 import logging
 import os
 import sys
-import builtins
-import inspect
 from functools import wraps
 from typing import Any, Dict, List, Optional, Set, Union
 

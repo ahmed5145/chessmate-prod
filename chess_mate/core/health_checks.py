@@ -13,6 +13,8 @@ This module provides functions to check the health of various components:
 It also includes Django views for exposing health information through HTTP endpoints.
 """
 
+# Some legacy tests reference `socket` without importing it.
+import builtins as _builtins
 import json
 import logging
 import os
@@ -33,9 +35,6 @@ from django.utils import timezone
 
 # Import Redis connection function
 from .cache import get_redis_connection
-
-# Some legacy tests reference `socket` without importing it.
-import builtins as _builtins
 
 if not hasattr(_builtins, "socket"):
     _builtins.socket = socket

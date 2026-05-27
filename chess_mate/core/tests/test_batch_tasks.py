@@ -1,17 +1,17 @@
 """
 Tests for Phase 1 batch analysis Celery tasks.
 """
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from django.contrib.auth.models import User
-from django.test import TestCase
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from core.models import BatchAnalysisReport
 from core.tasks import (
+    aggregate_and_report_task,
     analyze_batch_task,
     analyze_single_game_subtask,
-    aggregate_and_report_task,
 )
+from django.contrib.auth.models import User
+from django.test import TestCase
 
 
 class TestAnalyzeSingleGameSubtask(TestCase):

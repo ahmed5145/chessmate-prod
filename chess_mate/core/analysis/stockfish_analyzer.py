@@ -4,20 +4,20 @@ Handles all interactions with the Stockfish chess engine.
 """
 
 import atexit
+import io
 import logging
 import os
 import threading
 import time
-from typing import Any, Dict, Optional, cast, List
-import io
+from typing import Any, Dict, List, Optional, cast
 
 import chess
 import chess.engine
 import chess.pgn
 from django.conf import settings
 
-from .position_evaluator import PositionEvaluator
 from ..error_handling import AnalysisError
+from .position_evaluator import PositionEvaluator
 
 logger = logging.getLogger(__name__)
 

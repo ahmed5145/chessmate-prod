@@ -1,20 +1,19 @@
 """
 Tests for batch analysis serializers.
 """
-import pytest
-from unittest.mock import Mock, patch
 from io import BytesIO
+from unittest.mock import Mock, patch
 
+import pytest
+from core.models import BatchAnalysisReport
+from core.serializers_batches import (
+    BatchAnalysisReportSerializer,
+    BatchCreateSerializer,
+    BatchStatusSerializer,
+)
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
-
-from core.models import BatchAnalysisReport
-from core.serializers_batches import (
-    BatchCreateSerializer,
-    BatchStatusSerializer,
-    BatchAnalysisReportSerializer,
-)
 
 
 class TestBatchCreateSerializer(TestCase):

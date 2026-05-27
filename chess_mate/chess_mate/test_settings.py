@@ -172,7 +172,9 @@ STOCKFISH_MOVE_OVERHEAD = 30
 import warnings
 
 try:
-    from django.utils.deprecation import RemovedInDjango60Warning as _RemovedInDjangoWarning
+    from django.utils.deprecation import (
+        RemovedInDjango60Warning as _RemovedInDjangoWarning,
+    )
 except (ImportError, AttributeError):
     _RemovedInDjangoWarning = DeprecationWarning
 

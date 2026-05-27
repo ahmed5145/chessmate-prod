@@ -3,11 +3,11 @@ Batch Aggregator: Cross-game pattern detection and synthesis (PRD section 11).
 Pure Python — no Stockfish, no AI. Takes per-game results and produces batch_summary.
 """
 
-from typing import Any, Dict, List, Optional
+import logging
+import re
 import statistics
 from collections import Counter
-import re
-import logging
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

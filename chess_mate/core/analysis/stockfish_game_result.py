@@ -4,17 +4,17 @@ This module calls existing `StockfishAnalyzer` and `MetricsCalculator` and
 assembles the exact per-game schema required by the PRD.
 """
 
-from typing import Any, Dict, List
 import json
-import os
 import logging
+import os
+from typing import Any, Dict, List
 
 import chess
 
-from .stockfish_analyzer import StockfishAnalyzer
-from .metrics_calculator import MetricsCalculator
-from .explanation_templates import get_explanation
 from ..eco_codes import get_opening_name
+from .explanation_templates import get_explanation
+from .metrics_calculator import MetricsCalculator
+from .stockfish_analyzer import StockfishAnalyzer
 
 logger = logging.getLogger(__name__)
 

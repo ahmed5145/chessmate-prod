@@ -7,9 +7,9 @@ and retrieval for background tasks executed via Celery.
 
 import json
 import logging
-import time
 import os
 import sys
+import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
@@ -18,8 +18,8 @@ from django.conf import settings
 from redis.exceptions import RedisError  # type: ignore
 
 from .cache import CACHE_BACKEND_REDIS, cache_delete, cache_get, cache_set
-from .redis_connection import get_redis_connection
 from .error_handling import ResourceNotFoundError, ValidationError
+from .redis_connection import get_redis_connection
 
 logger = logging.getLogger(__name__)
 

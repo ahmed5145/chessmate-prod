@@ -5,9 +5,9 @@ Django settings for chess_mate project.
 import os
 from datetime import timedelta
 from pathlib import Path
+
 import environ  # type: ignore
 from django.core.exceptions import ImproperlyConfigured
-
 from dotenv import dotenv_values, load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.

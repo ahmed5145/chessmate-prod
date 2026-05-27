@@ -9,23 +9,23 @@ import json
 import logging
 import threading
 import traceback
-from typing import Any, Callable, Dict, List, Optional, Literal, TypedDict, cast
 from functools import wraps
+from typing import Any, Callable, Dict, List, Literal, Optional, TypedDict, cast
 
 from django.conf import settings
 from django.http import JsonResponse
 from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.exceptions import (
     APIException,
     AuthenticationFailed,
     ParseError,
     PermissionDenied,
     Throttled,
-    ValidationError as DRFValidationError
 )
+from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
-from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 logger = logging.getLogger(__name__)
 HANDLED_EXCEPTION_TYPES = (APIException, ValueError, TypeError, KeyError, RuntimeError, AttributeError)
