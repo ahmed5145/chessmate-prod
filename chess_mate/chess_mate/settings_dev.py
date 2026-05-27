@@ -30,7 +30,7 @@ CACHES = {
 }
 
 # Disable Redis for development
-REDIS_URL = None
+REDIS_URL: str | None = None
 
 # Development specific logging
 LOGGING = {

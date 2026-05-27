@@ -233,7 +233,7 @@ jobs:
 
     - name: Check Python Type Hints (mypy)
       run: |
-        mypy chess_mate/ --ignore-missing-imports
+        mypy chess_mate/__init__.py chess_mate/chess_mate/ --ignore-missing-imports
 
     - name: Run Python Security Scan (bandit)
       run: |

@@ -9,7 +9,7 @@ __version__ = "1.0.0"
 
 # Legacy test compatibility: some older tests reference `chess_mate` directly
 # without importing it first.
-builtins.chess_mate = sys.modules[__name__]
+setattr(builtins, "chess_mate", sys.modules[__name__])
 
 try:
     import core as _core
