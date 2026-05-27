@@ -152,6 +152,13 @@ def generate_coaching_report(
             response_format=response_format,
         )
 
+        # Support both the OpenAI SDK response shape and our test double shape.
+        if hasattr(response, "output_parsed") and response.output_parsed is not None:
+            parsed = response.output_parsed
+            if isinstance(parsed, dict):
+                return parsed
+            raise CoachingGeneratorError(f"OpenAI returned unexpected type: {type(parsed)}")
+
         # Extract JSON string from response.choices[0].message.content
         content = response.choices[0].message.content
         logger.info(f"OpenAI response (first 200 chars): {content[:200]}")

@@ -637,7 +637,7 @@ def memoize(
                 key_parts.append(f"{k}:{v}")
 
             key = ":".join(key_parts)
-            hash_key = f"{KEY_PREFIX}memoize:{hashlib.md5(key.encode()).hexdigest()}"
+            hash_key = f"{KEY_PREFIX}memoize:{hashlib.sha256(key.encode()).hexdigest()}"
 
             now = time.time()
             local_entry = local_memo.get(hash_key)
@@ -928,7 +928,7 @@ def generate_cache_key(prefix: str, *args: Any, **kwargs: Any) -> str:
     # If key is too long, hash the latter part
     if len(key) > 200:
         prefix_part = ":".join(key_parts[:2])
-        hash_part = hashlib.md5(":".join(key_parts[2:]).encode()).hexdigest()
+        hash_part = hashlib.sha256(":".join(key_parts[2:]).encode()).hexdigest()
         key = f"{prefix_part}:{hash_part}"
 
     return key
