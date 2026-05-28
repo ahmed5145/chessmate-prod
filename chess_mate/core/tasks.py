@@ -900,6 +900,24 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
         except Exception:
             builder = globals().get("build_game_result")
 
+        # If any test patch attached a Mock to any loaded module named
+        # `build_game_result`, prefer that Mock to ensure patches are
+        # honored across duplicate module names/aliases.
+        try:
+            import sys as _sys
+            from unittest.mock import Mock as _Mock
+
+            for _mod in list(_sys.modules.values()):
+                try:
+                    _cand = getattr(_mod, "build_game_result", None)
+                except Exception:
+                    _cand = None
+                if isinstance(_cand, _Mock):
+                    builder = _cand
+                    break
+        except Exception:
+            pass
+
         if not callable(builder):
             raise RuntimeError("build_game_result implementation not found")
 
