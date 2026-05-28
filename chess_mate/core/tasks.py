@@ -950,7 +950,9 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
             except Exception:
                 pass
         except Exception:
-            logger.warning(f"[batch={batch_id}] analyze_single_game_subtask: selected build_game_result (logging failed)")
+            logger.warning(
+                f"[batch={batch_id}] analyze_single_game_subtask: selected build_game_result (logging failed)"
+            )
 
         # Build per-game result using resolved builder
         game_result = builder(pgn, game_id=game_id)
@@ -1246,6 +1248,7 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
     # Prefer any Mock found anywhere named 'group'/'chord' (aggressive fallback)
     try:
         from unittest.mock import Mock as _Mock
+
         for _m in list(_sys.modules.values()):
             try:
                 _g = getattr(_m, "group", None)
@@ -1282,6 +1285,7 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
             )
             try:
                 import sys as _sys2
+
                 _sys2.stderr.write(f"[batch={batch_id}] group_selected: {g_name} module={g_mod} is_mock={g_is_mock}\n")
                 _sys2.stderr.write(f"[batch={batch_id}] chord_selected: {c_name} module={c_mod} is_mock={c_is_mock}\n")
             except Exception:
