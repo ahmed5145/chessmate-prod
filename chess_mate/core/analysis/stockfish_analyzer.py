@@ -7,6 +7,7 @@ import atexit
 import io
 import logging
 import os
+import shutil
 import threading
 import time
 from typing import Any, Dict, List, Optional, cast
@@ -39,6 +40,7 @@ class StockfishAnalyzer:
     _TIMEOUT: int = 30  # Seconds before engine is considered idle
     _initialized = False
     _bootstrap_complete = False
+    _init_failed = False
 
     def __new__(cls):
         """Singleton pattern implementation."""
@@ -70,11 +72,31 @@ class StockfishAnalyzer:
 
         # Keep test/CI startup fast and deterministic; engine initialization
         # remains lazy via analyze_position when actually needed.
-        if not _is_testing_mode():
+        if not _is_testing_mode() and not self._init_failed:
             self._init_engine()
+
+    def _is_viable_stockfish_path(self, path: Optional[str]) -> bool:
+        """Return True when a Stockfish path looks runnable without launching it."""
+        if not path:
+            return False
+
+        normalized_path = str(path).strip()
+        if not normalized_path:
+            return False
+
+        if os.path.isabs(normalized_path):
+            return os.path.exists(normalized_path)
+
+        if os.path.sep in normalized_path or (os.path.altsep and os.path.altsep in normalized_path):
+            return os.path.exists(normalized_path)
+
+        return shutil.which(normalized_path) is not None
 
     def _init_engine(self):
         """Initialize the Stockfish engine."""
+        if self._init_failed:
+            return
+
         try:
             # Try multiple common paths for Stockfish
             stockfish_paths = [
@@ -87,12 +109,17 @@ class StockfishAnalyzer:
                 "/usr/games/stockfish",  # Another common Unix location
             ]
 
-            for path in stockfish_paths:
+            viable_paths = [path for path in stockfish_paths if self._is_viable_stockfish_path(path)]
+            if not viable_paths:
+                raise ValueError("Could not find Stockfish engine in any standard location")
+
+            for path in viable_paths:
                 try:
                     self._engine = chess.engine.SimpleEngine.popen_uci(path)
                     if self._engine:
                         self._engine.configure({"Threads": 4, "Hash": 128})
                         self._initialized = True
+                        self._init_failed = False
                         logger.info(f"Successfully initialized Stockfish engine from path: {path}")
                         return
                 except Exception as e:
@@ -105,10 +132,14 @@ class StockfishAnalyzer:
             logger.error(f"Failed to initialize Stockfish engine: {str(e)}")
             self._engine = None
             self._initialized = False
+            self._init_failed = True
 
     def _initialize_engine(self) -> None:
         """Initialize the Stockfish engine with configured settings."""
         if self._initialized and self._engine:
+            return
+
+        if self._init_failed:
             return
 
         try:
@@ -122,6 +153,9 @@ class StockfishAnalyzer:
                 stockfish_path = settings.STOCKFISH_PATH
                 if not stockfish_path:
                     raise ValueError("STOCKFISH_PATH not configured")
+
+                if not self._is_viable_stockfish_path(stockfish_path):
+                    raise ValueError(f"Stockfish binary not found at configured path: {stockfish_path}")
 
                 try:
                     # Create engine instance
@@ -151,6 +185,7 @@ class StockfishAnalyzer:
         except Exception as e:
             logger.error(f"Failed to initialize Stockfish engine: {str(e)}")
             self._cleanup_engine()
+            self._init_failed = True
             raise
 
     def _test_engine(self) -> None:
@@ -197,6 +232,9 @@ class StockfishAnalyzer:
     def analyze_position(self, board: chess.Board, depth: int = 20) -> Dict[str, Any]:
         """Analyze a chess position using Stockfish engine."""
         try:
+            if self._init_failed:
+                return self._create_neutral_evaluation("Engine initialization previously failed")
+
             if not self._engine or not self._initialized:
                 # Try to initialize engine if not already initialized
                 self._init_engine()
@@ -377,6 +415,7 @@ class StockfishAnalyzer:
         finally:
             self._initialized = False
             self._engine = None
+            self._init_failed = False
 
     def cleanup_if_idle(self) -> None:
         """Close engine if it has been idle for too long."""
