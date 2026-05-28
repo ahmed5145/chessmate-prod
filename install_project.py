@@ -37,7 +37,8 @@ def main():
     pyproject_path = project_dir / "pyproject.toml"
     if not pyproject_path.exists():
         with open(pyproject_path, "w") as f:
-            f.write("""[build-system]
+            f.write(
+                """[build-system]
 requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
@@ -60,7 +61,8 @@ ignore_errors = true
 DJANGO_SETTINGS_MODULE = "chess_mate.chess_mate.test_settings"
 python_files = ["test_*.py", "*_test.py"]
 testpaths = ["tests", "chess_mate/core/tests"]
-""")
+"""
+            )
         print("Created pyproject.toml file for Python path configuration")
 
     # Install dependencies
@@ -69,9 +71,16 @@ testpaths = ["tests", "chess_mate/core/tests"]
 
     # Install development dependencies
     print("Installing development dependencies...")
-    subprocess.run([
-        sys.executable, "-m", "pip", "install", "-e", ".[dev]", 
-    ])
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "-e",
+            ".[dev]",
+        ]
+    )
 
     # Create necessary directories
     os.makedirs(os.path.join(project_dir, "chess_mate", "logs"), exist_ok=True)
@@ -93,11 +102,12 @@ testpaths = ["tests", "chess_mate/core/tests"]
     vscode_dir = project_dir / ".vscode"
     if not vscode_dir.exists():
         os.makedirs(vscode_dir, exist_ok=True)
-        
+
     settings_json = vscode_dir / "settings.json"
     if not settings_json.exists():
         with open(settings_json, "w") as f:
-            f.write("""
+            f.write(
+                """
 {
     "python.analysis.extraPaths": [
         "${workspaceFolder}",
@@ -108,7 +118,8 @@ testpaths = ["tests", "chess_mate/core/tests"]
     "python.linting.flake8Enabled": true,
     "python.linting.mypyEnabled": true
 }
-""")
+"""
+            )
         print("Created VSCode settings for proper import resolution")
 
     print("Setup complete! You can now run the application with:")

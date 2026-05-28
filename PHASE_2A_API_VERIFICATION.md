@@ -9,7 +9,7 @@
 
 ## New API Functions (Phase 2)
 
-### 1. `createBatch(pgnList)` 
+### 1. `createBatch(pgnList)`
 **Endpoint**: `POST /api/v1/batches/`
 
 **Input**:
@@ -276,12 +276,12 @@ curl -X GET http://localhost:8000/api/v1/batches/{BATCH_ID}/report/ \
 
 ## Success Criteria (Phase 2A Complete)
 
-✅ All three endpoints return expected responses  
-✅ Status transitions work: pending → in_progress → completed/partial/failed  
-✅ Polling interval: 3 seconds (matches backend task update frequency)  
-✅ Error handling: 4xx, 5xx errors propagated correctly  
-✅ Ownership check: User can only see their own batches  
-✅ Coaching report is null when status = partial (graceful fallback)  
+✅ All three endpoints return expected responses
+✅ Status transitions work: pending → in_progress → completed/partial/failed
+✅ Polling interval: 3 seconds (matches backend task update frequency)
+✅ Error handling: 4xx, 5xx errors propagated correctly
+✅ Ownership check: User can only see their own batches
+✅ Coaching report is null when status = partial (graceful fallback)
 
 ---
 

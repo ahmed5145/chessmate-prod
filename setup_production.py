@@ -4,13 +4,13 @@ Setup script for deploying the ChessMate application in a production environment
 This script automates various tasks required for a production deployment.
 """
 
-import os
-import sys
-import subprocess
 import argparse
+import logging
+import os
 import random
 import string
-import logging
+import subprocess
+import sys
 from pathlib import Path
 
 # Configure logging
@@ -37,9 +37,7 @@ def run_command(command, check=True):
     """Run a shell command and log its output."""
     logger.info(f"Running command: {' '.join(command)}")
     try:
-        result = subprocess.run(
-            command, check=check, capture_output=True, text=True
-        )
+        result = subprocess.run(command, check=check, capture_output=True, text=True)
         if result.stdout:
             logger.info(result.stdout)
         if result.stderr:
@@ -58,24 +56,27 @@ def check_dependencies():
     logger.info("Checking dependencies...")
     try:
         import django  # noqa
+
         logger.info(f"Django version: {django.__version__}")
     except ImportError:
         logger.error("Django is not installed. Please install Django first.")
         sys.exit(1)
-    
+
     try:
         import rest_framework  # noqa
+
         logger.info("Django REST Framework is installed.")
     except ImportError:
         logger.error("Django REST Framework is not installed.")
         sys.exit(1)
-    
+
     try:
         import redis  # noqa
+
         logger.info("Redis client is installed.")
     except ImportError:
         logger.warning("Redis client is not installed. Redis features will not work.")
-    
+
     # Check for external tools
     for tool in ["python", "pip"]:
         run_command(["which", tool], check=False)
@@ -86,10 +87,10 @@ def create_env_file():
     if ENV_FILE.exists():
         logger.info(f"{ENV_FILE} already exists. Skipping creation.")
         return
-    
+
     logger.info(f"Creating {ENV_FILE}...")
     secret_key = generate_secret_key()
-    
+
     with open(ENV_FILE, "w") as f:
         f.write(f"SECRET_KEY={secret_key}\n")
         f.write("DEBUG=False\n")
@@ -118,7 +119,7 @@ def create_env_file():
         f.write("STRIPE_WEBHOOK_SECRET=\n")
         f.write("\n# OpenAI settings\n")
         f.write("OPENAI_API_KEY=\n")
-    
+
     logger.info(f"Created {ENV_FILE}. Please update with your production settings.")
 
 
@@ -126,11 +127,11 @@ def setup_database():
     """Set up the database."""
     logger.info("Setting up the database...")
     os.chdir(CHESS_MATE_DIR)
-    
+
     # Run migrations
     run_command(["python", "manage.py", "makemigrations"])
     run_command(["python", "manage.py", "migrate"])
-    
+
     # Create cache tables
     run_command(["python", "manage.py", "createcachetable"])
 
@@ -146,9 +147,9 @@ def create_superuser():
     """Create a superuser if needed."""
     logger.info("Do you want to create a superuser? (y/n)")
     choice = input().lower()
-    if choice != 'y':
+    if choice != "y":
         return
-    
+
     os.chdir(CHESS_MATE_DIR)
     run_command(["python", "manage.py", "createsuperuser"])
 
@@ -157,7 +158,7 @@ def check_security():
     """Check for security issues."""
     logger.info("Running security checks...")
     os.chdir(CHESS_MATE_DIR)
-    
+
     # Run Django's security check
     run_command(["python", "manage.py", "check", "--deploy"])
 
@@ -165,15 +166,16 @@ def check_security():
 def setup_production():
     """Main function to set up production environment."""
     logger.info("Setting up ChessMate for production...")
-    
+
     check_dependencies()
     create_env_file()
     setup_database()
     collect_static()
     create_superuser()
     check_security()
-    
-    logger.info("""
+
+    logger.info(
+        """
 Production setup complete! Next steps:
 1. Update the .env.production file with your actual settings
 2. Configure your web server (nginx, Apache, etc.)
@@ -182,7 +184,8 @@ Production setup complete! Next steps:
 5. Start the application with:
    cd chess_mate && python manage.py runserver 0.0.0.0:8000 (for testing)
    or use gunicorn in production
-    """)
+    """
+    )
 
 
 if __name__ == "__main__":
@@ -193,9 +196,9 @@ if __name__ == "__main__":
     parser.add_argument("--skip-static", action="store_true", help="Skip static file collection")
     parser.add_argument("--skip-superuser", action="store_true", help="Skip superuser creation")
     parser.add_argument("--skip-security", action="store_true", help="Skip security checks")
-    
+
     args = parser.parse_args()
-    
+
     try:
         if not args.skip_dependencies:
             check_dependencies()
@@ -209,11 +212,11 @@ if __name__ == "__main__":
             create_superuser()
         if not args.skip_security:
             check_security()
-        
+
         logger.info("Setup completed successfully!")
     except KeyboardInterrupt:
         logger.info("\nSetup interrupted by user. Exiting...")
         sys.exit(1)
     except Exception as e:
         logger.error(f"Error during setup: {str(e)}")
-        sys.exit(1) 
+        sys.exit(1)

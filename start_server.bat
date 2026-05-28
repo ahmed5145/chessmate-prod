@@ -19,4 +19,4 @@ python manage.py runserver
 
 REM If we get here, the server has stopped
 echo Django server has stopped.
-cd .. 
+cd ..

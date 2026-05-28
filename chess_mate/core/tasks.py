@@ -50,6 +50,11 @@ from .task_manager import (
 
 logger = get_task_logger(__name__)
 
+
+def _log_ignored_exception(context: str) -> None:
+    logger.debug(context)
+
+
 # Keep legacy import aliases pointed at the same module so monkeypatches work
 # no matter which package spelling the test runner imports first.
 sys.modules.setdefault("core.tasks", sys.modules[__name__])
@@ -220,7 +225,7 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
                 game.analysis_status = "failed"
                 game.save(update_fields=["status", "analysis_status"])
             except Exception:
-                pass
+                _log_ignored_exception(f"Ignoring game rollback failure for game {game_id}")
 
             return {
                 "status": "failed",
@@ -725,7 +730,7 @@ def analyze_game(
         )
     except Exception:
         # Registration is best-effort; continue so update_task_status can still run against cache/redis.
-        pass
+        _log_ignored_exception(f"Ignoring task registration failure for game {game_id}")
     try:
         game = Game.objects.get(id=game_id)
     except Game.DoesNotExist:
@@ -879,7 +884,7 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
                 builder = local_builder
         except Exception:
             # fallthrough to more robust resolution below
-            pass
+            _log_ignored_exception(f"Ignoring local builder resolution failure for game {game_id}")
 
         try:
             # Continue resolution: import modules and discover shipped impl
@@ -906,7 +911,7 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
                     builder = candidate
             except Exception:
                 # ignore import failures
-                pass
+                _log_ignored_exception(f"Ignoring core.tasks build_game_result import failure for game {game_id}")
 
             # Next, check `chess_mate.core.tasks` (alternate package name)
             if builder is None:
@@ -916,7 +921,9 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
                     if candidate is not None:
                         builder = candidate
                 except Exception:
-                    pass
+                    _log_ignored_exception(
+                        f"Ignoring chess_mate.core.tasks build_game_result import failure for game {game_id}"
+                    )
 
             # Next, prefer any mock/override attached to any loaded module
             if builder is None:
@@ -962,7 +969,7 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
                     builder = _cand
                     break
         except Exception:
-            pass
+            _log_ignored_exception(f"Ignoring loaded-module build_game_result lookup failure for game {game_id}")
 
         if not callable(builder):
             raise RuntimeError("build_game_result implementation not found")
@@ -994,7 +1001,7 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
                     f"[batch={batch_id}] build_game_result_selected: name={builder_name} module={builder_module} is_mock={is_mock}\n"
                 )
             except Exception:
-                pass
+                _log_ignored_exception(f"Ignoring stderr write failure for game {game_id}")
         except Exception:
             logger.warning(
                 f"[batch={batch_id}] analyze_single_game_subtask: selected build_game_result (logging failed)"
@@ -1108,7 +1115,7 @@ def aggregate_and_report_task(
                     _aggregate_batch = getattr(_mod, "aggregate_batch", _aggregate_batch)
                     _generate_coaching_report = getattr(_mod, "generate_coaching_report", _generate_coaching_report)
             except Exception:
-                pass
+                _log_ignored_exception(f"Ignoring core.tasks aggregate/report lookup failure for batch {batch_id}")
 
             try:
                 _mod2 = _sys.modules.get("chess_mate.core.tasks")
@@ -1116,7 +1123,9 @@ def aggregate_and_report_task(
                     _aggregate_batch = getattr(_mod2, "aggregate_batch", _aggregate_batch)
                     _generate_coaching_report = getattr(_mod2, "generate_coaching_report", _generate_coaching_report)
             except Exception:
-                pass
+                _log_ignored_exception(
+                    f"Ignoring chess_mate.core.tasks aggregate/report lookup failure for batch {batch_id}"
+                )
 
             # Prefer any Mock attached anywhere named aggregate_batch / generate_coaching_report
             for _m in list(_sys.modules.values()):
@@ -1126,7 +1135,7 @@ def aggregate_and_report_task(
                         _aggregate_batch = _cand_agg
                         break
                 except Exception:
-                    pass
+                    _log_ignored_exception(f"Ignoring aggregate_batch module scan failure for batch {batch_id}")
 
             for _m in list(_sys.modules.values()):
                 try:
@@ -1135,7 +1144,9 @@ def aggregate_and_report_task(
                         _generate_coaching_report = _cand_gen
                         break
                 except Exception:
-                    pass
+                    _log_ignored_exception(
+                        f"Ignoring generate_coaching_report module scan failure for batch {batch_id}"
+                    )
 
         except Exception:
             _aggregate_batch = globals().get("aggregate_batch")
@@ -1210,7 +1221,7 @@ def aggregate_and_report_task(
             batch_report.status = "failed"
             batch_report.save(update_fields=["status", "updated_at"])
         except Exception:
-            pass
+            _log_ignored_exception(f"Ignoring batch report failure update for batch {batch_id}")
 
         return {
             "status": "failed",
@@ -1276,7 +1287,7 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
                     _group = getattr(_mod, "group", _group)
                     _chord = getattr(_mod, "chord", _chord)
         except Exception:
-            pass
+            _log_ignored_exception(f"Ignoring core.tasks import resolution fallback for batch {batch_id}")
 
         try:
             try:
@@ -1289,7 +1300,7 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
                     _group = getattr(_mod2, "group", _group)
                     _chord = getattr(_mod2, "chord", _chord)
         except Exception:
-            pass
+            _log_ignored_exception(f"Ignoring chess_mate.core.tasks import resolution fallback for batch {batch_id}")
     except Exception:
         _group = globals().get("group")
         _chord = globals().get("chord")
@@ -1305,7 +1316,7 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
                     _group = _g
                     break
             except Exception:
-                pass
+                _log_ignored_exception(f"Ignoring group lookup failure for batch {batch_id}")
         for _m in list(_sys.modules.values()):
             try:
                 _c = getattr(_m, "chord", None)
@@ -1313,9 +1324,9 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
                     _chord = _c
                     break
             except Exception:
-                pass
+                _log_ignored_exception(f"Ignoring chord lookup failure for batch {batch_id}")
     except Exception:
-        pass
+        _log_ignored_exception(f"Ignoring mock lookup resolution failure for batch {batch_id}")
         # Emit resolver info so CI shows which callable was selected
         try:
             g_name = getattr(_group, "__name__", repr(_group))
@@ -1338,9 +1349,9 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
                 _sys2.stderr.write(f"[batch={batch_id}] group_selected: {g_name} module={g_mod} is_mock={g_is_mock}\n")
                 _sys2.stderr.write(f"[batch={batch_id}] chord_selected: {c_name} module={c_mod} is_mock={c_is_mock}\n")
             except Exception:
-                pass
+                _log_ignored_exception(f"Ignoring stderr write failure for batch {batch_id}")
         except Exception:
-            pass
+            _log_ignored_exception(f"Ignoring resolver info logging failure for batch {batch_id}")
     except Exception:
         _group = globals().get("group")
         _chord = globals().get("chord")

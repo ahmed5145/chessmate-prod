@@ -1,12 +1,12 @@
-import json
 import sys
 import types
 
 import pytest
+
 from core.analysis import coaching_generator
 
 
-def make_fake_openai_module(response_dict):
+def make_fake_openai_module(response_dict=None, response_content=None):
     """Create a fake `openai` module that provides OpenAI().chat.completions.create(...)"""
     fake_module = types.SimpleNamespace()
 
@@ -14,8 +14,14 @@ def make_fake_openai_module(response_dict):
         def create(self, *args, **kwargs):
             # Return an object that coaching_generator will accept.
             fake_resp = types.SimpleNamespace()
-            # Prefer output_parsed shortcut so generator returns quickly
-            fake_resp.output_parsed = response_dict
+            if response_dict is not None:
+                fake_resp.output_parsed = response_dict
+            if response_content is not None:
+                fake_resp.choices = [
+                    types.SimpleNamespace(
+                        message=types.SimpleNamespace(content=response_content),
+                    )
+                ]
             return fake_resp
 
     class FakeChat:
@@ -28,6 +34,19 @@ def make_fake_openai_module(response_dict):
 
     fake_module.OpenAI = OpenAI
     return fake_module
+
+
+def make_fake_jsonschema_module(should_raise=False):
+    class FakeValidationError(Exception):
+        def __init__(self, message="schema validation failed"):
+            super().__init__(message)
+            self.message = message
+
+    def validate(instance, schema):
+        if should_raise:
+            raise FakeValidationError("schema validation failed")
+
+    return types.SimpleNamespace(validate=validate, ValidationError=FakeValidationError)
 
 
 def build_minimal_valid_report():
@@ -78,9 +97,10 @@ def test_generate_coaching_report_matches_schema(monkeypatch):
     # Build fake response that matches the coaching schema
     fake_report = build_minimal_valid_report()
 
-    fake_openai = make_fake_openai_module(fake_report)
+    fake_openai = make_fake_openai_module(response_dict=fake_report)
     # Inject fake module into sys.modules so coaching_generator imports it
-    sys.modules["openai"] = fake_openai
+    monkeypatch.setitem(sys.modules, "openai", fake_openai)
+    monkeypatch.setitem(sys.modules, "jsonschema", make_fake_jsonschema_module())
 
     # Prepare deterministic input batch summary and per-game results
     batch_summary = {"overall_accuracy": 0.72}
@@ -128,5 +148,55 @@ def test_generate_coaching_report_matches_schema(monkeypatch):
 
     assert "one_thing_to_do_today" in result and isinstance(result["one_thing_to_do_today"], str)
 
-    # Cleanup fake module
-    del sys.modules["openai"]
+
+def test_generate_coaching_report_rejects_invalid_json(monkeypatch):
+    fake_openai = make_fake_openai_module(response_content="not valid json")
+    monkeypatch.setitem(sys.modules, "openai", fake_openai)
+    monkeypatch.setitem(sys.modules, "jsonschema", make_fake_jsonschema_module())
+
+    batch_summary = {"overall_accuracy": 0.72}
+    per_game_results = [
+        {
+            "game_id": "g1",
+            "player_color": "white",
+            "result": "1-0",
+            "phase_breakdown": {
+                "opening": {"avg_eval_drop": 0.1},
+                "middlegame": {"avg_eval_drop": 0.3},
+                "endgame": {"avg_eval_drop": 0.2},
+            },
+            "move_quality": {"blunder": 0, "mistake": 2, "inaccuracy": 1},
+            "critical_moments": [],
+        }
+    ]
+
+    with pytest.raises(coaching_generator.CoachingGeneratorError):
+        coaching_generator.generate_coaching_report(batch_summary, per_game_results, player_rating=1200)
+
+
+def test_generate_coaching_report_rejects_schema_violation(monkeypatch):
+    invalid_report = build_minimal_valid_report()
+    invalid_report.pop("one_thing_to_do_today")
+
+    fake_openai = make_fake_openai_module(response_dict=invalid_report)
+    monkeypatch.setitem(sys.modules, "openai", fake_openai)
+    monkeypatch.setitem(sys.modules, "jsonschema", make_fake_jsonschema_module(should_raise=True))
+
+    batch_summary = {"overall_accuracy": 0.72}
+    per_game_results = [
+        {
+            "game_id": "g1",
+            "player_color": "white",
+            "result": "1-0",
+            "phase_breakdown": {
+                "opening": {"avg_eval_drop": 0.1},
+                "middlegame": {"avg_eval_drop": 0.3},
+                "endgame": {"avg_eval_drop": 0.2},
+            },
+            "move_quality": {"blunder": 0, "mistake": 2, "inaccuracy": 1},
+            "critical_moments": [],
+        }
+    ]
+
+    with pytest.raises(coaching_generator.CoachingGeneratorError):
+        coaching_generator.generate_coaching_report(batch_summary, per_game_results, player_rating=1200)

@@ -21,6 +21,34 @@ def _map_result_short(result_str: str, player_color: str) -> str:
     return result_str
 
 
+def _load_coaching_report_schema() -> Optional[Dict[str, Any]]:
+    try:
+        json_schema = getattr(
+            __import__("core.analysis.coaching_schema", fromlist=["BATCH_COACHING_REPORT_SCHEMA"]),
+            "BATCH_COACHING_REPORT_SCHEMA",
+        )
+    except Exception:
+        return None
+
+    if isinstance(json_schema, dict) and "schema" in json_schema:
+        return json_schema["schema"]
+    return json_schema
+
+
+def _validate_coaching_report(parsed: Dict[str, Any]) -> None:
+    json_schema = _load_coaching_report_schema()
+    if json_schema is None:
+        return
+
+    try:
+        import jsonschema
+    except ImportError:
+        logger.warning("jsonschema not installed; skipping coaching report validation")
+        return
+
+    jsonschema.validate(instance=parsed, schema=json_schema)
+
+
 def _build_per_game_summary(item: Dict[str, Any]) -> Dict[str, Any]:
     # Support two shapes: either the direct per-game result, or a wrapper
     # {"game_id", "status":"success"|"failed", "result": {...} }
@@ -162,6 +190,7 @@ def generate_coaching_report(
         if hasattr(response, "output_parsed") and response.output_parsed is not None:
             parsed = response.output_parsed
             if isinstance(parsed, dict):
+                _validate_coaching_report(parsed)
                 return parsed
             raise CoachingGeneratorError(f"OpenAI returned unexpected type: {type(parsed)}")
 
@@ -177,34 +206,7 @@ def generate_coaching_report(
         if not isinstance(parsed, dict):
             raise CoachingGeneratorError(f"OpenAI returned unexpected type: {type(parsed)}, content: {content[:200]}")
 
-        # Validate against the canonical schema (if available)
-        try:
-            # coaching_schema.BATCH_COACHING_REPORT_SCHEMA is a wrapper dict with key 'schema'
-            try:
-                json_schema = getattr(
-                    __import__("core.analysis.coaching_schema", fromlist=["BATCH_COACHING_REPORT_SCHEMA"]),
-                    "BATCH_COACHING_REPORT_SCHEMA",
-                )
-                # schema may be nested under 'schema'
-                if isinstance(json_schema, dict) and "schema" in json_schema:
-                    json_schema = json_schema["schema"]
-            except Exception:
-                json_schema = None
-
-            if json_schema is not None:
-                # Validate using jsonschema package
-                try:
-                    import jsonschema
-
-                    jsonschema.validate(instance=parsed, schema=json_schema)
-                except ImportError:
-                    # jsonschema not available — skip runtime validation but log
-                    logger.warning("jsonschema not installed; skipping coaching report validation")
-                except jsonschema.ValidationError as ve:
-                    raise CoachingGeneratorError(f"Coaching report failed JSON Schema validation: {ve.message}") from ve
-        except Exception:
-            # Any unexpected validation import error should not leak raw exceptions
-            logger.exception("Error during coaching report validation")
+        _validate_coaching_report(parsed)
 
         return parsed
 

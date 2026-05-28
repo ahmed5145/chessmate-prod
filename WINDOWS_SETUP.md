@@ -65,9 +65,9 @@ python manage.py test
 
 ## Common Issues on Windows
 
-1. **Path Length Limitations**: 
+1. **Path Length Limitations**:
    Windows has a path length limit of 260 characters. If you encounter related errors, enable long paths:
-   - Edit registry: `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem` 
+   - Edit registry: `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem`
    - Set `LongPathsEnabled` to `1`
 
 2. **Port Already in Use**:
@@ -93,4 +93,4 @@ For production deployment on Windows, we recommend using:
 - Windows Server
 - SQL Server (adjust settings accordingly)
 
-Alternatively, consider Docker deployment even on Windows, as it provides a consistent environment. 
+Alternatively, consider Docker deployment even on Windows, as it provides a consistent environment.

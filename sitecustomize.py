@@ -6,7 +6,6 @@ Ensure the app package root is importable when tools run from the repo root.
 import os
 import sys
 
-
 repo_root = os.path.dirname(os.path.abspath(__file__))
 app_root = os.path.join(repo_root, "chess_mate")
 

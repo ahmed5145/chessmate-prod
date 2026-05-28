@@ -9,13 +9,7 @@ import logging
 import sys
 from datetime import timedelta
 
-from django.db.models import (
-    Case,
-    Count,
-    IntegerField,
-    Q,
-    When,
-)
+from django.db.models import Case, Count, IntegerField, Q, When
 from django.utils import timezone
 from rest_framework import status
 

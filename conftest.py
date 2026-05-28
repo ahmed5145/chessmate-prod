@@ -52,6 +52,7 @@ def pytest_configure(config):
     except Exception as e:
         print(f"Error setting up Django: {str(e)}")
 
+
 # -------------------------------------------------------------------------------
 # Django-specific Fixtures (Only available when Django is active)
 # -------------------------------------------------------------------------------

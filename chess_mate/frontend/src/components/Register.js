@@ -7,7 +7,7 @@ import { useTheme } from "../context/ThemeContext";
 
 const validatePassword = (password) => {
   const errors = [];
-  
+
   if (password.length < 8) {
     errors.push("Password must be at least 8 characters long");
   }
@@ -23,7 +23,7 @@ const validatePassword = (password) => {
   if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
     errors.push("Password must include at least one special character");
   }
-  
+
   return errors;
 };
 
@@ -58,20 +58,20 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate password
     const errors = validatePassword(password);
     if (errors.length > 0) {
       errors.forEach(error => toast.error(error));
       return;
     }
-    
+
     // Check password matching
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
       return;
     }
-    
+
     setLoading(true);
     try {
       const response = await registerUser({ username, email, password });
@@ -85,7 +85,7 @@ const Register = () => {
             refresh: tokens.refresh
           }));
         }
-        
+
         toast.success("Registration successful!");
         navigate("/dashboard");
       } else {
@@ -102,10 +102,10 @@ const Register = () => {
   // Determine password strength
   const getPasswordStrength = () => {
     if (!password) return 0;
-    
+
     // Start with a base strength of 1
     let strength = 1;
-    
+
     // Add points for length and complexity
     if (password.length >= 8) strength++;
     if (password.length >= 12) strength++;
@@ -113,13 +113,13 @@ const Register = () => {
     if (/[a-z]/.test(password)) strength++;
     if (/[0-9]/.test(password)) strength++;
     if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++;
-    
+
     // Cap at 5
     return Math.min(strength, 5);
   };
-  
+
   const passwordStrength = getPasswordStrength();
-  
+
   // Get color for password strength bar
   const getStrengthColor = () => {
     if (passwordStrength <= 2) return 'bg-red-500';
@@ -218,7 +218,7 @@ const Register = () => {
                   placeholder="••••••••"
                 />
               </div>
-              
+
               {/* Password strength bar */}
               {password && (
                 <div className="mt-2">
@@ -227,14 +227,14 @@ const Register = () => {
                   </div>
                   <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Password strength: {
-                      passwordStrength <= 2 ? 'Weak' : 
-                      passwordStrength <= 3 ? 'Fair' : 
+                      passwordStrength <= 2 ? 'Weak' :
+                      passwordStrength <= 3 ? 'Fair' :
                       passwordStrength <= 4 ? 'Good' : 'Strong'
                     }
                   </p>
                 </div>
               )}
-              
+
               {/* Password requirements */}
               <div className={`mt-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 <h3 className="font-medium mb-1">Password requirements:</h3>

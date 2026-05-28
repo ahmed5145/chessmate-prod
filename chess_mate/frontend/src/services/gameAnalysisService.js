@@ -29,17 +29,17 @@ export const computeNextPollDelay = ({ currentDelay, minDelay, maxDelay, hadErro
 export const shouldPollStatus = (status, progress = 0) => {
     const normalizedStatus = String(status || '').toUpperCase();
     const numericProgress = Number(progress) || 0;
-    
+
     // Stop polling if we've reached 100% progress
     if (numericProgress >= 100) {
         return false;
     }
-    
+
     // Stop polling if status is a terminal state (success or failure)
     if (SUCCESS_STATUSES.has(normalizedStatus) || TERMINAL_FAILURE_STATUSES.has(normalizedStatus)) {
         return false;
     }
-    
+
     // Continue polling for all other states (PENDING, STARTED, PROCESSING, etc.)
     return true;
 };
@@ -132,16 +132,16 @@ export const checkAnalysisStatus = async (gameId) => {
     try {
         console.log(`Checking analysis status for game ${gameId}`);
         const response = await api.get(`/api/v1/games/${gameId}/analysis/status/`);
-        
+
         // Process the response data
         const data = response.data;
         console.log(`Analysis status response for game ${gameId}:`, data);
-        
+
         // Handle direct task response without a task wrapper
         if (data && data.status && !data.task) {
             // The response contains direct task status
             const status = data.status.toUpperCase();
-            
+
             // If task is complete
             if (status === 'SUCCESS' || status === 'COMPLETED') {
                 localStorage.setItem(`analysis_complete_${gameId}`, 'true');
@@ -153,7 +153,7 @@ export const checkAnalysisStatus = async (gameId) => {
                     message: data.message || 'Analysis completed'
                 };
             }
-            
+
             // If task failed
             if (status === 'FAILURE' || status === 'FAILED' || status === 'ERROR') {
                 localStorage.setItem(`analysis_error_${gameId}`, data.error || 'Analysis failed');
@@ -163,34 +163,34 @@ export const checkAnalysisStatus = async (gameId) => {
                     error: data.error || 'Analysis task failed'
                 };
             }
-            
+
             // Save progress to localStorage for continuity
             if (data.progress !== undefined) {
                 localStorage.setItem(`last_known_progress_${gameId}`, data.progress);
                 localStorage.setItem(`last_progress_update_${gameId}`, Date.now());
             }
-            
+
             return {
                 status: status,
                 progress: data.progress || 0,
                 message: data.message || 'Analyzing game...'
             };
         }
-        
+
         // Handle standard response with task wrapper
         if (data && data.task) {
             const taskData = data.task;
             console.log(`Detailed task data for game ${gameId}:`, taskData);
-            
+
             const status = taskData.status?.toUpperCase() || 'UNKNOWN';
             const progressValue = taskData.progress !== undefined ? Number(taskData.progress) : 0;
-            
+
             // Store progress in localStorage
             if (progressValue > 0) {
                 localStorage.setItem(`last_known_progress_${gameId}`, progressValue);
                 localStorage.setItem(`last_progress_update_${gameId}`, Date.now());
             }
-            
+
             // If task is complete, mark it as complete
             if (status === 'SUCCESS' || status === 'COMPLETED') {
                 console.log('Analysis completed for game:', gameId);
@@ -203,7 +203,7 @@ export const checkAnalysisStatus = async (gameId) => {
                     message: taskData.message || 'Analysis completed'
                 };
             }
-            
+
             // Check for failure
             if (status === 'FAILURE' || status === 'FAILED' || status === 'ERROR') {
                 console.error('Analysis failed for game:', gameId, taskData.error);
@@ -214,7 +214,7 @@ export const checkAnalysisStatus = async (gameId) => {
                     progress: 0
                 };
             }
-            
+
             // Handle processing status
             if (status === 'PROCESSING') {
                 return {
@@ -223,7 +223,7 @@ export const checkAnalysisStatus = async (gameId) => {
                     message: taskData.message || 'Analyzing game...'
                 };
             }
-            
+
             // For other statuses
             return {
                 status: status,
@@ -231,15 +231,15 @@ export const checkAnalysisStatus = async (gameId) => {
                 message: taskData.message || 'Analyzing game...'
             };
         }
-        
+
         // Handle case where no task or task status is found
         // Check if we have cached progress in localStorage
         const cachedProgress = localStorage.getItem(`last_known_progress_${gameId}`);
-        
+
         if (cachedProgress) {
             const lastUpdate = localStorage.getItem(`last_progress_update_${gameId}`);
             const now = Date.now();
-            
+
             // If the cached progress is recent (less than 5 minutes old)
             if (lastUpdate && (now - lastUpdate) < 300000) {
                 return {
@@ -249,7 +249,7 @@ export const checkAnalysisStatus = async (gameId) => {
                 };
             }
         }
-        
+
         // Check for a 'not_found' status specifically
         if (data && data.status === 'not_found') {
             return {
@@ -258,7 +258,7 @@ export const checkAnalysisStatus = async (gameId) => {
                 message: data.message || 'Analysis task not found'
             };
         }
-        
+
         // Fallback to unknown status
         console.warn('Unexpected response format:', data);
         return {
@@ -284,17 +284,17 @@ const simulateProgressResponse = (gameId) => {
         analysisStartTime = Date.now();
         localStorage.setItem(`analysis_start_${gameId}`, analysisStartTime);
     }
-    
+
     // Calculate progress based on time elapsed (simulate 2 minute analysis)
     const TOTAL_ANALYSIS_TIME = 2 * 60 * 1000; // 2 minutes in ms
     const timeElapsed = Date.now() - parseInt(analysisStartTime);
     const calculatedProgress = Math.min(Math.floor((timeElapsed / TOTAL_ANALYSIS_TIME) * 100), 99);
-    
+
     return {
         task_id: gameId,
         status: 'in_progress',
         progress: calculatedProgress,
-        message: calculatedProgress < 95 
+        message: calculatedProgress < 95
             ? `Analysis in progress (${calculatedProgress}%)`
             : 'Almost done, finalizing analysis...',
         error: null,
@@ -323,7 +323,7 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
             isComplete: false
         };
     }
-    
+
     // If retrying, clear the error
     if (retry > 0 && storedError) {
         localStorage.removeItem(`analysis_error_${gameId}`);
@@ -332,7 +332,7 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
     try {
         console.log(`Fetching analysis for game ${gameId}`);
         const response = await api.get(`/api/v1/games/${gameId}/analysis/`);
-        
+
         // Check if we got a valid response with data
         if (response.data && Object.keys(response.data).length > 0) {
             console.log(`Analysis data received for game ${gameId}:`, response.data);
@@ -344,7 +344,7 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
             const hasMoves =
                 (Array.isArray(normalizedPayload.moves) && normalizedPayload.moves.length > 0) ||
                 (Array.isArray(normalizedPayload.movesAnalysis) && normalizedPayload.movesAnalysis.length > 0);
-            
+
             // If we have a valid analysis, mark it as complete in localStorage
             if (hasMetrics && hasMoves) {
                 localStorage.setItem(`analysis_complete_${gameId}`, 'true');
@@ -354,15 +354,15 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
                     isComplete: true
                 };
             }
-            
+
             // If we have a task status but no complete analysis
             if (response.data.status) {
                 const status = response.data.status;
-                
+
                 // If the analysis is still in progress
                 if (status === 'PENDING' || status === 'STARTED' || status === 'PROGRESS') {
                     // Get the progress if available
-                    const progress = response.data.progress || 
+                    const progress = response.data.progress ||
                                     localStorage.getItem(`last_known_progress_${gameId}`) || 0;
                     return {
                         error: null,
@@ -374,7 +374,7 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
                         isComplete: false
                     };
                 }
-                
+
                 // If the analysis failed
                 if (status === 'FAILURE' || status === 'FAILED' || status === 'ERROR') {
                     const errorMessage = response.data.error || 'Analysis failed';
@@ -389,18 +389,18 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
                     };
                 }
             }
-            
+
             // Return the data as is if it doesn't match our expected format
             return {
                 ...normalizedPayload,
                 isComplete: false
             };
         }
-        
+
         // If we didn't get valid data, check the analysis status
         const statusResult = await checkAnalysisStatus(gameId);
         console.log(`Status check for game ${gameId}:`, statusResult);
-        
+
         if (statusResult.status === 'FAILURE') {
             localStorage.setItem(`analysis_error_${gameId}`, statusResult.error || 'Analysis failed');
             return {
@@ -412,7 +412,7 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
                 isComplete: false
             };
         }
-        
+
         // Return empty analysis data with status
         return {
             error: null,
@@ -425,10 +425,10 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
         };
     } catch (error) {
         console.error(`Error fetching analysis for game ${gameId}:`, error);
-        
+
         // Store the error
         localStorage.setItem(`analysis_error_${gameId}`, error.message || 'Failed to fetch analysis');
-        
+
         return {
             error: error.message || 'Failed to fetch analysis',
             status: 'ERROR',
@@ -554,7 +554,7 @@ export const checkBatchAnalysisStatus = async (taskId) => {
 export const checkMultipleAnalysisStatuses = async (gameIds) => {
     try {
         console.log('Checking status for', gameIds.length, 'games:', gameIds);
-        
+
         // Use the api instance which handles authentication correctly
         const response = await api.post(`/api/v1/games/batch-status/`, {
             game_ids: gameIds
@@ -564,7 +564,7 @@ export const checkMultipleAnalysisStatuses = async (gameIds) => {
 
         if (!response.data || !response.data.statuses) {
             console.error('Batch status API error: Invalid response format', response.data);
-            
+
             // Return simulated progress for each game ID instead of empty object
             const simulatedStatuses = {};
             gameIds.forEach(gameId => {
@@ -576,7 +576,7 @@ export const checkMultipleAnalysisStatuses = async (gameIds) => {
         return response.data.statuses;
     } catch (error) {
         console.error('Batch status API error:', error);
-        
+
         if (error.response) {
             console.error(
                 'Status:', error.response.status,
@@ -588,7 +588,7 @@ export const checkMultipleAnalysisStatuses = async (gameIds) => {
         } else {
             console.error('Error setting up request:', error.message);
         }
-        
+
         // Return simulated progress for each game ID instead of empty object
         const simulatedStatuses = {};
         gameIds.forEach(gameId => {
@@ -606,7 +606,7 @@ export const restartAnalysis = async (gameId) => {
         const dedupKey = Number.isFinite(numericGameId) ? String(numericGameId) : String(gameId);
         recentAnalysisStarts.delete(dedupKey);
         inFlightAnalysisStarts.delete(dedupKey);
-        
+
         // First clear any cached completion markers
         localStorage.removeItem(`analysis_complete_${gameId}`);
         localStorage.removeItem(`last_progress_${gameId}`);
@@ -614,14 +614,14 @@ export const restartAnalysis = async (gameId) => {
         localStorage.removeItem(`analysis_start_${gameId}`);
         localStorage.removeItem(`last_known_progress_${gameId}`);
         localStorage.removeItem(`last_progress_update_${gameId}`);
-        
+
         // Start a new analysis
         const response = await api.post(`/api/v1/games/${gameId}/analyze/`, {
             force_restart: true
         });
-        
+
         console.log('Analysis restart response:', response.data);
-        
+
         return {
             success: true,
             task_id: response.data.task_id || response.data.id,

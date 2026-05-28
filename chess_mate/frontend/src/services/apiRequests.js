@@ -13,17 +13,17 @@ export const loginUser = async (email, password) => {
         console.log('Logging in user with email:', email);
         const response = await api.post("/api/v1/auth/login/", { email, password });
         console.log('Login response:', response.data);
-        
+
         // Check the response structure
         if (!response.data) {
             throw new Error("Invalid response from server");
         }
-        
+
         // Handle response in standard format: { status: 'success', data: {...} }
         let userData = null;
         let accessToken = null;
         let refreshToken = null;
-        
+
         // Extract tokens and user data from different possible response formats
         if (response.data.status === 'success' && response.data.data) {
             // Standard API format with status and data fields
@@ -36,19 +36,19 @@ export const loginUser = async (email, password) => {
             refreshToken = response.data.refresh || null;
             userData = response.data.user || null;
         }
-        
+
         // Validate that we have the necessary data
         if (!accessToken || !refreshToken) {
             console.error('Missing tokens in response:', response.data);
             throw new Error("Authentication tokens not found in server response");
         }
-        
+
         // Persist tokens through shared helper to keep all key formats in sync.
         setTokens(accessToken, refreshToken);
-        
+
         // Set default Authorization header
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-        
+
         console.log('Login successful, user data:', userData);
 
         return {
@@ -65,7 +65,7 @@ export const loginUser = async (email, password) => {
         } else if (error.response?.status === 429) {
             throw new Error("Too many login attempts. Please try again later.");
         }
-        
+
         // Handle error messages from backend
         if (error.response?.data?.message) {
             throw new Error(error.response.data.message);
@@ -74,7 +74,7 @@ export const loginUser = async (email, password) => {
         } else if (error.message) {
             throw new Error(error.message);
         }
-        
+
         throw new Error("Login failed, please try again");
     }
 };
@@ -82,11 +82,11 @@ export const loginUser = async (email, password) => {
 export const logoutUser = async () => {
     try {
         const tokens = JSON.parse(localStorage.getItem('tokens') || '{}');
-        
+
         if (tokens.refresh) {
             await api.post("/api/v1/auth/logout/", { refresh: tokens.refresh });
         }
-        
+
         // Clear tokens regardless of server response.
         clearTokens();
         delete api.defaults.headers.common['Authorization'];
@@ -94,7 +94,7 @@ export const logoutUser = async () => {
         return true;
     } catch (error) {
         console.error('Logout error:', error);
-        
+
         // Even if the server request fails, clear local auth state.
         clearTokens();
         delete api.defaults.headers.common['Authorization'];
@@ -106,13 +106,13 @@ export const registerUser = async (userData) => {
     try {
         const response = await api.post("/api/v1/auth/register/", userData);
         console.log('Registration response:', response.data);
-        
+
         // Check for standard success structure
         if (response.data && response.data.status === 'success') {
             // Return the data object that contains the tokens
             return response.data.data;
         }
-        
+
         // If it's not in standard format, return the full response data
         return response.data;
     } catch (error) {
@@ -132,7 +132,7 @@ export const fetchUserGames = async () => {
         console.log('Games response:', response.data);
 
         let games = [];
-        
+
         // Process different response formats to extract games
         if (response.data?.results && Array.isArray(response.data.results)) {
             games = response.data.results;
@@ -146,7 +146,7 @@ export const fetchUserGames = async () => {
             console.error('Invalid response format:', response.data);
             return { results: [] };
         }
-        
+
         // Normalize and validate each game object
         const normalizedGames = games.map(game => {
             const normalizedAnalysisStatus = game.analysis_status || game.status || (game.analysis ? 'analyzed' : 'pending');
@@ -167,9 +167,9 @@ export const fetchUserGames = async () => {
                 // Add any other required fields with defaults
             };
         });
-        
+
         console.log('Normalized games:', normalizedGames);
-        
+
         // Return in the format expected by components
         return {
             results: normalizedGames,
@@ -206,7 +206,7 @@ export const fetchExternalGames = async (platform, username, gameType, numGames 
         // Get user ID and token from localStorage
         let userId = null;
         let authHeader = null;
-        
+
         try {
             const tokensString = localStorage.getItem('tokens');
             if (tokensString) {
@@ -214,7 +214,7 @@ export const fetchExternalGames = async (platform, username, gameType, numGames 
                 if (tokens && tokens.access) {
                     // Set the authorization header
                     authHeader = `Bearer ${tokens.access}`;
-                    
+
                     // Get user ID from token
                     const decoded = JSON.parse(atob(tokens.access.split('.')[1]));
                     userId = decoded.user_id;
@@ -228,14 +228,14 @@ export const fetchExternalGames = async (platform, username, gameType, numGames 
         } catch (e) {
             console.error('Error extracting token information:', e);
         }
-        
+
         // Ensure we have authentication
         if (!authHeader) {
             throw new Error('Authentication required. Please log in again.');
         }
 
         // Make the API request with explicit Authorization header
-        const response = await api.post("/api/v1/games/fetch/", 
+        const response = await api.post("/api/v1/games/fetch/",
             {
             platform: platform.toLowerCase(),
             username: username.trim(),
@@ -282,12 +282,12 @@ export const fetchExternalGames = async (platform, username, gameType, numGames 
             throw new Error("The server returned a 404 error. The fetch games endpoint may not be configured properly.");
         }
         // Get the most descriptive error message possible
-        const errorMessage = 
-            error.response?.data?.message || 
-            error.response?.data?.error || 
-            error.message || 
+        const errorMessage =
+            error.response?.data?.message ||
+            error.response?.data?.error ||
+            error.message ||
             "Failed to fetch external games";
-        
+
         throw new Error(errorMessage);
     }
 };
@@ -483,12 +483,12 @@ export const fetchBatchReportById = async (reportId) => {
 
 /**
  * Create a new batch analysis job.
- * 
+ *
  * @param {Object} options - Batch selection payload.
  * @param {Array<number>|null} options.gameIds - Array of saved game IDs.
  * @param {Array<string>|null} options.pgnList - Array of PGN strings.
  * @returns {Promise} Response with batch_id, task_id, status, and games_count
- * 
+ *
  * Expected response shape (202):
  * {
  *   batch_id: "model-uuid",
@@ -542,10 +542,10 @@ export const createBatch = async ({ gameIds = null, pgnList = null } = {}) => {
 
 /**
  * Poll the status of an ongoing or completed batch.
- * 
+ *
  * @param {string} batchId - The batch ID from createBatch()
  * @returns {Promise} Response with status, progress, completed/failed counts
- * 
+ *
  * Expected response shape (200):
  * {
  *   batch_id: "model-uuid",
@@ -603,18 +603,18 @@ export const getBatchStatus = async (batchId) => {
 /**
  * Fetch the complete analysis report for a batch.
  * Call only after getBatchStatus() returns status !== pending/in_progress.
- * 
+ *
  * @param {string} batchId - The batch ID
  * @returns {Promise} Full report payload, or 202 if still in progress
- * 
+ *
  * Expected response shapes:
- * 
+ *
  * While in progress (202):
  * {
  *   status: "pending" | "in_progress",
  *   message: "Analysis in progress"
  * }
- * 
+ *
  * On completion (200):
  * {
  *   id: "model-uuid",
@@ -667,7 +667,7 @@ export const getBatchStatus = async (batchId) => {
  *   created_at: "2025-01-20T10:00:00Z",
  *   updated_at: "2025-01-20T10:15:00Z"
  * }
- * 
+ *
  * On failure (200):
  * {
  *   status: "failed",

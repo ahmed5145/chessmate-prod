@@ -14,4 +14,4 @@ DEBUG=True ENVIRONMENT=development REDIS_DISABLED=True python manage.py runserve
 
 # If we get here, the server has stopped
 echo "Django server has stopped."
-cd .. 
+cd ..

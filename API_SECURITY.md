@@ -93,7 +93,7 @@ async function login(email, password) {
     },
     body: JSON.stringify({ email, password })
   });
-  
+
   if (response.ok) {
     const data = await response.json();
     // Store tokens securely (preferably in HttpOnly cookies)
@@ -112,7 +112,7 @@ async function fetchProtectedResource(accessToken) {
       'Authorization': `Bearer ${accessToken}`
     }
   });
-  
+
   if (response.status === 401) {
     // Token expired, try to refresh
     const newTokens = await refreshTokens(refreshToken);
@@ -124,7 +124,7 @@ async function fetchProtectedResource(accessToken) {
       window.location.href = '/login';
     }
   }
-  
+
   return response.json();
 }
 ```

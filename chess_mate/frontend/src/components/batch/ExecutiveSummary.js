@@ -1,13 +1,13 @@
 /**
  * ExecutiveSummary.js
- * 
+ *
  * Displays the executive summary from the coaching report.
  * If coaching_report is null (partial status), shows a graceful fallback.
- * 
+ *
  * Props:
  *   - coaching_report: object | null
  *       Contains executive_summary string
- * 
+ *
  * Pure display component — no state, no API calls.
  */
 

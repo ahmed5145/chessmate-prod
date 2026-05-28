@@ -1,8 +1,8 @@
 # ChessMate V0.1 — Product Requirements Document
 
-**Version**: 0.1 (MVP)  
-**Date**: April 27, 2026  
-**Status**: Pre-production → Target: Local excellence first, then deployment  
+**Version**: 0.1 (MVP)
+**Date**: April 27, 2026
+**Status**: Pre-production → Target: Local excellence first, then deployment
 **Author**: Working document
 
 ---
@@ -140,13 +140,13 @@ This is a Python module (no AI, no external calls) that takes N per-game Stockfi
   "date_range": "2026-01-01 to 2026-04-20",
   "overall_accuracy": 0.74,
   "win_loss_draw": { "wins": 7, "losses": 6, "draws": 2 },
-  
+
   "phase_performance": {
     "opening": { "score": 0.88, "trend": "strong", "primary_openings": ["Sicilian Najdorf", "Ruy Lopez"] },
     "middlegame": { "score": 0.61, "trend": "inconsistent", "worst_aspect": "tactical_oversight" },
     "endgame": { "score": 0.44, "trend": "weak", "worst_aspect": "rook_endgames" }
   },
-  
+
   "recurring_weaknesses": [
     {
       "pattern": "endgame_technique",
@@ -157,7 +157,7 @@ This is a Python module (no AI, no external calls) that takes N per-game Stockfi
     },
     {
       "pattern": "loose_piece_oversight",
-      "frequency": "7/15 games", 
+      "frequency": "7/15 games",
       "avg_eval_swing": 2.1,
       "impact": "high",
       "example_game_ids": ["uuid2", "uuid5"]
@@ -169,12 +169,12 @@ This is a Python module (no AI, no external calls) that takes N per-game Stockfi
       "example_game_ids": ["uuid4", "uuid6"]
     }
   ],
-  
+
   "strength_patterns": [
     { "pattern": "opening_preparation", "frequency": "13/15 games", "detail": "Consistently good through move 12" },
     { "pattern": "positional_understanding", "frequency": "10/15 games" }
   ],
-  
+
   "most_common_blunder_type": "tactical_oversight",
   "worst_phase": "endgame",
   "best_phase": "opening",
@@ -189,8 +189,8 @@ This is a Python module (no AI, no external calls) that takes N per-game Stockfi
 Only now do you call OpenAI. One call per batch. The prompt is structured:
 
 ```
-System: You are a chess coach generating a detailed improvement report. 
-You will receive structured analysis data from Stockfish. 
+System: You are a chess coach generating a detailed improvement report.
+You will receive structured analysis data from Stockfish.
 Your job is to synthesize this into actionable coaching.
 You must respond ONLY with valid JSON matching the schema provided.
 Do not add commentary outside the JSON.
@@ -202,7 +202,7 @@ Schema to populate:
   "executive_summary": "string (2-3 sentences, most important insight)",
   "coaching_narrative": {
     "opening": "string (2-3 sentences)",
-    "middlegame": "string (2-3 sentences)", 
+    "middlegame": "string (2-3 sentences)",
     "endgame": "string (2-3 sentences)"
   },
   "top_3_priorities": [
@@ -532,7 +532,7 @@ The analysis pipeline rebuild in this document takes 8 days. That's the real wor
 
 ---
 
-*V0.1 goal: one user uploads their games, reads the report, and says "this is exactly what I needed to hear."*  
+*V0.1 goal: one user uploads their games, reads the report, and says "this is exactly what I needed to hear."*
 *Everything else is secondary.*
 
 ## 12. Phase 1 Status
@@ -782,5 +782,5 @@ analyze_batch_task(batch_id, game_pgn_list, user_id)
 
 ---
 
-*V0.1 goal: one user uploads their games, reads the report, and says "this is exactly what I needed to hear."*  
+*V0.1 goal: one user uploads their games, reads the report, and says "this is exactly what I needed to hear."*
 *Everything else is secondary.*

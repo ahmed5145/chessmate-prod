@@ -1,14 +1,14 @@
 /**
  * BatchLoadingScreen.js
- * 
+ *
  * Full-page loading overlay shown while batch analysis is pending or in progress.
- * 
+ *
  * Props:
  *   - status: string ('pending' | 'in_progress' | other)
  *   - progress: string
  *   - completed_games: number
  *   - total_games: number
- * 
+ *
  * Pure display component — no state, no API calls.
  */
 

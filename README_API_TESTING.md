@@ -37,7 +37,7 @@ Before starting the tests, ensure you have:
    $env:ENVIRONMENT="development"
    $env:REDIS_DISABLED="True"
    python manage.py runserver
-   
+
    # For Linux/Mac:
    DEBUG=True ENVIRONMENT=development REDIS_DISABLED=True python manage.py runserver
    ```
@@ -49,7 +49,7 @@ If you encounter an `AppRegistryNotReady` error when starting the server:
 1. Make sure you're using the latest version of the code with the fixed configuration
 2. Verify that `core.apps.CoreConfig` is listed in `INSTALLED_APPS` instead of just `core`
 3. Try restarting the server with the `REDIS_DISABLED=True` environment variable set
-4. If the issue persists, clear any `.pyc` files: 
+4. If the issue persists, clear any `.pyc` files:
    ```
    find . -name "*.pyc" -delete  # Linux/Mac
    Get-ChildItem -Path . -Filter "*.pyc" -Recurse | Remove-Item  # PowerShell
@@ -170,4 +170,4 @@ For more information on the security standards implemented, see:
 - JWT Token Security Guidelines
 
 ---
-*Last Updated: April 4, 2025* 
+*Last Updated: April 4, 2025*

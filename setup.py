@@ -49,7 +49,7 @@ setup(
         "windows": [
             "pywin32",
             "eventlet",
-        ]
+        ],
     },
     python_requires=">=3.8",
     author="ChessMate Team",

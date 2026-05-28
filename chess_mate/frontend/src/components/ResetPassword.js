@@ -32,13 +32,13 @@ const ResetPassword = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     // Password strength validation
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else {
       const passwordErrors = [];
-      
+
       if (formData.password.length < 8) {
         passwordErrors.push('Password must be at least 8 characters long');
       }
@@ -54,18 +54,18 @@ const ResetPassword = () => {
       if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.password)) {
         passwordErrors.push('Password must include at least one special character');
       }
-      
+
       if (passwordErrors.length > 0) {
         newErrors.password = passwordErrors.join('. ');
       }
     }
-    
+
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = 'Please confirm your password';
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };

@@ -37,14 +37,9 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .decorators import auth_csrf_exempt, rate_limit
-from .error_handling import (
-    InvalidOperationError,
-)
+from .error_handling import InvalidOperationError
 from .error_handling import ValidationError as APIValidationError
-from .error_handling import (
-    api_error_handler,
-    create_error_response,
-)
+from .error_handling import api_error_handler, create_error_response
 
 # Import models directly for actual usage
 from .models import Profile

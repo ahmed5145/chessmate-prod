@@ -72,7 +72,7 @@ const getCsrfToken = async () => {
         }
 
         // If no token in cookie, fetch it from the server
-        const response = await axios.get(`${API_BASE_URL}/api/v1/auth/csrf/`, { 
+        const response = await axios.get(`${API_BASE_URL}/api/v1/auth/csrf/`, {
             withCredentials: true,
             timeout: 5000 // 5 second timeout for CSRF token fetch
         });
@@ -103,7 +103,7 @@ const requiresCsrf = (url, method) => {
 const getAccessToken = () => {
     // Try all possible storage locations
     const accessToken = localStorage.getItem('access_token') || localStorage.getItem('accessToken');
-    
+
     // Check old format
     const oldTokens = localStorage.getItem('tokens');
     if (!accessToken && oldTokens) {
@@ -114,7 +114,7 @@ const getAccessToken = () => {
             console.error('Error parsing old tokens format:', e);
         }
     }
-    
+
     return accessToken;
 };
 
@@ -137,7 +137,7 @@ const setAccessToken = (token) => {
 // Get refresh token from any storage location
 const getRefreshToken = () => {
     const refreshToken = localStorage.getItem('refresh_token') || localStorage.getItem('refreshToken');
-    
+
     // Check old format
     const oldTokens = localStorage.getItem('tokens');
     if (!refreshToken && oldTokens) {
@@ -148,7 +148,7 @@ const getRefreshToken = () => {
             console.error('Error parsing old tokens format:', e);
         }
     }
-    
+
     return refreshToken;
 };
 
@@ -158,12 +158,12 @@ const refreshTokenAsync = async () => {
     if (refreshPromise) {
         return refreshPromise;
     }
-    
+
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
         return Promise.reject(new Error('No refresh token available'));
     }
-    
+
     // Create and store the refresh promise
     refreshPromise = axios.post(`${API_BASE_URL}/api/v1/auth/token/refresh/`, {
         refresh: refreshToken
@@ -190,7 +190,7 @@ const refreshTokenAsync = async () => {
         refreshPromise = null;
         isRefreshing = false;
     });
-    
+
     return refreshPromise;
 };
 
@@ -198,7 +198,7 @@ const refreshTokenAsync = async () => {
 api.interceptors.request.use(async (config) => {
     // Add auth token if available
     const accessToken = getAccessToken();
-    
+
     if (accessToken && !isTokenExpired(accessToken)) {
         config.headers.Authorization = `Bearer ${accessToken}`;
     } else if (accessToken && isTokenExpired(accessToken) && !isAuthEndpoint(config.url)) {
@@ -299,7 +299,7 @@ api.interceptors.response.use(
                         id: 'session-expired',
                         duration: 5000
                     });
-                    
+
                     // Redirect to login after short delay
                     setTimeout(() => {
                         window.location.href = '/login';
@@ -313,7 +313,7 @@ api.interceptors.response.use(
         if (error.response?.status === 404) {
             console.error('API Endpoint not found (404):', error.config.url);
         }
-        
+
         if (error.response?.data?.detail) {
             toast.error(error.response.data.detail);
         } else if (error.response?.data?.message) {
@@ -341,7 +341,7 @@ const isTokenExpired = (token) => {
 // Refresh CSRF token
 const refreshCsrfToken = async () => {
     try {
-        await axios.get(`${API_BASE_URL}/api/v1/auth/csrf/`, { 
+        await axios.get(`${API_BASE_URL}/api/v1/auth/csrf/`, {
             withCredentials: true,
             timeout: 5000
         });

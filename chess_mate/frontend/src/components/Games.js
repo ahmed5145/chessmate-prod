@@ -236,10 +236,10 @@ const Games = () => {
         navigate('/login');
         return;
       }
-      
+
       // Create unique toast ID for this analysis
       const toastId = `analyze-game-${gameId}`;
-      
+
       // Show loading toast with more descriptive message
       toast.loading('Starting game analysis...', {
         id: toastId,
@@ -270,7 +270,7 @@ const Games = () => {
               duration: 3000
             });
           });
-        
+
         // Navigate to the analysis page immediately
         console.log(`Navigating to analysis page for game ${gameId}`);
       navigate(`/game/${gameId}/analysis`);
@@ -290,7 +290,7 @@ const Games = () => {
 
   const getResultBadgeColor = (result, isDarkMode) => {
     if (!result) return isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800';
-    
+
     const lowerResult = result.toLowerCase();
     switch (lowerResult) {
       case 'win':

@@ -1,13 +1,13 @@
 /**
  * PhaseBreakdown.js
- * 
+ *
  * Displays performance across chess phases (opening, middlegame, endgame).
  * Shows 3 colored progress bars with trend indicators.
- * 
+ *
  * Props:
  *   - batch_summary: object | null
  *       Contains phase_performance with opening/middlegame/endgame scores and trends
- * 
+ *
  * Pure display component — no state, no API calls.
  */
 
@@ -45,13 +45,13 @@ const PhaseBreakdown = ({ batch_summary }) => {
    */
   const getTrendChip = (trend) => {
     if (!trend) return { color: 'default', label: 'No data' };
-    
+
     const trendLower = trend.toLowerCase();
     if (trendLower === 'strong') return { color: 'success', label: 'Strong' };
     if (trendLower === 'inconsistent') return { color: 'warning', label: 'Inconsistent' };
     if (trendLower === 'weak') return { color: 'error', label: 'Weak' };
     if (trendLower === 'no_data') return { color: 'default', label: 'No data' };
-    
+
     // Default fallback
     return { color: 'default', label: trendLower };
   };

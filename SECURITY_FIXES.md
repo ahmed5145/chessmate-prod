@@ -34,13 +34,13 @@ class CoreConfig(AppConfig):
         """Initialize app-specific components."""
         # Configure REST Framework authentication after apps are loaded
         self._configure_rest_framework()
-        
+
         # Other initialization code...
 
     def _configure_rest_framework(self):
         """Configure REST Framework settings after app initialization."""
         from django.conf import settings
-        
+
         settings.REST_FRAMEWORK.update({
             'DEFAULT_AUTHENTICATION_CLASSES': (
                 'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -256,4 +256,4 @@ To test the API security improvements using Postman:
    - Observe that it's rejected
 
 ---
-*Last Updated: April 4, 2025* 
+*Last Updated: April 4, 2025*

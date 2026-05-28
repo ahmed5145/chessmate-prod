@@ -1,12 +1,12 @@
 /**
  * GameAccordion.js
- * 
+ *
  * Displays a game-by-game breakdown from per-game analysis results.
- * 
+ *
  * Props:
  *   - per_game_results: array | null
  *       Array of per-game result objects
- * 
+ *
  * Pure display component — no state, no API calls.
  */
 

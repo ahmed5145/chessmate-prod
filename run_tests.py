@@ -16,8 +16,8 @@ import subprocess
 import sys
 import threading
 import time
-from queue import Empty, Queue
 from pathlib import Path
+from queue import Empty, Queue
 
 
 def parse_args():

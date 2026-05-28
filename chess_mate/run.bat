@@ -26,4 +26,4 @@ start cmd /k "cd /d %~dp0 && call %VENV_PATH% && set REDIS_PORT=%REDIS_PORT% && 
 timeout /t 5 /nobreak > nul
 echo Celery worker started.
 
-echo All services started successfully! 
+echo All services started successfully!

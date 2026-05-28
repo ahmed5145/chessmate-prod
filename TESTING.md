@@ -126,7 +126,7 @@ class TestMetricsCalculator(TestCase):
     def setUp(self):
         # Setup test data
         self.calculator = MetricsCalculator()
-        
+
     def test_calculate_move_quality(self):
         # Test move quality calculation
         result = self.calculator.calculate_move_quality(...)

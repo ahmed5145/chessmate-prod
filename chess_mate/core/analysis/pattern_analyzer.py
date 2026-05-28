@@ -10,9 +10,7 @@ import chess
 import chess.pgn
 
 from ..cache import CACHE_BACKEND_REDIS, cache_get, cache_set
-from ..error_handling import (
-    ResourceNotFoundError,
-)
+from ..error_handling import ResourceNotFoundError
 from ..models import Game
 
 logger = logging.getLogger(__name__)

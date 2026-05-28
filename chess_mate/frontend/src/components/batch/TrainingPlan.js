@@ -1,13 +1,13 @@
 /**
  * TrainingPlan.js
- * 
+ *
  * Displays a 4-week training plan from the coaching report.
  * If coaching_report is null, shows a graceful fallback.
- * 
+ *
  * Props:
  *   - coaching_report: object | null
  *       Contains training_plan object with week_1, week_2, week_3, week_4 strings
- * 
+ *
  * Pure display component — no state, no API calls.
  */
 

@@ -10,13 +10,13 @@ This document presents a security audit of the ChessMate authentication system b
 
 The following security measures are already implemented:
 
-✅ CSRF protection with `ensure_csrf_cookie` and custom `auth_csrf_exempt` decorator  
-✅ Rate limiting on authentication endpoints with `rate_limit` decorator  
-✅ Password complexity validation  
-✅ Email verification process  
-✅ JWT tokens for authentication  
-✅ Error handling to prevent information leakage  
-✅ Logging of security events  
+✅ CSRF protection with `ensure_csrf_cookie` and custom `auth_csrf_exempt` decorator
+✅ Rate limiting on authentication endpoints with `rate_limit` decorator
+✅ Password complexity validation
+✅ Email verification process
+✅ JWT tokens for authentication
+✅ Error handling to prevent information leakage
+✅ Logging of security events
 
 ### Identified Issues and Recommendations
 
@@ -114,4 +114,4 @@ The ChessMate authentication system has a solid foundation with several security
 3. **Django Security Checklist**: https://docs.djangoproject.com/en/dev/topics/security/
 
 ---
-*This security audit was conducted on April 4, 2025* 
+*This security audit was conducted on April 4, 2025*

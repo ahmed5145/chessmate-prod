@@ -34,14 +34,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .analysis.feedback_generator import FeedbackGenerator as CoachingFeedbackGenerator
-from .cache import (
-    cache_get,
-    cache_set,
-)
-from .cache_invalidation import (
-    invalidate_cache,
-    invalidates_cache,
-)
+from .cache import cache_get, cache_set
+from .cache_invalidation import invalidate_cache, invalidates_cache
 from .chess_services import ChessComService, LichessService, save_game
 from .chess_utils import extract_metadata_from_pgn, validate_pgn
 from .constants import MAX_BATCH_SIZE
@@ -418,7 +412,7 @@ def _build_batch_aggregate_metrics(
             if normalized_opening:
                 opening_names.append(normalized_opening)
 
-        for move in (analysis_data.get("moves", []) if isinstance(analysis_data.get("moves", []), list) else []):
+        for move in analysis_data.get("moves", []) if isinstance(analysis_data.get("moves", []), list) else []:
             if not isinstance(move, dict) or not move.get("is_critical"):
                 pass
 

@@ -172,4 +172,4 @@ ALLOWED_HOSTS=your_domain.com
 - **setup_windows.bat**: Complete Windows setup
 - **run_development.bat**: Runs the application in development mode
 - **install_project.py**: Python script for cross-platform setup
-- **install_dev.py**: Installs development dependencies 
+- **install_dev.py**: Installs development dependencies

@@ -1,8 +1,8 @@
 /**
  * PriorityCard.js
- * 
+ *
  * Displays a single priority (one of top 3) with rank, title, and detailed guidance.
- * 
+ *
  * Props:
  *   - priority: object | null
  *       {
@@ -13,7 +13,7 @@
  *         specific_drill: string,
  *         estimated_study_hours: number
  *       }
- * 
+ *
  * Pure display component — no state, no API calls.
  */
 

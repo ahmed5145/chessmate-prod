@@ -103,7 +103,7 @@ Last Updated: April 7, 2024
 
 - **Method Name Fix**: Fixed method name mismatch in the MetricsCalculator (using calculate_game_metrics instead of calculate_metrics)
 - **Error Handling**: Fixed an UnboundLocalError in the analyze_game_task related to exception handling
-- **Python Version**: Migrated from Python 3.12 to Python 3.11 for better compatibility with Celery and its dependencies 
+- **Python Version**: Migrated from Python 3.12 to Python 3.11 for better compatibility with Celery and its dependencies
 - **Celery Worker**: Configured Celery to use solo pool on Windows to address permission issues
 - **Batch Analysis**: Implemented batch analysis status endpoint to reduce API calls and improve performance
 - **CORS Fixes**: Added CORS fixes for cache-control header in preflight requests

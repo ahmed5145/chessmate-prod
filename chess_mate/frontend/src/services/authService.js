@@ -51,7 +51,7 @@ export const setTokens = (accessToken, refreshToken) => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('accessToken');
     }
-    
+
     if (refreshToken) {
         localStorage.setItem('refresh_token', refreshToken);
         localStorage.setItem('refreshToken', refreshToken);
@@ -59,19 +59,19 @@ export const setTokens = (accessToken, refreshToken) => {
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('refreshToken');
     }
-    
+
     // Also update old format
     const tokensObj = {
         access: accessToken || null,
         refresh: refreshToken || null
     };
-    
+
     if (accessToken || refreshToken) {
         localStorage.setItem('tokens', JSON.stringify(tokensObj));
     } else {
         localStorage.removeItem('tokens');
     }
-    
+
     return tokensObj;
 };
 
@@ -86,12 +86,12 @@ export const clearTokens = () => {
 export const refreshTokens = async () => {
     try {
         const refreshToken = getRefreshToken();
-        
+
         if (!refreshToken) {
             console.warn('No refresh token available');
             return null;
         }
-        
+
         const response = await fetch(buildApiUrl('/api/v1/auth/token/refresh/'), {
             method: 'POST',
             headers: {
@@ -100,19 +100,19 @@ export const refreshTokens = async () => {
             body: JSON.stringify({ refresh: refreshToken }),
             credentials: 'include'
         });
-        
+
         if (!response.ok) {
             throw new Error(`Token refresh failed with status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data && data.access) {
             // Store the new tokens
             setTokens(data.access, data.refresh || refreshToken);
             return data;
         }
-        
+
         throw new Error('Invalid token refresh response');
     } catch (error) {
         console.error('Error refreshing token:', error);
@@ -132,12 +132,12 @@ export const resetPassword = async (token, newPassword) => {
                 new_password: newPassword
             })
         });
-        
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.message || 'Failed to reset password. The link may have expired.');
         }
-        
+
         return await response.json();
     } catch (error) {
         console.error('Password reset error:', error);
@@ -150,11 +150,11 @@ export const checkAuthStatus = async () => {
         // Get tokens using helper functions
         const accessToken = getAccessToken();
         const refreshToken = getRefreshToken();
-        
+
         if (!accessToken && !refreshToken) {
             return false;
         }
-        
+
         // If we have an access token, verify it's not expired
         if (accessToken) {
             try {
@@ -164,9 +164,9 @@ export const checkAuthStatus = async () => {
                 const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
                     return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
                 }).join(''));
-                
+
                 const { exp } = JSON.parse(jsonPayload);
-                
+
                 // If token is not expired, user is authenticated
                 if (exp * 1000 > Date.now()) {
                     return true;
@@ -175,7 +175,7 @@ export const checkAuthStatus = async () => {
                 console.error('Error parsing JWT:', e);
             }
         }
-        
+
         // If access token is expired but we have refresh token, try to refresh
         if (refreshToken) {
             try {
@@ -186,10 +186,10 @@ export const checkAuthStatus = async () => {
                 return false;
             }
         }
-        
+
         return false;
     } catch (error) {
         console.error('Error checking auth status:', error);
         return false;
     }
-}; 
+};

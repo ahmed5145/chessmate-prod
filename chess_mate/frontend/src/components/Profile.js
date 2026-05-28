@@ -502,7 +502,7 @@ const Profile = () => {
   // Safe access to time control distribution with defaults
   const defaultDistribution = { bullet: 0, blitz: 0, rapid: 0, classical: 0 };
   const timeControlDistribution = profileData.time_control_distribution || defaultDistribution;
-  
+
   const timeControlData = [
     { label: 'Bullet', value: timeControlDistribution.bullet || 0 },
     { label: 'Blitz', value: timeControlDistribution.blitz || 0 },

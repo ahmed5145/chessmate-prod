@@ -19,7 +19,7 @@ export const initSentry = () => {
         ],
         // Reduce overall trace sample rate
         tracesSampleRate: 0.2,
-        
+
         // Configure Replay sample rates directly in init options
         replaysSessionSampleRate: 0.1, // Reduce session capture rate
         replaysOnErrorSampleRate: 1.0, // Keep high error capture rate

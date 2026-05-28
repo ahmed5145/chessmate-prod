@@ -1,13 +1,13 @@
 /**
  * BatchUploadForm.js
- * 
+ *
  * Collects PGN input via file upload or paste, validates game count,
  * and submits an array of PGN strings for batch analysis.
- * 
+ *
  * Props:
  *   - onSubmit: function(pgnList)
  *   - isLoading: boolean
- * 
+ *
  * Pure display/input component with local state only.
  */
 

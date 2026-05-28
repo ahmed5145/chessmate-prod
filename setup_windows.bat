@@ -49,4 +49,4 @@ echo.
 echo Setup complete! Run 'run_development.bat' to start the development server.
 echo.
 
-pause 
+pause

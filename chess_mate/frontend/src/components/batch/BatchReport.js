@@ -1,12 +1,12 @@
 /**
  * BatchReport.js
- * 
+ *
  * Page that polls batch status, loads the final report, and renders the
  * analysis sections in the approved order.
- * 
+ *
  * Route params:
  *   - batchId: string
- * 
+ *
  * State:
  *   - batchReport: object | null
  *   - status: string
@@ -14,7 +14,7 @@
  *   - completedGames: number
  *   - totalGames: number
  *   - error: string | null
- * 
+ *
  * Pure page component with polling side effects only.
  */
 

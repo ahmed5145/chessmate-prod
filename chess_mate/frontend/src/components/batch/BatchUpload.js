@@ -1,8 +1,8 @@
 /**
  * BatchUpload.js
- * 
+ *
  * Batch upload page that collects PGN input and creates a new batch analysis.
- * 
+ *
  * Pure page component with local loading/error state only.
  */
 

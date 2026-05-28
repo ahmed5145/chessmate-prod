@@ -1,13 +1,13 @@
 /**
  * TopPriorities.js
- * 
+ *
  * Displays the top 3 priorities from the coaching report.
  * If coaching_report is null, shows a graceful fallback.
- * 
+ *
  * Props:
  *   - coaching_report: object | null
  *       Contains top_3_priorities array of 3 priority objects
- * 
+ *
  * Pure display component — no state, no API calls.
  */
 
