@@ -718,6 +718,12 @@ export const getBatchReport = async (batchId) => {
     }
 };
 
+// Convenience wrapper to re-run only failed games by passing game IDs or PGNs
+export const retryFailedGames = async ({ gameIds = null, pgnList = null } = {}) => {
+    // Behaves same as createBatch but exists for semantic clarity in UI
+    return createBatch({ gameIds, pgnList });
+};
+
 // ============================================================================
 
 // User profile functions

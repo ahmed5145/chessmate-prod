@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
-import { getBatchReport, getBatchStatus } from '../services/apiRequests';
+import { getBatchReport, getBatchStatus, retryFailedGames } from '../services/apiRequests';
 import {
   Box,
   Typography,
   CircularProgress,
+  Button,
   Tabs,
   Tab,
   Grid,
@@ -247,6 +248,7 @@ const BatchAnalysisResults = () => {
   const [meta, setMeta] = useState({ total: 0, current: 0, progress: 0 });
   const [currentTab, setCurrentTab] = useState(0);
   const [aggregateMetrics, setAggregateMetrics] = useState(null);
+  const [isRetrying, setIsRetrying] = useState(false);
   const { isDarkMode } = useTheme();
 
   const cardSx = {
@@ -991,6 +993,35 @@ const BatchAnalysisResults = () => {
     setCurrentTab(newValue);
   };
 
+  const handleRetryFailed = async () => {
+    if (!Array.isArray(failedGames) || failedGames.length === 0) {
+      toast.error('No failed games to retry');
+      return;
+    }
+
+    const failedIds = failedGames
+      .map((f) => (typeof f === 'string' ? f : f.game_id || f.id || f.gameId || null))
+      .filter(Boolean);
+
+    if (failedIds.length < 5) {
+      toast.error('Retry requires at least 5 games; please add more games or re-run a full batch.');
+      return;
+    }
+
+    try {
+      setIsRetrying(true);
+      const resp = await retryFailedGames({ gameIds: failedIds });
+      const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
+      toast.success('Retry batch started');
+      if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
+    } catch (err) {
+      console.error('Error retrying failed games:', err);
+      toast.error(err?.message || 'Failed to start retry batch');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
     if (error) {
       return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -1012,6 +1043,14 @@ const BatchAnalysisResults = () => {
         <Typography variant="subtitle1" gutterBottom>
           {results.length} games analyzed • {failedGames.length} failed
         </Typography>
+
+        {failedGames.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Button variant="contained" color="primary" onClick={handleRetryFailed} disabled={isRetrying}>
+              {isRetrying ? 'Retrying...' : 'Retry Failed Games'}
+            </Button>
+          </Box>
+        )}
 
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
           <Tabs
