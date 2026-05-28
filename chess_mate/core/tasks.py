@@ -684,6 +684,12 @@ def analyze_game(
 ) -> Dict[str, Any]:
     """Backward-compatible synchronous analysis helper used by legacy tests."""
     task_manager = TaskManager()
+    # Register a legacy task entry so subsequent status updates succeed.
+    try:
+        task_manager.register_task(task_id=f"legacy_{game_id}", task_type=task_manager.TYPE_ANALYSIS, user_id=user_id, game_id=game_id)
+    except Exception:
+        # Registration is best-effort; continue so update_task_status can still run against cache/redis.
+        pass
     try:
         game = Game.objects.get(id=game_id)
     except Game.DoesNotExist:
