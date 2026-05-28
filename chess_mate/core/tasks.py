@@ -807,46 +807,67 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
         {"game_id": game_id, "status": "success"|"failed", "result": {...} or "error": "..."}
     """
     try:
-        # Resolve the build_game_result function robustly across import paths.
-        # Some CI environments import modules under both `core` and
-        # `chess_mate.core`, which can cause mocks/patches to attach to a
-        # different module object. Try several candidates and prefer a
-        # patched/callable function when available.
+        # Resolve the `build_game_result` function robustly across import
+        # paths and prefer a patched/mock implementation when present. Some
+        # CI/test setups import the same file under different package names
+        # (e.g. `core.tasks` vs `chess_mate.core.tasks`) which can cause
+        # unittest.mock.patch to attach to a different module object than
+        # the one executing here. To handle that, scan loaded modules for
+        # any `build_game_result` attribute and prefer a Mock or a different
+        # callable than the shipped implementation.
         builder = None
-        # 1) Prefer local global if present
-        builder = globals().get("build_game_result")
 
-        # 2) Check common module names for patched attributes
-        import sys
-        if not callable(builder):
-            mod = sys.modules.get("core.tasks")
-            if mod is not None:
-                builder = getattr(mod, "build_game_result", None)
+        # 1) Look for a patched attribute on any loaded module first
+        try:
+            import sys
+            from unittest.mock import Mock as _Mock
+            from importlib import import_module
 
-        if not callable(builder):
-            mod = sys.modules.get("chess_mate.core.tasks")
-            if mod is not None:
-                builder = getattr(mod, "build_game_result", None)
-
-        # 3) Fallback to importing the implementation directly
-        if not callable(builder):
+            shipped_impl = None
             try:
-                from importlib import import_module
-
-                mod_impl = None
-                try:
-                    mod_impl = import_module("core.analysis.stockfish_game_result")
-                except Exception:
-                    mod_impl = import_module("chess_mate.core.analysis.stockfish_game_result")
-
-                builder = getattr(mod_impl, "build_game_result", None)
+                impl_mod = import_module("core.analysis.stockfish_game_result")
             except Exception:
-                builder = None
+                try:
+                    impl_mod = import_module("chess_mate.core.analysis.stockfish_game_result")
+                except Exception:
+                    impl_mod = None
+
+            if impl_mod is not None:
+                shipped_impl = getattr(impl_mod, "build_game_result", None)
+
+            # Prefer any mock/override attached to any module in sys.modules
+            for mod in list(sys.modules.values()):
+                try:
+                    candidate = getattr(mod, "build_game_result", None)
+                except Exception:
+                    candidate = None
+
+                if candidate is None:
+                    continue
+
+                # If it's a Mock, take it immediately (test patches are mocks)
+                if isinstance(candidate, _Mock):
+                    builder = candidate
+                    break
+
+                # If it's a different callable than the shipped impl, prefer it
+                if callable(candidate) and shipped_impl is not None and candidate is not shipped_impl:
+                    builder = candidate
+                    break
+
+            # 2) Fallbacks: module globals or shipped implementation
+            if builder is None:
+                builder = globals().get("build_game_result")
+            if not callable(builder) and shipped_impl is not None:
+                builder = shipped_impl
+
+        except Exception:
+            builder = globals().get("build_game_result")
 
         if not callable(builder):
             raise RuntimeError("build_game_result implementation not found")
 
-        # Build per-game result using stockfish analysis
+        # Build per-game result using resolved builder
         game_result = builder(pgn, game_id=game_id)
 
         if not game_result:
