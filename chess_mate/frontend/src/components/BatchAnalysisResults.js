@@ -1029,6 +1029,46 @@ const BatchAnalysisResults = () => {
     }
   };
 
+  const handleRetryIncludeCompleted = async () => {
+    // Combine failed ids with completed game ids to reach the minimum batch size
+    if (!Array.isArray(failedGames) || failedGames.length === 0) {
+      toast.error('No failed games to retry');
+      return;
+    }
+
+    const failedIds = failedGames
+      .map((f) => (typeof f === 'string' ? f : f.game_id || f.id || f.gameId || null))
+      .filter(Boolean);
+
+    const completedIds = Array.isArray(results)
+      ? results.map((r) => r.game_id || r.id || null).filter(Boolean)
+      : [];
+
+    // pick completed IDs until we reach 5 total
+    const needed = Math.max(0, 5 - failedIds.length);
+    const toAdd = completedIds.slice(0, needed);
+
+    const combined = Array.from(new Set([...failedIds, ...toAdd]));
+
+    if (combined.length < 5) {
+      toast.error('Not enough games available to build a retry batch of at least 5 games.');
+      return;
+    }
+
+    try {
+      setIsRetrying(true);
+      const resp = await retryFailedGames({ gameIds: combined });
+      const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
+      toast.success('Retry batch started (including completed games)');
+      if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
+    } catch (err) {
+      console.error('Error retrying failed games including completed:', err);
+      toast.error(err?.message || 'Failed to start retry batch');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   const handleOpenAdd = () => setOpenAddDialog(true);
   const handleCloseAdd = () => {
     setOpenAddDialog(false);
@@ -1170,9 +1210,16 @@ const BatchAnalysisResults = () => {
               {isRetrying ? 'Retrying...' : 'Retry Failed Games'}
             </Button>
             {failedGames.length < 5 && (
-              <Button variant="outlined" sx={{ ml: 2 }} onClick={handleOpenAdd}>
-                Add Games & Retry
-              </Button>
+              <>
+                <Button variant="outlined" sx={{ ml: 2 }} onClick={handleOpenAdd}>
+                  Add Games & Retry
+                </Button>
+                {((results?.length || 0) + failedGames.length) >= 5 && (
+                  <Button variant="text" sx={{ ml: 2 }} onClick={handleRetryIncludeCompleted} disabled={isRetrying}>
+                    Retry with Completed Games
+                  </Button>
+                )}
+              </>
             )}
           </Box>
         )}

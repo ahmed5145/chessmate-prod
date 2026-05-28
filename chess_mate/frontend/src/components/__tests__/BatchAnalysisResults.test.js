@@ -104,6 +104,41 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
   });
 
+  test('Retry with Completed Games combines completed + failed to reach minimum and starts retry', async () => {
+    const fakePartialReport = {
+      status: 'completed',
+      per_game_results: [ { game_id: 'c1' }, { game_id: 'c2' }, { game_id: 'c3' } ],
+      games_count: 5,
+      failed_games: [ { game_id: 'f1' }, { game_id: 'f2' } ],
+      batch_summary: { overall_accuracy: 0.5, phase_performance: { opening: { score: 0.5 }, middlegame: { score: 0.5 }, endgame: { score: 0.5 } }, recurring_weaknesses: [], strength_patterns: [] },
+      coaching_report: { executive_summary: 'Partial mix', one_thing_to_do_today: 'Practice' }
+    };
+
+    getBatchReport.mockResolvedValueOnce(fakePartialReport);
+    const { retryFailedGames } = require('../../services/apiRequests');
+    retryFailedGames.mockResolvedValueOnce({ batch_id: 'BATCH_MIX', task_id: 'TASK_MIX' });
+
+    render(
+      <MemoryRouter initialEntries={["/batch-analysis/results/report/PARTIAL_MIX"]}>
+        <Routes>
+          <Route path="/batch-analysis/results/report/:reportId" element={<BatchAnalysisResults />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Combined Coaching Report');
+
+    const includeButton = screen.getByRole('button', { name: /Retry with Completed Games/i });
+    jest.useRealTimers();
+    await userEvent.click(includeButton);
+    jest.useFakeTimers();
+
+    await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
+    const callArg = retryFailedGames.mock.calls[0][0];
+    expect(Array.isArray(callArg.gameIds)).toBe(true);
+    expect(callArg.gameIds.length).toBeGreaterThanOrEqual(5);
+  });
+
   test('polls status then loads report and renders coaching section', async () => {
     // First call returns in-progress, second call returns completed
     getBatchStatus
