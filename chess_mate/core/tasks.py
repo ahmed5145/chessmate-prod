@@ -817,28 +817,44 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
         # callable than the shipped implementation.
         builder = None
 
-        # 1) Look for a patched attribute on any loaded module first
+        # 1) Prefer the local module-level name first. Tests patch
+        # `core.tasks.build_game_result` which replaces the name in this
+        # module's globals; honoring that ensures mocks are detected.
         try:
             import sys
             from unittest.mock import Mock as _Mock
             from importlib import import_module
 
             shipped_impl = None
+
+            # Prefer patched local global (most direct and reliable)
+            local_builder = globals().get("build_game_result")
+            if callable(local_builder):
+                builder = local_builder
+        except Exception:
+            # fallthrough to more robust resolution below
+            pass
+
+        try:
+            # Continue resolution: import modules and discover shipped impl
+            from importlib import import_module as _import_module
+
+            impl_mod = None
             try:
-                impl_mod = import_module("core.analysis.stockfish_game_result")
+                impl_mod = _import_module("core.analysis.stockfish_game_result")
             except Exception:
                 try:
-                    impl_mod = import_module("chess_mate.core.analysis.stockfish_game_result")
+                    impl_mod = _import_module("chess_mate.core.analysis.stockfish_game_result")
                 except Exception:
                     impl_mod = None
 
             if impl_mod is not None:
                 shipped_impl = getattr(impl_mod, "build_game_result", None)
 
-            # First, check the exact module path the tests patch: `core.tasks`.
+            # Next, check the exact module path the tests patch: `core.tasks`.
             # This should pick up a `patch('core.tasks.build_game_result')`.
             try:
-                mod_core_tasks = import_module("core.tasks")
+                mod_core_tasks = _import_module("core.tasks")
                 candidate = getattr(mod_core_tasks, "build_game_result", None)
                 if candidate is not None:
                     builder = candidate
@@ -849,7 +865,7 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
             # Next, check `chess_mate.core.tasks` (alternate package name)
             if builder is None:
                 try:
-                    mod_alt = import_module("chess_mate.core.tasks")
+                    mod_alt = _import_module("chess_mate.core.tasks")
                     candidate = getattr(mod_alt, "build_game_result", None)
                     if candidate is not None:
                         builder = candidate
