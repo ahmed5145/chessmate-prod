@@ -1069,6 +1069,31 @@ const BatchAnalysisResults = () => {
     }
   };
 
+  const handleRegenerateCoaching = async () => {
+    // For partial batches where coaching generation failed, allow regenerating
+    const successfulIds = Array.isArray(results)
+      ? results.map((r) => r.game_id || r.id || null).filter(Boolean)
+      : [];
+
+    if (successfulIds.length < 5) {
+      toast.error('Need at least 5 analyzed games to regenerate coaching.');
+      return;
+    }
+
+    try {
+      setIsRetrying(true);
+      const resp = await retryFailedGames({ gameIds: successfulIds });
+      const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
+      toast.success('Regeneration batch started');
+      if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
+    } catch (err) {
+      console.error('Error regenerating coaching report:', err);
+      toast.error(err?.message || 'Failed to start regeneration batch');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   const handleOpenAdd = () => setOpenAddDialog(true);
   const handleCloseAdd = () => {
     setOpenAddDialog(false);
@@ -1220,6 +1245,11 @@ const BatchAnalysisResults = () => {
                   </Button>
                 )}
               </>
+            )}
+            {status === 'PARTIAL' && !aggregateMetrics?.coach_report && (
+              <Button variant="outlined" color="secondary" sx={{ ml: 2 }} onClick={handleRegenerateCoaching} disabled={isRetrying}>
+                {isRetrying ? 'Starting...' : 'Regenerate Coaching Report'}
+              </Button>
             )}
           </Box>
         )}
