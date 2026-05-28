@@ -204,7 +204,11 @@ class TaskManager:
         return len(to_remove)
 
     def register_task(
-        self, task_id: str, task_type: str, user_id: Optional[int] = None, game_id: Optional[int] = None
+        self,
+        task_id: str,
+        task_type: str,
+        user_id: Optional[int] = None,
+        game_id: Optional[int] = None,
     ) -> None:
         """
         Register a new task for tracking.
@@ -936,7 +940,11 @@ class TaskManager:
         task_info = self.get_task_info(task_id)
         if not task_info:
             # Return default status instead of checking Celery
-            return {"status": "PENDING", "message": "Task not found or not started", "progress": 0}
+            return {
+                "status": "PENDING",
+                "message": "Task not found or not started",
+                "progress": 0,
+            }
 
         return task_info
 

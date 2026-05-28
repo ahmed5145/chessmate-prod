@@ -315,7 +315,14 @@ def login_view(request):
         # Check required fields
         if not email or not password:
             logger.warning(f"Login attempt with missing credentials. Email provided: {bool(email)}")
-            raise APIValidationError([{"field": "email_password", "message": "Email and password are required"}])
+            raise APIValidationError(
+                [
+                    {
+                        "field": "email_password",
+                        "message": "Email and password are required",
+                    }
+                ]
+            )
 
         # Get the user by email
         logger.info(f"Attempting to authenticate user with email: {email}")
@@ -510,12 +517,20 @@ def request_password_reset(request):
 
         logger.info(f"Password reset email sent to {email}")
 
-        return Response({"status": "success", "message": "Password reset link has been sent to your email."})
+        return Response(
+            {
+                "status": "success",
+                "message": "Password reset link has been sent to your email.",
+            }
+        )
     except Exception as e:
         logger.error(f"Failed to send password reset email: {str(e)}")
         # We don't want to expose that the email exists, so return a success response
         return Response(
-            {"status": "success", "message": "Password reset link has been sent to your email if an account exists."}
+            {
+                "status": "success",
+                "message": "Password reset link has been sent to your email if an account exists.",
+            }
         )
 
 
@@ -589,7 +604,9 @@ def verify_email(request, uidb64=None, token=None):
         # First, validate that we have reasonable inputs
         if not token:
             return render(
-                request, "email/verification_failed.html", {"message": "Missing verification parameters in the URL."}
+                request,
+                "email/verification_failed.html",
+                {"message": "Missing verification parameters in the URL."},
             )
 
         if not uidb64:
@@ -610,7 +627,9 @@ def verify_email(request, uidb64=None, token=None):
         if uidb64 == "invalid-uidb64" and token == "invalid-token-123":
             logger.warning("Test verification with invalid token detected")
             return render(
-                request, "email/verification_failed.html", {"message": "This is a test invalid verification link."}
+                request,
+                "email/verification_failed.html",
+                {"message": "This is a test invalid verification link."},
             )
 
         # Try to decode the user ID
@@ -619,7 +638,9 @@ def verify_email(request, uidb64=None, token=None):
         except (TypeError, ValueError, OverflowError) as e:
             logger.error(f"Error decoding uidb64 {uidb64}: {str(e)}")
             return render(
-                request, "email/verification_failed.html", {"message": "Invalid user ID in verification link."}
+                request,
+                "email/verification_failed.html",
+                {"message": "Invalid user ID in verification link."},
             )
 
         # Get user
@@ -654,7 +675,9 @@ def verify_email(request, uidb64=None, token=None):
             if not is_valid:
                 logger.warning(f"Invalid verification token for user {user.email}: {reason}")
                 return render(
-                    request, "email/verification_failed.html", {"message": f"Invalid verification link: {reason}"}
+                    request,
+                    "email/verification_failed.html",
+                    {"message": f"Invalid verification link: {reason}"},
                 )
 
             # Compare token with stored token
@@ -692,7 +715,9 @@ def verify_email(request, uidb64=None, token=None):
     except Exception as e:
         logger.error(f"Email verification error: {str(e)}", exc_info=True)
         return render(
-            request, "email/verification_failed.html", {"message": "An unexpected error occurred during verification."}
+            request,
+            "email/verification_failed.html",
+            {"message": "An unexpected error occurred during verification."},
         )
 
 
@@ -763,7 +788,11 @@ def test_authentication(request):
             {
                 "status": "success",
                 "data": {
-                    "user": {"id": request.user.id, "username": request.user.username, "email": request.user.email},
+                    "user": {
+                        "id": request.user.id,
+                        "username": request.user.username,
+                        "email": request.user.email,
+                    },
                     "authentication": {
                         "is_authenticated": True,
                         "auth_header_present": auth_header_present,
@@ -772,7 +801,7 @@ def test_authentication(request):
                     "debug_info": {
                         "token_manually_valid": token_valid,
                         "token_details": token_debug_info,
-                        "manual_user_matches": user_from_token == request.user if user_from_token else False,
+                        "manual_user_matches": (user_from_token == request.user if user_from_token else False),
                     },
                 },
                 "message": "Authentication successful",
@@ -818,7 +847,10 @@ def test_authentication(request):
                         "auth_header_present": auth_header_present,
                         "token_valid": token_valid,
                     },
-                    "debug_info": {"token_manually_valid": token_valid, "token_details": token_debug_info},
+                    "debug_info": {
+                        "token_manually_valid": token_valid,
+                        "token_details": token_debug_info,
+                    },
                 },
                 "message": "Authentication failed",
             },

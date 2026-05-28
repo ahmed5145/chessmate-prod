@@ -191,7 +191,14 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
                 },
                 "source": "stockfish",
             }
-            game.save(update_fields=["status", "analysis_status", "analysis", "analysis_completed_at"])
+            game.save(
+                update_fields=[
+                    "status",
+                    "analysis_status",
+                    "analysis",
+                    "analysis_completed_at",
+                ]
+            )
 
             return {
                 "status": "completed",
@@ -276,11 +283,18 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
             message=f"Game {game_id} not found",
             error=f"Game with ID {game_id} does not exist",
         )
-        return {"status": "error", "message": f"Game {game_id} not found", "game_id": game_id}
+        return {
+            "status": "error",
+            "message": f"Game {game_id} not found",
+            "game_id": game_id,
+        }
     except Exception as e:
         logger.error(f"[{task_id}] Error retrieving game {game_id}: {str(e)}")
         task_manager.update_task_status(
-            **status_target, status="FAILURE", message=f"Error retrieving game {game_id}", error=str(e)
+            **status_target,
+            status="FAILURE",
+            message=f"Error retrieving game {game_id}",
+            error=str(e),
         )
         return {"status": "error", "message": f"Error: {str(e)}", "game_id": game_id}
 
@@ -413,7 +427,11 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
 
         # Update task status to failure
         task_manager.update_task_status(
-            **status_target, status="FAILURE", progress=0, message=f"Analysis failed: {error_type}", error=error_message
+            **status_target,
+            status="FAILURE",
+            progress=0,
+            message=f"Analysis failed: {error_type}",
+            error=error_message,
         )
 
         # Update game status
@@ -514,7 +532,13 @@ def batch_analyze_games_task(
     """
     logger.info(f"Starting batch analysis for {len(game_ids)} games")
 
-    results = {"total": len(game_ids), "completed": 0, "failed": 0, "skipped": 0, "results": {}}
+    results = {
+        "total": len(game_ids),
+        "completed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "results": {},
+    }
 
     # Process each game
     for i, game_id in enumerate(game_ids):
@@ -686,7 +710,12 @@ def analyze_game(
     task_manager = TaskManager()
     # Register a legacy task entry so subsequent status updates succeed.
     try:
-        task_manager.register_task(task_id=f"legacy_{game_id}", task_type=task_manager.TYPE_ANALYSIS, user_id=user_id, game_id=game_id)
+        task_manager.register_task(
+            task_id=f"legacy_{game_id}",
+            task_type=task_manager.TYPE_ANALYSIS,
+            user_id=user_id,
+            game_id=game_id,
+        )
     except Exception:
         # Registration is best-effort; continue so update_task_status can still run against cache/redis.
         pass
@@ -741,7 +770,11 @@ def analyze_game(
             result={"analysis": analysis_result, "feedback": feedback_result},
         )
 
-        result: Dict[str, Any] = {"status": "success", "game_id": game_id, "analysis": analysis_result}
+        result: Dict[str, Any] = {
+            "status": "success",
+            "game_id": game_id,
+            "analysis": analysis_result,
+        }
         if use_ai:
             result["feedback"] = feedback_result
         return result
@@ -987,7 +1020,10 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
 
 @shared_task(name="chess_mate.core.tasks.aggregate_and_report_task", bind=False)
 def aggregate_and_report_task(
-    task_results: List[Dict[str, Any]], batch_id: str, game_pgn_list: List[str], user_id: int
+    task_results: List[Dict[str, Any]],
+    batch_id: str,
+    game_pgn_list: List[str],
+    user_id: int,
 ) -> Dict[str, Any]:
     """
     Chord callback: aggregate per-game results and generate coaching report.

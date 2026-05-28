@@ -22,7 +22,13 @@ from .redis_config import (
 
 # Configure logging
 logger = logging.getLogger(__name__)
-CACHE_INVALIDATION_EXCEPTIONS = (LookupError, AttributeError, TypeError, ValueError, RuntimeError)
+CACHE_INVALIDATION_EXCEPTIONS = (
+    LookupError,
+    AttributeError,
+    TypeError,
+    ValueError,
+    RuntimeError,
+)
 
 
 def invalidate_user_prefix(user_id: int) -> None:

@@ -5,9 +5,40 @@ Celery configuration for ChessMate project.
 import logging
 import os
 import platform
+import sys
+import importlib
 
-from celery import Celery
-from celery.schedules import crontab
+
+# Safely import the external `celery` package. In some test/CI setups the
+# project package root may be on `sys.path` such that a local
+# `chess_mate/chess_mate/celery.py` file is discoverable as the top-level
+# module name `celery`, which leads to a circular import when trying to
+# execute "from celery import Celery". To avoid that, try a normal import
+# first and fall back to temporarily adjusting `sys.path` so the external
+# package from site-packages is imported.
+def _safe_get_celery_Celery():
+    try:
+        from celery import Celery  # type: ignore
+
+        return Celery
+    except Exception:
+        # Attempt to import the real celery package from site-packages by
+        # temporarily removing the project's inner package directory from
+        # sys.path so importlib won't resolve the local module as `celery`.
+        project_inner = os.path.dirname(os.path.dirname(__file__))
+        saved_sys_path = list(sys.path)
+        try:
+            sys.path = [p for p in sys.path if os.path.abspath(p) != os.path.abspath(project_inner)]
+            celery_pkg = importlib.import_module("celery")
+            return getattr(celery_pkg, "Celery")
+        finally:
+            sys.path[:] = saved_sys_path
+
+
+# Obtain the Celery class safely
+Celery = _safe_get_celery_Celery()
+
+from celery.schedules import crontab  # type: ignore
 from celery.signals import after_setup_logger, after_setup_task_logger, worker_init
 from django.conf import settings
 from kombu import Exchange, Queue
