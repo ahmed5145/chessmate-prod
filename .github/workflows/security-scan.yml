@@ -61,7 +61,7 @@ jobs:
           normalize(baseline)
           temp_path.write_text(json.dumps(baseline, indent=2), encoding='utf-8')
           PY
-          bandit -r chess_mate/ -x chess_mate/core/tests/,chess_mate/*/migrations/ -b .bandit-baseline.ci.json
+          bandit -r chess_mate/ -x "chess_mate/core/tests,chess_mate/core/analysis/tests,chess_mate/test_*.py,chess_mate/*/migrations,chess_mate/frontend,node_modules,venv*,venv311" -b .bandit-baseline.ci.json
 
       - name: Set up Node.js
         uses: actions/setup-node@v6

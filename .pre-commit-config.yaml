@@ -64,7 +64,7 @@ repos:
         - B101,B104,B603,B607
         - -b
         - .bandit-baseline.json
-        exclude: '^tests/'
+        exclude: '(^|/)(tests|migrations)(/|$)|(^|/)test_.*\.py$'
 
 # Type checking
 -   repo: https://github.com/pre-commit/mirrors-mypy

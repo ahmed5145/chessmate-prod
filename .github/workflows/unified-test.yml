@@ -263,7 +263,7 @@ jobs:
         normalize(baseline)
         temp_path.write_text(json.dumps(baseline, indent=2), encoding='utf-8')
         PY
-        bandit -r chess_mate/ -x "chess_mate/core/tests,chess_mate/*/tests,chess_mate/tests,chess_mate/frontend,node_modules,venv*,venv311" -b .bandit-baseline.ci.json
+        bandit -r chess_mate/ -x "chess_mate/core/tests,chess_mate/core/analysis/tests,chess_mate/test_*.py,chess_mate/*/migrations,chess_mate/frontend,node_modules,venv*,venv311" -b .bandit-baseline.ci.json
 
     - name: Check Python Dependencies for Vulnerabilities
       run: |
