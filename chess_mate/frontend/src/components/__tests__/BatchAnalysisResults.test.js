@@ -1,3 +1,4 @@
+/* eslint-disable import/first */
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { act } from 'react';
@@ -6,6 +7,7 @@ import '@testing-library/jest-dom';
 
 jest.useFakeTimers();
 
+// Allow imports below for mocking purposes
 // Mock the apiRequests module used by the component
 jest.mock('../../services/apiRequests', () => ({
   getBatchStatus: jest.fn(),
@@ -72,7 +74,8 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     });
 
     await waitFor(() => expect(getBatchReport).toHaveBeenCalledWith('FAKE_TASK'));
-    await waitFor(() => expect(screen.getByText('Combined Coaching Report')).toBeInTheDocument());
+    // prefer findByText for async element queries
+    await screen.findByText('Combined Coaching Report');
 
     expect(getBatchStatus).toHaveBeenCalled();
     expect(screen.getByText(/Coach summary/)).toBeInTheDocument();
@@ -98,7 +101,7 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     );
 
     await waitFor(() => expect(getBatchReport).toHaveBeenCalledWith('REPORT123'));
-    await waitFor(() => expect(screen.getByText('Combined Coaching Report')).toBeInTheDocument());
-    expect(screen.getByText(/Saved report summary/)).toBeInTheDocument();
+    await screen.findByText('Combined Coaching Report');
+    expect(await screen.findByText(/Saved report summary/)).toBeInTheDocument();
   });
 });
