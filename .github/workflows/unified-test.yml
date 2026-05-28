@@ -270,8 +270,9 @@ jobs:
         safety check -r requirements.txt --full-report
 
     - name: Run Django Specific Linting (pylint-django)
+      working-directory: chess_mate
       run: |
-        pylint --load-plugins=pylint_django --django-settings-module=chess_mate.settings chess_mate/core/ --disable=C0111,C0103,C0303,W0613,R0903,W0511,R0913,C0330,C0326,R0201,R0902,R0914,W0212,C0301,R0904,W0221,E1101
+        pylint --load-plugins=pylint_django --django-settings-module=chess_mate.settings core/ --disable=C0111,C0103,C0303,W0613,R0903,W0511,R0913,C0330,C0326,R0201,R0902,R0914,W0212,C0301,R0904,W0221,E1101
 
     - name: Check Frontend Code Style (eslint)
       working-directory: chess_mate/frontend
