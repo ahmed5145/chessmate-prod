@@ -900,12 +900,23 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
             except Exception:
                 is_mock = False
 
-            logger.info(
+            # Use WARNING so pytest capture shows the line in CI logs.
+            logger.warning(
                 f"[batch={batch_id}] analyze_single_game_subtask: selected build_game_result -> "
                 f"name={builder_name}, module={builder_module}, is_mock={is_mock}"
             )
+
+            # Also write a minimal line to stderr to ensure it appears in test output.
+            try:
+                import sys as _sys
+
+                _sys.stderr.write(
+                    f"[batch={batch_id}] build_game_result_selected: name={builder_name} module={builder_module} is_mock={is_mock}\n"
+                )
+            except Exception:
+                pass
         except Exception:
-            logger.debug(f"[batch={batch_id}] analyze_single_game_subtask: selected build_game_result (logging failed)")
+            logger.warning(f"[batch={batch_id}] analyze_single_game_subtask: selected build_game_result (logging failed)")
 
         # Build per-game result using resolved builder
         game_result = builder(pgn, game_id=game_id)
