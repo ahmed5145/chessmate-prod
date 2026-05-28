@@ -867,6 +867,26 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
         if not callable(builder):
             raise RuntimeError("build_game_result implementation not found")
 
+        # Emit a short debug record so CI logs reveal which implementation
+        # was selected. Keep the message small to avoid leaking large data.
+        try:
+            builder_name = getattr(builder, "__name__", repr(builder))
+            builder_module = getattr(builder, "__module__", None)
+            is_mock = False
+            try:
+                from unittest.mock import Mock as _Mock
+
+                is_mock = isinstance(builder, _Mock)
+            except Exception:
+                is_mock = False
+
+            logger.info(
+                f"[batch={batch_id}] analyze_single_game_subtask: selected build_game_result -> "
+                f"name={builder_name}, module={builder_module}, is_mock={is_mock}"
+            )
+        except Exception:
+            logger.debug(f"[batch={batch_id}] analyze_single_game_subtask: selected build_game_result (logging failed)")
+
         # Build per-game result using resolved builder
         game_result = builder(pgn, game_id=game_id)
 
