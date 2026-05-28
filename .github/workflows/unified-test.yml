@@ -241,7 +241,29 @@ jobs:
         # and the frontend tree. This reduces noise from test helpers
         # and third-party files while surfacing real issues in the
         # `chess_mate/` package.
-        bandit -r chess_mate/ -x "chess_mate/core/tests,chess_mate/*/tests,chess_mate/tests,chess_mate/frontend,node_modules,venv*,venv311" -b .bandit-baseline.json
+        python - <<'PY'
+        import json
+        from pathlib import Path
+
+        baseline_path = Path('.bandit-baseline.json')
+        temp_path = Path('.bandit-baseline.ci.json')
+        baseline = json.loads(baseline_path.read_text(encoding='utf-8'))
+
+        def normalize(node):
+            if isinstance(node, dict):
+                for key, value in list(node.items()):
+                    if key == 'filename' and isinstance(value, str):
+                        node[key] = value.replace('\\', '/')
+                    else:
+                        normalize(value)
+            elif isinstance(node, list):
+                for item in node:
+                    normalize(item)
+
+        normalize(baseline)
+        temp_path.write_text(json.dumps(baseline, indent=2), encoding='utf-8')
+        PY
+        bandit -r chess_mate/ -x "chess_mate/core/tests,chess_mate/*/tests,chess_mate/tests,chess_mate/frontend,node_modules,venv*,venv311" -b .bandit-baseline.ci.json
 
     - name: Check Python Dependencies for Vulnerabilities
       run: |
