@@ -237,7 +237,11 @@ jobs:
 
     - name: Run Python Security Scan (bandit)
       run: |
-        bandit -r chess_mate/ -x "chess_mate/tests/,chess_mate/*/tests/"
+        # Focus Bandit on production code by excluding test directories
+        # and the frontend tree. This reduces noise from test helpers
+        # and third-party files while surfacing real issues in the
+        # `chess_mate/` package.
+        bandit -r chess_mate/ -x "chess_mate/core/tests,chess_mate/*/tests,chess_mate/tests,chess_mate/frontend,node_modules,venv*,venv311"
 
     - name: Check Python Dependencies for Vulnerabilities
       run: |
