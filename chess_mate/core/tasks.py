@@ -2,15 +2,14 @@
 Celery tasks for game analysis.
 """
 
+from datetime import datetime
 import json
 import logging
 import os
 import time
 import traceback
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-import redis
 from celery import Task, chord, group, shared_task
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
@@ -19,6 +18,7 @@ from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 from openai import OpenAI, OpenAIError
+import redis
 
 from .ai_feedback import AIFeedbackGenerator
 from .analysis.batch_aggregator import BatchAggregationError, aggregate_batch
@@ -1223,6 +1223,30 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
             if _mod2 is not None:
                 _group = getattr(_mod2, "group", _group)
                 _chord = getattr(_mod2, "chord", _chord)
+        except Exception:
+            pass
+        # Emit resolver info so CI shows which callable was selected
+        try:
+            g_name = getattr(_group, "__name__", repr(_group))
+            g_mod = getattr(_group, "__module__", None)
+            c_name = getattr(_chord, "__name__", repr(_chord))
+            c_mod = getattr(_chord, "__module__", None)
+            from unittest.mock import Mock as _Mock
+
+            g_is_mock = isinstance(_group, _Mock)
+            c_is_mock = isinstance(_chord, _Mock)
+            logger.warning(
+                f"[batch={batch_id}] analyze_batch_task: selected group -> name={g_name}, module={g_mod}, is_mock={g_is_mock}"
+            )
+            logger.warning(
+                f"[batch={batch_id}] analyze_batch_task: selected chord -> name={c_name}, module={c_mod}, is_mock={c_is_mock}"
+            )
+            try:
+                import sys as _sys2
+                _sys2.stderr.write(f"[batch={batch_id}] group_selected: {g_name} module={g_mod} is_mock={g_is_mock}\n")
+                _sys2.stderr.write(f"[batch={batch_id}] chord_selected: {c_name} module={c_mod} is_mock={c_is_mock}\n")
+            except Exception:
+                pass
         except Exception:
             pass
     except Exception:
