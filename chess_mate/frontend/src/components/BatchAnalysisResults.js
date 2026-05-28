@@ -1036,9 +1036,9 @@ const BatchAnalysisResults = () => {
   };
 
   const parseExtraInput = (text) => {
-    // Split into blocks separated by blank lines to preserve PGNs
+    // Split into blocks separated by blank lines (allowing whitespace on blank lines)
     const blocks = text
-      .split(/\r?\n\r?\n/)
+      .split(/\r?\n\s*\r?\n/)
       .map((b) => b.trim())
       .filter(Boolean);
 
@@ -1056,8 +1056,19 @@ const BatchAnalysisResults = () => {
     };
 
     blocks.forEach((block) => {
-      // If block looks like a PGN keep as-is
+      // If block looks like a PGN, attempt to split multiple PGNs in one block
       if (isLikelyPgn(block)) {
+        // Split before repeated [Event headers
+        const splitRegex = /(?=\[Event\s)/i;
+        const parts = block.split(splitRegex).map((p) => p.trim()).filter(Boolean);
+        if (parts.length > 1) {
+          parts.forEach((p) => {
+            if (isLikelyPgn(p)) pgns.push(p);
+            else ids.push(p);
+          });
+          return;
+        }
+
         pgns.push(block);
         return;
       }

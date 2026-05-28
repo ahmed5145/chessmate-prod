@@ -1,6 +1,6 @@
 /* eslint-disable import/first */
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { act } from 'react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import '@testing-library/jest-dom';
@@ -98,7 +98,7 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     await userEvent.type(textarea, 'x1\n x2');
 
     const startButton = screen.getByRole('button', { name: /Start Retry/i });
-    await userEvent.click(startButton);
+    fireEvent.click(startButton);
     jest.useFakeTimers();
 
     await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
@@ -185,5 +185,54 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     await waitFor(() => expect(getBatchReport).toHaveBeenCalledWith('REPORT123'));
     await screen.findByText('Combined Coaching Report');
     expect(await screen.findByText(/Saved report summary/)).toBeInTheDocument();
+  });
+
+  test('Add Games & Retry dialog allows adding PGNs and submits pgnList when enough PGNs provided', async () => {
+    const fakeNoFailReport = {
+      status: 'completed',
+      per_game_results: [],
+      games_count: 1,
+      failed_games: [{ game_id: 'f1' }],
+      batch_summary: { overall_accuracy: 0.5, phase_performance: { opening: { score: 0.5 }, middlegame: { score: 0.5 }, endgame: { score: 0.5 } }, recurring_weaknesses: [], strength_patterns: [] },
+      coaching_report: { executive_summary: 'No fails', one_thing_to_do_today: 'Practice' }
+    };
+
+    getBatchReport.mockResolvedValueOnce(fakeNoFailReport);
+    const { retryFailedGames } = require('../../services/apiRequests');
+    retryFailedGames.mockResolvedValueOnce({ batch_id: 'BPGN', task_id: 'TPGN' });
+
+    render(
+      <MemoryRouter initialEntries={["/batch-analysis/results/report/PGN_FAILS"]}>
+        <Routes>
+          <Route path="/batch-analysis/results/report/:reportId" element={<BatchAnalysisResults />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Combined Coaching Report');
+
+    const addButton = screen.getByRole('button', { name: /Add Games & Retry/i });
+    jest.useRealTimers();
+    await userEvent.click(addButton);
+
+    const textarea = await screen.findByPlaceholderText(/Paste game IDs or PGNs/);
+
+    // Provide 5 small PGN blocks separated by blank lines
+    const pgnBlockBase = `[Event "Live Chess"]\n[Site "Chess.com"]\n[Date "2026.05.28"]\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6`;
+    const blocks = [0,1,2,3,4].map((i) => pgnBlockBase.replace('Live Chess', `Live Chess ${i+1}`));
+    const paste = blocks.join('\r\n\r\n');
+    // Use direct change event for controlled MUI TextField
+    fireEvent.change(textarea, { target: { value: paste } });
+    // textarea value set via change event
+
+    const startButton = screen.getByRole('button', { name: /Start Retry/i });
+    await userEvent.click(startButton);
+    jest.useFakeTimers();
+
+    await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
+    // ensure it was called with pgnList array
+    const callArg = retryFailedGames.mock.calls[0][0];
+    expect(Array.isArray(callArg.pgnList)).toBe(true);
+    expect(callArg.pgnList.length).toBeGreaterThanOrEqual(5);
   });
 });
