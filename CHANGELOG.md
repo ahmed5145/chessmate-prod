@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deployment workflows for staging and production
 - Request validation middleware for all API endpoints with customizable schemas
 - Comprehensive tests for the validation middleware
+ - Frontend: `Retry Failed Games` action for batch analysis (client-side, requires minimum 5 games)
+ - Frontend: Unit test for retry flow in `BatchAnalysisResults` that mocks batch APIs
 - Standardized error handling system with custom exception classes
 - Request ID tracking for improved debugging and traceability
 - Comprehensive documentation for validation and error handling

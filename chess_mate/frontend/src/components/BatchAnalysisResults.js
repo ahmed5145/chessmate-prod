@@ -8,6 +8,11 @@ import {
   Typography,
   CircularProgress,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
   Tabs,
   Tab,
   Grid,
@@ -249,6 +254,8 @@ const BatchAnalysisResults = () => {
   const [currentTab, setCurrentTab] = useState(0);
   const [aggregateMetrics, setAggregateMetrics] = useState(null);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [extraInput, setExtraInput] = useState('');
   const { isDarkMode } = useTheme();
 
   const cardSx = {
@@ -1022,6 +1029,47 @@ const BatchAnalysisResults = () => {
     }
   };
 
+  const handleOpenAdd = () => setOpenAddDialog(true);
+  const handleCloseAdd = () => {
+    setOpenAddDialog(false);
+    setExtraInput('');
+  };
+
+  const parseExtraInput = (text) => {
+    return text
+      .split(/\s|,|\n|;|\r/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  };
+
+  const handleAddAndRetry = async () => {
+    const extraIds = parseExtraInput(extraInput);
+    const failedIds = failedGames
+      .map((f) => (typeof f === 'string' ? f : f.game_id || f.id || f.gameId || null))
+      .filter(Boolean);
+
+    const combined = Array.from(new Set([...failedIds, ...extraIds]));
+
+    if (combined.length < 5) {
+      toast.error('Retry requires at least 5 games; please add more game IDs or PGNs.');
+      return;
+    }
+
+    try {
+      setIsRetrying(true);
+      const resp = await retryFailedGames({ gameIds: combined });
+      const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
+      toast.success('Retry batch started');
+      handleCloseAdd();
+      if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
+    } catch (err) {
+      console.error('Error retrying failed games with added IDs:', err);
+      toast.error(err?.message || 'Failed to start retry batch');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
     if (error) {
       return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -1049,6 +1097,11 @@ const BatchAnalysisResults = () => {
             <Button variant="contained" color="primary" onClick={handleRetryFailed} disabled={isRetrying}>
               {isRetrying ? 'Retrying...' : 'Retry Failed Games'}
             </Button>
+            {failedGames.length < 5 && (
+              <Button variant="outlined" sx={{ ml: 2 }} onClick={handleOpenAdd}>
+                Add Games & Retry
+              </Button>
+            )}
           </Box>
         )}
 
@@ -1087,6 +1140,23 @@ const BatchAnalysisResults = () => {
           {currentTab === 3 && renderTimeManagement()}
           {currentTab === 4 && renderAIFeedback()}
         </Box>
+        <Dialog open={openAddDialog} onClose={handleCloseAdd} fullWidth maxWidth="sm">
+          <DialogTitle>Add additional game IDs or PGNs</DialogTitle>
+          <DialogContent>
+            <TextField
+              multiline
+              minRows={4}
+              fullWidth
+              placeholder="Paste game IDs or PGNs separated by newlines, commas, or spaces"
+              value={extraInput}
+              onChange={(e) => setExtraInput(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseAdd} disabled={isRetrying}>Cancel</Button>
+            <Button onClick={handleAddAndRetry} variant="contained" disabled={isRetrying}>Start Retry</Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Container>
   );

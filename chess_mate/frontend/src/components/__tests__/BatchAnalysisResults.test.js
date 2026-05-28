@@ -63,6 +63,47 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
   });
 
+  test('Add Games & Retry dialog allows adding IDs when failed < 5', async () => {
+    const fakeSmallFailReport = {
+      status: 'completed',
+      per_game_results: [],
+      games_count: 3,
+      failed_games: [ { game_id: 'a1' }, { game_id: 'a2' }, { game_id: 'a3' } ],
+      batch_summary: { overall_accuracy: 0.5, phase_performance: { opening: { score: 0.5 }, middlegame: { score: 0.5 }, endgame: { score: 0.5 } }, recurring_weaknesses: [], strength_patterns: [] },
+      coaching_report: { executive_summary: 'Partial', one_thing_to_do_today: 'Practice' }
+    };
+
+    getBatchReport.mockResolvedValueOnce(fakeSmallFailReport);
+    const { retryFailedGames } = require('../../services/apiRequests');
+    retryFailedGames.mockResolvedValueOnce({ batch_id: 'BATCH2', task_id: 'TASK2' });
+
+    render(
+      <MemoryRouter initialEntries={["/batch-analysis/results/report/SMALL_FAIL"]}>
+        <Routes>
+          <Route path="/batch-analysis/results/report/:reportId" element={<BatchAnalysisResults />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Combined Coaching Report');
+
+    const addButton = screen.getByRole('button', { name: /Add Games & Retry/i });
+    // Use real timers for userEvent interactions that trigger dialog mount/effects
+    jest.useRealTimers();
+    await userEvent.click(addButton);
+
+    const textarea = await screen.findByPlaceholderText(/Paste game IDs or PGNs/);
+    // already using real timers; continue typing and clicking
+    // Add two more ids to reach 5
+    await userEvent.type(textarea, 'x1\n x2');
+
+    const startButton = screen.getByRole('button', { name: /Start Retry/i });
+    await userEvent.click(startButton);
+    jest.useFakeTimers();
+
+    await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
+  });
+
   test('polls status then loads report and renders coaching section', async () => {
     // First call returns in-progress, second call returns completed
     getBatchStatus
