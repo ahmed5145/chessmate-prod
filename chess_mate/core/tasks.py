@@ -5,6 +5,7 @@ Celery tasks for game analysis.
 import json
 import logging
 import os
+import sys
 import time
 import traceback
 from datetime import datetime
@@ -48,6 +49,12 @@ from .task_manager import (
 )
 
 logger = get_task_logger(__name__)
+
+# Keep legacy import aliases pointed at the same module so monkeypatches work
+# no matter which package spelling the test runner imports first.
+sys.modules.setdefault("core.tasks", sys.modules[__name__])
+sys.modules.setdefault("chess_mate.core.tasks", sys.modules[__name__])
+sys.modules.setdefault("chessmate_prod.chess_mate.core.tasks", sys.modules[__name__])
 
 # Legacy aliases expected by older tests and call sites.
 StockfishAnalyzer = GameAnalyzer

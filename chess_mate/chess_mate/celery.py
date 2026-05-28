@@ -2,11 +2,11 @@
 Celery configuration for ChessMate project.
 """
 
+import importlib
 import logging
 import os
 import platform
 import sys
-import importlib
 
 
 # Safely import the external `celery` package. In some test/CI setups the
