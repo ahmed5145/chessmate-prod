@@ -131,12 +131,49 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     const includeButton = screen.getByRole('button', { name: /Retry with Completed Games/i });
     jest.useRealTimers();
     await userEvent.click(includeButton);
+    // dialog should open with confirmation
+    const startButton = await screen.findByRole('button', { name: /Start Retry/i });
+    await userEvent.click(startButton);
     jest.useFakeTimers();
 
     await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
     const callArg = retryFailedGames.mock.calls[0][0];
     expect(Array.isArray(callArg.gameIds)).toBe(true);
     expect(callArg.gameIds.length).toBeGreaterThanOrEqual(5);
+  });
+
+  test('Regenerate coaching calls retryFailedGames with successful game ids when partial', async () => {
+    const fakePartialNoCoach = {
+      status: 'PARTIAL',
+      per_game_results: [ { game_id: 's1' }, { game_id: 's2' }, { game_id: 's3' }, { game_id: 's4' }, { game_id: 's5' } ],
+      games_count: 5,
+      failed_games: [{ game_id: 'f1' }],
+      batch_summary: {},
+      coaching_report: null
+    };
+
+    getBatchReport.mockResolvedValueOnce(fakePartialNoCoach);
+    const { retryFailedGames } = require('../../services/apiRequests');
+    retryFailedGames.mockResolvedValueOnce({ batch_id: 'REGEN', task_id: 'REGEN1' });
+
+    render(
+      <MemoryRouter initialEntries={["/batch-analysis/results/report/PARTIAL_NO_COACH"]}>
+        <Routes>
+          <Route path="/batch-analysis/results/report/:reportId" element={<BatchAnalysisResults />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Batch Analysis Results');
+    const regenButton = await screen.findByRole('button', { name: /Regenerate Coaching Report/i });
+    jest.useRealTimers();
+    await userEvent.click(regenButton);
+    jest.useFakeTimers();
+
+    await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
+    const arg = retryFailedGames.mock.calls[0][0];
+    expect(Array.isArray(arg.gameIds)).toBe(true);
+    expect(arg.gameIds.length).toBeGreaterThanOrEqual(5);
   });
 
   test('polls status then loads report and renders coaching section', async () => {
