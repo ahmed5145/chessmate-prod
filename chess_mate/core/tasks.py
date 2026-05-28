@@ -1211,18 +1211,32 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
         _chord = globals().get("chord")
 
         try:
-            _mod = _sys.modules.get("core.tasks")
-            if _mod is not None:
+            # Try importing the exact module path that tests patch
+            from importlib import import_module as _import_module
+
+            try:
+                _mod = _import_module("core.tasks")
                 _group = getattr(_mod, "group", _group)
                 _chord = getattr(_mod, "chord", _chord)
+            except Exception:
+                # If import fails, check sys.modules as a fallback
+                _mod = _sys.modules.get("core.tasks")
+                if _mod is not None:
+                    _group = getattr(_mod, "group", _group)
+                    _chord = getattr(_mod, "chord", _chord)
         except Exception:
             pass
 
         try:
-            _mod2 = _sys.modules.get("chess_mate.core.tasks")
-            if _mod2 is not None:
+            try:
+                _mod2 = _import_module("chess_mate.core.tasks")
                 _group = getattr(_mod2, "group", _group)
                 _chord = getattr(_mod2, "chord", _chord)
+            except Exception:
+                _mod2 = _sys.modules.get("chess_mate.core.tasks")
+                if _mod2 is not None:
+                    _group = getattr(_mod2, "group", _group)
+                    _chord = getattr(_mod2, "chord", _chord)
         except Exception:
             pass
         # Emit resolver info so CI shows which callable was selected
