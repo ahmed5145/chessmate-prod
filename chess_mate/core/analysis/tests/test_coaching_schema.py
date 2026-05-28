@@ -2,7 +2,6 @@ import sys
 import types
 
 import pytest
-
 from core.analysis import coaching_generator
 
 
