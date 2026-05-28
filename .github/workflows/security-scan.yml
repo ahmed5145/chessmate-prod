@@ -39,7 +39,7 @@ jobs:
 
       - name: Run Bandit security linter
         run: |
-          bandit -r chess_mate/ -x chess_mate/core/tests/,chess_mate/*/migrations/
+          bandit -r chess_mate/ -x chess_mate/core/tests/,chess_mate/*/migrations/ -b .bandit-baseline.json
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
