@@ -343,7 +343,6 @@ const BatchAnalysisResults = () => {
 
         const statusValue = String(response.status || 'pending').toUpperCase();
         const completedCount = Number(response.completed_games || 0);
-        const failedCount = Number(response.failed_games || 0);
         const totalCount = Number(response.games_count || 0);
         const progressValue = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 

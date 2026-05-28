@@ -51,6 +51,7 @@ python-chess==1.999
 python-dateutil==2.9.0.post0
 python-dotenv
 redis>=4.5.4
+jsonschema>=4.18.0
 pytest
 pytest-django
 pytest-cov

@@ -177,6 +177,32 @@ def generate_coaching_report(
         if not isinstance(parsed, dict):
             raise CoachingGeneratorError(f"OpenAI returned unexpected type: {type(parsed)}, content: {content[:200]}")
 
+        # Validate against the canonical schema (if available)
+        try:
+            # coaching_schema.BATCH_COACHING_REPORT_SCHEMA is a wrapper dict with key 'schema'
+            try:
+                json_schema = getattr(__import__("core.analysis.coaching_schema", fromlist=["BATCH_COACHING_REPORT_SCHEMA"]), "BATCH_COACHING_REPORT_SCHEMA")
+                # schema may be nested under 'schema'
+                if isinstance(json_schema, dict) and "schema" in json_schema:
+                    json_schema = json_schema["schema"]
+            except Exception:
+                json_schema = None
+
+            if json_schema is not None:
+                # Validate using jsonschema package
+                try:
+                    import jsonschema
+
+                    jsonschema.validate(instance=parsed, schema=json_schema)
+                except ImportError:
+                    # jsonschema not available — skip runtime validation but log
+                    logger.warning("jsonschema not installed; skipping coaching report validation")
+                except jsonschema.ValidationError as ve:
+                    raise CoachingGeneratorError(f"Coaching report failed JSON Schema validation: {ve.message}") from ve
+        except Exception:
+            # Any unexpected validation import error should not leak raw exceptions
+            logger.exception("Error during coaching report validation")
+
         return parsed
 
     except Exception as exc:

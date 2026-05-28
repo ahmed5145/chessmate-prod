@@ -8,16 +8,13 @@ import {
   Play,
   Target,
   TrendingUp,
-  Award,
   Loader,
   AlertTriangle,
   BarChart2,
   Zap,
   ChevronDown,
   ChevronUp,
-  XCircle,
   Cpu,
-  FileText,
   Flag,
   Swords
 } from "lucide-react";
@@ -117,7 +114,7 @@ const GameFeedback = ({ gameId }) => {
   const renderMetrics = () => {
     if (!feedback?.analysis_results?.summary) return null;
 
-    const { overall, phases, tactics, time_management } = feedback.analysis_results.summary;
+    const { overall, tactics, time_management } = feedback.analysis_results.summary;
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
