@@ -1036,38 +1036,99 @@ const BatchAnalysisResults = () => {
   };
 
   const parseExtraInput = (text) => {
-    return text
-      .split(/\s|,|\n|;|\r/)
-      .map((s) => s.trim())
+    // Split into blocks separated by blank lines to preserve PGNs
+    const blocks = text
+      .split(/\r?\n\r?\n/)
+      .map((b) => b.trim())
       .filter(Boolean);
+
+    const ids = [];
+    const pgns = [];
+
+    const isLikelyPgn = (s) => {
+      if (!s) return false;
+      const lowered = s.toLowerCase();
+      if (lowered.includes('[event') || lowered.includes('[site') || lowered.includes('[date') || lowered.includes('[white')) return true;
+      if (/\d+\./.test(s)) return true; // contains move numbers like '1.'
+      // PGNs are typically longer than short ids
+      if (s.length > 50 && s.split(' ').length > 5) return true;
+      return false;
+    };
+
+    blocks.forEach((block) => {
+      // If block looks like a PGN keep as-is
+      if (isLikelyPgn(block)) {
+        pgns.push(block);
+        return;
+      }
+
+      // Otherwise split by common separators and treat as IDs
+      const parts = block.split(/\s|,|;|\r|\n/).map((p) => p.trim()).filter(Boolean);
+      parts.forEach((part) => {
+        // treat anything that looks numeric or uuid-like as id
+        if (/^[0-9]+$/.test(part) || /^[0-9a-fA-F-]{8,}$/.test(part)) {
+          ids.push(part);
+        } else if (isLikelyPgn(part)) {
+          pgns.push(part);
+        } else {
+          // fallback: assume id
+          ids.push(part);
+        }
+      });
+    });
+
+    return { ids: Array.from(new Set(ids)), pgns: Array.from(new Set(pgns)) };
   };
 
   const handleAddAndRetry = async () => {
-    const extraIds = parseExtraInput(extraInput);
+    const parsed = parseExtraInput(extraInput);
+    const extraIds = parsed.ids || [];
+    const extraPgns = parsed.pgns || [];
     const failedIds = failedGames
       .map((f) => (typeof f === 'string' ? f : f.game_id || f.id || f.gameId || null))
       .filter(Boolean);
 
     const combined = Array.from(new Set([...failedIds, ...extraIds]));
 
-    if (combined.length < 5) {
-      toast.error('Retry requires at least 5 games; please add more game IDs or PGNs.');
+    // Prefer submitting by IDs if we have enough IDs (>=5)
+    if (combined.length >= 5) {
+      try {
+        setIsRetrying(true);
+        const resp = await retryFailedGames({ gameIds: combined });
+        const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
+        toast.success('Retry batch started');
+        handleCloseAdd();
+        if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
+      } catch (err) {
+        console.error('Error retrying failed games with added IDs:', err);
+        toast.error(err?.message || 'Failed to start retry batch');
+      } finally {
+        setIsRetrying(false);
+      }
       return;
     }
 
-    try {
-      setIsRetrying(true);
-      const resp = await retryFailedGames({ gameIds: combined });
-      const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
-      toast.success('Retry batch started');
-      handleCloseAdd();
-      if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
-    } catch (err) {
-      console.error('Error retrying failed games with added IDs:', err);
-      toast.error(err?.message || 'Failed to start retry batch');
-    } finally {
-      setIsRetrying(false);
+    // If not enough IDs, but we have PGNs, submit PGNs if there are >=5
+    if (extraPgns.length >= 5) {
+      try {
+        setIsRetrying(true);
+        const resp = await retryFailedGames({ pgnList: extraPgns });
+        const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
+        toast.success('Retry batch started');
+        handleCloseAdd();
+        if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
+      } catch (err) {
+        console.error('Error retrying failed games with PGNs:', err);
+        toast.error(err?.message || 'Failed to start retry batch');
+      } finally {
+        setIsRetrying(false);
+      }
+      return;
     }
+
+    // Not enough combined IDs and not enough PGNs
+    toast.error('Retry requires at least 5 games; please add more game IDs or provide at least 5 PGNs.');
+    return;
   };
 
     if (error) {
