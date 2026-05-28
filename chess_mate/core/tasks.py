@@ -1239,6 +1239,10 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
                     _chord = getattr(_mod2, "chord", _chord)
         except Exception:
             pass
+    except Exception:
+        _group = globals().get("group")
+        _chord = globals().get("chord")
+
     # Prefer any Mock found anywhere named 'group'/'chord' (aggressive fallback)
     try:
         from unittest.mock import Mock as _Mock
