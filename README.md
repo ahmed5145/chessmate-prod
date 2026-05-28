@@ -4,7 +4,7 @@
 [![GitHub forks](https://img.shields.io/github/forks/ahmed5145/chessmate.svg)](https://github.com/ahmed5145/chessmate-prod/network)
 [![GitHub issues](https://img.shields.io/github/issues/ahmed5145/chessmate.svg)](https://github.com/ahmed5145/chessmate-prod/issues)
 ![GitHub last commit](https://img.shields.io/github/last-commit/ahmed5145/chessmate-prod)
-![CI Status](https://github.com/ahmed5145/chessmate-prod/workflows/ChessMate%20CI/badge.svg)
+![CI Status](https://github.com/ahmed5145/chessmate-prod/workflows/ChessMate%20Tests/badge.svg)
 
 # ChessMate: AI-Powered Chess Analysis Platform
 
