@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import {
-  analyzeBatchGames,
-  checkBatchAnalysisStatus,
+  createBatch,
+  getBatchStatus,
   fetchBatchReportHistory,
   fetchUserGames
 } from '../services/apiRequests';
@@ -90,82 +90,65 @@ const BatchAnalysis = () => {
       if (!taskId) return;
 
       try {
-        const response = await checkBatchAnalysisStatus(taskId);
+        const response = await getBatchStatus(taskId);
         console.log('Status response:', response);
         pollingErrorCountRef.current = 0;
 
-        // Get the state and meta information
-        const state = response?.state?.toUpperCase();
-        const meta = response?.meta || {};
+        const status = String(response?.status || '').toUpperCase();
+        const completed = Number(response?.completed_games || 0);
+        const total = Number(response?.games_count || totalGames || 0);
+        const progressValue = total > 0 ? Math.round((completed / total) * 100) : 0;
+        const errors = Array.isArray(response?.errors) ? response.errors : [];
 
-        switch (state) {
+        switch (status) {
           case 'SUCCESS':
+          case 'COMPLETED':
+          case 'PARTIAL':
             setIsAnalyzing(false);
             clearInterval(intervalId);
             setProgressPercent(100);
+            setCurrentProgress(total);
+            setTotalGames(total);
             if (toastId) toast.dismiss(toastId);
             toast.success('Analysis completed!');
-            const resultsPath = response?.report_id
-              ? `/batch-analysis/results/report/${response.report_id}`
-              : `/batch-analysis/results/${taskId}`;
-            navigateReliably(resultsPath, {
-              replace: true,
-              state: {
-                taskId,
-                results: response.completed_games,
-                failedGames: response.failed_games,
-                aggregateMetrics: response.aggregate_metrics
-              }
-            });
+            navigateReliably(`/batch-analysis/results/${taskId}`, { replace: true });
             return true;
 
+          case 'FAILED':
           case 'FAILURE':
             setIsAnalyzing(false);
             clearInterval(intervalId);
-            setProgressPercent(0);
+            setProgressPercent(progressValue);
+            setCurrentProgress(completed);
+            setTotalGames(total);
             if (toastId) toast.dismiss(toastId);
-            // Display detailed error message from backend
-            const errorMessage = meta.error || meta.message || 'Batch analysis failed';
-            toast.error(errorMessage);
-            // Update progress information
-            setCurrentProgress(meta.current || 0);
-            setTotalGames(meta.total || 0);
+            toast.error(errors[0]?.message || 'Batch analysis failed');
+            navigateReliably(`/batch-analysis/results/${taskId}`, { replace: true });
             return true;
 
           case 'PROGRESS':
           case 'STARTED':
           case 'PENDING':
-            if (meta) {
-              const current = meta.current || 0;
-              const total = meta.total || totalGames;
-              if (total > 0) {
-                setCurrentProgress(current);
-                setTotalGames(total);
-                const percent = Math.round((current / total) * 100);
-                setProgressPercent(isNaN(percent) ? 0 : percent);
+            if (total > 0) {
+              setCurrentProgress(completed);
+              setTotalGames(total);
+              setProgressPercent(isNaN(progressValue) ? 0 : progressValue);
 
-                // Update loading toast with current progress message
-                const progressMessage = meta.message || `Analyzing game ${current} of ${total}`;
-                if (toastId) {
-                  toast.loading(progressMessage, { id: toastId });
-                } else {
-                  toastId = toast.loading(progressMessage);
-                }
+              const progressMessage = response?.progress || response?.message || `Analyzing game ${completed} of ${total}`;
+              if (toastId) {
+                toast.loading(progressMessage, { id: toastId });
+              } else {
+                toastId = toast.loading(progressMessage);
               }
             }
             return false;
 
           default:
-            console.warn('Unknown state:', state);
-            if (meta) {
-              const current = meta.current || 0;
-              const total = meta.total || totalGames;
-              if (total > 0) {
-                setCurrentProgress(current);
-                setTotalGames(total);
-                const percent = Math.round((current / total) * 100);
-                setProgressPercent(isNaN(percent) ? 0 : percent);
-              }
+            console.warn('Unknown state:', status);
+            if (total > 0) {
+              setCurrentProgress(completed);
+              setTotalGames(total);
+              setProgressPercent(isNaN(progressValue) ? 0 : progressValue);
             }
             return false;
         }
@@ -226,20 +209,22 @@ const BatchAnalysis = () => {
 
   const startBatchAnalysis = async () => {
     const hasManualSelection = selectedGameIds.length > 0;
-    const includeAnalyzed = gameSelectionFilter === 'all';
+    const gamesToAnalyze = hasManualSelection
+      ? selectedGameIds
+      : sortedFilteredGames.slice(0, numGames).map((game) => game.id);
 
-    if (!hasManualSelection && !numGames) {
-      toast.error('Please enter the number of games to analyze');
+    if (!gamesToAnalyze.length) {
+      toast.error('Please select at least 5 games to analyze');
       return;
     }
 
-    if (hasManualSelection && selectedGameIds.length > 50) {
-      toast.error('Maximum number of games for batch analysis is 50');
+    if (gamesToAnalyze.length < 5) {
+      toast.error('Batch analysis requires at least 5 games');
       return;
     }
 
-    if (!hasManualSelection && numGames > 50) {
-      toast.error('Maximum number of games for batch analysis is 50');
+    if (gamesToAnalyze.length > 30) {
+      toast.error('Maximum number of games for batch analysis is 30');
       return;
     }
 
@@ -249,18 +234,13 @@ const BatchAnalysis = () => {
       setCurrentProgress(0);
       setStartTime(Date.now());
 
-      const response = await analyzeBatchGames(
-        numGames,
-        selectedTimeControl,
-        includeAnalyzed,
-        hasManualSelection ? selectedGameIds : []
-      );
+      const response = await createBatch({ gameIds: gamesToAnalyze });
 
       if (response?.task_id) {
         setTaskId(response.task_id);
-        const totalRequested = hasManualSelection ? selectedGameIds.length : numGames;
-        setTotalGames(response.total_games || totalRequested);
-        setEstimatedTime(response.estimated_time || totalRequested * 2);
+        const totalRequested = gamesToAnalyze.length;
+        setTotalGames(response.games_count || totalRequested);
+        setEstimatedTime(totalRequested * 2);
         toast.success('Analysis started! This may take a few minutes.');
       } else {
         throw new Error('No task ID received');

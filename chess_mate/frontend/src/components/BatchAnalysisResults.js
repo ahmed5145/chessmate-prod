@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
-import { checkBatchAnalysisStatus, fetchBatchReportById } from '../services/apiRequests';
+import { getBatchReport, getBatchStatus } from '../services/apiRequests';
 import {
   Box,
   Typography,
@@ -59,6 +59,181 @@ ChartJS.register(
   RadialLinearScale
 );
 
+const formatFrequency = (frequency) => {
+  if (frequency === null || frequency === undefined || frequency === '') {
+    return '';
+  }
+  return typeof frequency === 'string' ? frequency : String(frequency);
+};
+
+const normalizeBatchReport = (report) => {
+  const batchSummary = report?.batch_summary || {};
+  const coachingReport = report?.coaching_report || {};
+  const perGameResults = Array.isArray(report?.per_game_results) ? report.per_game_results : [];
+  const phasePerformance = batchSummary.phase_performance || {};
+  const recurringWeaknesses = Array.isArray(batchSummary.recurring_weaknesses) ? batchSummary.recurring_weaknesses : [];
+  const strengthPatterns = Array.isArray(batchSummary.strength_patterns) ? batchSummary.strength_patterns : [];
+  const topPriorities = Array.isArray(coachingReport.top_3_priorities) ? coachingReport.top_3_priorities : [];
+
+  const totals = perGameResults.reduce(
+    (accumulator, result) => {
+      const moveQuality = result?.move_quality || {};
+      accumulator.blunders += Number(moveQuality.blunder || 0);
+      accumulator.mistakes += Number(moveQuality.mistake || 0);
+      accumulator.inaccuracies += Number(moveQuality.inaccuracy || 0);
+      accumulator.totalMoves += Number(result?.total_moves || 0);
+      return accumulator;
+    },
+    { blunders: 0, mistakes: 0, inaccuracies: 0, totalMoves: 0 }
+  );
+
+  const openingCounts = perGameResults.reduce((accumulator, result) => {
+    const openingName = result?.opening_name || 'Unknown';
+    if (openingName && openingName !== 'Unknown') {
+      accumulator[openingName] = (accumulator[openingName] || 0) + 1;
+    }
+    return accumulator;
+  }, {});
+
+  const criticalMoments = perGameResults.flatMap((result) =>
+    (Array.isArray(result?.critical_moments) ? result.critical_moments : []).map((moment) => ({
+      ...moment,
+      game_id: result?.game_id,
+    }))
+  );
+
+  const openingScore = Number(phasePerformance.opening?.score || 0);
+  const middlegameScore = Number(phasePerformance.middlegame?.score || 0);
+  const endgameScore = Number(phasePerformance.endgame?.score || 0);
+  const overallAccuracy = Number(batchSummary.overall_accuracy || 0) * 100;
+  const accuracyGap = Math.max(0, (openingScore - Math.min(middlegameScore, endgameScore)) * 100);
+  const confidence = perGameResults.length >= 10 ? 'high' : 'medium';
+
+  const legacyCoachReport = {
+    summary: coachingReport.executive_summary || 'No summary available.',
+    coach_summary: coachingReport.executive_summary || 'No summary available.',
+    opening: {
+      analysis: coachingReport.coaching_narrative?.opening || '',
+    },
+    middlegame: {
+      analysis: coachingReport.coaching_narrative?.middlegame || '',
+    },
+    endgame: {
+      analysis: coachingReport.coaching_narrative?.endgame || '',
+    },
+    strengths: strengthPatterns.map((item) => item.pattern || item.detail || String(item)),
+    weaknesses: recurringWeaknesses.map((item) => item.pattern || String(item)),
+    top_strengths: strengthPatterns.map((item) => {
+      const label = item.pattern || item.detail || String(item);
+      const frequency = formatFrequency(item.frequency);
+      return frequency ? `${label} (${frequency})` : label;
+    }),
+    top_weaknesses: recurringWeaknesses.map((item) => {
+      const label = item.pattern || String(item);
+      const frequency = formatFrequency(item.frequency);
+      return frequency ? `${label} (${frequency})` : label;
+    }),
+    improvement_areas: topPriorities.map((item) => item.title || item.specific_drill || 'Improvement area'),
+    action_plan: [
+      coachingReport.training_plan?.week_1,
+      coachingReport.training_plan?.week_2,
+      coachingReport.training_plan?.week_3,
+      coachingReport.training_plan?.week_4,
+      coachingReport.one_thing_to_do_today,
+    ].filter(Boolean),
+    openings_seen: Array.isArray(phasePerformance.opening?.primary_openings) ? phasePerformance.opening.primary_openings : [],
+    critical_moments: criticalMoments,
+    training_block: {
+      focus_areas: topPriorities.map((item) => item.title || 'Focus area'),
+      weekly_target: {
+        goal: coachingReport.one_thing_to_do_today || topPriorities[0]?.title || 'Work on your biggest weakness',
+        measure: topPriorities[0]?.estimated_study_hours ? `${topPriorities[0].estimated_study_hours} hours` : '4 hours',
+        confidence,
+      },
+      drills: topPriorities.map((item) => item.specific_drill).filter(Boolean),
+      checklist: [
+        coachingReport.training_plan?.week_1,
+        coachingReport.training_plan?.week_2,
+        coachingReport.training_plan?.week_3,
+        coachingReport.training_plan?.week_4,
+      ].filter(Boolean),
+    },
+    phase_motifs: {
+      weakest_phase: batchSummary.worst_phase || '',
+      correction_rule: topPriorities[0]?.how_to_fix || '',
+      motifs: recurringWeaknesses.map((item) => ({
+        name: item.pattern || 'Pattern',
+        count: item.frequency || 0,
+        correction_rule: item.impact || item.detail || '',
+        evidence: item.example_game_ids || [],
+      })),
+    },
+    impact_metrics: {
+      critical_error_rate: perGameResults.length > 0 ? Number(((totals.blunders + totals.mistakes) / perGameResults.length).toFixed(2)) : 0,
+      phase_risk_index: Number((100 - Math.min(openingScore, middlegameScore, endgameScore) * 100).toFixed(1)),
+      accuracy_gap: Number(accuracyGap.toFixed(1)),
+      phase_risk: {
+        opening: Number((100 - openingScore * 100).toFixed(1)),
+        middlegame: Number((100 - middlegameScore * 100).toFixed(1)),
+        endgame: Number((100 - endgameScore * 100).toFixed(1)),
+      },
+    },
+    performance_tier: batchSummary.estimated_elo_range || 'unknown',
+    confidence,
+    sample_size_note: `Analyzed ${perGameResults.length} games across the batch.`,
+    key_takeaway: coachingReport.executive_summary || 'No key takeaway available.',
+  };
+
+  return {
+    overall: {
+      accuracy: overallAccuracy,
+      blunders: totals.blunders,
+      mistakes: totals.mistakes,
+      inaccuracies: totals.inaccuracies,
+      total_moves: totals.totalMoves,
+    },
+    opening: {
+      accuracy: openingScore * 100,
+      opportunities: 0,
+      best_moves: 0,
+      critical_best_moves: 0,
+      repertoire: openingCounts,
+    },
+    middlegame: {
+      accuracy: middlegameScore * 100,
+      opportunities: 0,
+      best_moves: 0,
+      critical_best_moves: 0,
+    },
+    endgame: {
+      accuracy: endgameScore * 100,
+      opportunities: 0,
+      best_moves: 0,
+      critical_best_moves: 0,
+    },
+    phase_motifs: {
+      weakest_phase: batchSummary.worst_phase || '',
+      correction_rule: topPriorities[0]?.how_to_fix || '',
+      motifs: recurringWeaknesses.map((item) => ({
+        name: item.pattern || 'Pattern',
+        count: item.frequency || 0,
+        correction_rule: item.impact || item.detail || '',
+        evidence: item.example_game_ids || [],
+      })),
+    },
+    time_management: batchSummary.time_management || null,
+    coach_report: legacyCoachReport,
+    ai_feedback: legacyCoachReport,
+  };
+};
+
+const applyBatchReport = (setResults, setFailedGames, setAggregateMetrics, report) => {
+  const perGameResults = Array.isArray(report?.per_game_results) ? report.per_game_results : [];
+  setResults(perGameResults);
+  setFailedGames(Array.isArray(report?.failed_games) ? report.failed_games : []);
+  setAggregateMetrics(normalizeBatchReport(report));
+};
+
 const BatchAnalysisResults = () => {
   const { taskId, reportId } = useParams();
   const navigate = useNavigate();
@@ -93,45 +268,53 @@ const BatchAnalysisResults = () => {
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
   useEffect(() => {
+    const loadReportWithRetry = async (batchIdentifier) => {
+      let report = null;
+      let lastError = null;
+
+      for (let attempt = 1; attempt <= 5; attempt += 1) {
+        try {
+          report = await getBatchReport(batchIdentifier);
+          break;
+        } catch (fetchErr) {
+          lastError = fetchErr;
+          if (attempt < 5) {
+            await new Promise((resolve) => setTimeout(resolve, 600));
+          }
+        }
+      }
+
+      if (!report) {
+        throw lastError || new Error('Failed to load batch report');
+      }
+
+      return report;
+    };
+
     if (reportId) {
       const loadSavedReport = async () => {
         setIsLoadingReport(true);
         setMessage('Loading saved batch report...');
         setError(null);
         try {
-          let report = null;
-          let lastError = null;
+          const report = await loadReportWithRetry(reportId);
 
-          // Persisted report writes can be slightly delayed; retry briefly before failing UX.
-          for (let attempt = 1; attempt <= 5; attempt += 1) {
-            try {
-              report = await fetchBatchReportById(reportId);
-              break;
-            } catch (fetchErr) {
-              lastError = fetchErr;
-              if (attempt < 5) {
-                await new Promise((resolve) => setTimeout(resolve, 600));
-              }
-            }
+          if (String(report.status || '').toLowerCase() === 'failed') {
+            setStatus('FAILURE');
+            setError(report.message || 'Analysis failed');
+            setMessage(report.message || 'Analysis failed');
+            setProgress(100);
+          } else {
+            applyBatchReport(setResults, setFailedGames, setAggregateMetrics, report);
+            setMeta({
+              total: report.games_count || (Array.isArray(report.per_game_results) ? report.per_game_results.length : 0),
+              current: Array.isArray(report.per_game_results) ? report.per_game_results.length : 0,
+              progress: 100,
+            });
+            setProgress(100);
+            setMessage('Loaded saved batch report');
+            setStatus(String(report.status || 'completed').toUpperCase());
           }
-
-          if (!report) {
-            throw lastError || new Error('Failed to load saved batch report');
-          }
-
-          const completedGames = Array.isArray(report.completed_games) ? report.completed_games : [];
-          const failed = Array.isArray(report.failed_games) ? report.failed_games : [];
-          setResults(completedGames);
-          setFailedGames(failed);
-          setAggregateMetrics(report.aggregate_metrics || null);
-          setMeta({
-            total: report.games_count || completedGames.length + failed.length,
-            current: completedGames.length,
-            progress: 100,
-          });
-          setProgress(100);
-          setMessage('Loaded saved batch report');
-          setStatus('SUCCESS');
         } catch (err) {
           console.error('Error loading saved report:', err);
           setError(err.message || 'Failed to load saved batch report');
@@ -151,56 +334,62 @@ const BatchAnalysisResults = () => {
 
     const pollStatus = async () => {
       try {
-        const response = await checkBatchAnalysisStatus(taskId);
+        const response = await getBatchStatus(taskId);
 
         if (!response) {
           setError('Failed to fetch analysis status');
           return true;
         }
 
-        const {
-          state = 'PENDING',
-          meta = {},
-          completed_games = [],
-          failed_games = [],
-          aggregate_metrics = null
-        } = response;
+        const statusValue = String(response.status || 'pending').toUpperCase();
+        const completedCount = Number(response.completed_games || 0);
+        const failedCount = Number(response.failed_games || 0);
+        const totalCount = Number(response.games_count || 0);
+        const progressValue = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-        setStatus(state);
-          setMeta(prevMeta => ({
-            ...prevMeta,
-            ...meta,
-            total: meta.total || prevMeta.total,
-            current: meta.current || prevMeta.current,
-            progress: meta.progress || prevMeta.progress
-          }));
-          setProgress(meta.progress || 0);
-          setMessage(meta.message || '');
+        setStatus(statusValue);
+        setMeta((prevMeta) => ({
+          ...prevMeta,
+          total: totalCount || prevMeta.total,
+          current: completedCount || prevMeta.current,
+          progress: progressValue || prevMeta.progress,
+        }));
+        setProgress(progressValue);
+        setMessage(response.progress || response.message || '');
 
-        if (state === 'FAILURE') {
-          setError(meta.error || 'Analysis failed');
-          toast.error(meta.error || 'Analysis failed');
-          return true;
+        if (statusValue === 'PENDING' || statusValue === 'IN_PROGRESS' || statusValue === 'STARTED' || statusValue === 'PROGRESS') {
+          if (Array.isArray(response.errors) && response.errors.length > 0) {
+            setFailedGames(response.errors);
+          }
+          return false;
         }
 
-        if (completed_games.length > 0) {
-          setResults(completed_games);
-        }
+        try {
+          const report = await loadReportWithRetry(taskId);
+          if (String(report.status || '').toLowerCase() === 'failed') {
+            setStatus('FAILURE');
+            setError(report.message || 'Analysis failed');
+            toast.error(report.message || 'Analysis failed');
+            return true;
+          }
 
-        if (failed_games.length > 0) {
-          setFailedGames(failed_games);
-        }
-
-        if (aggregate_metrics) {
-          setAggregateMetrics(aggregate_metrics);
-        }
-
-        if (state === 'SUCCESS') {
+          applyBatchReport(setResults, setFailedGames, setAggregateMetrics, report);
+          setMeta({
+            total: report.games_count || totalCount,
+            current: Array.isArray(report.per_game_results) ? report.per_game_results.length : completedCount,
+            progress: 100,
+          });
+          setProgress(100);
+          setMessage('Analysis completed successfully!');
+          setStatus(String(report.status || 'completed').toUpperCase());
           toast.success('Analysis completed successfully!');
           return true;
+        } catch (reportErr) {
+          console.error('Error loading batch report:', reportErr);
+          setError(reportErr.message || 'Failed to load batch report');
+          return true;
         }
 
-        return false;
       } catch (err) {
         console.error('Error polling status:', err);
         setError(err.message || 'Error checking analysis progress');
@@ -362,69 +551,30 @@ const BatchAnalysisResults = () => {
 
   const renderCoachReport = () => {
     const coachReport = aggregateMetrics?.coach_report;
-    if (!coachReport) {
-      return (
-        <Card sx={cardSx}>
-          <CardContent>
-            <Typography variant="h6">Combined coaching report is not ready yet.</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              We are still collecting enough analyzed games in this batch to generate coaching guidance.
-            </Typography>
-          </CardContent>
-        </Card>
-      );
-    }
+    if (!coachReport) return null;
 
-    const strengths = Array.isArray(coachReport.top_strengths) ? coachReport.top_strengths : [];
-    const weaknesses = Array.isArray(coachReport.top_weaknesses) ? coachReport.top_weaknesses : [];
-    const improvements = Array.isArray(coachReport.improvement_areas) ? coachReport.improvement_areas : [];
+    const strengths = Array.isArray(coachReport.top_strengths) ? coachReport.top_strengths : Array.isArray(coachReport.strengths) ? coachReport.strengths : [];
+    const weaknesses = Array.isArray(coachReport.top_weaknesses) ? coachReport.top_weaknesses : Array.isArray(coachReport.weaknesses) ? coachReport.weaknesses : [];
     const actionPlan = Array.isArray(coachReport.action_plan) ? coachReport.action_plan : [];
+    const improvements = Array.isArray(coachReport.improvement_areas) ? coachReport.improvement_areas : [];
     const openingsSeen = Array.isArray(coachReport.openings_seen) ? coachReport.openings_seen : [];
     const criticalMoments = Array.isArray(coachReport.critical_moments) ? coachReport.critical_moments : [];
-    const trainingBlock = coachReport.training_block || aggregateMetrics?.training_block || null;
-    const phaseMotifs = trainingBlock?.phase_motifs || coachReport.phase_motifs || aggregateMetrics?.phase_motifs || null;
-    const impactMetrics = trainingBlock?.impact_metrics || coachReport.impact_metrics || aggregateMetrics?.impact_metrics || null;
-    const performanceTier = coachReport.performance_tier || 'unknown';
-    const confidence = coachReport.confidence || 'medium';
+    const trainingBlock = coachReport.training_block || null;
+    const phaseMotifs = coachReport.phase_motifs || null;
+    const impactMetrics = coachReport.impact_metrics || null;
     const sampleSizeNote = coachReport.sample_size_note || '';
 
     return (
       <Card sx={cardSx}>
         <CardContent>
-          <Typography variant="h5" gutterBottom>Coach Summary</Typography>
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={12} md={4}>
-              <Card sx={{ bgcolor: isDarkMode ? 'rgba(15, 23, 42, 0.6)' : 'grey.50' }}>
-                <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary">Performance Tier</Typography>
-                  <Typography variant="h6" sx={{ textTransform: 'capitalize' }}>{performanceTier}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Card sx={{ bgcolor: isDarkMode ? 'rgba(15, 23, 42, 0.6)' : 'grey.50' }}>
-                <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary">Confidence</Typography>
-                  <Typography variant="h6" sx={{ textTransform: 'capitalize' }}>{confidence}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Card sx={{ bgcolor: isDarkMode ? 'rgba(15, 23, 42, 0.6)' : 'grey.50' }}>
-                <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary">Key Takeaway</Typography>
-                  <Typography variant="body2">{coachReport.key_takeaway || coachReport.summary || 'No key takeaway available'}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
+          <Typography variant="h5" gutterBottom>Combined Coaching Report</Typography>
           {sampleSizeNote && (
-            <Typography variant="body2" sx={{ mb: 2 }} color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               {sampleSizeNote}
             </Typography>
           )}
           <Typography variant="body1" sx={{ mb: 3 }}>
-            {coachReport.summary || 'No summary available yet.'}
+            {coachReport.summary || coachReport.key_takeaway || 'No summary available yet.'}
           </Typography>
 
           <Grid container spacing={3}>
@@ -433,7 +583,7 @@ const BatchAnalysisResults = () => {
               <List dense sx={listTextSx}>
                 {strengths.length > 0 ? strengths.map((item, idx) => (
                   <ListItem key={`strength-${idx}`}>
-                    <ListItemText primary={item} />
+                    <ListItemText primary={typeof item === 'string' ? item : item.label || item.pattern || String(item)} />
                   </ListItem>
                 )) : <ListItem><ListItemText primary="No strengths detected yet" /></ListItem>}
               </List>
@@ -444,7 +594,7 @@ const BatchAnalysisResults = () => {
               <List dense sx={listTextSx}>
                 {weaknesses.length > 0 ? weaknesses.map((item, idx) => (
                   <ListItem key={`weakness-${idx}`}>
-                    <ListItemText primary={item} />
+                    <ListItemText primary={typeof item === 'string' ? item : item.label || item.pattern || String(item)} />
                   </ListItem>
                 )) : <ListItem><ListItemText primary="No weaknesses detected yet" /></ListItem>}
               </List>
@@ -490,7 +640,7 @@ const BatchAnalysisResults = () => {
                 {criticalMoments.length > 0 ? criticalMoments.map((item, idx) => (
                   <ListItem key={`moment-${idx}`}>
                     <ListItemText
-                      primary={`Game ${item.game_id} • Move ${item.move_number || '?'} • ${item.san || '-'}`}
+                      primary={`Game ${item.game_id || '?'} • Move ${item.move_number || '?'} • ${item.san || '-'}`}
                       secondary={`${item.classification || 'unknown'} • eval change ${Number(item.eval_change || 0).toFixed(2)}`}
                     />
                   </ListItem>
@@ -581,6 +731,9 @@ const BatchAnalysisResults = () => {
                   </ListItem>
                   <ListItem>
                     <ListItemText primary="Phase Risk Index" secondary={Number(impactMetrics.phase_risk_index || 0).toFixed(1)} />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText primary="Accuracy Gap" secondary={`${Number(impactMetrics.accuracy_gap || 0).toFixed(1)}%`} />
                   </ListItem>
                 </List>
               </Grid>
@@ -847,9 +1000,9 @@ const BatchAnalysisResults = () => {
     );
   }
 
-  if (isLoadingReport || status !== 'SUCCESS') {
+  if (isLoadingReport || (status !== 'SUCCESS' && status !== 'COMPLETED')) {
     return renderProgress();
-    }
+  }
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
