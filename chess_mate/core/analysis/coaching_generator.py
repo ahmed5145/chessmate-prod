@@ -181,7 +181,10 @@ def generate_coaching_report(
         try:
             # coaching_schema.BATCH_COACHING_REPORT_SCHEMA is a wrapper dict with key 'schema'
             try:
-                json_schema = getattr(__import__("core.analysis.coaching_schema", fromlist=["BATCH_COACHING_REPORT_SCHEMA"]), "BATCH_COACHING_REPORT_SCHEMA")
+                json_schema = getattr(
+                    __import__("core.analysis.coaching_schema", fromlist=["BATCH_COACHING_REPORT_SCHEMA"]),
+                    "BATCH_COACHING_REPORT_SCHEMA",
+                )
                 # schema may be nested under 'schema'
                 if isinstance(json_schema, dict) and "schema" in json_schema:
                     json_schema = json_schema["schema"]

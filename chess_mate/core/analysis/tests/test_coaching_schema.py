@@ -89,7 +89,11 @@ def test_generate_coaching_report_matches_schema(monkeypatch):
             "game_id": "g1",
             "player_color": "white",
             "result": "1-0",
-            "phase_breakdown": {"opening": {"avg_eval_drop": 0.1}, "middlegame": {"avg_eval_drop": 0.3}, "endgame": {"avg_eval_drop": 0.2}},
+            "phase_breakdown": {
+                "opening": {"avg_eval_drop": 0.1},
+                "middlegame": {"avg_eval_drop": 0.3},
+                "endgame": {"avg_eval_drop": 0.2},
+            },
             "move_quality": {"blunder": 0, "mistake": 2, "inaccuracy": 1},
             "critical_moments": [],
         }
