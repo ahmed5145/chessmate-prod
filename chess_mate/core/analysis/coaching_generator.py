@@ -26,7 +26,11 @@ def _build_per_game_summary(item: Dict[str, Any]) -> Dict[str, Any]:
     # {"game_id", "status":"success"|"failed", "result": {...} }
     status = item.get("status")
     if status == "failed":
-        return {"game_id": item.get("game_id"), "status": "failed", "error": item.get("error")}
+        return {
+            "game_id": item.get("game_id"),
+            "status": "failed",
+            "error": item.get("error"),
+        }
 
     result = item.get("result") if status is not None else item
 
@@ -64,7 +68,9 @@ def _build_per_game_summary(item: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def generate_coaching_report(
-    batch_summary: Dict[str, Any], per_game_results: List[Dict[str, Any]], player_rating: Optional[int] = None
+    batch_summary: Dict[str, Any],
+    per_game_results: List[Dict[str, Any]],
+    player_rating: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Generate a batch coaching report by calling the OpenAI API once with a

@@ -74,7 +74,9 @@ class TestRateLimitMiddleware:
             # Mock rate limit check method to not actually rate limit
             with patch.object(middleware, "_is_rate_limited", return_value=False):
                 with patch.object(
-                    middleware, "_get_rate_limit_config", return_value={"MAX_REQUESTS": 100, "TIME_WINDOW": 3600}
+                    middleware,
+                    "_get_rate_limit_config",
+                    return_value={"MAX_REQUESTS": 100, "TIME_WINDOW": 3600},
                 ):
                     with patch.object(middleware, "_get_remaining_requests", return_value=99):
                         with patch.object(middleware, "_get_reset_time", return_value=3600):
@@ -95,7 +97,9 @@ class TestRateLimitMiddleware:
             # Mock rate limit check method to not actually rate limit
             with patch.object(middleware, "_is_rate_limited", return_value=False):
                 with patch.object(
-                    middleware, "_get_rate_limit_config", return_value={"MAX_REQUESTS": 100, "TIME_WINDOW": 3600}
+                    middleware,
+                    "_get_rate_limit_config",
+                    return_value={"MAX_REQUESTS": 100, "TIME_WINDOW": 3600},
                 ):
                     with patch.object(middleware, "_get_remaining_requests", return_value=99):
                         with patch.object(middleware, "_get_reset_time", return_value=3600):

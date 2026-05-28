@@ -19,10 +19,24 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="Payment",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("amount", models.DecimalField(decimal_places=2, default=0, max_digits=10)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "amount",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=10),
+                ),
                 ("credit_amount", models.IntegerField(default=0)),
-                ("stripe_payment_id", models.CharField(blank=True, max_length=100, null=True)),
+                (
+                    "stripe_payment_id",
+                    models.CharField(blank=True, max_length=100, null=True),
+                ),
                 (
                     "status",
                     models.CharField(
@@ -51,7 +65,15 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="AiFeedback",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
                 ("content", models.JSONField(default=dict)),
                 ("model_used", models.CharField(max_length=100)),
                 ("credits_used", models.IntegerField(default=0)),

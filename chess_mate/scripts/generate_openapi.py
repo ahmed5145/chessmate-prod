@@ -25,11 +25,17 @@ OPENAPI_SPEC = {
     },
     "servers": [
         {"url": "https://api.chessmate.com/v1", "description": "Production server"},
-        {"url": "https://staging-api.chessmate.com/v1", "description": "Staging server"},
+        {
+            "url": "https://staging-api.chessmate.com/v1",
+            "description": "Staging server",
+        },
         {"url": "http://localhost:8000/api", "description": "Local development server"},
     ],
     "tags": [
-        {"name": "Authentication", "description": "Endpoints for user authentication and authorization"},
+        {
+            "name": "Authentication",
+            "description": "Endpoints for user authentication and authorization",
+        },
         {"name": "Games", "description": "Endpoints for game management and analysis"},
         {"name": "User", "description": "Endpoints for user profile and settings"},
     ],
@@ -44,8 +50,14 @@ OPENAPI_SPEC = {
                         "enum": ["success"],
                         "description": "Indicates a successful operation",
                     },
-                    "data": {"type": "object", "description": "Contains the actual response data"},
-                    "message": {"type": "string", "description": "Optional success message"},
+                    "data": {
+                        "type": "object",
+                        "description": "Contains the actual response data",
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "Optional success message",
+                    },
                     "request_id": {
                         "type": "string",
                         "description": "Unique identifier for the request, useful for debugging",
@@ -56,10 +68,20 @@ OPENAPI_SPEC = {
             "ErrorResponse": {
                 "type": "object",
                 "properties": {
-                    "status": {"type": "string", "enum": ["error"], "description": "Indicates an error occurred"},
+                    "status": {
+                        "type": "string",
+                        "enum": ["error"],
+                        "description": "Indicates an error occurred",
+                    },
                     "code": {"type": "string", "description": "Error code identifier"},
-                    "message": {"type": "string", "description": "Human-readable error message"},
-                    "details": {"type": "object", "description": "Additional error details"},
+                    "message": {
+                        "type": "string",
+                        "description": "Human-readable error message",
+                    },
+                    "details": {
+                        "type": "object",
+                        "description": "Additional error details",
+                    },
                     "request_id": {
                         "type": "string",
                         "description": "Unique identifier for the request, useful for debugging",
@@ -101,11 +123,23 @@ OPENAPI_SPEC = {
 }
 
 # Path to API reference markdown file
-API_DOCS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs", "api_reference.md")
+API_DOCS_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "docs",
+    "api_reference.md",
+)
 
 # Path to output OpenAPI spec
-OPENAPI_JSON_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "openapi.json")
-OPENAPI_YAML_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "openapi.yaml")
+OPENAPI_JSON_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "static",
+    "openapi.json",
+)
+OPENAPI_YAML_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "static",
+    "openapi.yaml",
+)
 
 
 def ensure_directory_exists(file_path):
@@ -184,7 +218,15 @@ def generate_path_item(endpoint):
         if "/api/auth" in endpoint["url"]
         or any(
             auth_path in endpoint["url"]
-            for auth_path in ["/login", "/register", "/logout", "/csrf", "/verify-email", "/password-reset", "/token"]
+            for auth_path in [
+                "/login",
+                "/register",
+                "/logout",
+                "/csrf",
+                "/verify-email",
+                "/password-reset",
+                "/token",
+            ]
         )
         else "Games"
     )
@@ -285,7 +327,10 @@ def generate_path_item(endpoint):
             }
 
             schema = type_mapping.get(param_type, {"type": "string"})
-            properties[param_name] = {**schema, "description": param.get("description", "")}
+            properties[param_name] = {
+                **schema,
+                "description": param.get("description", ""),
+            }
 
             if required:
                 required_props.append(param_name)

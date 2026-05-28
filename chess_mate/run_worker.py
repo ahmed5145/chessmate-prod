@@ -24,7 +24,10 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(processName)s %(message)s",
-    handlers=[logging.StreamHandler(), logging.FileHandler(os.path.join(LOGS_DIR, "worker.log"))],
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(os.path.join(LOGS_DIR, "worker.log")),
+    ],
 )
 
 logger = logging.getLogger(__name__)

@@ -41,7 +41,13 @@ class ProfileSerializer(serializers.ModelSerializer):
             "updated_at",
             "rating_history",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "email_verified", "email_verified_at"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "email_verified",
+            "email_verified_at",
+        ]
         extra_kwargs = {
             "email_verification_token": {"write_only": True},
         }

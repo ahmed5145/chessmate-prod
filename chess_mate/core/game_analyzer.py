@@ -159,8 +159,10 @@ class GameAnalyzer:
             "game_id": game_id,
             "user_id": user_id,
             "use_ai": use_ai,
-            "depth": depth if depth is not None else getattr(settings, "ANALYSIS_DEPTH", 20),
-            "stockfish_path": stockfish_path if stockfish_path is not None else getattr(settings, "STOCKFISH_PATH", ""),
+            "depth": (depth if depth is not None else getattr(settings, "ANALYSIS_DEPTH", 20)),
+            "stockfish_path": (
+                stockfish_path if stockfish_path is not None else getattr(settings, "STOCKFISH_PATH", "")
+            ),
         }
         analyze_task = _resolve_compat_symbol(
             [
@@ -194,8 +196,10 @@ class GameAnalyzer:
             "game_ids": game_ids,
             "user_id": user_id,
             "use_ai": use_ai,
-            "depth": depth if depth is not None else getattr(settings, "ANALYSIS_DEPTH", 20),
-            "stockfish_path": stockfish_path if stockfish_path is not None else getattr(settings, "STOCKFISH_PATH", ""),
+            "depth": (depth if depth is not None else getattr(settings, "ANALYSIS_DEPTH", 20)),
+            "stockfish_path": (
+                stockfish_path if stockfish_path is not None else getattr(settings, "STOCKFISH_PATH", "")
+            ),
         }
         batch_task = _resolve_compat_symbol(
             [
@@ -210,7 +214,9 @@ class GameAnalyzer:
         return batch_task.delay(**task_kwargs)
 
     def generate_feedback(
-        self, analysis_results: Union[Dict[str, Any], List[Dict[str, Any]]], game: Optional[Game] = None
+        self,
+        analysis_results: Union[Dict[str, Any], List[Dict[str, Any]]],
+        game: Optional[Game] = None,
     ) -> Dict[str, Any]:
         """Backward-compatible wrapper used by legacy analysis tests."""
         if isinstance(analysis_results, list):
@@ -300,7 +306,10 @@ class GameAnalyzer:
             response = self.openai_client.chat.completions.create(
                 model=getattr(settings, "OPENAI_MODEL", "gpt-3.5-turbo"),
                 messages=[
-                    {"role": "system", "content": "You are a chess coach that returns JSON only."},
+                    {
+                        "role": "system",
+                        "content": "You are a chess coach that returns JSON only.",
+                    },
                     {
                         "role": "user",
                         "content": json.dumps(
@@ -338,7 +347,13 @@ class GameAnalyzer:
             return None
 
     def analyze_game(
-        self, game: Game, depth=20, use_ai=True, progress_callback=None, task_id=None, force_reanalyze=False
+        self,
+        game: Game,
+        depth=20,
+        use_ai=True,
+        progress_callback=None,
+        task_id=None,
+        force_reanalyze=False,
     ):
         """
         Analyze a chess game and save the results.
@@ -368,7 +383,10 @@ class GameAnalyzer:
             # If we have a task ID, update its status
             if task_id and self.task_manager:
                 self.task_manager.update_task_status(
-                    task_id=task_id, status="PROCESSING", progress=15, message="Analyzing game"
+                    task_id=task_id,
+                    status="PROCESSING",
+                    progress=15,
+                    message="Analyzing game",
                 )
 
             # Check if we already have an analysis for this game
@@ -387,7 +405,10 @@ class GameAnalyzer:
                     # Update task if we have one
                     if task_id and self.task_manager:
                         self.task_manager.update_task_status(
-                            task_id=task_id, status="SUCCESS", progress=100, message="Analysis complete (cached)"
+                            task_id=task_id,
+                            status="SUCCESS",
+                            progress=100,
+                            message="Analysis complete (cached)",
                         )
                     return existing_analysis
 
@@ -408,7 +429,10 @@ class GameAnalyzer:
 
             if task_id and self.task_manager:
                 self.task_manager.update_task_status(
-                    task_id=task_id, status="PROCESSING", progress=20, message="Initializing chess engine"
+                    task_id=task_id,
+                    status="PROCESSING",
+                    progress=20,
+                    message="Initializing chess engine",
                 )
 
             # Analyze the game with Stockfish
@@ -418,7 +442,7 @@ class GameAnalyzer:
             analyzed_moves = self.engine.analyze_pgn_game(
                 pgn,
                 depth=depth,
-                callback=lambda p, m: progress_callback(20 + int(p * 0.5), m) if progress_callback else None,
+                callback=lambda p, m: (progress_callback(20 + int(p * 0.5), m) if progress_callback else None),
             )
 
             # Backward-compatible fallback used by legacy unit tests where the
@@ -438,7 +462,10 @@ class GameAnalyzer:
 
             if task_id and self.task_manager:
                 self.task_manager.update_task_status(
-                    task_id=task_id, status="PROCESSING", progress=70, message="Calculating metrics"
+                    task_id=task_id,
+                    status="PROCESSING",
+                    progress=70,
+                    message="Calculating metrics",
                 )
 
             # Calculate metrics
@@ -459,7 +486,10 @@ class GameAnalyzer:
                     "calculation_error": str(me),
                 }
                 if progress_callback:
-                    progress_callback(75, f"Using fallback metrics due to calculation error: {str(me)}")
+                    progress_callback(
+                        75,
+                        f"Using fallback metrics due to calculation error: {str(me)}",
+                    )
 
                 if task_id and self.task_manager:
                     self.task_manager.update_task_status(
@@ -477,12 +507,18 @@ class GameAnalyzer:
 
                 if task_id and self.task_manager:
                     self.task_manager.update_task_status(
-                        task_id=task_id, status="PROCESSING", progress=80, message="Generating AI feedback"
+                        task_id=task_id,
+                        status="PROCESSING",
+                        progress=80,
+                        message="Generating AI feedback",
                     )
 
                 try:
                     # Create a combined analysis result dict to match the expected format
-                    analysis_data = {"moves": analyzed_moves, "metrics": {"summary": metrics}}
+                    analysis_data = {
+                        "moves": analyzed_moves,
+                        "metrics": {"summary": metrics},
+                    }
 
                     # Call with a single argument (the combined analysis result)
                     feedback = self.feedback_generator.generate_feedback(analysis_data)
@@ -519,7 +555,10 @@ class GameAnalyzer:
 
             if task_id and self.task_manager:
                 self.task_manager.update_task_status(
-                    task_id=task_id, status="PROCESSING", progress=90, message="Saving analysis results"
+                    task_id=task_id,
+                    status="PROCESSING",
+                    progress=90,
+                    message="Saving analysis results",
                 )
 
             # Save the analysis data
@@ -550,7 +589,10 @@ class GameAnalyzer:
 
             if task_id and self.task_manager:
                 self.task_manager.update_task_status(
-                    task_id=task_id, status="SUCCESS", progress=100, message="Analysis complete"
+                    task_id=task_id,
+                    status="SUCCESS",
+                    progress=100,
+                    message="Analysis complete",
                 )
 
             return analysis_result
@@ -573,7 +615,11 @@ class GameAnalyzer:
             # Update task status if we have a task ID
             if task_id and self.task_manager:
                 self.task_manager.update_task_status(
-                    task_id=task_id, status="FAILURE", progress=0, message=f"Analysis failed: {str(e)}", error=str(e)
+                    task_id=task_id,
+                    status="FAILURE",
+                    progress=0,
+                    message=f"Analysis failed: {str(e)}",
+                    error=str(e),
                 )
 
             # Re-raise as AnalysisError
@@ -640,7 +686,11 @@ class GameAnalyzer:
 
             # Compile results
             analysis_result = {
-                "analysis_results": {"moves": moves_analysis, "positions": positions_analysis, "metrics": metrics},
+                "analysis_results": {
+                    "moves": moves_analysis,
+                    "positions": positions_analysis,
+                    "metrics": metrics,
+                },
                 "metadata": {
                     "game_id": game.id,
                     "analysis_depth": depth,
@@ -686,7 +736,14 @@ class GameAnalyzer:
             positions = []
 
             # Add initial position
-            positions.append({"fen": board.fen(), "move_number": 0, "move": None, "is_white": board.turn})
+            positions.append(
+                {
+                    "fen": board.fen(),
+                    "move_number": 0,
+                    "move": None,
+                    "is_white": board.turn,
+                }
+            )
 
             # Process moves
             for node in chess_game.mainline():
@@ -698,11 +755,23 @@ class GameAnalyzer:
                 board.push(move)
 
                 # Store move data
-                moves.append({"move_number": len(moves) + 1, "move": move.uci(), "san": san, "is_white": is_white})
+                moves.append(
+                    {
+                        "move_number": len(moves) + 1,
+                        "move": move.uci(),
+                        "san": san,
+                        "is_white": is_white,
+                    }
+                )
 
                 # Store position data
                 positions.append(
-                    {"fen": board.fen(), "move_number": len(moves), "move": move.uci(), "is_white": board.turn}
+                    {
+                        "fen": board.fen(),
+                        "move_number": len(moves),
+                        "move": move.uci(),
+                        "is_white": board.turn,
+                    }
                 )
 
             if not moves:
@@ -825,7 +894,7 @@ class GameAnalyzer:
                     "move_number": move_number,
                     "fen": fen,
                     "score": analysis.get("score", 0),
-                    "best_move": analysis.get("pv", [])[0] if analysis.get("pv") else None,
+                    "best_move": (analysis.get("pv", [])[0] if analysis.get("pv") else None),
                     "position_metrics": analysis.get("position_metrics", {}),
                 }
 
@@ -940,7 +1009,10 @@ class GameAnalyzer:
         return self.analyze_batch_games(games, depth=depth, use_ai=use_ai)
 
     def save_analysis(
-        self, game: Game, analysis_result: Dict[str, Any], feedback_result: Dict[str, Any]
+        self,
+        game: Game,
+        analysis_result: Dict[str, Any],
+        feedback_result: Dict[str, Any],
     ) -> GameAnalysis:
         """
         Save analysis results to the database.

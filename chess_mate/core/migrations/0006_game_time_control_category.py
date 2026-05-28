@@ -14,7 +14,12 @@ class Migration(migrations.Migration):
             model_name="game",
             name="time_control_category",
             field=models.CharField(
-                choices=[("bullet", "Bullet"), ("blitz", "Blitz"), ("rapid", "Rapid"), ("classical", "Classical")],
+                choices=[
+                    ("bullet", "Bullet"),
+                    ("blitz", "Blitz"),
+                    ("rapid", "Rapid"),
+                    ("classical", "Classical"),
+                ],
                 default="blitz",
                 max_length=20,
             ),

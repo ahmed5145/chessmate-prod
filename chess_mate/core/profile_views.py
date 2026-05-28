@@ -64,7 +64,7 @@ def get_basic_profile(user):
             "email": user.email,
             "first_name": user.first_name,
             "last_name": user.last_name,
-            "date_joined": user.date_joined.isoformat() if hasattr(user, "date_joined") else None,
+            "date_joined": (user.date_joined.isoformat() if hasattr(user, "date_joined") else None),
             "is_active": user.is_active,
             "elo_rating": 1200,
             "analysis_count": 0,
@@ -119,7 +119,10 @@ def profile_view(request):
         if not request.user.is_authenticated:
             logger.warning(f"Unauthenticated user tried to access profile view")
             return Response(
-                {"status": "error", "message": "Authentication credentials were not provided"},
+                {
+                    "status": "error",
+                    "message": "Authentication credentials were not provided",
+                },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
@@ -285,7 +288,10 @@ def fallback_profile_view(request):
 
     if not request.user.is_authenticated:
         logger.warning("Unauthenticated user tried to access fallback_profile_view")
-        return Response({"status": "error", "message": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {"status": "error", "message": "Authentication required"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
 
     try:
         # Log information about the authenticated user
@@ -314,7 +320,8 @@ def fallback_profile_view(request):
 
         # Combine and return the data
         return Response(
-            {"status": "success", "data": {"user": user_data, "profile": profile_data}}, status=status.HTTP_200_OK
+            {"status": "success", "data": {"user": user_data, "profile": profile_data}},
+            status=status.HTTP_200_OK,
         )
 
     except Exception as e:
@@ -352,14 +359,20 @@ def update_profile(request):
             username = request.data.get("username")
             # Ensure username is unique
             if User.objects.filter(username=username).exclude(id=user.id).exists():
-                return Response({"error": "Username already taken"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "Username already taken"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             user.username = username
 
         if "email" in request.data:
             email = request.data.get("email")
             # Ensure email is unique
             if User.objects.filter(email=email).exclude(id=user.id).exists():
-                return Response({"error": "Email already registered"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "Email already registered"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             user.email = email
 
         if "first_name" in request.data:
@@ -379,7 +392,10 @@ def update_profile(request):
             try:
                 profile.elo_rating = int(request.data.get("elo_rating"))
             except (TypeError, ValueError):
-                return Response({"elo_rating": ["A valid integer is required."]}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"elo_rating": ["A valid integer is required."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         if "analysis_count" in request.data:
             profile.analysis_count = request.data.get("analysis_count")
@@ -417,11 +433,15 @@ def update_profile(request):
     except ImportError as e:
         logger.error(f"Import error in update_profile: {str(e)}")
         return Response(
-            {"error": "Profile update feature temporarily unavailable"}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            {"error": "Profile update feature temporarily unavailable"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     except Exception as e:
         logger.error(f"Error updating profile: {str(e)}")
-        return Response({"error": f"Error updating profile: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": f"Error updating profile: {str(e)}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 @api_view(["POST"])
@@ -464,11 +484,15 @@ def add_credits(request):
     except ImportError as e:
         logger.error(f"Import error in add_credits: {str(e)}")
         return Response(
-            {"error": "Credits feature temporarily unavailable"}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            {"error": "Credits feature temporarily unavailable"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     except Exception as e:
         logger.error(f"Error adding credits: {str(e)}")
-        return Response({"error": f"Error adding credits: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": f"Error adding credits: {str(e)}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 def _get_or_create_legacy_tier(plan: str):
@@ -476,8 +500,18 @@ def _get_or_create_legacy_tier(plan: str):
     from .models import SubscriptionTier
 
     defaults_by_plan = {
-        "monthly": {"name": "Monthly", "price": 9.99, "period_length": 30, "credits_per_period": 100},
-        "yearly": {"name": "Yearly", "price": 99.99, "period_length": 365, "credits_per_period": 1200},
+        "monthly": {
+            "name": "Monthly",
+            "price": 9.99,
+            "period_length": 30,
+            "credits_per_period": 100,
+        },
+        "yearly": {
+            "name": "Yearly",
+            "price": 99.99,
+            "period_length": 365,
+            "credits_per_period": 1200,
+        },
     }
     defaults = defaults_by_plan.get(plan)
     if defaults is None:
@@ -509,7 +543,10 @@ def subscribe_pro_plan(request):
     if plan not in {"monthly", "yearly"}:
         return Response({"plan": ["Invalid plan"]}, status=status.HTTP_400_BAD_REQUEST)
     if not payment_method_id:
-        return Response({"payment_method_id": ["This field is required"]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"payment_method_id": ["This field is required"]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     tier = _get_or_create_legacy_tier(plan)
     payment_intent = stripe.PaymentIntent.create(amount=999, currency="usd", payment_method=payment_method_id)
@@ -524,7 +561,10 @@ def subscribe_pro_plan(request):
         is_active=False,
     )
 
-    return Response({"client_secret": payment_intent.get("client_secret")}, status=status.HTTP_200_OK)
+    return Response(
+        {"client_secret": payment_intent.get("client_secret")},
+        status=status.HTTP_200_OK,
+    )
 
 
 @api_view(["POST"])
@@ -535,7 +575,10 @@ def confirm_subscription(request):
 
     subscription_id = request.data.get("subscription_id")
     if not subscription_id:
-        return Response({"subscription_id": ["This field is required"]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"subscription_id": ["This field is required"]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     try:
         subscription = Subscription.objects.get(user=request.user, stripe_subscription_id=subscription_id)
@@ -547,7 +590,10 @@ def confirm_subscription(request):
         subscription.active = True
         subscription.status = "active"
         subscription.save(update_fields=["is_active", "status"])
-        return Response({"message": "Successfully confirmed subscription"}, status=status.HTTP_200_OK)
+        return Response(
+            {"message": "Successfully confirmed subscription"},
+            status=status.HTTP_200_OK,
+        )
 
     return Response({"error": "Subscription is not active"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -560,11 +606,21 @@ def purchase_credits(request):
 
     package = request.data.get("credit_package")
     payment_method_id = request.data.get("payment_method_id")
-    package_values = {"50_credits": (50, 9.99), "100_credits": (100, 17.99), "200_credits": (200, 32.99)}
+    package_values = {
+        "50_credits": (50, 9.99),
+        "100_credits": (100, 17.99),
+        "200_credits": (200, 32.99),
+    }
     if package not in package_values:
-        return Response({"credit_package": ["Invalid credit package"]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"credit_package": ["Invalid credit package"]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     if not payment_method_id:
-        return Response({"payment_method_id": ["This field is required"]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"payment_method_id": ["This field is required"]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     credit_amount, amount = package_values[package]
     payment_intent = stripe.PaymentIntent.create(
@@ -579,7 +635,10 @@ def purchase_credits(request):
         status="pending",
     )
 
-    return Response({"client_secret": payment_intent.get("client_secret")}, status=status.HTTP_200_OK)
+    return Response(
+        {"client_secret": payment_intent.get("client_secret")},
+        status=status.HTTP_200_OK,
+    )
 
 
 @api_view(["POST"])
@@ -590,7 +649,10 @@ def confirm_credit_purchase(request):
 
     payment_intent_id = request.data.get("payment_intent_id")
     if not payment_intent_id:
-        return Response({"payment_intent_id": ["This field is required"]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"payment_intent_id": ["This field is required"]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     try:
         payment = Payment.objects.get(user=request.user, stripe_payment_id=payment_intent_id)
@@ -608,7 +670,10 @@ def confirm_credit_purchase(request):
         payment.status = "completed"
         payment.save(update_fields=["status"])
 
-    return Response({"message": f"Successfully added {payment.credit_amount} credits"}, status=status.HTTP_200_OK)
+    return Response(
+        {"message": f"Successfully added {payment.credit_amount} credits"},
+        status=status.HTTP_200_OK,
+    )
 
 
 @api_view(["PATCH"])
@@ -624,7 +689,10 @@ def update_preferences(request):
     allowed_themes = {"light", "dark", "system"}
     theme = preferences.get("theme")
     if theme is not None and theme not in allowed_themes:
-        return Response({"preferences": {"theme": ["Invalid theme"]}}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"preferences": {"theme": ["Invalid theme"]}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     profile, _ = Profile.objects.get_or_create(user=request.user)
     current_preferences = profile.preferences or {}
@@ -632,7 +700,10 @@ def update_preferences(request):
     profile.preferences = current_preferences
     profile.save(update_fields=["preferences"])
 
-    return Response({"message": "Preferences updated", "preferences": profile.preferences}, status=status.HTTP_200_OK)
+    return Response(
+        {"message": "Preferences updated", "preferences": profile.preferences},
+        status=status.HTTP_200_OK,
+    )
 
 
 @api_view(["GET"])
@@ -777,13 +848,22 @@ def get_user_statistics(request):
             pass
         except Exception as e:
             logger.error(f"Error fetching subscription for statistics for user {user.id}: {e}")
-            statistics["subscription"] = {"status": "error", "message": "Subscription data unavailable"}
+            statistics["subscription"] = {
+                "status": "error",
+                "message": "Subscription data unavailable",
+            }
     except ImportError as e:
         logger.error(f"Import error when trying to access Subscription model: {e}")
-        statistics["subscription"] = {"status": "error", "message": "Subscription feature unavailable"}
+        statistics["subscription"] = {
+            "status": "error",
+            "message": "Subscription feature unavailable",
+        }
     except Exception as e:
         logger.error(f"Unexpected error when trying to access subscription data: {e}")
-        statistics["subscription"] = {"status": "error", "message": "Subscription data error"}
+        statistics["subscription"] = {
+            "status": "error",
+            "message": "Subscription data error",
+        }
 
     return create_success_response(data=statistics)
 
@@ -829,19 +909,28 @@ def create_subscription(request):
 
         # Validate inputs
         if not tier_id or not payment_method_id:
-            return Response({"error": "Tier ID and payment method ID are required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Tier ID and payment method ID are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Check if user already has an active subscription
         existing_subscription = Subscription.objects.filter(user=user, is_active=True).first()
 
         if existing_subscription:
-            return Response({"error": "User already has an active subscription"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "User already has an active subscription"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Get the selected tier
         try:
             tier = SubscriptionTier.objects.get(id=tier_id, is_active=True)
         except SubscriptionTier.DoesNotExist:
-            return Response({"error": "Subscription tier not found or not active"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Subscription tier not found or not active"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         # Create the subscription in Stripe
         try:
@@ -902,14 +991,21 @@ def create_subscription(request):
         except Exception as e:
             if hasattr(e, "stripe_error"):
                 logger.error(f"Stripe error: {str(e)}")
-                return Response({"error": f"Payment error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": f"Payment error: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             else:
                 logger.error(f"Error creating subscription: {str(e)}")
-                return Response({"error": f"Subscription error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": f"Subscription error: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
     except ImportError as e:
         logger.error(f"Import error when trying to access subscription models: {e}")
         return Response(
-            {"error": "Subscription feature temporarily unavailable"}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            {"error": "Subscription feature temporarily unavailable"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
 
@@ -942,24 +1038,35 @@ def cancel_subscription(request):
                 subscription.save(update_fields=["status", "cancel_at_period_end"])
 
                 return create_success_response(
-                    data={"subscription_id": subscription.stripe_subscription_id, "status": "canceled"},
+                    data={
+                        "subscription_id": subscription.stripe_subscription_id,
+                        "status": "canceled",
+                    },
                     message="Subscription cancelled successfully",
                 )
         except Subscription.DoesNotExist:
-            return Response({"error": "No active subscription found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "No active subscription found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         except Exception as e:
             if hasattr(e, "stripe_error"):
                 logger.error(f"Stripe error: {str(e)}")
                 return Response(
-                    {"error": f"Error canceling subscription: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST
+                    {"error": f"Error canceling subscription: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             else:
                 logger.error(f"Error canceling subscription: {str(e)}")
-                return Response({"error": f"Subscription error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": f"Subscription error: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
     except ImportError as e:
         logger.error(f"Import error when trying to access Subscription model: {e}")
         return Response(
-            {"error": "Subscription feature temporarily unavailable"}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            {"error": "Subscription feature temporarily unavailable"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
 
@@ -1108,12 +1215,14 @@ def minimal_profile_view(request):
             except Exception as e:
                 logger.warning(f"Manual token authentication failed: {str(e)}")
                 return Response(
-                    {"status": "error", "message": "Invalid authentication token"}, status=status.HTTP_401_UNAUTHORIZED
+                    {"status": "error", "message": "Invalid authentication token"},
+                    status=status.HTTP_401_UNAUTHORIZED,
                 )
         else:
             logger.warning("No authentication provided")
             return Response(
-                {"status": "error", "message": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED
+                {"status": "error", "message": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
 
         # At this point we have a valid user
@@ -1125,7 +1234,7 @@ def minimal_profile_view(request):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "is_active": user.is_active,
-            "date_joined": user.date_joined.isoformat() if hasattr(user, "date_joined") else None,
+            "date_joined": (user.date_joined.isoformat() if hasattr(user, "date_joined") else None),
         }
 
         # Try to get profile data if available
@@ -1166,7 +1275,8 @@ def minimal_profile_view(request):
 
         # Return combined data
         return Response(
-            {"status": "success", "data": {"user": user_data, "profile": profile_data}}, status=status.HTTP_200_OK
+            {"status": "success", "data": {"user": user_data, "profile": profile_data}},
+            status=status.HTTP_200_OK,
         )
 
     except Exception as e:

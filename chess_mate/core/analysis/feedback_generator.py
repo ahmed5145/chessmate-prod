@@ -37,7 +37,14 @@ class FeedbackGenerator:
         raw = str(move.get("classification", "")).strip().lower().replace("_", " ")
         if raw in {"good", "good move"}:
             return "good"
-        if raw in {"excellent", "excellent move", "great move", "best", "best move", "brilliant"}:
+        if raw in {
+            "excellent",
+            "excellent move",
+            "great move",
+            "best",
+            "best move",
+            "brilliant",
+        }:
             return "excellent"
         if raw in {"mistake", "blunder", "inaccuracy", "neutral"}:
             return raw
@@ -240,7 +247,11 @@ class FeedbackGenerator:
             ]
 
         primary_rule = motifs[0]["correction_rule"] if motifs else "Review the phase with a structured checklist."
-        return {"weakest_phase": target_phase, "motifs": motifs, "correction_rule": primary_rule}
+        return {
+            "weakest_phase": target_phase,
+            "motifs": motifs,
+            "correction_rule": primary_rule,
+        }
 
     @classmethod
     def _build_training_block(cls, game_metrics: Dict[str, Any]) -> Dict[str, Any]:
@@ -357,7 +368,7 @@ class FeedbackGenerator:
             "weekly_target": weekly_target,
             "phase_motifs": motif_block,
             "impact_metrics": impact,
-            "data_confidence": "high" if total_moves >= 30 else "medium" if total_moves >= 12 else "low",
+            "data_confidence": ("high" if total_moves >= 30 else "medium" if total_moves >= 12 else "low"),
         }
 
     @classmethod
@@ -410,7 +421,10 @@ class FeedbackGenerator:
                     response = self.openai_client.chat.completions.create(
                         model=getattr(settings, "OPENAI_MODEL", "gpt-3.5-turbo"),
                         messages=[
-                            {"role": "system", "content": "You are a chess coach. Return valid JSON only."},
+                            {
+                                "role": "system",
+                                "content": "You are a chess coach. Return valid JSON only.",
+                            },
                             {"role": "user", "content": prompt},
                         ],
                         temperature=getattr(settings, "OPENAI_TEMPERATURE", 0.2),
@@ -429,7 +443,13 @@ class FeedbackGenerator:
 
             return self._generate_statistical_feedback(game_metrics)
 
-        except (AttributeError, TypeError, ValueError, json.JSONDecodeError, OpenAIError) as e:
+        except (
+            AttributeError,
+            TypeError,
+            ValueError,
+            json.JSONDecodeError,
+            OpenAIError,
+        ) as e:
             logger.error("Error generating feedback: %s", e)
             return self._generate_statistical_feedback(analysis_result if isinstance(analysis_result, dict) else {})
 
@@ -497,7 +517,12 @@ class FeedbackGenerator:
             has_accuracy = overall.get("accuracy", 0) >= 0  # Allow 0 accuracy
             has_any_metrics = any(
                 overall.get(key, 0) >= 0  # Allow 0 values
-                for key in ["mistakes", "blunders", "inaccuracies", "time_management_score"]
+                for key in [
+                    "mistakes",
+                    "blunders",
+                    "inaccuracies",
+                    "time_management_score",
+                ]
             )
 
             # Consider valid if we have moves and any metrics
@@ -714,13 +739,13 @@ class FeedbackGenerator:
                         "critical_moments": sections.get("critical_moments", []),
                         "improvement_areas": sections.get("improvement_areas", []),
                         "opening": {
-                            "analysis": sections.get("opening", [""])[0] if sections.get("opening", []) else "",
+                            "analysis": (sections.get("opening", [""])[0] if sections.get("opening", []) else ""),
                             "suggestion": (
                                 sections.get("opening", ["", ""])[1] if len(sections.get("opening", [])) > 1 else ""
                             ),
                         },
                         "middlegame": {
-                            "analysis": sections.get("middlegame", [""])[0] if sections.get("middlegame", []) else "",
+                            "analysis": (sections.get("middlegame", [""])[0] if sections.get("middlegame", []) else ""),
                             "suggestion": (
                                 sections.get("middlegame", ["", ""])[1]
                                 if len(sections.get("middlegame", [])) > 1
@@ -728,7 +753,7 @@ class FeedbackGenerator:
                             ),
                         },
                         "endgame": {
-                            "analysis": sections.get("endgame", [""])[0] if sections.get("endgame", []) else "",
+                            "analysis": (sections.get("endgame", [""])[0] if sections.get("endgame", []) else ""),
                             "suggestion": (
                                 sections.get("endgame", ["", ""])[1] if len(sections.get("endgame", [])) > 1 else ""
                             ),
@@ -773,7 +798,7 @@ class FeedbackGenerator:
                 normalized_metrics = {
                     "overall": {
                         "total_moves": total_moves,
-                        "accuracy": (good_moves / total_moves * 100.0) if total_moves > 0 else 0.0,
+                        "accuracy": ((good_moves / total_moves * 100.0) if total_moves > 0 else 0.0),
                         "mistakes": mistakes,
                         "blunders": sum(1 for m in moves if self._normalized_classification(m) == "blunder"),
                         "time_management_score": 0.0,
@@ -789,10 +814,25 @@ class FeedbackGenerator:
                     "weaknesses": ["Unable to analyze game properly"],
                     "critical_moments": [],
                     "improvement_areas": ["Overall game analysis"],
-                    "opening": {"analysis": "Analysis unavailable", "suggestion": "Review basic principles"},
-                    "middlegame": {"analysis": "Analysis unavailable", "suggestion": "Focus on fundamentals"},
-                    "endgame": {"analysis": "Analysis unavailable", "suggestion": "Practice basic endgames"},
-                    "metrics": {"overall": {"accuracy": 0.0, "consistency": 0.0, "data_status": "unavailable"}},
+                    "opening": {
+                        "analysis": "Analysis unavailable",
+                        "suggestion": "Review basic principles",
+                    },
+                    "middlegame": {
+                        "analysis": "Analysis unavailable",
+                        "suggestion": "Focus on fundamentals",
+                    },
+                    "endgame": {
+                        "analysis": "Analysis unavailable",
+                        "suggestion": "Practice basic endgames",
+                    },
+                    "metrics": {
+                        "overall": {
+                            "accuracy": 0.0,
+                            "consistency": 0.0,
+                            "data_status": "unavailable",
+                        }
+                    },
                 }
 
             overall = normalized_metrics.get("overall", {})
@@ -832,10 +872,10 @@ class FeedbackGenerator:
             feedback = {
                 "source": "statistical",
                 "data_status": "available",
-                "strengths": strengths if strengths else ["Basic understanding of chess principles"],
-                "weaknesses": weaknesses if weaknesses else ["Areas for improvement not identified"],
+                "strengths": (strengths if strengths else ["Basic understanding of chess principles"]),
+                "weaknesses": (weaknesses if weaknesses else ["Areas for improvement not identified"]),
                 "critical_moments": [],  # Statistical analysis doesn't identify specific moments
-                "improvement_areas": improvement_areas if improvement_areas else ["General chess fundamentals"],
+                "improvement_areas": (improvement_areas if improvement_areas else ["General chess fundamentals"]),
                 "opening": {
                     "analysis": f"Opening play shows {opening_accuracy}% accuracy",
                     "suggestion": (
@@ -881,9 +921,18 @@ class FeedbackGenerator:
                 "weaknesses": ["Unable to analyze game properly"],
                 "critical_moments": [],
                 "improvement_areas": ["Overall game analysis"],
-                "opening": {"analysis": "Analysis unavailable", "suggestion": "Review basic principles"},
-                "middlegame": {"analysis": "Analysis unavailable", "suggestion": "Focus on fundamentals"},
-                "endgame": {"analysis": "Analysis unavailable", "suggestion": "Practice basic endgames"},
+                "opening": {
+                    "analysis": "Analysis unavailable",
+                    "suggestion": "Review basic principles",
+                },
+                "middlegame": {
+                    "analysis": "Analysis unavailable",
+                    "suggestion": "Focus on fundamentals",
+                },
+                "endgame": {
+                    "analysis": "Analysis unavailable",
+                    "suggestion": "Practice basic endgames",
+                },
                 "metrics": {
                     "summary": {
                         "overall": {
@@ -939,7 +988,10 @@ class FeedbackGenerator:
             return {"feedback": feedback, "quality": quality, "accuracy": accuracy}
         except (AttributeError, TypeError, ValueError) as e:
             logger.error("Error generating opening feedback: %s", e)
-            return {"feedback": "Insufficient data for opening analysis", "quality": "unknown"}
+            return {
+                "feedback": "Insufficient data for opening analysis",
+                "quality": "unknown",
+            }
 
     def _generate_middlegame_feedback(self, middlegame_metrics: Dict[str, Any]) -> Dict[str, str]:
         """Generate feedback for the middlegame phase."""
@@ -975,7 +1027,10 @@ class FeedbackGenerator:
             return {"feedback": feedback, "quality": quality, "accuracy": accuracy}
         except (AttributeError, TypeError, ValueError) as e:
             logger.error("Error generating middlegame feedback: %s", e)
-            return {"feedback": "Insufficient data for middlegame analysis", "quality": "unknown"}
+            return {
+                "feedback": "Insufficient data for middlegame analysis",
+                "quality": "unknown",
+            }
 
     def _generate_endgame_feedback(self, endgame_metrics: Dict[str, Any]) -> Dict[str, str]:
         """Generate feedback for the endgame phase."""
@@ -1002,7 +1057,10 @@ class FeedbackGenerator:
             return {"feedback": feedback, "quality": quality, "accuracy": accuracy}
         except (AttributeError, TypeError, ValueError) as e:
             logger.error("Error generating endgame feedback: %s", e)
-            return {"feedback": "Insufficient data for endgame analysis", "quality": "unknown"}
+            return {
+                "feedback": "Insufficient data for endgame analysis",
+                "quality": "unknown",
+            }
 
     def _identify_strengths(self, metrics: Dict[str, Any]) -> List[str]:
         """Identify player strengths based on metrics."""
@@ -1099,7 +1157,9 @@ class FeedbackGenerator:
 
             # Sort moves by evaluation change (largest absolute value first)
             sorted_moves = sorted(
-                [m for m in moves if "eval_change" in m], key=lambda x: abs(x.get("eval_change", 0)), reverse=True
+                [m for m in moves if "eval_change" in m],
+                key=lambda x: abs(x.get("eval_change", 0)),
+                reverse=True,
             )
 
             # Take the top 3 most significant moves

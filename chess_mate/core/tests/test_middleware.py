@@ -36,12 +36,19 @@ class TestRequestValidationMiddleware:
     def test_valid_request_passes_validation(self, authenticated_client):
         """Test that a valid request passes validation."""
         url = reverse("register")
-        data = {"email": "newuser@example.com", "password": "Secure.Password.123", "username": "newuser"}
+        data = {
+            "email": "newuser@example.com",
+            "password": "Secure.Password.123",
+            "username": "newuser",
+        }
         response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
 
         # Either a 201 CREATED or 400 BAD REQUEST if email already exists,
         # but not a validation error from the middleware
-        assert response.status_code in [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]
+        assert response.status_code in [
+            status.HTTP_201_CREATED,
+            status.HTTP_400_BAD_REQUEST,
+        ]
         if response.status_code == status.HTTP_400_BAD_REQUEST:
             assert "Invalid request data" not in response.json().get("message", "")
 
@@ -93,7 +100,11 @@ class TestRequestValidationMiddleware:
     def test_password_too_short(self, authenticated_client):
         """Test that a request with a short password is rejected."""
         url = reverse("register")
-        data = {"email": "newuser@example.com", "password": "short", "username": "newuser"}  # Too short
+        data = {
+            "email": "newuser@example.com",
+            "password": "short",
+            "username": "newuser",
+        }  # Too short
         response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -141,11 +152,18 @@ class TestRequestValidationMiddleware:
     def test_middleware_updates_request_data(self, authenticated_client):
         """Test that the middleware updates the request data after validation."""
         url = reverse("register")
-        data = {"email": "validuser@example.com", "password": "Secure.Password.123", "username": "validuser"}
+        data = {
+            "email": "validuser@example.com",
+            "password": "Secure.Password.123",
+            "username": "validuser",
+        }
         response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
 
         # The request should be processed normally if validation passes
-        assert response.status_code in [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]
+        assert response.status_code in [
+            status.HTTP_201_CREATED,
+            status.HTTP_400_BAD_REQUEST,
+        ]
         if response.status_code == status.HTTP_400_BAD_REQUEST:
             # This would happen if the user already exists
             assert "already exists" in str(response.content)

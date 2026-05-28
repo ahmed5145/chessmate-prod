@@ -80,7 +80,12 @@ def test_generate_coaching_report_success(monkeypatch):
                 "estimated_study_hours": 1,
             },
         ],
-        "training_plan": {"week_1": "w1", "week_2": "w2", "week_3": "w3", "week_4": "w4"},
+        "training_plan": {
+            "week_1": "w1",
+            "week_2": "w2",
+            "week_3": "w3",
+            "week_4": "w4",
+        },
         "one_thing_to_do_today": "Do one tactic",
     }
 

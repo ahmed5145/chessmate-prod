@@ -13,7 +13,10 @@ class Migration(migrations.Migration):
             model_name="subscription",
             name="tier",
             field=models.ForeignKey(
-                blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to="core.subscriptiontier"
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                to="core.subscriptiontier",
             ),
         ),
     ]

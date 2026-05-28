@@ -18,7 +18,15 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="Player",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
                 ("username", models.CharField(max_length=100, unique=True)),
                 ("date_joined", models.DateTimeField(auto_now_add=True)),
             ],
@@ -26,7 +34,10 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="AnalysisCache",
             fields=[
-                ("key", models.CharField(max_length=100, primary_key=True, serialize=False)),
+                (
+                    "key",
+                    models.CharField(max_length=100, primary_key=True, serialize=False),
+                ),
                 ("size_bytes", models.IntegerField()),
                 ("last_accessed", models.DateTimeField(auto_now=True)),
                 ("priority", models.IntegerField(default=0)),
@@ -44,7 +55,15 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="Game",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
                 ("platform", models.CharField(max_length=20)),
                 ("game_id", models.CharField(max_length=100)),
                 ("pgn", models.TextField()),
@@ -52,7 +71,10 @@ class Migration(migrations.Migration):
                 ("white", models.CharField(max_length=100)),
                 ("black", models.CharField(max_length=100)),
                 ("opponent", models.CharField(default="Unknown", max_length=100)),
-                ("opening_name", models.CharField(default="Unknown Opening", max_length=200)),
+                (
+                    "opening_name",
+                    models.CharField(default="Unknown Opening", max_length=200),
+                ),
                 ("date_played", models.DateTimeField()),
                 ("time_control", models.CharField(default="blitz", max_length=50)),
                 (
@@ -69,9 +91,18 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("eco_code", models.CharField(max_length=3, null=True)),
-                ("opening_played", models.CharField(default="Unknown Opening", max_length=200)),
-                ("opening_variation", models.CharField(default="Unknown Variation", max_length=200)),
-                ("opponent_opening", models.CharField(default="Unknown Opponent Opening", max_length=200)),
+                (
+                    "opening_played",
+                    models.CharField(default="Unknown Opening", max_length=200),
+                ),
+                (
+                    "opening_variation",
+                    models.CharField(default="Unknown Variation", max_length=200),
+                ),
+                (
+                    "opponent_opening",
+                    models.CharField(default="Unknown Opponent Opening", max_length=200),
+                ),
                 ("analysis_version", models.IntegerField(default=1)),
                 ("last_analysis_date", models.DateTimeField(null=True)),
                 (
@@ -96,7 +127,11 @@ class Migration(migrations.Migration):
                 ("black_elo", models.IntegerField(blank=True, null=True)),
                 (
                     "player_color",
-                    models.CharField(choices=[("white", "White"), ("black", "Black")], default="white", max_length=5),
+                    models.CharField(
+                        choices=[("white", "White"), ("black", "Black")],
+                        default="white",
+                        max_length=5,
+                    ),
                 ),
                 (
                     "status",
@@ -130,19 +165,38 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="BatchAnalysis",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
                 ("name", models.CharField(max_length=100)),
                 ("description", models.TextField()),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("completed_at", models.DateTimeField(blank=True, null=True)),
                 ("status", models.CharField(default="pending", max_length=20)),
-                ("games", models.ManyToManyField(related_name="batch_analyses", to="core.game")),
+                (
+                    "games",
+                    models.ManyToManyField(related_name="batch_analyses", to="core.game"),
+                ),
             ],
         ),
         migrations.CreateModel(
             name="GameAnalysis",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
                 ("metrics", models.JSONField(default=dict)),
                 ("phase_metrics", models.JSONField(default=dict)),
                 ("time_metrics", models.JSONField(default=dict)),
@@ -151,11 +205,17 @@ class Migration(migrations.Migration):
                 ("feedback", models.JSONField(default=dict)),
                 ("time_control_feedback", models.JSONField(default=dict)),
                 ("study_plan", models.JSONField(default=dict)),
-                ("cache_key", models.CharField(default="default_cache_key", max_length=100, unique=True)),
+                (
+                    "cache_key",
+                    models.CharField(default="default_cache_key", max_length=100, unique=True),
+                ),
                 ("analysis_metadata", models.JSONField(default=dict)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
-                ("game", models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to="core.game")),
+                (
+                    "game",
+                    models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to="core.game"),
+                ),
             ],
             options={
                 "db_table": "game_analysis",
@@ -164,39 +224,75 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="Profile",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
                 ("credits", models.IntegerField(default=10)),
                 ("bullet_rating", models.IntegerField(default=1200)),
                 ("blitz_rating", models.IntegerField(default=1200)),
                 ("rapid_rating", models.IntegerField(default=1200)),
                 ("classical_rating", models.IntegerField(default=1200)),
                 ("email_verified", models.BooleanField(default=False)),
-                ("email_verification_token", models.CharField(blank=True, max_length=100, null=True)),
+                (
+                    "email_verification_token",
+                    models.CharField(blank=True, max_length=100, null=True),
+                ),
                 ("email_verification_sent_at", models.DateTimeField(null=True)),
                 ("email_verified_at", models.DateTimeField(null=True)),
                 ("preferences", models.JSONField(blank=True, default=dict)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
-                ("chesscom_username", models.CharField(blank=True, max_length=100, null=True)),
-                ("lichess_username", models.CharField(blank=True, max_length=100, null=True)),
+                (
+                    "chesscom_username",
+                    models.CharField(blank=True, max_length=100, null=True),
+                ),
+                (
+                    "lichess_username",
+                    models.CharField(blank=True, max_length=100, null=True),
+                ),
                 ("rating_history", models.JSONField(blank=True, default=dict)),
                 (
                     "user",
-                    models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL),
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
                 ),
             ],
         ),
         migrations.CreateModel(
             name="Transaction",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
                 (
                     "transaction_type",
                     models.CharField(
-                        choices=[("purchase", "Purchase"), ("usage", "Usage"), ("refund", "Refund")], max_length=20
+                        choices=[
+                            ("purchase", "Purchase"),
+                            ("usage", "Usage"),
+                            ("refund", "Refund"),
+                        ],
+                        max_length=20,
                     ),
                 ),
-                ("amount", models.DecimalField(decimal_places=2, default=0, max_digits=10)),
+                (
+                    "amount",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=10),
+                ),
                 ("credits", models.IntegerField()),
                 (
                     "status",
@@ -210,10 +306,19 @@ class Migration(migrations.Migration):
                         max_length=20,
                     ),
                 ),
-                ("stripe_payment_id", models.CharField(blank=True, max_length=100, null=True)),
+                (
+                    "stripe_payment_id",
+                    models.CharField(blank=True, max_length=100, null=True),
+                ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
-                ("user", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
                 "db_table": "transactions",

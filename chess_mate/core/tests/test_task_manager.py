@@ -76,7 +76,9 @@ class TestTaskManager:
         # Create a task
         game_id = 123
         task_id = self.task_manager.create_task(
-            game_id=game_id, task_type=TaskManager.TYPE_ANALYSIS, parameters={"depth": 20}
+            game_id=game_id,
+            task_type=TaskManager.TYPE_ANALYSIS,
+            parameters={"depth": 20},
         )
 
         # Verify task was created
@@ -106,7 +108,8 @@ class TestTaskManager:
         """Test creating a task without a game ID."""
         # Create a task without game_id
         task_id = self.task_manager.create_task(
-            task_type=TaskManager.TYPE_BATCH_ANALYSIS, parameters={"game_ids": [1, 2, 3]}
+            task_type=TaskManager.TYPE_BATCH_ANALYSIS,
+            parameters={"game_ids": [1, 2, 3]},
         )
 
         # Verify task was created
@@ -202,7 +205,9 @@ class TestTaskManager:
 
         # Update task status with error
         self.task_manager.update_task_status(
-            task_id=task_id, status=TaskManager.STATUS_FAILED, error="Analysis failed due to invalid PGN"
+            task_id=task_id,
+            status=TaskManager.STATUS_FAILED,
+            error="Analysis failed due to invalid PGN",
         )
 
         # Get the updated task

@@ -26,7 +26,11 @@ def api_client():
 def test_user():
     user = User.objects.create_user(username="testuser", email="test@example.com", password="testpassword123")
     Profile.objects.create(
-        user=user, email_verified=True, credits=100, chess_com_username="testuser", lichess_username="testuser_lichess"
+        user=user,
+        email_verified=True,
+        credits=100,
+        chess_com_username="testuser",
+        lichess_username="testuser_lichess",
     )
     return user
 
@@ -69,7 +73,10 @@ def test_game(test_user):
                         },
                     ],
                 },
-                "moves": [{"move_number": 1, "move": "e4", "eval": 0.3}, {"move_number": 2, "move": "e5", "eval": 0.2}],
+                "moves": [
+                    {"move_number": 1, "move": "e4", "eval": 0.3},
+                    {"move_number": 2, "move": "e5", "eval": 0.2},
+                ],
             }
         },
     )
@@ -99,7 +106,10 @@ def test_feedback(test_user, test_game):
                     "recommendation": "Consider Bd3 to maintain control.",
                 },
             ],
-            "improvement_areas": ["Tactical awareness in complex positions", "Knight maneuvers in closed positions"],
+            "improvement_areas": [
+                "Tactical awareness in complex positions",
+                "Knight maneuvers in closed positions",
+            ],
         },
         model_used="gpt-4-turbo",
         credits_used=25,
@@ -130,11 +140,16 @@ class TestFeedbackViews:
                     "recommendation": "Nxd5 would have won material.",
                 }
             ],
-            "improvement_areas": ["Tactical awareness in complex positions", "Knight maneuvers in closed positions"],
+            "improvement_areas": [
+                "Tactical awareness in complex positions",
+                "Knight maneuvers in closed positions",
+            ],
         }
 
         with patch.object(
-            feedback_views, "generate_game_feedback", return_value=(mock_feedback_content, "gpt-4-turbo", credits_cost)
+            feedback_views,
+            "generate_game_feedback",
+            return_value=(mock_feedback_content, "gpt-4-turbo", credits_cost),
         ) as mock_generate:
             url = reverse("generate_ai_feedback", args=[test_game.id])
             response = authenticated_client.post(url)
@@ -264,7 +279,10 @@ class TestFeedbackViews:
 
     def test_rate_feedback_invalid_rating(self, authenticated_client, test_user, test_feedback):
         url = reverse("rate_feedback", args=[test_feedback.id])
-        data = {"rating": 6, "comment": "Very helpful analysis!"}  # Invalid: should be 1-5
+        data = {
+            "rating": 6,
+            "comment": "Very helpful analysis!",
+        }  # Invalid: should be 1-5
         response = authenticated_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -285,11 +303,18 @@ class TestFeedbackViews:
         Profile.objects.create(user=other_user, email_verified=True)
 
         other_game = Game.objects.create(
-            user=other_user, platform="chess.com", result="win", analysis_status="analyzed"
+            user=other_user,
+            platform="chess.com",
+            result="win",
+            analysis_status="analyzed",
         )
 
         other_feedback = AiFeedback.objects.create(
-            user=other_user, game=other_game, content={"summary": "Test"}, model_used="gpt-4-turbo", credits_used=25
+            user=other_user,
+            game=other_game,
+            content={"summary": "Test"},
+            model_used="gpt-4-turbo",
+            credits_used=25,
         )
 
         # Try to rate the other user's feedback

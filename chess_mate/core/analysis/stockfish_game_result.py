@@ -132,9 +132,24 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
             "opening_name": "Unknown",
             "opening_accuracy": 0.0,
             "phase_breakdown": {
-                "opening": {"moves": 0, "avg_eval_drop": 0.0, "blunders": 0, "mistakes": 0},
-                "middlegame": {"moves": 0, "avg_eval_drop": 0.0, "blunders": 0, "mistakes": 0},
-                "endgame": {"moves": 0, "avg_eval_drop": 0.0, "blunders": 0, "mistakes": 0},
+                "opening": {
+                    "moves": 0,
+                    "avg_eval_drop": 0.0,
+                    "blunders": 0,
+                    "mistakes": 0,
+                },
+                "middlegame": {
+                    "moves": 0,
+                    "avg_eval_drop": 0.0,
+                    "blunders": 0,
+                    "mistakes": 0,
+                },
+                "endgame": {
+                    "moves": 0,
+                    "avg_eval_drop": 0.0,
+                    "blunders": 0,
+                    "mistakes": 0,
+                },
             },
             "move_quality": {
                 "brilliant": 0,
@@ -231,7 +246,15 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
     }
 
     # Initialize move_quality counters
-    mq_keys = ["brilliant", "best", "excellent", "good", "inaccuracy", "mistake", "blunder"]
+    mq_keys = [
+        "brilliant",
+        "best",
+        "excellent",
+        "good",
+        "inaccuracy",
+        "mistake",
+        "blunder",
+    ]
     move_quality_out = {k: 0 for k in mq_keys}
 
     # Compute move classifications and deteriorations in a single pass

@@ -528,7 +528,11 @@ class TestCacheOperations:
     def test_invalidate_pattern(self, mock_redis):
         """Test invalidating cache entries matching a pattern."""
         # Configure mock Redis to return some keys
-        mock_redis.scan_iter.return_value = [b"user:123", b"user:123:profile", b"user:123:games"]
+        mock_redis.scan_iter.return_value = [
+            b"user:123",
+            b"user:123:profile",
+            b"user:123:games",
+        ]
 
         # Call the function
         result = invalidate_pattern("user:123*", backend=CACHE_BACKEND_REDIS)
@@ -639,7 +643,12 @@ class TestIntegrationWithRedis:
             return
 
         # Test cache_set and cache_get
-        cache_set("test_integration_key", "test_integration_value", ttl=10, backend=CACHE_BACKEND_REDIS)
+        cache_set(
+            "test_integration_key",
+            "test_integration_value",
+            ttl=10,
+            backend=CACHE_BACKEND_REDIS,
+        )
         value = cache_get("test_integration_key", CACHE_BACKEND_REDIS)
 
         assert value == "test_integration_value"

@@ -70,7 +70,10 @@ def generate_game_feedback(game: Game) -> tuple[Dict[str, Any], str, int]:
                 "recommendation": "Nxd5 would have won material.",
             }
         ],
-        "improvement_areas": ["Tactical awareness in complex positions", "Knight maneuvers in closed positions"],
+        "improvement_areas": [
+            "Tactical awareness in complex positions",
+            "Knight maneuvers in closed positions",
+        ],
     }
     return feedback_content, "fallback", 2
 
@@ -85,11 +88,17 @@ def generate_ai_feedback(request, game_id):
         game = Game.objects.get(id=game_id, user=user)
 
         if game.analysis_status != "analyzed":
-            return Response({"message": "Game has not been analyzed yet"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"message": "Game has not been analyzed yet"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         credits_cost = 25
         if profile.credits < credits_cost:
-            return Response({"message": "Insufficient credits"}, status=status.HTTP_402_PAYMENT_REQUIRED)
+            return Response(
+                {"message": "Insufficient credits"},
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
 
         feedback_fn = generate_game_feedback
         resolved_candidates = []
@@ -152,7 +161,10 @@ def generate_ai_feedback(request, game_id):
         return Response({"message": "User profile not found"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error("Error generating AI feedback: %s", e)
-        return Response({"message": "Failed to generate AI feedback"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"message": "Failed to generate AI feedback"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["POST"])
@@ -169,19 +181,26 @@ def generate_game_feedback_view(request, game_id):
         try:
             game = Game.objects.get(id=game_id, user=user)
         except Game.DoesNotExist:
-            return Response({"error": "Game not found or does not belong to user"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Game not found or does not belong to user"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         # Check if game has been analyzed
         if game.analysis_status != "analyzed" or not game.analysis:
             return Response(
-                {"error": "Game must be analyzed before generating AI feedback"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Game must be analyzed before generating AI feedback"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Check if feedback already exists and if user wants to regenerate
         force_regenerate = request.data.get("force_regenerate", False)
         if not force_regenerate and game.analysis.get("feedback"):
             return Response(
-                {"message": "Feedback already exists for this game", "feedback": game.analysis.get("feedback")},
+                {
+                    "message": "Feedback already exists for this game",
+                    "feedback": game.analysis.get("feedback"),
+                },
                 status=status.HTTP_200_OK,
             )
 
@@ -241,7 +260,8 @@ def generate_game_feedback_view(request, game_id):
     except Exception as e:
         logger.error(f"Error generating AI feedback: {str(e)}")
         return Response(
-            {"error": f"Failed to generate AI feedback: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {"error": f"Failed to generate AI feedback: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
@@ -258,12 +278,18 @@ def get_game_feedback(request, game_id):
         try:
             game = Game.objects.get(id=game_id, user=user)
         except Game.DoesNotExist:
-            return Response({"error": "Game not found or does not belong to user"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Game not found or does not belong to user"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         try:
             feedback = AiFeedback.objects.get(game=game, user=user)
         except AiFeedback.DoesNotExist:
-            return Response({"error": "No feedback available for this game"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "No feedback available for this game"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         return Response(
             {
@@ -280,7 +306,8 @@ def get_game_feedback(request, game_id):
     except Exception as e:
         logger.error(f"Error retrieving AI feedback: {str(e)}")
         return Response(
-            {"error": f"Failed to retrieve AI feedback: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {"error": f"Failed to retrieve AI feedback: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
@@ -321,7 +348,10 @@ def rate_feedback(request, feedback_id):
     comment = request.data.get("comment")
 
     if not isinstance(rating, int) or rating < 1 or rating > 5:
-        return Response({"rating": ["Rating must be an integer between 1 and 5"]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"rating": ["Rating must be an integer between 1 and 5"]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     feedback.rating = rating
     feedback.rating_comment = comment
@@ -346,7 +376,8 @@ def generate_comparative_feedback(request):
         # Validate game IDs
         if not game_ids or not isinstance(game_ids, list) or len(game_ids) < 2:
             return Response(
-                {"error": "At least two valid game IDs are required for comparison"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "At least two valid game IDs are required for comparison"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Check if games exist and belong to user
@@ -365,7 +396,8 @@ def generate_comparative_feedback(request):
                 games.append(game)
             except Game.DoesNotExist:
                 return Response(
-                    {"error": f"Game {game_id} not found or does not belong to user"}, status=status.HTTP_404_NOT_FOUND
+                    {"error": f"Game {game_id} not found or does not belong to user"},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
 
         # Check credits

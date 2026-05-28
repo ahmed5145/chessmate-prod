@@ -175,13 +175,25 @@ class ChessComService:
                 user_profile = Profile.objects.get(user=user)
             except Profile.DoesNotExist:
                 logger.error(f"Profile not found for user {user.username}")
-                return {"games": [], "total_found": 0, "saved": 0, "skipped": 0, "message": "Profile not found"}
+                return {
+                    "games": [],
+                    "total_found": 0,
+                    "saved": 0,
+                    "skipped": 0,
+                    "message": "Profile not found",
+                }
 
             # Fetch archives
             archives = ChessComService.fetch_archives(username)
             if not archives:
                 logger.warning(f"No archives found for user {username}")
-                return {"games": [], "total_found": 0, "saved": 0, "skipped": 0, "message": "No archives found"}
+                return {
+                    "games": [],
+                    "total_found": 0,
+                    "saved": 0,
+                    "skipped": 0,
+                    "message": "No archives found",
+                }
 
             logger.info(f"Processing archives for {username}, game type: {game_type}, limit: {limit}")
 
@@ -284,7 +296,13 @@ class ChessComService:
 
         except Exception as e:
             logger.error(f"Error fetching games from Chess.com: {str(e)}")
-            return {"games": [], "total_found": 0, "skipped": 0, "saved": 0, "message": f"Error: {str(e)}"}
+            return {
+                "games": [],
+                "total_found": 0,
+                "skipped": 0,
+                "saved": 0,
+                "message": f"Error: {str(e)}",
+            }
 
     def save_game(self, game_data: Dict[str, Any], username: str, user: User) -> Optional[Game]:
         """Save a Chess.com game to the database."""
@@ -460,7 +478,12 @@ class LichessService:
                     profile.save()
             except Profile.DoesNotExist:
                 logger.error(f"Profile not found for user {user.username}")
-                return {"success": False, "games_saved": 0, "games_skipped": 0, "message": "Profile not found"}
+                return {
+                    "success": False,
+                    "games_saved": 0,
+                    "games_skipped": 0,
+                    "message": "Profile not found",
+                }
 
             # Map game types to Lichess perfTypes
             game_type_map = {
@@ -482,7 +505,13 @@ class LichessService:
             while games_saved < limit:
                 # Prepare request parameters
                 headers = {"Accept": "application/x-ndjson"}
-                params = {"max": batch_size, "perfType": perf_type, "opening": True, "clocks": True, "evals": True}
+                params = {
+                    "max": batch_size,
+                    "perfType": perf_type,
+                    "opening": True,
+                    "clocks": True,
+                    "evals": True,
+                }
 
                 # Add since parameter for pagination if we have it
                 if since is not None:
@@ -493,7 +522,10 @@ class LichessService:
 
                 # Make request
                 response = httpx.get(
-                    f"{LichessService.BASE_URL}/games/user/{username}", headers=headers, params=params, timeout=10.0
+                    f"{LichessService.BASE_URL}/games/user/{username}",
+                    headers=headers,
+                    params=params,
+                    timeout=10.0,
                 )
                 response.raise_for_status()
 
@@ -532,7 +564,7 @@ class LichessService:
                             "platform": "lichess",
                             "white": white,
                             "black": black,
-                            "opponent": black if username.lower() == white.lower() else white,
+                            "opponent": (black if username.lower() == white.lower() else white),
                             "result": LichessService._format_result(game.get("winner"), username),
                             "pgn": LichessService._format_pgn(game),
                             "date_played": make_aware(datetime.fromtimestamp(game.get("createdAt", 0) / 1000.0)),
@@ -568,11 +600,21 @@ class LichessService:
             )
 
             logger.info(f"Finished fetching games. Saved: {games_saved}, Skipped: {games_skipped}")
-            return {"success": success, "games_saved": games_saved, "games_skipped": games_skipped, "message": message}
+            return {
+                "success": success,
+                "games_saved": games_saved,
+                "games_skipped": games_skipped,
+                "message": message,
+            }
 
         except Exception as e:
             logger.error(f"Error fetching games from Lichess: {str(e)}")
-            return {"success": False, "games_saved": 0, "games_skipped": 0, "message": f"Error: {str(e)}"}
+            return {
+                "success": False,
+                "games_saved": 0,
+                "games_skipped": 0,
+                "message": f"Error: {str(e)}",
+            }
 
     @staticmethod
     def _format_result(winner: Optional[str], username: str) -> str:

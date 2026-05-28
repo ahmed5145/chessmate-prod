@@ -81,7 +81,16 @@ def dashboard_view(request):
         recent_games = (
             Game.objects.filter(user=user)  # type: ignore[attr-defined]
             .order_by("-date_played")
-            .values("id", "white", "black", "result", "date_played", "platform", "opening_name", "status")[:5]
+            .values(
+                "id",
+                "white",
+                "black",
+                "result",
+                "date_played",
+                "platform",
+                "opening_name",
+                "status",
+            )[:5]
         )
 
         # Use database aggregation instead of Python counting
@@ -130,7 +139,8 @@ def dashboard_view(request):
         for time_control in ["bullet", "blitz", "rapid", "classical"]:
             # Query games with this time control category
             tc_stats = Game.objects.filter(user=user, time_control_category=time_control).aggregate(  # type: ignore[attr-defined]
-                count=Count("id"), wins=Count(Case(When(result="win", then=1), output_field=IntegerField()))
+                count=Count("id"),
+                wins=Count(Case(When(result="win", then=1), output_field=IntegerField())),
             )
 
             tc_count = tc_stats["count"]
@@ -141,13 +151,19 @@ def dashboard_view(request):
             else:
                 win_percentage = 0
 
-            time_control_performance[time_control] = {"total": tc_count, "win_rate": round(win_percentage, 1)}
+            time_control_performance[time_control] = {
+                "total": tc_count,
+                "win_rate": round(win_percentage, 1),
+            }
 
         # Get platform stats using database aggregation
         platform_stats = (
             Game.objects.filter(user=user)  # type: ignore[attr-defined]
             .values("platform")
-            .annotate(count=Count("id"), wins=Count(Case(When(result="win", then=1), output_field=IntegerField())))
+            .annotate(
+                count=Count("id"),
+                wins=Count(Case(When(result="win", then=1), output_field=IntegerField())),
+            )
         )
 
         platform_data = {}
@@ -161,7 +177,10 @@ def dashboard_view(request):
             else:
                 win_percentage = 0
 
-            platform_data[platform_name] = {"total": game_count, "win_rate": round(win_percentage, 1)}
+            platform_data[platform_name] = {
+                "total": game_count,
+                "win_rate": round(win_percentage, 1),
+            }
 
         # Get analysis insights
         analysis_insights = []
@@ -248,7 +267,10 @@ def dashboard_view(request):
 
     except DASHBOARD_EXCEPTIONS as e:
         logger.error("Error in dashboard view: %s", e, exc_info=True)
-        return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": "An unexpected error occurred"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["POST"])
@@ -265,12 +287,14 @@ def refresh_dashboard(request):
         cache_manager.delete(cache_key)
 
         return Response(
-            {"message": "Dashboard cache cleared, data will be refreshed on next request"}, status=status.HTTP_200_OK
+            {"message": "Dashboard cache cleared, data will be refreshed on next request"},
+            status=status.HTTP_200_OK,
         )
     except DASHBOARD_EXCEPTIONS as e:
         logger.error("Error refreshing dashboard data: %s", e)
         return Response(
-            {"error": "Failed to refresh dashboard data: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {"error": "Failed to refresh dashboard data: " + str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
@@ -348,7 +372,10 @@ def get_performance_trend(request):
 
     except DASHBOARD_EXCEPTIONS as e:
         logger.error("Error getting performance trend: %s", e, exc_info=True)
-        return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": "An unexpected error occurred"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["GET"])
@@ -450,5 +477,6 @@ def get_mistake_analysis(request):
     except DASHBOARD_EXCEPTIONS as e:
         logger.error("Error getting mistake analysis: %s", e)
         return Response(
-            {"error": "Failed to retrieve mistake analysis: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {"error": "Failed to retrieve mistake analysis: " + str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

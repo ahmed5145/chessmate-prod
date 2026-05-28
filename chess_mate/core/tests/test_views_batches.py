@@ -219,7 +219,10 @@ class TestBatchViews(TestCase):
             format="json",
         )
 
-        assert response.status_code in [401, 403]  # Auth required (401 or 403 per middleware)
+        assert response.status_code in [
+            401,
+            403,
+        ]  # Auth required (401 or 403 per middleware)
 
     def test_get_status_unauthenticated(self):
         """GET /api/v1/batches/{id}/status/ requires JWT authentication."""
@@ -233,7 +236,10 @@ class TestBatchViews(TestCase):
         client = APIClient()  # No auth
         response = client.get(f"/api/v1/batches/{batch.id}/status/")
 
-        assert response.status_code in [401, 403]  # Auth required (401 or 403 per middleware)
+        assert response.status_code in [
+            401,
+            403,
+        ]  # Auth required (401 or 403 per middleware)
 
     def test_get_report_unauthenticated(self):
         """GET /api/v1/batches/{id}/report/ requires JWT authentication."""
@@ -247,7 +253,10 @@ class TestBatchViews(TestCase):
         client = APIClient()  # No auth
         response = client.get(f"/api/v1/batches/{batch.id}/report/")
 
-        assert response.status_code in [401, 403]  # Auth required (401 or 403 per middleware)
+        assert response.status_code in [
+            401,
+            403,
+        ]  # Auth required (401 or 403 per middleware)
 
     def test_post_batch_invalid_pgn(self):
         """POST /api/v1/batches/ rejects invalid PGN."""

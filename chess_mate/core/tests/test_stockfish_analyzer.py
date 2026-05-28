@@ -253,7 +253,8 @@ class TestStockfishAnalyzer(TransactionTestCase):
 
                     # Verify move is legal in the starting position
                     self.assertTrue(
-                        move in board.legal_moves, f"Move {move.uci()} is not legal in position {board.fen()}"
+                        move in board.legal_moves,
+                        f"Move {move.uci()} is not legal in position {board.fen()}",
                     )
 
                     # Create board after move
@@ -305,7 +306,9 @@ class TestStockfishAnalyzer(TransactionTestCase):
             self.assertIn("evaluation_improvement", result)
             self.assertIn("is_tactical", result)
             self.assertEqual(
-                result["is_tactical"], case["expected_tactical"], f"Failed tactical detection for {case['name']}"
+                result["is_tactical"],
+                case["expected_tactical"],
+                f"Failed tactical detection for {case['name']}",
             )
             self.assertIn("is_critical", result)
             self.assertEqual(result["is_critical"], case["expected_critical"])
@@ -344,7 +347,9 @@ class TestStockfishAnalyzer(TransactionTestCase):
         for case in test_cases:
             with self.subTest(case=case["name"]):
                 metrics = self.analyzer._calculate_time_metrics(
-                    time_spent=case["time_spent"], total_time=case["total_time"], increment=case["increment"]
+                    time_spent=case["time_spent"],
+                    total_time=case["total_time"],
+                    increment=case["increment"],
                 )
 
                 # Calculate expected time pressure based on the ratio
@@ -391,13 +396,22 @@ class TestStockfishAnalyzer(TransactionTestCase):
                 move = chess.Move.from_uci(case["move"])
 
                 # Mock position metrics with high complexity and piece activity
-                position_metrics = {"piece_activity": 0.8, "position_complexity": 0.8, "material_count": 39}
+                position_metrics = {
+                    "piece_activity": 0.8,
+                    "position_complexity": 0.8,
+                    "material_count": 39,
+                }
 
                 is_tactical = self.analyzer._is_tactical_move(
-                    board, move, case["eval_improvement"], position_metrics  # Use the case-specific eval improvement
+                    board,
+                    move,
+                    case["eval_improvement"],
+                    position_metrics,  # Use the case-specific eval improvement
                 )
                 self.assertEqual(
-                    is_tactical, case["expected_tactical"], f"Failed tactical detection for {case['name']}"
+                    is_tactical,
+                    case["expected_tactical"],
+                    f"Failed tactical detection for {case['name']}",
                 )
 
     @patch("chess.engine.SimpleEngine.popen_uci")
@@ -418,7 +432,11 @@ class TestStockfishAnalyzer(TransactionTestCase):
                 "error": chess.engine.EngineTerminatedError("Timeout"),
                 "expected_error": "Timeout",
             },
-            {"name": "general_error", "error": Exception("Unexpected error"), "expected_error": "Unexpected error"},
+            {
+                "name": "general_error",
+                "error": Exception("Unexpected error"),
+                "expected_error": "Unexpected error",
+            },
         ]
 
         for case in test_cases:
@@ -465,8 +483,16 @@ class TestStockfishAnalyzer(TransactionTestCase):
     def test_score_conversion_edge_cases(self):
         """Test score conversion with edge cases."""
         test_cases = [
-            {"name": "extreme_positive", "score": MockScore(1000), "expected": 10.0},  # +10 pawns
-            {"name": "extreme_negative", "score": MockScore(-1000), "expected": -10.0},  # -10 pawns
+            {
+                "name": "extreme_positive",
+                "score": MockScore(1000),
+                "expected": 10.0,
+            },  # +10 pawns
+            {
+                "name": "extreme_negative",
+                "score": MockScore(-1000),
+                "expected": -10.0,
+            },  # -10 pawns
             {
                 "name": "mate_in_one",
                 "score": MockScore(None, 1),  # Using mate_in instead of mate_score
@@ -521,7 +547,8 @@ class TestStockfishAnalyzer(TransactionTestCase):
 
                 for metric, validator in case["expected"].items():
                     self.assertTrue(
-                        validator(metrics[metric]), f"{metric} value {metrics[metric]} not in expected range"
+                        validator(metrics[metric]),
+                        f"{metric} value {metrics[metric]} not in expected range",
                     )
 
     def test_time_management(self):

@@ -165,7 +165,13 @@ class PositionEvaluator:
     def _calculate_material_count(self, board: chess.Board) -> float:
         """Calculate material count."""
         try:
-            piece_values = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
+            piece_values = {
+                chess.PAWN: 1,
+                chess.KNIGHT: 3,
+                chess.BISHOP: 3,
+                chess.ROOK: 5,
+                chess.QUEEN: 9,
+            }
 
             total_material = 0
             for square in chess.SQUARES:
@@ -256,7 +262,16 @@ class PositionEvaluator:
                 # Bonus for center control
                 if sq in [chess.D4, chess.D5, chess.E4, chess.E5]:
                     activity_score += 2
-                elif sq in [chess.C3, chess.C4, chess.C5, chess.C6, chess.F3, chess.F4, chess.F5, chess.F6]:
+                elif sq in [
+                    chess.C3,
+                    chess.C4,
+                    chess.C5,
+                    chess.C6,
+                    chess.F3,
+                    chess.F4,
+                    chess.F5,
+                    chess.F6,
+                ]:
                     activity_score += 1
 
             # Normalize score

@@ -19,7 +19,12 @@ class Metric:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert metric to dictionary format."""
-        return {"name": self.name, "value": self.value, "timestamp": self.timestamp, "labels": self.labels or {}}
+        return {
+            "name": self.name,
+            "value": self.value,
+            "timestamp": self.timestamp,
+            "labels": self.labels or {},
+        }
 
 
 @dataclass
@@ -93,7 +98,9 @@ SYSTEM_METRICS = {
 # Request Metrics
 REQUEST_METRICS = {
     "http_requests_total": Counter(
-        name="http_requests_total", value=0, labels={"method": "", "path": "", "status": ""}
+        name="http_requests_total",
+        value=0,
+        labels={"method": "", "path": "", "status": ""},
     ),
     "http_request_duration_seconds": Histogram(
         name="http_request_duration_seconds",
@@ -107,7 +114,9 @@ REQUEST_METRICS = {
 BUSINESS_METRICS = {
     "user_registrations_total": Counter(name="user_registrations_total", value=0),
     "game_analysis_requests_total": Counter(
-        name="game_analysis_requests_total", value=0, labels={"status": "", "user_type": ""}
+        name="game_analysis_requests_total",
+        value=0,
+        labels={"status": "", "user_type": ""},
     ),
     "active_users": Gauge(name="active_users", value=0, labels={"period": "daily"}),
     "premium_users": Gauge(name="premium_users", value=0),
@@ -136,10 +145,18 @@ GAME_METRICS = {
     ),
     "analysis_quality_score": Gauge(name="analysis_quality_score", value=0.0, labels={"analysis_type": ""}),
     "games_analyzed_total": Counter(
-        name="games_analyzed_total", value=0, labels={"analysis_type": "", "game_type": ""}
+        name="games_analyzed_total",
+        value=0,
+        labels={"analysis_type": "", "game_type": ""},
     ),
     "stockfish_errors_total": Counter(name="stockfish_errors_total", value=0, labels={"error_type": ""}),
 }
 
 # Combine all metrics
-ALL_METRICS = {**SYSTEM_METRICS, **REQUEST_METRICS, **BUSINESS_METRICS, **PERFORMANCE_METRICS, **GAME_METRICS}
+ALL_METRICS = {
+    **SYSTEM_METRICS,
+    **REQUEST_METRICS,
+    **BUSINESS_METRICS,
+    **PERFORMANCE_METRICS,
+    **GAME_METRICS,
+}

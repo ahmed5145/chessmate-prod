@@ -465,7 +465,11 @@ def run_all_checks() -> Dict[str, Any]:
     Returns:
         Dict with all health check results and overall status
     """
-    results = {"database": check_database(), "cache": check_cache(), "redis": check_redis()}
+    results = {
+        "database": check_database(),
+        "cache": check_cache(),
+        "redis": check_redis(),
+    }
 
     # Optional checks are only enabled when explicitly requested.
     include_optional = getattr(settings, "HEALTH_CHECK_INCLUDE_OPTIONAL", False)
@@ -491,7 +495,11 @@ def run_all_checks() -> Dict[str, Any]:
             status = STATUS_WARNING
 
     # Compile the response
-    response = {"status": status, "timestamp": timezone.now().isoformat(), "checks": results}
+    response = {
+        "status": status,
+        "timestamp": timezone.now().isoformat(),
+        "checks": results,
+    }
 
     return response
 
@@ -511,7 +519,7 @@ def get_system_info() -> Dict[str, Any]:
     info = {
         "platform": platform.platform(),
         "python_version": sys.version,
-        "django_version": settings.DJANGO_VERSION if hasattr(settings, "DJANGO_VERSION") else "unknown",
+        "django_version": (settings.DJANGO_VERSION if hasattr(settings, "DJANGO_VERSION") else "unknown"),
         "cpu_count": multiprocessing.cpu_count(),
         "hostname": socket.gethostname(),
         "timestamp": timezone.now().isoformat(),
@@ -574,7 +582,11 @@ def readiness_check_view(request):
             failing_components.append(redis_status["message"])
 
         return JsonResponse(
-            {"status": "not_ready", "message": f"Not ready: {', '.join(failing_components)}"}, status=503
+            {
+                "status": "not_ready",
+                "message": f"Not ready: {', '.join(failing_components)}",
+            },
+            status=503,
         )  # Service Unavailable
 
     # All critical dependencies are available

@@ -28,7 +28,14 @@ from rest_framework.views import exception_handler as drf_exception_handler
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 logger = logging.getLogger(__name__)
-HANDLED_EXCEPTION_TYPES = (APIException, ValueError, TypeError, KeyError, RuntimeError, AttributeError)
+HANDLED_EXCEPTION_TYPES = (
+    APIException,
+    ValueError,
+    TypeError,
+    KeyError,
+    RuntimeError,
+    AttributeError,
+)
 
 # Thread-local storage for request_id
 _thread_local = threading.local()
@@ -150,7 +157,14 @@ def create_error_response(
     error_code = ERROR_CODES.get(error_type, ERROR_CODES["internal_error"])
 
     response_data = cast(Dict[str, Any], ERROR_RESPONSE_STRUCTURE.copy())
-    response_data.update({"code": error_code, "message": message, "details": details, "request_id": request_id})
+    response_data.update(
+        {
+            "code": error_code,
+            "message": message,
+            "details": details,
+            "request_id": request_id,
+        }
+    )
     response_data["error"] = message
 
     return APIJsonResponse(response_data, status=status_code)
@@ -168,7 +182,12 @@ def handle_view_exception(exc: Exception, request_id: Optional[str] = None) -> J
         JsonResponse with appropriate error details
     """
     # Log the exception with traceback
-    logger.error("Error handling request: %s", exc, exc_info=True, extra={"request_id": request_id})
+    logger.error(
+        "Error handling request: %s",
+        exc,
+        exc_info=True,
+        extra={"request_id": request_id},
+    )
 
     details: Any = None
 
@@ -214,7 +233,11 @@ def handle_view_exception(exc: Exception, request_id: Optional[str] = None) -> J
             details = None
 
     return create_error_response(
-        error_type=error_type, message=message, status_code=status_code, details=details, request_id=request_id
+        error_type=error_type,
+        message=message,
+        status_code=status_code,
+        details=details,
+        request_id=request_id,
     )
 
 
@@ -370,7 +393,11 @@ def exception_handler(exc: Exception, context: Dict[str, Any]) -> JsonResponse:
 
         # Create standardized response
         error_response = create_error_response(
-            error_type=error_type, message=message, status_code=status_code, details=details, request_id=request_id
+            error_type=error_type,
+            message=message,
+            status_code=status_code,
+            details=details,
+            request_id=request_id,
         )
 
         return error_response
@@ -541,7 +568,9 @@ class ExternalServiceError(APIException):
 
 
 def create_success_response(
-    data: Any = None, message: Optional[str] = None, status_code: int = status.HTTP_200_OK
+    data: Any = None,
+    message: Optional[str] = None,
+    status_code: int = status.HTTP_200_OK,
 ) -> JsonResponse:
     """
     Create a standardized success response.

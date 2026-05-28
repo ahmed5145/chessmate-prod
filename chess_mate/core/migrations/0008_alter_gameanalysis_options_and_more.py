@@ -16,7 +16,10 @@ class Migration(migrations.Migration):
             state_operations=[
                 migrations.AlterModelOptions(
                     name="gameanalysis",
-                    options={"verbose_name": "Game Analysis", "verbose_name_plural": "Game Analyses"},
+                    options={
+                        "verbose_name": "Game Analysis",
+                        "verbose_name_plural": "Game Analyses",
+                    },
                 ),
                 migrations.RemoveIndex(
                     model_name="gameanalysis",
@@ -87,7 +90,9 @@ class Migration(migrations.Migration):
                     model_name="gameanalysis",
                     name="game",
                     field=models.OneToOneField(
-                        on_delete=django.db.models.deletion.CASCADE, related_name="gameanalysis", to="core.game"
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="gameanalysis",
+                        to="core.game",
                     ),
                 ),
                 migrations.AddIndex(

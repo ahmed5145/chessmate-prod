@@ -248,7 +248,10 @@ class HealthFunctionsTestCase(TestCase):
     def test_run_all_checks_with_failure(self, mock_check_cache, mock_check_db):
         """Test running all health checks with a failure."""
         # Setup mocks
-        mock_check_db.return_value = {"status": STATUS_CRITICAL, "component": "database"}
+        mock_check_db.return_value = {
+            "status": STATUS_CRITICAL,
+            "component": "database",
+        }
         mock_check_cache.return_value = {"status": STATUS_OK, "component": "cache"}
 
         # Run all checks

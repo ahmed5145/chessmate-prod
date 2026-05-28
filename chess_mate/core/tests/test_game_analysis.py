@@ -125,7 +125,13 @@ class TestGameAnalysis:
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_analyze_game_view_authorized(
-        self, api_client, user, game, mock_openai_client, mock_stockfish_engine, mock_analysis_results
+        self,
+        api_client,
+        user,
+        game,
+        mock_openai_client,
+        mock_stockfish_engine,
+        mock_analysis_results,
     ):
         api_client.force_authenticate(user=user)
         url = reverse("analyze_game", args=[game.id])
@@ -165,14 +171,23 @@ class TestGameAnalysis:
             api_client.force_authenticate(user=user)
             url = reverse("analyze_game", args=[game.id])
 
-            with patch("chess.engine.SimpleEngine.popen_uci", return_value=mock_stockfish_engine):
+            with patch(
+                "chess.engine.SimpleEngine.popen_uci",
+                return_value=mock_stockfish_engine,
+            ):
                 response = api_client.post(url)
                 assert response.status_code == status.HTTP_400_BAD_REQUEST
                 assert "error" in response.data
                 assert "insufficient credits" in response.data["error"].lower()
 
     def test_analyze_batch_games_view(
-        self, api_client, user, game, mock_openai_client, mock_stockfish_engine, mock_analysis_results
+        self,
+        api_client,
+        user,
+        game,
+        mock_openai_client,
+        mock_stockfish_engine,
+        mock_analysis_results,
     ):
         api_client.force_authenticate(user=user)
         url = reverse("batch_analyze")

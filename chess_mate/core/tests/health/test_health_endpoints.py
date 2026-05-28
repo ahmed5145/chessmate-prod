@@ -71,7 +71,10 @@ class HealthEndpointsTestCase(TestCase):
     def test_readiness_check_with_db_failure(self, mock_check_db):
         """Test the readiness check with database failure."""
         # Configure mock to simulate database failure
-        mock_check_db.return_value = {"status": STATUS_CRITICAL, "message": "Database error: connection refused"}
+        mock_check_db.return_value = {
+            "status": STATUS_CRITICAL,
+            "message": "Database error: connection refused",
+        }
 
         # Call the endpoint
         response = self.client.get("/readiness/")
@@ -119,7 +122,10 @@ class HealthEndpointsTestCase(TestCase):
             "status": STATUS_WARNING,
             "checks": {
                 "database": {"status": STATUS_OK, "message": "Database is operational"},
-                "redis": {"status": STATUS_WARNING, "message": "Redis is slow (took 0.6s)"},
+                "redis": {
+                    "status": STATUS_WARNING,
+                    "message": "Redis is slow (took 0.6s)",
+                },
             },
         }
 
@@ -138,7 +144,10 @@ class HealthEndpointsTestCase(TestCase):
         mock_run_all_checks.return_value = {
             "status": STATUS_CRITICAL,
             "checks": {
-                "database": {"status": STATUS_CRITICAL, "message": "Database error: connection refused"},
+                "database": {
+                    "status": STATUS_CRITICAL,
+                    "message": "Database error: connection refused",
+                },
             },
         }
 

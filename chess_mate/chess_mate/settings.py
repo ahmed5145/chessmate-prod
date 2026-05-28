@@ -77,7 +77,7 @@ OPENAI_MAX_TOKENS = 500
 OPENAI_TEMPERATURE = 0.7
 OPENAI_RATE_LIMIT = {
     "max_requests": 100 if env("TEST_MODE", default="False").lower() == "true" else 50,
-    "window_seconds": 60 if env("TEST_MODE", default="False").lower() == "true" else 3600,
+    "window_seconds": (60 if env("TEST_MODE", default="False").lower() == "true" else 3600),
     "min_interval": 0.1 if env("TEST_MODE", default="False").lower() == "true" else 0.5,
 }
 OPENAI_CACHE_KEY = "openai_rate_limit"
@@ -511,7 +511,13 @@ CSRF_TRUSTED_ORIGINS = [
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = CSRF_TRUSTED_ORIGINS
 CORS_ALLOW_CREDENTIALS = True
-CORS_EXPOSE_HEADERS = ["Content-Type", "X-CSRFToken", "X-Request-ID", "X-RateLimit-Remaining", "X-RateLimit-Reset"]
+CORS_EXPOSE_HEADERS = [
+    "Content-Type",
+    "X-CSRFToken",
+    "X-Request-ID",
+    "X-RateLimit-Remaining",
+    "X-RateLimit-Reset",
+]
 CORS_ALLOW_HEADERS = [
     "accept",
     "accept-encoding",

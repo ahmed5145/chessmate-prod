@@ -32,7 +32,12 @@ class Player(models.Model):
     date_joined = models.DateTimeField(auto_now_add=True)
     game = models.ForeignKey("Game", on_delete=models.CASCADE, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    color = models.CharField(max_length=10, choices=[("white", "White"), ("black", "Black")], null=True, blank=True)
+    color = models.CharField(
+        max_length=10,
+        choices=[("white", "White"), ("black", "Black")],
+        null=True,
+        blank=True,
+    )
     rating = models.IntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
@@ -68,7 +73,12 @@ class Profile(models.Model):
     @property
     def rating(self) -> int:
         """Get the user's highest rating across all time controls."""
-        return self.elo_rating or max(self.bullet_rating, self.blitz_rating, self.rapid_rating, self.classical_rating)
+        return self.elo_rating or max(
+            self.bullet_rating,
+            self.blitz_rating,
+            self.rapid_rating,
+            self.classical_rating,
+        )
 
     def total_games(self) -> int:
         """Return total number of games played."""
@@ -161,7 +171,10 @@ class Profile(models.Model):
                         current_ratings[time_category] = rating
                         self.rating_history[date] = current_ratings.copy()
                 except Exception as e:
-                    logger.error(f"Error processing game {game.id} in get_rating_history: {str(e)}", exc_info=True)
+                    logger.error(
+                        f"Error processing game {game.id} in get_rating_history: {str(e)}",
+                        exc_info=True,
+                    )
                     continue
 
             # Sort history by date
@@ -171,7 +184,10 @@ class Profile(models.Model):
 
             return sorted_history
         except Exception as e:
-            logger.error(f"Error getting rating history for user {self.user.username}: {str(e)}", exc_info=True)
+            logger.error(
+                f"Error getting rating history for user {self.user.username}: {str(e)}",
+                exc_info=True,
+            )
             return {}
 
     def get_current_rating(self, time_category: str) -> int:
@@ -461,7 +477,10 @@ class Profile(models.Model):
 
             return stats
         except Exception as e:
-            logger.error(f"Error calculating performance stats for user {self.user.username}: {str(e)}", exc_info=True)
+            logger.error(
+                f"Error calculating performance stats for user {self.user.username}: {str(e)}",
+                exc_info=True,
+            )
             return {}
 
 
@@ -486,7 +505,12 @@ def get_default_user():
 class Game(models.Model):
     """Model representing a chess game."""
 
-    TIME_CONTROL_CHOICES = [("bullet", "Bullet"), ("blitz", "Blitz"), ("rapid", "Rapid"), ("classical", "Classical")]
+    TIME_CONTROL_CHOICES = [
+        ("bullet", "Bullet"),
+        ("blitz", "Blitz"),
+        ("rapid", "Rapid"),
+        ("classical", "Classical"),
+    ]
 
     STATUS_CHOICES = [
         ("pending", "Pending"),
@@ -667,7 +691,12 @@ class Game(models.Model):
         """Determine the time control category of the game."""
         try:
             # First check if we already have a time_control field set
-            if self.time_control and self.time_control in ["bullet", "blitz", "rapid", "classical"]:
+            if self.time_control and self.time_control in [
+                "bullet",
+                "blitz",
+                "rapid",
+                "classical",
+            ]:
                 return self.time_control
 
             # Extract total time in minutes

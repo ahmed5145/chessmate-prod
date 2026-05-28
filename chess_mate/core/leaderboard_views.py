@@ -219,7 +219,9 @@ def _get_improvement_leaderboard(time_filter: Optional[timezone.datetime], limit
         # Get older analyses for comparison
         recent_analyses = (
             GameAnalysis.objects.filter(
-                game__user__in=active_users, created_at__gte=time_filter, result__has_key="accuracy"
+                game__user__in=active_users,
+                created_at__gte=time_filter,
+                result__has_key="accuracy",
             )
             .values("game__user__username", "game__user__id", "created_at", "result")
             .order_by("created_at")
@@ -247,7 +249,9 @@ def _get_improvement_leaderboard(time_filter: Optional[timezone.datetime], limit
 
         older_analyses = (
             GameAnalysis.objects.filter(
-                created_at__lt=improvement_cutoff, created_at__gte=additional_cutoff, result__has_key="accuracy"
+                created_at__lt=improvement_cutoff,
+                created_at__gte=additional_cutoff,
+                result__has_key="accuracy",
             )
             .values("game__user__id", "created_at", "result")
             .order_by("created_at")

@@ -72,7 +72,11 @@ class HttpResponse:
     headers: Dict[str, str]
 
     def __init__(
-        self, content: Any = b"", content_type: Optional[str] = None, status: int = 200, reason: Optional[str] = None
+        self,
+        content: Any = b"",
+        content_type: Optional[str] = None,
+        status: int = 200,
+        reason: Optional[str] = None,
     ) -> None: ...
 
     def set_cookie(self, key: str, value: str = "", **kwargs: Any) -> None: ...

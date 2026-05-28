@@ -58,7 +58,10 @@ class PrometheusExporter(MetricExporter):
                 )
             elif isinstance(metric, Histogram):
                 self._prometheus_metrics[name] = PrometheusHistogram(
-                    name, name, list(metric.labels.keys()) if metric.labels else [], buckets=list(metric.buckets.keys())
+                    name,
+                    name,
+                    list(metric.labels.keys()) if metric.labels else [],
+                    buckets=list(metric.buckets.keys()),
                 )
         except Exception as e:
             logger.error(f"Error creating Prometheus metric {name}: {e}")

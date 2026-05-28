@@ -19,7 +19,13 @@ def patch_vine():
         if not hasattr(inspect, "formatargspec"):
             # Define our own formatargspec function
             def formatargspec(
-                args, varargs=None, varkw=None, defaults=None, kwonlyargs=(), kwonlydefaults={}, annotations={}
+                args,
+                varargs=None,
+                varkw=None,
+                defaults=None,
+                kwonlyargs=(),
+                kwonlydefaults={},
+                annotations={},
             ):
                 """
                 Replacement for inspect.formatargspec that was removed in Python 3.12
@@ -60,9 +66,15 @@ def patch_vine():
                     Replacement for inspect.getargspec that was removed
                     Uses getfullargspec and converts to the old format
                     """
-                    args, varargs, varkw, defaults, kwonlyargs, kwonlydefaults, annotations = inspect.getfullargspec(
-                        func
-                    )
+                    (
+                        args,
+                        varargs,
+                        varkw,
+                        defaults,
+                        kwonlyargs,
+                        kwonlydefaults,
+                        annotations,
+                    ) = inspect.getfullargspec(func)
                     return inspect.ArgSpec(args, varargs, varkw, defaults)
 
                 inspect.getargspec = getargspec

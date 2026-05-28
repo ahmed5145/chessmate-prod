@@ -107,7 +107,10 @@ class TestCacheInvalidation:
             result="win",
         )
         profile = Profile.objects.create(
-            user=user, chess_com_username="testuser_chesscom", lichess_username="testuser_lichess", credits=100
+            user=user,
+            chess_com_username="testuser_chesscom",
+            lichess_username="testuser_lichess",
+            credits=100,
         )
         player = Player.objects.create(game=game, user=user, username="testuser", color="white", rating=1500)
 
@@ -260,7 +263,10 @@ class TestCacheInvalidation:
         # Create user and profile
         user = User.objects.create(username="testuser")
         profile = Profile.objects.create(
-            user=user, chess_com_username="testuser_chesscom", lichess_username="testuser_lichess", credits=100
+            user=user,
+            chess_com_username="testuser_chesscom",
+            lichess_username="testuser_lichess",
+            credits=100,
         )
 
         # Reset mocks
@@ -325,7 +331,7 @@ class TestCacheInvalidation:
         mock_game_model.__name__ = "Game"
 
         # Make the first app config return our mock Game model
-        mock_app_config1.get_model.side_effect = lambda name: mock_game_model if name == "Game" else None
+        mock_app_config1.get_model.side_effect = lambda name: (mock_game_model if name == "Game" else None)
 
         # Make the second app config raise LookupError
         mock_app_config2.get_model.side_effect = LookupError

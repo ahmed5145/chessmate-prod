@@ -86,7 +86,11 @@ def _warn_missing_cache_alias_once(cache_alias: str, error: Exception) -> None:
     if cache_alias in _warned_cache_aliases:
         return
     _warned_cache_aliases.add(cache_alias)
-    logger.warning("Could not get cache '%s', falling back to default. Error: %s", cache_alias, str(error))
+    logger.warning(
+        "Could not get cache '%s', falling back to default. Error: %s",
+        cache_alias,
+        str(error),
+    )
 
 
 def _resolve_patched_cache_symbol(symbol: str) -> Optional[Any]:
@@ -307,7 +311,11 @@ def cache_get(key: str, default: Any = None, backend_name: str = CACHE_BACKEND_D
         Cached value or default
     """
     # Backward compatibility: legacy callers pass backend as positional arg #2.
-    if isinstance(default, str) and default in {CACHE_BACKEND_DEFAULT, CACHE_BACKEND_MEMORY, CACHE_BACKEND_REDIS}:
+    if isinstance(default, str) and default in {
+        CACHE_BACKEND_DEFAULT,
+        CACHE_BACKEND_MEMORY,
+        CACHE_BACKEND_REDIS,
+    }:
         backend_name = default
         default = None
 
@@ -513,7 +521,9 @@ def cache_stampede_prevention(
 
 
 def cache_decorator(
-    key_func: KeyFunction, timeout: Optional[int] = None, cache_backend: str = CACHE_BACKEND_DEFAULT
+    key_func: KeyFunction,
+    timeout: Optional[int] = None,
+    cache_backend: str = CACHE_BACKEND_DEFAULT,
 ) -> Callable[[F], F]:
     """
     Decorator for caching function results.
@@ -1130,7 +1140,11 @@ def get_cache_health() -> Dict[str, Any]:
     Returns:
         Dict with cache health information
     """
-    health = {"status": "ok", "backend": str(cache.__class__.__name__), "redis_available": False}
+    health = {
+        "status": "ok",
+        "backend": str(cache.__class__.__name__),
+        "redis_available": False,
+    }
 
     # Check if Redis is available
     try:

@@ -97,7 +97,10 @@ def readiness_check(request: HttpRequest) -> HttpResponse:
 
     # If there are problems, return 503
     if problems:
-        return JsonResponse({"status": "not_ready", "message": f"Not ready: {', '.join(problems)}"}, status=503)
+        return JsonResponse(
+            {"status": "not_ready", "message": f"Not ready: {', '.join(problems)}"},
+            status=503,
+        )
 
     return JsonResponse({"status": "ready"})
 
@@ -307,11 +310,18 @@ def run_health_check_task(request: HttpRequest) -> Response:
             )
         except Exception as e:
             return Response(
-                {"status": "pending", "task_id": task.id, "message": f"Task started but result not available: {str(e)}"}
+                {
+                    "status": "pending",
+                    "task_id": task.id,
+                    "message": f"Task started but result not available: {str(e)}",
+                }
             )
     except Exception as e:
         logger.error(f"Error running health check task: {str(e)}")
-        return Response({"status": "error", "message": f"Failed to run Celery task: {str(e)}"}, status=500)
+        return Response(
+            {"status": "error", "message": f"Failed to run Celery task: {str(e)}"},
+            status=500,
+        )
 
 
 @api_view(["GET"])
@@ -396,7 +406,10 @@ def get_basic_profile(request):
         if not request.user.is_authenticated:
             logger.warning("Unauthenticated user tried to access basic profile")
             return Response(
-                {"status": "error", "message": "Authentication credentials were not provided"},
+                {
+                    "status": "error",
+                    "message": "Authentication credentials were not provided",
+                },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
@@ -408,7 +421,7 @@ def get_basic_profile(request):
                 "email": request.user.email,
                 "first_name": request.user.first_name,
                 "last_name": request.user.last_name,
-                "date_joined": request.user.date_joined.isoformat() if hasattr(request.user, "date_joined") else None,
+                "date_joined": (request.user.date_joined.isoformat() if hasattr(request.user, "date_joined") else None),
                 "is_active": request.user.is_active,
             },
             "profile": {"credits": 0},  # Default empty profile

@@ -36,7 +36,14 @@ GLOBAL_TAG = "global"
 
 # Backward-compatible lookup tables used by older tests.
 ENTITY_KEY_PREFIXES: Dict[str, List[str]] = {
-    "User": ["user:", "profile:", "dashboard:", "analysis:", "feedback:", "subscription:"],
+    "User": [
+        "user:",
+        "profile:",
+        "dashboard:",
+        "analysis:",
+        "feedback:",
+        "subscription:",
+    ],
     "Profile": ["profile:"],
     "Game": ["game:", "analysis:", "feedback:"],
     "Subscription": ["subscription:"],

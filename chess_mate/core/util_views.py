@@ -137,7 +137,10 @@ def health_check(request):
         cpu_usage = 0.0
 
     payload = {
-        "database": {"status": "ok" if db_ok else "error", **({} if db_ok else {"error": db_message})},
+        "database": {
+            "status": "ok" if db_ok else "error",
+            **({} if db_ok else {"error": db_message}),
+        },
         "redis": redis_info,
         "system": {
             "cpu_usage": cpu_usage,
@@ -159,7 +162,10 @@ def debug_request(request):
     Only available in debug mode.
     """
     if not settings.DEBUG:
-        return Response({"error": "Debug endpoint only available in DEBUG mode"}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"error": "Debug endpoint only available in DEBUG mode"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     headers = {}
     for header, value in request.headers.items():
@@ -197,24 +203,80 @@ def api_info(request):
         "description": "API for chess game analysis and feedback",
         "endpoints": {
             "auth": [
-                {"path": "/api/register/", "methods": ["POST"], "description": "Register new user"},
-                {"path": "/api/login/", "methods": ["POST"], "description": "Login user"},
-                {"path": "/api/logout/", "methods": ["POST"], "description": "Logout user"},
-                {"path": "/api/token/refresh/", "methods": ["POST"], "description": "Refresh JWT token"},
-                {"path": "/api/reset-password/", "methods": ["POST"], "description": "Request password reset"},
-                {"path": "/api/reset-password/confirm/", "methods": ["POST"], "description": "Confirm password reset"},
-                {"path": "/api/verify-email/<token>/", "methods": ["GET"], "description": "Verify email"},
+                {
+                    "path": "/api/register/",
+                    "methods": ["POST"],
+                    "description": "Register new user",
+                },
+                {
+                    "path": "/api/login/",
+                    "methods": ["POST"],
+                    "description": "Login user",
+                },
+                {
+                    "path": "/api/logout/",
+                    "methods": ["POST"],
+                    "description": "Logout user",
+                },
+                {
+                    "path": "/api/token/refresh/",
+                    "methods": ["POST"],
+                    "description": "Refresh JWT token",
+                },
+                {
+                    "path": "/api/reset-password/",
+                    "methods": ["POST"],
+                    "description": "Request password reset",
+                },
+                {
+                    "path": "/api/reset-password/confirm/",
+                    "methods": ["POST"],
+                    "description": "Confirm password reset",
+                },
+                {
+                    "path": "/api/verify-email/<token>/",
+                    "methods": ["GET"],
+                    "description": "Verify email",
+                },
             ],
             "user": [
-                {"path": "/api/profile/", "methods": ["GET", "PATCH"], "description": "Get or update user profile"},
-                {"path": "/api/statistics/", "methods": ["GET"], "description": "Get user statistics"},
+                {
+                    "path": "/api/profile/",
+                    "methods": ["GET", "PATCH"],
+                    "description": "Get or update user profile",
+                },
+                {
+                    "path": "/api/statistics/",
+                    "methods": ["GET"],
+                    "description": "Get user statistics",
+                },
             ],
             "games": [
-                {"path": "/api/games/", "methods": ["GET"], "description": "Get user's games"},
-                {"path": "/api/games/fetch/", "methods": ["POST"], "description": "Fetch games from chess platforms"},
-                {"path": "/api/games/<game_id>/analyze/", "methods": ["POST"], "description": "Analyze a game"},
-                {"path": "/api/games/<game_id>/analysis/", "methods": ["GET"], "description": "Get game analysis"},
-                {"path": "/api/batch-analyze/", "methods": ["POST"], "description": "Analyze multiple games"},
+                {
+                    "path": "/api/games/",
+                    "methods": ["GET"],
+                    "description": "Get user's games",
+                },
+                {
+                    "path": "/api/games/fetch/",
+                    "methods": ["POST"],
+                    "description": "Fetch games from chess platforms",
+                },
+                {
+                    "path": "/api/games/<game_id>/analyze/",
+                    "methods": ["POST"],
+                    "description": "Analyze a game",
+                },
+                {
+                    "path": "/api/games/<game_id>/analysis/",
+                    "methods": ["GET"],
+                    "description": "Get game analysis",
+                },
+                {
+                    "path": "/api/batch-analyze/",
+                    "methods": ["POST"],
+                    "description": "Analyze multiple games",
+                },
             ],
             "feedback": [
                 {
@@ -234,19 +296,43 @@ def api_info(request):
                 },
             ],
             "dashboard": [
-                {"path": "/api/dashboard/", "methods": ["GET"], "description": "Get dashboard data"},
-                {"path": "/api/dashboard/refresh/", "methods": ["POST"], "description": "Refresh dashboard data"},
+                {
+                    "path": "/api/dashboard/",
+                    "methods": ["GET"],
+                    "description": "Get dashboard data",
+                },
+                {
+                    "path": "/api/dashboard/refresh/",
+                    "methods": ["POST"],
+                    "description": "Refresh dashboard data",
+                },
                 {
                     "path": "/api/dashboard/performance-trend/",
                     "methods": ["GET"],
                     "description": "Get performance trend data",
                 },
-                {"path": "/api/dashboard/mistake-analysis/", "methods": ["GET"], "description": "Get mistake analysis"},
+                {
+                    "path": "/api/dashboard/mistake-analysis/",
+                    "methods": ["GET"],
+                    "description": "Get mistake analysis",
+                },
             ],
             "system": [
-                {"path": "/api/health/", "methods": ["GET"], "description": "Health check"},
-                {"path": "/api/csrf/", "methods": ["GET"], "description": "Get CSRF token"},
-                {"path": "/api/info/", "methods": ["GET"], "description": "API information"},
+                {
+                    "path": "/api/health/",
+                    "methods": ["GET"],
+                    "description": "Health check",
+                },
+                {
+                    "path": "/api/csrf/",
+                    "methods": ["GET"],
+                    "description": "Get CSRF token",
+                },
+                {
+                    "path": "/api/info/",
+                    "methods": ["GET"],
+                    "description": "API information",
+                },
             ],
         },
         "documentation": "/api/docs/",
@@ -314,7 +400,7 @@ def check_version(request):
             "client_version": client_version,
             "latest_version": latest_version,
             "needs_update": needs_update,
-            "update_url": getattr(settings, "CLIENT_UPDATE_URL", None) if needs_update else None,
+            "update_url": (getattr(settings, "CLIENT_UPDATE_URL", None) if needs_update else None),
             "force_update": getattr(settings, "FORCE_CLIENT_UPDATE", False) and needs_update,
         }
     )
@@ -327,7 +413,12 @@ def get_server_time(request):
     Get the current server time.
     Useful for debugging time-related issues.
     """
-    return Response({"server_time": timezone.now().isoformat(), "timezone": str(timezone.get_current_timezone())})
+    return Response(
+        {
+            "server_time": timezone.now().isoformat(),
+            "timezone": str(timezone.get_current_timezone()),
+        }
+    )
 
 
 @api_view(["GET"])
@@ -357,9 +448,13 @@ def trigger_error(request):
     """Legacy debug endpoint expected by tests."""
     if not request.user or not request.user.is_authenticated:
         return Response(
-            {"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED
+            {"detail": "Authentication credentials were not provided."},
+            status=status.HTTP_401_UNAUTHORIZED,
         )
-    return Response({"message": "Deliberate error triggered"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response(
+        {"message": "Deliberate error triggered"},
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
 
 
 @api_view(["GET"])
@@ -368,7 +463,8 @@ def rate_limiter_info(request):
     """Return rate limiter diagnostics for authenticated callers."""
     if not request.user or not request.user.is_authenticated:
         return Response(
-            {"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED
+            {"detail": "Authentication credentials were not provided."},
+            status=status.HTTP_401_UNAUTHORIZED,
         )
 
     limiter = rate_limiter
@@ -395,7 +491,10 @@ def api_documentation(request):
     return render(
         request,
         "api/swagger.html",
-        {"title": "ChessMate API Documentation", "openapi_url": settings.STATIC_URL + "openapi.json"},
+        {
+            "title": "ChessMate API Documentation",
+            "openapi_url": settings.STATIC_URL + "openapi.json",
+        },
     )
 
 

@@ -115,7 +115,13 @@ VALIDATION_SCHEMAS: Dict[str, MethodSchema] = {
         "POST": {
             "required": ["email", "password", "username"],
             "optional": ["first_name", "last_name"],
-            "type_validation": {"email": str, "password": str, "username": str, "first_name": str, "last_name": str},
+            "type_validation": {
+                "email": str,
+                "password": str,
+                "username": str,
+                "first_name": str,
+                "last_name": str,
+            },
             "custom_validators": {
                 "email": lambda x: re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", x) is not None,
                 "password": lambda x: len(x) >= 8,
@@ -123,28 +129,49 @@ VALIDATION_SCHEMAS: Dict[str, MethodSchema] = {
         }
     },
     r"^/api(?:/v1)?/login/$": {
-        "POST": {"required": ["email", "password"], "type_validation": {"email": str, "password": str}}
+        "POST": {
+            "required": ["email", "password"],
+            "type_validation": {"email": str, "password": str},
+        }
     },
     # Game endpoints
     r"^/api(?:/v1)?/games/\d+/analyze/$": {
         "POST": {
             "optional": ["depth", "lines"],
             "type_validation": {"depth": int, "lines": int},
-            "value_validation": {"depth": lambda x: 1 <= x <= 30, "lines": lambda x: 1 <= x <= 5},
+            "value_validation": {
+                "depth": lambda x: 1 <= x <= 30,
+                "lines": lambda x: 1 <= x <= 5,
+            },
         }
     },
     r"^/api(?:/v1)?/games/fetch/$": {
         "POST": {
             "required": ["platform", "username"],
             "optional": ["time_period", "limit"],
-            "type_validation": {"platform": str, "username": str, "time_period": str, "limit": int},
-            "value_validation": {"limit": lambda x: 1 <= x <= 100, "platform": lambda x: x in ["chess.com", "lichess"]},
+            "type_validation": {
+                "platform": str,
+                "username": str,
+                "time_period": str,
+                "limit": int,
+            },
+            "value_validation": {
+                "limit": lambda x: 1 <= x <= 100,
+                "platform": lambda x: x in ["chess.com", "lichess"],
+            },
         }
     },
     # Profile endpoints
     r"^/api(?:/v1)?/profile/update/$": {
         "PUT": {
-            "optional": ["username", "first_name", "last_name", "bio", "chess_com_username", "lichess_username"],
+            "optional": [
+                "username",
+                "first_name",
+                "last_name",
+                "bio",
+                "chess_com_username",
+                "lichess_username",
+            ],
             "type_validation": {
                 "username": str,
                 "first_name": str,
@@ -175,7 +202,16 @@ VALIDATION_SCHEMAS: Dict[str, MethodSchema] = {
             "type_validation": {"focus_areas": list},
             "value_validation": {
                 "focus_areas": lambda x: all(
-                    area in ["opening", "middlegame", "endgame", "tactics", "strategy", "time_management"] for area in x
+                    area
+                    in [
+                        "opening",
+                        "middlegame",
+                        "endgame",
+                        "tactics",
+                        "strategy",
+                        "time_management",
+                    ]
+                    for area in x
                 )
             },
         }
@@ -305,7 +341,13 @@ class RequestValidationMiddleware:
                 try:
                     data = json.loads(request.body)
                 except json.JSONDecodeError as e:
-                    errors.append({"field": "body", "message": "Invalid JSON format", "detail": str(e)})
+                    errors.append(
+                        {
+                            "field": "body",
+                            "message": "Invalid JSON format",
+                            "detail": str(e),
+                        }
+                    )
                     return False, errors
             else:
                 # Use POST/PUT data as dictionary
@@ -323,7 +365,13 @@ class RequestValidationMiddleware:
                         # Validate required fields
                         for field in schema.get("required", []):
                             if field not in data:
-                                errors.append({"field": field, "message": "Field is required", "detail": None})
+                                errors.append(
+                                    {
+                                        "field": field,
+                                        "message": "Field is required",
+                                        "detail": None,
+                                    }
+                                )
 
                         # Validate field types
                         type_validation = schema.get("type_validation", {})
@@ -348,7 +396,11 @@ class RequestValidationMiddleware:
                                         )
                                 except Exception as e:
                                     errors.append(
-                                        {"field": field, "message": "Type validation error", "detail": str(e)}
+                                        {
+                                            "field": field,
+                                            "message": "Type validation error",
+                                            "detail": str(e),
+                                        }
                                     )
 
                         # Validate field values
@@ -365,7 +417,13 @@ class RequestValidationMiddleware:
                                             }
                                         )
                                 except Exception as e:
-                                    errors.append({"field": field, "message": "Validation error", "detail": str(e)})
+                                    errors.append(
+                                        {
+                                            "field": field,
+                                            "message": "Validation error",
+                                            "detail": str(e),
+                                        }
+                                    )
 
                         # Apply custom validators
                         custom_validators = schema.get("custom_validators", {})
@@ -382,7 +440,11 @@ class RequestValidationMiddleware:
                                         )
                                 except Exception as e:
                                     errors.append(
-                                        {"field": field, "message": "Value validation error", "detail": str(e)}
+                                        {
+                                            "field": field,
+                                            "message": "Value validation error",
+                                            "detail": str(e),
+                                        }
                                     )
 
                         # Break after first matching schema
@@ -392,7 +454,13 @@ class RequestValidationMiddleware:
 
         except Exception as e:
             logger.error(f"Error during request validation: {str(e)}", exc_info=True)
-            errors.append({"field": "request", "message": "Internal validation error", "detail": str(e)})
+            errors.append(
+                {
+                    "field": "request",
+                    "message": "Internal validation error",
+                    "detail": str(e),
+                }
+            )
             return False, errors
 
     def _create_error_response(self, errors: List[ErrorDetail]) -> HttpResponse:
@@ -555,7 +623,10 @@ class RateLimitMiddleware:
 
     def _add_rate_limit_headers(self, response, keys, endpoint_type):
         """Add rate limit headers to response."""
-        key = next((f"rate_limit:{endpoint_type}:{kt}:{identifier}" for kt, identifier in keys.items()), None)
+        key = next(
+            (f"rate_limit:{endpoint_type}:{kt}:{identifier}" for kt, identifier in keys.items()),
+            None,
+        )
         if key is None:
             return response
 

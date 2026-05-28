@@ -13,7 +13,14 @@ class ProfileInline(admin.StackedInline):
 
 class CustomUserAdmin(UserAdmin):
     inlines = (ProfileInline,)
-    list_display = ("username", "email", "first_name", "last_name", "is_staff", "date_joined")
+    list_display = (
+        "username",
+        "email",
+        "first_name",
+        "last_name",
+        "is_staff",
+        "date_joined",
+    )
     list_filter = ("is_staff", "is_superuser", "is_active", "groups")
     search_fields = ("username", "first_name", "last_name", "email")
     ordering = ("-date_joined",)
@@ -55,7 +62,12 @@ class ProfileAdmin(admin.ModelAdmin):
                 "analysis_depth": 20,
             }
         if "rating_history" in form.base_fields:
-            form.base_fields["rating_history"].initial = {"bullet": [], "blitz": [], "rapid": [], "classical": []}
+            form.base_fields["rating_history"].initial = {
+                "bullet": [],
+                "blitz": [],
+                "rapid": [],
+                "classical": [],
+            }
         return form
 
     def save_model(self, request, obj, form, change):
@@ -65,14 +77,28 @@ class ProfileAdmin(admin.ModelAdmin):
 
         # Ensure rating_history is a valid JSON object
         if not obj.rating_history:
-            obj.rating_history = {"bullet": [], "blitz": [], "rapid": [], "classical": []}
+            obj.rating_history = {
+                "bullet": [],
+                "blitz": [],
+                "rapid": [],
+                "classical": [],
+            }
 
         super().save_model(request, obj, form, change)
 
 
 @admin.register(Game)
 class GameAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "white", "black", "result", "platform", "date_played", "opening_name")
+    list_display = (
+        "id",
+        "user",
+        "white",
+        "black",
+        "result",
+        "platform",
+        "date_played",
+        "opening_name",
+    )
     list_filter = ("platform", "result", "date_played")
     search_fields = ("white", "black", "user__username", "opening_name")
     ordering = ("-date_played",)

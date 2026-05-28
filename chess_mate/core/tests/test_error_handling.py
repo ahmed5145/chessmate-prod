@@ -89,7 +89,9 @@ class TestErrorHandlingUtilities:
         """Test creating a standardized success response."""
         data = {"game_id": 123, "status": "complete"}
         response = create_success_response(
-            data=data, message="Game analysis complete", status_code=status.HTTP_201_CREATED
+            data=data,
+            message="Game analysis complete",
+            status_code=status.HTTP_201_CREATED,
         )
 
         assert isinstance(response, JsonResponse)

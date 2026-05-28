@@ -75,7 +75,11 @@ class TelemetryMiddleware:
 
             # Record request count
             self.metrics["http_requests_total"].increment(
-                labels={"method": request.method, "path": request.path, "status": str(response.status_code)}
+                labels={
+                    "method": request.method,
+                    "path": request.path,
+                    "status": str(response.status_code),
+                }
             )
 
             # Record request duration
@@ -101,7 +105,10 @@ class TelemetryMiddleware:
                 labels={"method": request.method, "path": request.path, "status": "500"}
             )
 
-            logger.error(f"Request exception: {request.method} {request.path} - {str(exception)}", exc_info=True)
+            logger.error(
+                f"Request exception: {request.method} {request.path} - {str(exception)}",
+                exc_info=True,
+            )
         except Exception as e:
             logger.error(f"Error processing exception in middleware: {e}")
 
@@ -111,7 +118,8 @@ class TelemetryMiddleware:
             # Add template rendering time if available
             if hasattr(response, "template_render_time"):
                 self.metrics["template_render_duration_seconds"].observe(
-                    response.template_render_time, labels={"template": str(response.template_name)}
+                    response.template_render_time,
+                    labels={"template": str(response.template_name)},
                 )
         except Exception as e:
             logger.error(f"Error processing template response: {e}")

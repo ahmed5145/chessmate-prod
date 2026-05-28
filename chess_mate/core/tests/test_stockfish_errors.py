@@ -41,7 +41,11 @@ class TestStockfishErrors:
 
         # Mock engine to return result without score
         mock_engine = MagicMock()
-        mock_engine.analyse.return_value = {"pv": [move], "depth": 20, "nodes": 1000}  # Missing 'score' key
+        mock_engine.analyse.return_value = {
+            "pv": [move],
+            "depth": 20,
+            "nodes": 1000,
+        }  # Missing 'score' key
 
         with patch("chess.engine.SimpleEngine.popen_uci", return_value=mock_engine):
             result = self.analyzer.analyze_position(board)
@@ -54,7 +58,11 @@ class TestStockfishErrors:
 
         # Mock engine to return invalid score format
         mock_engine = MagicMock()
-        mock_engine.analyse.return_value = {"score": "invalid", "pv": [], "depth": 20}  # Invalid score format
+        mock_engine.analyse.return_value = {
+            "score": "invalid",
+            "pv": [],
+            "depth": 20,
+        }  # Invalid score format
 
         with patch("chess.engine.SimpleEngine.popen_uci", return_value=mock_engine):
             result = self.analyzer.analyze_position(board)
@@ -80,7 +88,8 @@ class TestStockfishErrors:
         """Test handling of engine initialization error."""
         # Mock popen_uci to raise an error
         mock_popen = mocker.patch(
-            "chess.engine.SimpleEngine.popen_uci", side_effect=Exception("Failed to initialize engine")
+            "chess.engine.SimpleEngine.popen_uci",
+            side_effect=Exception("Failed to initialize engine"),
         )
 
         # Create analyzer - should handle error gracefully

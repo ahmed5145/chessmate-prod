@@ -317,7 +317,9 @@ def _normalize_opening_name(opening_name: Any, max_len: int = 96) -> str:
     return f"{text[: max_len - 3].rstrip()}..."
 
 
-def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _build_batch_aggregate_metrics(
+    completed_games: List[Dict[str, Any]],
+) -> Dict[str, Any]:
     """Build one combined report across completed games for the batch results page."""
     game_ids = [int(item["game_id"]) for item in completed_games if isinstance(item, dict) and item.get("game_id")]
     if not game_ids:
@@ -335,7 +337,13 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
         "total_moves": 0.0,
     }
     phases: Dict[str, Dict[str, float]] = {
-        "opening": {"accuracy_sum": 0.0, "count": 0.0, "mistakes": 0.0, "best_moves": 0.0, "opportunities": 0.0},
+        "opening": {
+            "accuracy_sum": 0.0,
+            "count": 0.0,
+            "mistakes": 0.0,
+            "best_moves": 0.0,
+            "opportunities": 0.0,
+        },
         "middlegame": {
             "accuracy_sum": 0.0,
             "count": 0.0,
@@ -343,7 +351,13 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
             "best_moves": 0.0,
             "opportunities": 0.0,
         },
-        "endgame": {"accuracy_sum": 0.0, "count": 0.0, "mistakes": 0.0, "best_moves": 0.0, "opportunities": 0.0},
+        "endgame": {
+            "accuracy_sum": 0.0,
+            "count": 0.0,
+            "mistakes": 0.0,
+            "best_moves": 0.0,
+            "opportunities": 0.0,
+        },
     }
 
     strengths_raw: List[str] = []
@@ -404,7 +418,7 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
             if normalized_opening:
                 opening_names.append(normalized_opening)
 
-        for move in analysis_data.get("moves", []) if isinstance(analysis_data.get("moves", []), list) else []:
+        for move in (analysis_data.get("moves", []) if isinstance(analysis_data.get("moves", []), list) else []):
             if not isinstance(move, dict) or not move.get("is_critical"):
                 pass
 
@@ -543,7 +557,11 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
     else:
         key_takeaway = "No dominant weakness identified"
 
-    critical_sorted = sorted(critical_moments, key=lambda m: abs(_safe_float(m.get("eval_change"))), reverse=True)
+    critical_sorted = sorted(
+        critical_moments,
+        key=lambda m: abs(_safe_float(m.get("eval_change"))),
+        reverse=True,
+    )
 
     summary_bits = []
     summary_bits.append(f"Batch profile: {performance_tier}.")
@@ -573,7 +591,7 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
         "performance_tier": performance_tier,
         "sample_size": games_count,
         "sample_size_note": sample_size_note,
-        "confidence": "high" if games_count >= 10 else "medium" if games_count >= 3 else "low",
+        "confidence": ("high" if games_count >= 10 else "medium" if games_count >= 3 else "low"),
     }
 
     training_context_input = {
@@ -590,22 +608,22 @@ def _build_batch_aggregate_metrics(completed_games: List[Dict[str, Any]]) -> Dic
         logger.debug("Falling back to statistical batch feedback: %s", error)
         ai_feedback = {
             "source": "statistical",
-            "data_status": "available" if time_summary.get("data_status") == "available" else "unavailable",
+            "data_status": ("available" if time_summary.get("data_status") == "available" else "unavailable"),
             "strengths": top_strengths,
             "weaknesses": top_weaknesses,
             "critical_moments": critical_sorted[:5],
             "improvement_areas": top_improvements,
             "opening": {
                 "analysis": f"Opening accuracy is {phase_metrics['opening']['accuracy']}%.",
-                "suggestion": top_improvements[0] if top_improvements else "Review opening fundamentals.",
+                "suggestion": (top_improvements[0] if top_improvements else "Review opening fundamentals."),
             },
             "middlegame": {
                 "analysis": f"Middlegame accuracy is {phase_metrics['middlegame']['accuracy']}%.",
-                "suggestion": top_improvements[0] if top_improvements else "Review middlegame patterns.",
+                "suggestion": (top_improvements[0] if top_improvements else "Review middlegame patterns."),
             },
             "endgame": {
                 "analysis": f"Endgame accuracy is {phase_metrics['endgame']['accuracy']}%.",
-                "suggestion": top_improvements[0] if top_improvements else "Review endgame conversion.",
+                "suggestion": (top_improvements[0] if top_improvements else "Review endgame conversion."),
             },
             "metrics": {"summary": {"overall": overall_metrics}},
             "training_block": training_block,
@@ -648,7 +666,7 @@ def _persist_batch_report(
     """Create or update a persisted batch report for history access."""
     report_defaults = {
         "game_ids": game_ids,
-        "games_count": len(game_ids) if game_ids else len(completed_games) + len(failed_games),
+        "games_count": (len(game_ids) if game_ids else len(completed_games) + len(failed_games)),
         "completed_games": completed_games,
         "failed_games": failed_games,
         "aggregate_metrics": aggregate_metrics,
@@ -685,12 +703,12 @@ def _serialize_batch_report(report: BatchAnalysisReport) -> Dict[str, Any]:
     return {
         "id": report_any.id,
         "task_id": report_any.task_id,
-        "game_ids": report_any.game_ids if isinstance(report_any.game_ids, list) else [],
+        "game_ids": (report_any.game_ids if isinstance(report_any.game_ids, list) else []),
         "games_count": report_any.games_count,
-        "completed_games": report_any.completed_games if isinstance(report_any.completed_games, list) else [],
-        "failed_games": report_any.failed_games if isinstance(report_any.failed_games, list) else [],
-        "aggregate_metrics": report_any.aggregate_metrics if isinstance(report_any.aggregate_metrics, dict) else {},
-        "coach_summary": coach_report.get("summary", "") if isinstance(coach_report, dict) else "",
+        "completed_games": (report_any.completed_games if isinstance(report_any.completed_games, list) else []),
+        "failed_games": (report_any.failed_games if isinstance(report_any.failed_games, list) else []),
+        "aggregate_metrics": (report_any.aggregate_metrics if isinstance(report_any.aggregate_metrics, dict) else {}),
+        "coach_summary": (coach_report.get("summary", "") if isinstance(coach_report, dict) else ""),
         "created_at": report_any.created_at.isoformat(),
         "updated_at": report_any.updated_at.isoformat(),
     }
@@ -760,7 +778,9 @@ class GameViewSet(viewsets.ModelViewSet):
             Exception
         ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
             return create_error_response(
-                error_type="external_service_error", message=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+                error_type="external_service_error",
+                message=str(e),
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     @action(detail=False, methods=["post"])
@@ -786,23 +806,38 @@ class GameViewSet(viewsets.ModelViewSet):
             if user_game_count != len(game_ids):
                 # Using proper ValidationError format
                 raise ValidationError(
-                    [{"field": "game_ids", "message": "Some game IDs are invalid or don't belong to you"}]
+                    [
+                        {
+                            "field": "game_ids",
+                            "message": "Some game IDs are invalid or don't belong to you",
+                        }
+                    ]
                 )
 
             # Create batch analysis task
             task = batch_analyze_games_task.delay(game_ids, depth, use_ai)
 
-            return Response({"status": "success", "message": "Batch analysis started", "task_id": task.id})
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Batch analysis started",
+                    "task_id": task.id,
+                }
+            )
 
         except ValidationError as e:
             return create_error_response(
-                error_type="validation_failed", message=str(e), status_code=status.HTTP_400_BAD_REQUEST
+                error_type="validation_failed",
+                message=str(e),
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
         except (
             Exception
         ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
             return create_error_response(
-                error_type="external_service_error", message=str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+                error_type="external_service_error",
+                message=str(e),
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     @action(detail=True, methods=["get"])
@@ -811,14 +846,24 @@ class GameViewSet(viewsets.ModelViewSet):
         """Get analysis status for a game."""
         try:
             if pk is not None:
-                logger.debug("Analysis status requested for pk %s by user %s", pk, request.user.id)
+                logger.debug(
+                    "Analysis status requested for pk %s by user %s",
+                    pk,
+                    request.user.id,
+                )
             game = self.get_object()
 
             # First check if we already have a complete analysis in the database
             try:
                 analysis = GameAnalysis.objects.get(game_id=game.id)
                 if analysis.analysis_data and analysis.analysis_data.get("status") == "complete":
-                    return Response({"status": "SUCCESS", "message": "Analysis completed", "progress": 100})
+                    return Response(
+                        {
+                            "status": "SUCCESS",
+                            "message": "Analysis completed",
+                            "progress": 100,
+                        }
+                    )
             except GameAnalysis.DoesNotExist:
                 # No completed analysis exists, continue with task status
                 pass
@@ -830,7 +875,13 @@ class GameViewSet(viewsets.ModelViewSet):
             logger.debug("Raw task info for game %s: %s", game.id, task_info)
 
             if not task_info:
-                return Response({"status": "not_found", "message": "No analysis task found", "progress": 0})
+                return Response(
+                    {
+                        "status": "not_found",
+                        "message": "No analysis task found",
+                        "progress": 0,
+                    }
+                )
 
             # Check specific case for error status
             if task_info.get("status") == "ERROR" or task_info.get("status") == "FAILURE":
@@ -864,7 +915,11 @@ class GameViewSet(viewsets.ModelViewSet):
         ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.error("Error checking analysis status: %s", str(e), exc_info=True)
             return Response(
-                {"status": "ERROR", "message": f"Error retrieving analysis status: {str(e)}", "progress": 0},
+                {
+                    "status": "ERROR",
+                    "message": f"Error retrieving analysis status: {str(e)}",
+                    "progress": 0,
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -916,13 +971,22 @@ class GameViewSet(viewsets.ModelViewSet):
             queryset = queryset[offset : offset + limit]
 
             serializer = self.get_serializer(queryset, many=True)
-            return Response({"results": serializer.data, "count": total_count, "limit": limit, "offset": offset})
+            return Response(
+                {
+                    "results": serializer.data,
+                    "count": total_count,
+                    "limit": limit,
+                    "offset": offset,
+                }
+            )
 
         except (
             Exception
         ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
             return create_error_response(
-                error_type="validation_failed", message=str(e), status_code=status.HTTP_400_BAD_REQUEST
+                error_type="validation_failed",
+                message=str(e),
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
 
 
@@ -938,7 +1002,10 @@ def get_user_games(request):
         # Check if requester has permission
         if int(user_id) != request.user.id and not request.user.is_staff:
             return Response(
-                {"status": "error", "message": "You do not have permission to view these games"},
+                {
+                    "status": "error",
+                    "message": "You do not have permission to view these games",
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -989,7 +1056,11 @@ def import_game(request):
 
         if existing_game_any:
             return JsonResponse(
-                {"status": "success", "message": "Game already exists", "game_id": existing_game_any.id}
+                {
+                    "status": "success",
+                    "message": "Game already exists",
+                    "game_id": existing_game_any.id,
+                }
             )
 
         # Create new game
@@ -1021,7 +1092,13 @@ def import_game(request):
         # Invalidate cache
         invalidate_cache(f"user_{request.user.id}_games")
 
-        return JsonResponse({"status": "success", "message": "Game imported successfully", "game_id": game_any.id})
+        return JsonResponse(
+            {
+                "status": "success",
+                "message": "Game imported successfully",
+                "game_id": game_any.id,
+            }
+        )
 
     except (
         Exception
@@ -1057,7 +1134,11 @@ def get_game(request):
         # Check permission
         if not request.user.is_staff and game.user.id != request.user.id:  # type: ignore[attr-defined]
             return JsonResponse(
-                {"status": "error", "message": "You do not have permission to view this game"}, status=403
+                {
+                    "status": "error",
+                    "message": "You do not have permission to view this game",
+                },
+                status=403,
             )
 
         # Format response
@@ -1113,14 +1194,18 @@ def analyze_game(request, game_id=None):
 
         # Validate inputs
         if not game_id:
-            return Response({"status": "error", "message": "Game ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"status": "error", "message": "Game ID is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Get game from database
         try:
             game: Any = Game.objects.get(id=game_id)
         except Game.DoesNotExist:
             return Response(
-                {"status": "error", "message": f"Game not found: {game_id}"}, status=status.HTTP_404_NOT_FOUND
+                {"status": "error", "message": f"Game not found: {game_id}"},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         # Check permission
@@ -1128,7 +1213,10 @@ def analyze_game(request, game_id=None):
             # Check if the user is the owner of the game
             if game.user_id != request.user.id:  # type: ignore[attr-defined]
                 return Response(
-                    {"status": "error", "message": "You do not have permission to analyze this game"},
+                    {
+                        "status": "error",
+                        "message": "You do not have permission to analyze this game",
+                    },
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
@@ -1229,7 +1317,12 @@ def import_external_games(request):
         game_type = data.get("game_type", "rapid")
         num_games = data.get("num_games", 10)
 
-        logger.info("Importing games: user_id=%s, platform=%s, username=%s", user_id, platform, username)
+        logger.info(
+            "Importing games: user_id=%s, platform=%s, username=%s",
+            user_id,
+            platform,
+            username,
+        )
 
         # Validate platform
         if not platform:
@@ -1237,7 +1330,12 @@ def import_external_games(request):
 
         if platform not in ["chess.com", "lichess"]:
             raise ValidationError(
-                [{"field": "platform", "message": "Invalid platform. Must be 'chess.com' or 'lichess'"}]
+                [
+                    {
+                        "field": "platform",
+                        "message": "Invalid platform. Must be 'chess.com' or 'lichess'",
+                    }
+                ]
             )
 
         if not username:
@@ -1250,11 +1348,23 @@ def import_external_games(request):
                     username = profile.lichess_username
             except Profile.DoesNotExist as exc:
                 raise ValidationError(
-                    [{"field": "username", "message": f"Username for {platform} is required"}]
+                    [
+                        {
+                            "field": "username",
+                            "message": f"Username for {platform} is required",
+                        }
+                    ]
                 ) from exc
 
         if not username:
-            raise ValidationError([{"field": "username", "message": f"Username for {platform} is required"}])
+            raise ValidationError(
+                [
+                    {
+                        "field": "username",
+                        "message": f"Username for {platform} is required",
+                    }
+                ]
+            )
 
         # Check if user has enough credits
         try:
@@ -1324,13 +1434,16 @@ def import_external_games(request):
                 "message": f"Imported {imported_count} games from {platform}",
                 "imported_count": imported_count,
                 "saved_games": saved_games,
-                "games": games[:5] if isinstance(games, list) else [],  # Return preview of first 5 games
+                "games": (games[:5] if isinstance(games, list) else []),  # Return preview of first 5 games
             },
             status=status.HTTP_200_OK,
         )
 
     except ValidationError as ve:
-        return Response({"status": "error", "errors": ve.args[0]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"status": "error", "errors": ve.args[0]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     except (
         Exception
     ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
@@ -1357,7 +1470,11 @@ def get_task_status(request, game_id=None):
             if not task_info:
                 # No task found for this game
                 return JsonResponse(
-                    {"status": "not_found", "message": "No analysis task found for this game", "progress": 0}
+                    {
+                        "status": "not_found",
+                        "message": "No analysis task found for this game",
+                        "progress": 0,
+                    }
                 )
 
             # If task_info already contains a 'task' key, return it directly
@@ -1385,7 +1502,10 @@ def get_task_status(request, game_id=None):
             task_id = request.GET.get("task_id")
             if not task_id:
                 return JsonResponse(
-                    {"status": "error", "message": "Either game_id in URL path or task_id query parameter is required"},
+                    {
+                        "status": "error",
+                        "message": "Either game_id in URL path or task_id query parameter is required",
+                    },
                     status=400,
                 )
 
@@ -1417,7 +1537,11 @@ def get_task_status(request, game_id=None):
             {
                 "status": "error",
                 "message": f"Error retrieving task status: {str(e)}",
-                "task": {"status": "ERROR", "progress": 0, "message": f"Error: {str(e)}"},
+                "task": {
+                    "status": "ERROR",
+                    "progress": 0,
+                    "message": f"Error: {str(e)}",
+                },
             },
             status=500,
         )
@@ -1448,7 +1572,10 @@ def check_analysis_status(request, task_id):
             continue
 
     if task_info is None and foreign_task_found and not request.user.is_staff:
-        return Response({"status": "error", "message": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"status": "error", "message": "Permission denied"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     try:
         from chess_mate.celery import (
@@ -1466,7 +1593,8 @@ def check_analysis_status(request, task_id):
         state = "IN_PROGRESS"
 
     return Response(
-        {"status": state, "progress": _legacy_status_progress(task_id, task_info)}, status=status.HTTP_200_OK
+        {"status": state, "progress": _legacy_status_progress(task_id, task_info)},
+        status=status.HTTP_200_OK,
     )
 
 
@@ -1495,7 +1623,10 @@ def check_batch_analysis_status(request, task_id):
             continue
 
     if task_info is None and foreign_task_found and not request.user.is_staff:
-        return Response({"status": "error", "message": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"status": "error", "message": "Permission denied"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     try:
         from chess_mate.celery import (
@@ -1541,7 +1672,11 @@ def check_batch_analysis_status(request, task_id):
             if isinstance(game_result, dict):
                 result_status = str(game_result.get("status", "")).strip().lower()
 
-            if isinstance(game_result, dict) and result_status in {"success", "completed", "ok"}:
+            if isinstance(game_result, dict) and result_status in {
+                "success",
+                "completed",
+                "ok",
+            }:
                 completed_games.append({"game_id": int(game_id), **game_result})
             else:
                 payload = game_result if isinstance(game_result, dict) else {"message": str(game_result)}
@@ -1582,7 +1717,10 @@ def check_batch_analysis_status(request, task_id):
                 report_id = report.id  # type: ignore[attr-defined]
         except OperationalError as exc:
             if "database is locked" in str(exc).lower():
-                logger.warning("Batch report persistence deferred by SQLite lock for task %s", task_id)
+                logger.warning(
+                    "Batch report persistence deferred by SQLite lock for task %s",
+                    task_id,
+                )
             else:
                 logger.exception("Failed to persist batch analysis report for task %s", task_id)
         except DatabaseError:
@@ -1639,9 +1777,15 @@ def get_batch_analysis_report(request, report_id):
     try:
         report = BatchAnalysisReport.objects.get(id=report_id, user=request.user)
     except BatchAnalysisReport.DoesNotExist:
-        return Response({"status": "error", "message": "Batch report not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"status": "error", "message": "Batch report not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
-    return Response({"status": "success", "report": _serialize_batch_report(report)}, status=status.HTTP_200_OK)
+    return Response(
+        {"status": "success", "report": _serialize_batch_report(report)},
+        status=status.HTTP_200_OK,
+    )
 
 
 @api_view(["POST"])
@@ -1659,7 +1803,14 @@ def batch_analyze_games(request):
         if (not game_ids) and ("num_games" in data):
             requested_count = int(data.get("num_games") or 0)
             if requested_count <= 0:
-                raise ValidationError([{"field": "num_games", "message": "num_games must be a positive integer"}])
+                raise ValidationError(
+                    [
+                        {
+                            "field": "num_games",
+                            "message": "num_games must be a positive integer",
+                        }
+                    ]
+                )
 
             time_control_filter = str(data.get("time_control", "all") or "all").lower()
             include_analyzed = bool(data.get("include_analyzed", False))
@@ -1675,10 +1826,24 @@ def batch_analyze_games(request):
 
         # Validate inputs
         if not game_ids or not isinstance(game_ids, list):
-            raise ValidationError([{"field": "game_ids", "message": "List of game IDs is required or deriveable"}])
+            raise ValidationError(
+                [
+                    {
+                        "field": "game_ids",
+                        "message": "List of game IDs is required or deriveable",
+                    }
+                ]
+            )
 
         if len(game_ids) > 50:
-            raise ValidationError([{"field": "game_ids", "message": "Maximum 50 games can be analyzed in a batch"}])
+            raise ValidationError(
+                [
+                    {
+                        "field": "game_ids",
+                        "message": "Maximum 50 games can be analyzed in a batch",
+                    }
+                ]
+            )
 
         # NOTE: Credit check removed - batch analysis is now free
 
@@ -1694,7 +1859,10 @@ def batch_analyze_games(request):
             # Check permission
             if not request.user.is_staff and game.user.id != request.user.id:
                 return JsonResponse(
-                    {"status": "error", "message": f"You do not have permission to analyze game {game_id}"},
+                    {
+                        "status": "error",
+                        "message": f"You do not have permission to analyze game {game_id}",
+                    },
                     status=403,
                 )
 
@@ -1768,7 +1936,13 @@ def batch_get_analysis_status(request):
 
         # Limit the number of games to check at once
         if len(game_ids) > 20:
-            return JsonResponse({"status": "error", "message": "Too many games requested. Maximum is 20."}, status=400)
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "message": "Too many games requested. Maximum is 20.",
+                },
+                status=400,
+            )
 
         # Verify the user has access to these games
         if not request.user.is_staff:
@@ -1776,7 +1950,10 @@ def batch_get_analysis_status(request):
 
             if authorized_count != len(game_ids):
                 return JsonResponse(
-                    {"status": "error", "message": "You don't have permission to access some of these games"},
+                    {
+                        "status": "error",
+                        "message": "You don't have permission to access some of these games",
+                    },
                     status=403,
                 )
 
@@ -1851,7 +2028,14 @@ def search_external_player(request):
             raise ValidationError([{"field": "username", "message": "Username is required"}])
 
         if source not in ["chess.com", "lichess"]:
-            raise ValidationError([{"field": "source", "message": "Invalid source. Must be 'chess.com' or 'lichess'"}])
+            raise ValidationError(
+                [
+                    {
+                        "field": "source",
+                        "message": "Invalid source. Must be 'chess.com' or 'lichess'",
+                    }
+                ]
+            )
 
         # Search player
         service: Any
@@ -1864,7 +2048,12 @@ def search_external_player(request):
         player_fetcher = getattr(service, "get_player_info", None)
         if not callable(player_fetcher):
             raise ValidationError(
-                [{"field": "source", "message": f"Player search is not supported for source: {source}"}]
+                [
+                    {
+                        "field": "source",
+                        "message": f"Player search is not supported for source: {source}",
+                    }
+                ]
             )
         player_info = player_fetcher(username)
 
@@ -1873,7 +2062,10 @@ def search_external_player(request):
     except (
         Exception
     ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        return handle_api_error(e, f"Error searching for player on {request.GET.get('source', 'external platform')}")
+        return handle_api_error(
+            e,
+            f"Error searching for player on {request.GET.get('source', 'external platform')}",
+        )
 
 
 @api_view(["GET"])
@@ -1897,7 +2089,10 @@ def get_game_analysis(request, game_id):
         # Check permission
         if not request.user.is_staff and game.user.id != request.user.id:
             return JsonResponse(
-                {"status": "error", "message": "You do not have permission to view this game"},
+                {
+                    "status": "error",
+                    "message": "You do not have permission to view this game",
+                },
                 status=403,
             )
 
@@ -1936,7 +2131,8 @@ def get_game_analysis(request, game_id):
                 }
                 return Response(response_payload, status=status.HTTP_200_OK)
             return Response(
-                {"status": "not_found", "message": "No analysis found for this game"}, status=status.HTTP_404_NOT_FOUND
+                {"status": "not_found", "message": "No analysis found for this game"},
+                status=status.HTTP_404_NOT_FOUND,
             )
         except (
             Exception
@@ -1944,7 +2140,11 @@ def get_game_analysis(request, game_id):
             logger.error("Error retrieving game analysis: %s", str(e), exc_info=True)
             # Return structured error for better frontend handling
             return Response(
-                {"status": "error", "message": f"Error retrieving analysis: {str(e)}", "error": str(e)},
+                {
+                    "status": "error",
+                    "message": f"Error retrieving analysis: {str(e)}",
+                    "error": str(e),
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

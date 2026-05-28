@@ -25,7 +25,11 @@ try:
     url = urlparse(redis_url)
 
     redis_client = redis.Redis.from_url(
-        url=redis_url, decode_responses=True, socket_timeout=5, socket_connect_timeout=5, retry_on_timeout=True
+        url=redis_url,
+        decode_responses=True,
+        socket_timeout=5,
+        socket_connect_timeout=5,
+        retry_on_timeout=True,
     )
     # Test connection
     redis_client.ping()
@@ -180,7 +184,10 @@ Focus on actionable feedback that will help improve future performance."""
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a chess analysis expert."},
-                    {"role": "user", "content": self._create_analysis_prompt(game_analysis)},
+                    {
+                        "role": "user",
+                        "content": self._create_analysis_prompt(game_analysis),
+                    },
                 ],
                 temperature=0.7,
                 max_tokens=1000,
@@ -221,7 +228,11 @@ Focus on actionable feedback that will help improve future performance."""
                 critical_moves = summary.get("critical_moves", [])
                 if isinstance(critical_moves, list):
                     critical_moves.append(
-                        {"move_number": move["move_number"], "move": move["move"], "evaluation": move["score"]}
+                        {
+                            "move_number": move["move_number"],
+                            "move": move["move"],
+                            "evaluation": move["score"],
+                        }
                     )
 
             if move.get("is_mistake"):
@@ -238,7 +249,12 @@ Focus on actionable feedback that will help improve future performance."""
             if move.get("time_spent", 0) > 60:  # More than 60 seconds spent
                 time_management = summary.get("time_management", [])
                 if isinstance(time_management, list):
-                    time_management.append({"move_number": move["move_number"], "time_spent": move["time_spent"]})
+                    time_management.append(
+                        {
+                            "move_number": move["move_number"],
+                            "time_spent": move["time_spent"],
+                        }
+                    )
 
         return summary
 
@@ -248,7 +264,12 @@ Focus on actionable feedback that will help improve future performance."""
             sections = self._extract_sections(response_text)
 
             feedback: FeedbackData = {
-                "overall_performance": {"evaluation": "", "key_moments": [], "strengths": [], "weaknesses": []},
+                "overall_performance": {
+                    "evaluation": "",
+                    "key_moments": [],
+                    "strengths": [],
+                    "weaknesses": [],
+                },
                 "opening": {"analysis": "", "suggestions": []},
                 "middlegame": {"analysis": "", "suggestions": []},
                 "tactics": {"analysis": "", "suggestions": []},
@@ -460,9 +481,18 @@ Focus on actionable feedback that will help improve future performance."""
                 ],
             },
             "peer_comparison": {
-                "overall": {"percentile": 50, "interpretation": "Your performance is average compared to peers"},
-                "tactics": {"percentile": 55, "interpretation": "Slightly above average tactical performance"},
-                "strategy": {"percentile": 45, "interpretation": "Room for improvement in strategic play"},
+                "overall": {
+                    "percentile": 50,
+                    "interpretation": "Your performance is average compared to peers",
+                },
+                "tactics": {
+                    "percentile": 55,
+                    "interpretation": "Slightly above average tactical performance",
+                },
+                "strategy": {
+                    "percentile": 45,
+                    "interpretation": "Room for improvement in strategic play",
+                },
             },
         }
         return feedback
@@ -745,7 +775,11 @@ Format the response as a structured analysis with clear sections."""
 
         return {
             "total_games": total_games,
-            "overall": {"accuracy": round(avg_accuracy, 2), "win_rate": round(win_rate, 2), "total_moves": total_moves},
+            "overall": {
+                "accuracy": round(avg_accuracy, 2),
+                "win_rate": round(win_rate, 2),
+                "total_moves": total_moves,
+            },
             "tactics": {
                 "opportunities": tactical_opportunities,
                 "successful": successful_tactics,
@@ -785,7 +819,11 @@ Format the response as a structured analysis with clear sections."""
 
     def _analyze_patterns(self, games_analysis: List[Dict[str, Any]]) -> str:
         """Analyze patterns across all games."""
-        patterns = {"tactical": defaultdict(int), "positional": defaultdict(int), "mistakes": defaultdict(int)}
+        patterns = {
+            "tactical": defaultdict(int),
+            "positional": defaultdict(int),
+            "mistakes": defaultdict(int),
+        }
 
         for game in games_analysis:
             analysis = game["analysis"]
@@ -837,8 +875,16 @@ Format the response as a structured analysis with clear sections."""
                     "endgame": {"accuracy": 0, "moves": 0},
                 },
                 "tactics": {"opportunities": 0, "successful": 0, "success_rate": 0},
-                "time_management": {"average_time": 0, "time_pressure_moves": 0, "time_pressure_percentage": 0},
-                "position_assessment": {"winning_positions": 0, "losing_positions": 0, "critical_positions": 0},
+                "time_management": {
+                    "average_time": 0,
+                    "time_pressure_moves": 0,
+                    "time_pressure_percentage": 0,
+                },
+                "position_assessment": {
+                    "winning_positions": 0,
+                    "losing_positions": 0,
+                    "critical_positions": 0,
+                },
             }
         }
 
@@ -873,7 +919,11 @@ Format the response as a structured analysis with clear sections."""
             position = mistake.get("position", "")
 
             patterns[move_type].append(
-                {"eval_diff": eval_diff, "position": position, "move_number": mistake.get("move_number", 0)}
+                {
+                    "eval_diff": eval_diff,
+                    "position": position,
+                    "move_number": mistake.get("move_number", 0),
+                }
             )
 
         return [{"type": k, "instances": v} for k, v in patterns.items()]

@@ -12,7 +12,12 @@ from core.models import Game, GameAnalysis, Profile, User
 def test_user(db):
     """Create a test user with profile."""
     user = User.objects.create(username="testuser", email="test@example.com")
-    profile = Profile.objects.create(user=user, chess_com_username="testuser", lichess_username="testuser", credits=100)
+    profile = Profile.objects.create(
+        user=user,
+        chess_com_username="testuser",
+        lichess_username="testuser",
+        credits=100,
+    )
     return user
 
 

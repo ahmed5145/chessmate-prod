@@ -95,7 +95,12 @@ class TestGameViews:
             mock_save_game.side_effect = side_effect
 
             url = reverse("fetch_games")
-            data = {"platform": "chess.com", "username": "testuser", "game_type": "rapid", "num_games": 5}
+            data = {
+                "platform": "chess.com",
+                "username": "testuser",
+                "game_type": "rapid",
+                "num_games": 5,
+            }
 
             response = authenticated_client.post(url, data, format="json")
 
@@ -116,7 +121,10 @@ class TestGameViews:
         # Mock the lichess service
         mock_get_games.return_value = [
             {
-                "players": {"white": {"user": {"name": "testuser"}}, "black": {"user": {"name": "opponent1"}}},
+                "players": {
+                    "white": {"user": {"name": "testuser"}},
+                    "black": {"user": {"name": "opponent1"}},
+                },
                 "pgn": '[Event "Test Game 1"]\n1. e4 e5',
                 "speed": "rapid",
                 "createdAt": 1610000000,
@@ -134,7 +142,12 @@ class TestGameViews:
             mock_save_game.side_effect = side_effect
 
             url = reverse("fetch_games")
-            data = {"platform": "lichess", "username": "testuser", "game_type": "rapid", "num_games": 5}
+            data = {
+                "platform": "lichess",
+                "username": "testuser",
+                "game_type": "rapid",
+                "num_games": 5,
+            }
 
             response = authenticated_client.post(url, data, format="json")
 
@@ -159,8 +172,15 @@ class TestGameViews:
         with patch("core.tasks.analyze_game_task.delay") as mock_task:
             mock_task.return_value = MagicMock(id="mock-task-id")
 
-            with patch("core.game_views._get_compat_task_managers", return_value=[game_views.task_manager]):
-                with patch.object(game_views.task_manager, "get_active_tasks_for_game", return_value=[]):
+            with patch(
+                "core.game_views._get_compat_task_managers",
+                return_value=[game_views.task_manager],
+            ):
+                with patch.object(
+                    game_views.task_manager,
+                    "get_active_tasks_for_game",
+                    return_value=[],
+                ):
                     with patch.object(game_views.task_manager, "register_task") as mock_register:
                         url = reverse("analyze_game", kwargs={"game_id": test_game.id})
                         response = authenticated_client.post(url)
@@ -188,8 +208,15 @@ class TestGameViews:
         with patch("core.tasks.analyze_game_task.delay") as mock_task:
             mock_task.return_value = MagicMock(id="mock-task-id")
 
-            with patch("core.game_views._get_compat_task_managers", return_value=[game_views.task_manager]):
-                with patch.object(game_views.task_manager, "get_active_tasks_for_game", return_value=[]):
+            with patch(
+                "core.game_views._get_compat_task_managers",
+                return_value=[game_views.task_manager],
+            ):
+                with patch.object(
+                    game_views.task_manager,
+                    "get_active_tasks_for_game",
+                    return_value=[],
+                ):
                     with patch.object(game_views.task_manager, "register_task"):
                         url = reverse("analyze_game", kwargs={"game_id": test_game.id})
                         response = authenticated_client.post(url, {"depth": 26, "use_ai": False}, format="json")
@@ -206,9 +233,14 @@ class TestGameViews:
         test_game.save()
 
         with patch("core.tasks.analyze_game_task.delay") as mock_task:
-            with patch("core.game_views._get_compat_task_managers", return_value=[game_views.task_manager]):
+            with patch(
+                "core.game_views._get_compat_task_managers",
+                return_value=[game_views.task_manager],
+            ):
                 with patch.object(
-                    game_views.task_manager, "get_active_tasks_for_game", return_value=["existing-task-id"]
+                    game_views.task_manager,
+                    "get_active_tasks_for_game",
+                    return_value=["existing-task-id"],
                 ):
                     with patch.object(game_views.task_manager, "register_task") as mock_register:
                         url = reverse("analyze_game", kwargs={"game_id": test_game.id})
@@ -236,7 +268,10 @@ class TestGameViews:
         healthy_manager.get_active_tasks_for_game.return_value = ["existing-task-id"]
 
         with patch("core.tasks.analyze_game_task.delay") as mock_task:
-            with patch("core.game_views._get_compat_task_managers", return_value=[failing_manager, healthy_manager]):
+            with patch(
+                "core.game_views._get_compat_task_managers",
+                return_value=[failing_manager, healthy_manager],
+            ):
                 url = reverse("analyze_game", kwargs={"game_id": test_game.id})
                 response = authenticated_client.post(url)
 
@@ -254,7 +289,10 @@ class TestGameViews:
         with patch("core.tasks.analyze_game_task.delay") as mock_task:
             mock_task.return_value = MagicMock(id="first-task-id")
 
-            with patch("core.game_views._get_compat_task_managers", return_value=[game_views.task_manager]):
+            with patch(
+                "core.game_views._get_compat_task_managers",
+                return_value=[game_views.task_manager],
+            ):
                 with patch.object(
                     game_views.task_manager,
                     "get_active_tasks_for_game",
@@ -342,7 +380,10 @@ class TestGameViews:
         # Set up a game with analysis data
         test_game.analysis_status = "analyzed"
         test_game.analysis = {
-            "analysis_results": {"summary": {"user_accuracy": 85.5}, "moves": [{"move": "e4", "evaluation": 0.2}]}
+            "analysis_results": {
+                "summary": {"user_accuracy": 85.5},
+                "moves": [{"move": "e4", "evaluation": 0.2}],
+            }
         }
         test_game.save()
 
@@ -359,7 +400,11 @@ class TestGameViews:
         game_id = 123
 
         with patch.object(game_views.task_manager, "get_task_info") as mock_get_task_info:
-            mock_get_task_info.return_value = {"user_id": test_user.id, "game_id": game_id, "progress": 50}
+            mock_get_task_info.return_value = {
+                "user_id": test_user.id,
+                "game_id": game_id,
+                "progress": 50,
+            }
 
             with patch("core.game_views.AsyncResult") as mock_async_result:
                 mock_result = MagicMock()
@@ -431,7 +476,10 @@ class TestGameViews:
             analysis_status="not_analyzed",
         )
 
-        with patch("core.tasks.analyze_batch_games_task.delay", side_effect=Exception("broker unavailable")):
+        with patch(
+            "core.tasks.analyze_batch_games_task.delay",
+            side_effect=Exception("broker unavailable"),
+        ):
             url = reverse("batch_analyze")
             response = authenticated_client.post(url, {"game_ids": [game.id]}, format="json")
 
@@ -445,7 +493,11 @@ class TestGameViews:
         game_ids = [101, 102]
 
         with patch.object(game_views.task_manager, "get_task_info") as mock_get_task_info:
-            mock_get_task_info.return_value = {"user_id": test_user.id, "game_ids": game_ids, "progress": 75}
+            mock_get_task_info.return_value = {
+                "user_id": test_user.id,
+                "game_ids": game_ids,
+                "progress": 75,
+            }
 
             with patch("core.game_views.AsyncResult") as mock_async_result:
                 mock_result = MagicMock()
@@ -463,7 +515,10 @@ class TestGameViews:
         # Set up a game with analysis data
         test_game.analysis_status = "analyzed"
         test_game.analysis = {
-            "analysis_results": {"summary": {"user_accuracy": 85.5}, "moves": [{"move": "e4", "evaluation": 0.2}]}
+            "analysis_results": {
+                "summary": {"user_accuracy": 85.5},
+                "moves": [{"move": "e4", "evaluation": 0.2}],
+            }
         }
         test_game.save()
 
@@ -474,7 +529,11 @@ class TestGameViews:
 
         # Mock the feedback helper used by the feedback endpoint.
         with patch("core.feedback_views.generate_game_feedback") as mock_generate:
-            mock_generate.return_value = ("This is AI feedback for your game.", "gpt-4-turbo", 25)
+            mock_generate.return_value = (
+                "This is AI feedback for your game.",
+                "gpt-4-turbo",
+                25,
+            )
 
             url = reverse("generate_ai_feedback", kwargs={"game_id": test_game.id})
             response = authenticated_client.post(url)

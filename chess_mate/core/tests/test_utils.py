@@ -11,7 +11,17 @@ class TestChessUtils(TestCase):
 
     def test_is_valid_move_valid_inputs(self):
         """Test is_valid_move with valid chess moves."""
-        valid_moves = ["e4", "Nf3", "Qxe5", "Kd2", "Rxh8", "Bb5", "axb5", "O-O", "O-O-O"]
+        valid_moves = [
+            "e4",
+            "Nf3",
+            "Qxe5",
+            "Kd2",
+            "Rxh8",
+            "Bb5",
+            "axb5",
+            "O-O",
+            "O-O-O",
+        ]
         for move in valid_moves:
             self.assertTrue(is_valid_move(move), f"Expected '{move}' to be valid")
 

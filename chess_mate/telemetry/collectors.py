@@ -88,7 +88,11 @@ class GameAnalysisMetricCollector(MetricCollector):
         """Record the duration of a game analysis."""
         try:
             self.metrics["stockfish_analysis_duration_seconds"].observe(
-                duration, labels={"depth": str(depth), "game_length": self._categorize_game_length(moves)}
+                duration,
+                labels={
+                    "depth": str(depth),
+                    "game_length": self._categorize_game_length(moves),
+                },
             )
         except Exception as e:
             logger.error(f"Error recording analysis duration: {e}")

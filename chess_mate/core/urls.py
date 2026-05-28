@@ -17,5 +17,9 @@ urlpatterns = [
     path("health/", include("core.urls_health")),
     path("system/", include("core.urls_system")),
     path("batches/", include("core.urls_batches")),
-    path("v1/games/<int:game_id>/analysis/status/", game_views.get_task_status, name="game_analysis_status"),
+    path(
+        "v1/games/<int:game_id>/analysis/status/",
+        game_views.get_task_status,
+        name="game_analysis_status",
+    ),
 ]

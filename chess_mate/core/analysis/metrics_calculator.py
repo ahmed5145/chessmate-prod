@@ -101,7 +101,11 @@ class MetricsCalculator:
             endgame_metrics = MetricsCalculator._calculate_phase_metrics(endgame_moves, is_white)
 
             # Compile phase metrics
-            phase_metrics = {"opening": opening_metrics, "middlegame": middlegame_metrics, "endgame": endgame_metrics}
+            phase_metrics = {
+                "opening": opening_metrics,
+                "middlegame": middlegame_metrics,
+                "endgame": endgame_metrics,
+            }
 
             # Calculate tactical metrics
             tactical_metrics = MetricsCalculator._calculate_tactical_metrics(moves, is_white)
@@ -392,7 +396,11 @@ class MetricsCalculator:
             variance_penalty = min(30, (time_variance / (avg_time**2)) * 30)  # Up to 30 points
 
             time_management_score = max(
-                0, min(100, base_score - pressure_penalty - consistency_penalty - variance_penalty)
+                0,
+                min(
+                    100,
+                    base_score - pressure_penalty - consistency_penalty - variance_penalty,
+                ),
             )
 
             return {
@@ -414,7 +422,11 @@ class MetricsCalculator:
     def _calculate_phase_time_metrics(moves: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate time metrics for a specific game phase."""
         if not moves:
-            return {"average_time": 0.0, "time_pressure_percentage": 0.0, "time_consistency": 0.0}
+            return {
+                "average_time": 0.0,
+                "time_pressure_percentage": 0.0,
+                "time_consistency": 0.0,
+            }
 
         try:
             # Extract time spent values with proper conversion
@@ -428,7 +440,11 @@ class MetricsCalculator:
 
             # If we have no valid time data, return defaults
             if not time_spent or all(t == 0 for t in time_spent):
-                return {"average_time": 0.0, "time_pressure_percentage": 0.0, "time_consistency": 0.0}
+                return {
+                    "average_time": 0.0,
+                    "time_pressure_percentage": 0.0,
+                    "time_consistency": 0.0,
+                }
 
             avg_time = statistics.mean(time_spent)
 
@@ -452,7 +468,11 @@ class MetricsCalculator:
 
         except Exception as e:
             logger.error(f"Error calculating phase time metrics: {str(e)}")
-            return {"average_time": 0.0, "time_pressure_percentage": 0.0, "time_consistency": 0.0}
+            return {
+                "average_time": 0.0,
+                "time_pressure_percentage": 0.0,
+                "time_consistency": 0.0,
+            }
 
     @staticmethod
     def _calculate_time_management_score(
@@ -665,12 +685,20 @@ class MetricsCalculator:
                 elif classification == "inaccuracy":
                     inaccuracies_count += 1
 
-                eval_drop = float(move.get("evaluation_drop", max(0.0, -float(move.get("eval_change", 0.0)))))
+                eval_drop = float(
+                    move.get(
+                        "evaluation_drop",
+                        max(0.0, -float(move.get("eval_change", 0.0))),
+                    )
+                )
                 if bool(move.get("is_critical", False)) or eval_drop >= 100.0:
                     critical_moves += 1
                     opportunities += 1
 
-                is_best_move = bool(move.get("is_best", False)) or classification in {"good", "excellent"}
+                is_best_move = bool(move.get("is_best", False)) or classification in {
+                    "good",
+                    "excellent",
+                }
                 if is_best_move:
                     best_moves += 1
 
@@ -1183,7 +1211,13 @@ class MetricsCalculator:
                 for m in moves
                 if (
                     MetricsCalculator._normalized_classification(m) == "inaccuracy"
-                    or float(m.get("evaluation_drop", max(0.0, -float(m.get("eval_change", 0.0))))) > 100.0
+                    or float(
+                        m.get(
+                            "evaluation_drop",
+                            max(0.0, -float(m.get("eval_change", 0.0))),
+                        )
+                    )
+                    > 100.0
                 )
             )
             quality_moves = sum(
@@ -1202,7 +1236,13 @@ class MetricsCalculator:
                 for m in moves
                 if (
                     m.get("is_critical", False)
-                    or float(m.get("evaluation_drop", max(0.0, -float(m.get("eval_change", 0.0))))) >= 1.0
+                    or float(
+                        m.get(
+                            "evaluation_drop",
+                            max(0.0, -float(m.get("eval_change", 0.0))),
+                        )
+                    )
+                    >= 1.0
                 )
             )
 
@@ -1281,7 +1321,8 @@ class MetricsCalculator:
                             time_mgmt = phase_data["time_management"]
                             time_mgmt["average_time"] = max(0, min(3600, time_mgmt.get("average_time", 0)))
                             time_mgmt["time_pressure_percentage"] = max(
-                                0, min(100, time_mgmt.get("time_pressure_percentage", 0))
+                                0,
+                                min(100, time_mgmt.get("time_pressure_percentage", 0)),
                             )
                             time_mgmt["time_consistency"] = max(0, min(100, time_mgmt.get("time_consistency", 0)))
 
@@ -1289,7 +1330,10 @@ class MetricsCalculator:
             if "tactics" in metrics:
                 tactics = metrics["tactics"]
                 tactics["opportunities"] = max(0, tactics.get("opportunities", 0))
-                tactics["successful"] = max(0, min(tactics.get("successful", 0), tactics.get("opportunities", 0)))
+                tactics["successful"] = max(
+                    0,
+                    min(tactics.get("successful", 0), tactics.get("opportunities", 0)),
+                )
                 tactics["brilliant_moves"] = max(0, tactics.get("brilliant_moves", 0))
                 tactics["missed"] = max(0, tactics.get("missed", 0))
                 tactics["success_rate"] = max(0, min(100, tactics.get("success_rate", 0)))
@@ -1301,7 +1345,11 @@ class MetricsCalculator:
                 time_mgmt = metrics["time_management"]
                 time_mgmt["average_time"] = max(0, min(3600, time_mgmt.get("average_time", 0)))
                 time_mgmt["avg_time_per_move"] = max(
-                    0, min(3600, time_mgmt.get("avg_time_per_move", time_mgmt.get("average_time", 0)))
+                    0,
+                    min(
+                        3600,
+                        time_mgmt.get("avg_time_per_move", time_mgmt.get("average_time", 0)),
+                    ),
                 )
                 time_mgmt["time_variance"] = max(0, time_mgmt.get("time_variance", 0))
                 time_mgmt["time_consistency"] = max(0, min(100, time_mgmt.get("time_consistency", 0)))
@@ -1310,7 +1358,14 @@ class MetricsCalculator:
                 time_mgmt["time_pressure_percentage"] = max(0, min(100, time_mgmt.get("time_pressure_percentage", 0)))
                 time_mgmt["time_usage"] = max(0, min(100, time_mgmt.get("time_usage", 0)))
                 time_mgmt["time_pressure"] = max(
-                    0, min(100, time_mgmt.get("time_pressure", time_mgmt.get("time_pressure_percentage", 0)))
+                    0,
+                    min(
+                        100,
+                        time_mgmt.get(
+                            "time_pressure",
+                            time_mgmt.get("time_pressure_percentage", 0),
+                        ),
+                    ),
                 )
                 status_value = str(time_mgmt.get("data_status", "")).lower()
                 time_mgmt["data_status"] = "available" if status_value == "available" else "unavailable"
@@ -1450,7 +1505,13 @@ class MetricsCalculator:
         """
         try:
             if not moves:
-                return {"accuracy": 0.0, "mistakes": 0.0, "blunders": 0.0, "inaccuracies": 0.0, "quality_moves": 0.0}
+                return {
+                    "accuracy": 0.0,
+                    "mistakes": 0.0,
+                    "blunders": 0.0,
+                    "inaccuracies": 0.0,
+                    "quality_moves": 0.0,
+                }
 
             total_moves = float(len(moves))
 

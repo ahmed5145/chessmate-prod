@@ -32,8 +32,17 @@ def test_user():
 
 @pytest.fixture
 def unverified_user():
-    user = User.objects.create_user(username="unverified", email="unverified@example.com", password="testpassword123")
-    Profile.objects.create(user=user, email_verified=False, email_verification_token="test-token-123", credits=10)
+    user = User.objects.create_user(
+        username="unverified",
+        email="unverified@example.com",
+        password="testpassword123",
+    )
+    Profile.objects.create(
+        user=user,
+        email_verified=False,
+        email_verification_token="test-token-123",
+        credits=10,
+    )
     return user
 
 
@@ -169,9 +178,16 @@ class TestAuthViews:
 
     def test_reset_password(self, api_client, test_user):
         # Mock token validation
-        with patch("django.contrib.auth.tokens.default_token_generator.check_token", return_value=True):
+        with patch(
+            "django.contrib.auth.tokens.default_token_generator.check_token",
+            return_value=True,
+        ):
             url = reverse("reset_password")
-            data = {"token": "valid-token", "user_id": str(test_user.id), "password": "NewStrong.Password.123"}
+            data = {
+                "token": "valid-token",
+                "user_id": str(test_user.id),
+                "password": "NewStrong.Password.123",
+            }
 
             response = api_client.post(url, data, format="json")
 
@@ -238,7 +254,9 @@ class TestErrorHandling:
         # Try to login with invalid credentials
         url = reverse("login")
         response = api_client.post(
-            url, {"email": "nonexistent@example.com", "password": "wrongpassword"}, format="json"
+            url,
+            {"email": "nonexistent@example.com", "password": "wrongpassword"},
+            format="json",
         )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -254,7 +272,13 @@ class TestErrorHandling:
         # Register a new user
         url = reverse("register")
         response = api_client.post(
-            url, {"username": "testuser", "email": "test@example.com", "password": "SecurePassword123!"}, format="json"
+            url,
+            {
+                "username": "testuser",
+                "email": "test@example.com",
+                "password": "SecurePassword123!",
+            },
+            format="json",
         )
 
         assert response.status_code == status.HTTP_201_CREATED

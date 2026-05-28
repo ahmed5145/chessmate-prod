@@ -397,7 +397,12 @@ class StockfishAnalyzer:
             logger.error(f"Error in __del__: {str(e)}")
 
     def analyze_move(
-        self, board: chess.Board, move: chess.Move, time_spent: float = 0, total_time: float = 900, increment: float = 0
+        self,
+        board: chess.Board,
+        move: chess.Move,
+        time_spent: float = 0,
+        total_time: float = 900,
+        increment: float = 0,
     ) -> Dict[str, Any]:
         """Analyze a chess move using Stockfish engine."""
         try:
@@ -456,7 +461,11 @@ class StockfishAnalyzer:
             }
 
     def _is_tactical_move(
-        self, board: chess.Board, move: chess.Move, eval_improvement: float, position_metrics: Dict[str, Any]
+        self,
+        board: chess.Board,
+        move: chess.Move,
+        eval_improvement: float,
+        position_metrics: Dict[str, Any],
     ) -> bool:
         """Determine if a move is tactical."""
         try:
@@ -480,7 +489,12 @@ class StockfishAnalyzer:
             if is_capture:
                 if captured_piece:
                     piece_type = captured_piece.piece_type
-                    if piece_type in [chess.QUEEN, chess.ROOK, chess.BISHOP, chess.KNIGHT]:
+                    if piece_type in [
+                        chess.QUEEN,
+                        chess.ROOK,
+                        chess.BISHOP,
+                        chess.KNIGHT,
+                    ]:
                         return True  # Capturing major or minor piece is always tactical
 
             # Mate threats are always tactical
@@ -539,7 +553,13 @@ class StockfishAnalyzer:
                 attacked_piece = board.piece_at(square)
                 if attacked_piece and board.is_attacked_by(not board.turn, square):
                     attacked_pieces += 1
-                    piece_values = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
+                    piece_values = {
+                        chess.PAWN: 1,
+                        chess.KNIGHT: 3,
+                        chess.BISHOP: 3,
+                        chess.ROOK: 5,
+                        chess.QUEEN: 9,
+                    }
                     attacked_values += piece_values.get(attacked_piece.piece_type, 0)
 
             # Consider it a fork if attacking multiple pieces with significant value
@@ -579,7 +599,13 @@ class StockfishAnalyzer:
             logger.error(f"Error in _is_pin: {str(e)}")
             return False
 
-    def _is_critical_move(self, board: chess.Board, move: chess.Move, eval_before: float, eval_after: float) -> bool:
+    def _is_critical_move(
+        self,
+        board: chess.Board,
+        move: chess.Move,
+        eval_before: float,
+        eval_after: float,
+    ) -> bool:
         """Determine if a move is critical."""
         try:
             # Large evaluation change
@@ -599,7 +625,10 @@ class StockfishAnalyzer:
             # Capture of major piece
             if board.is_capture(move):
                 captured_piece = board.piece_at(move.to_square)
-                if captured_piece and captured_piece.piece_type in [chess.QUEEN, chess.ROOK]:
+                if captured_piece and captured_piece.piece_type in [
+                    chess.QUEEN,
+                    chess.ROOK,
+                ]:
                     return True
 
             return False
@@ -658,7 +687,13 @@ class StockfishAnalyzer:
             # Get captured piece value if any
             captured_piece = board.piece_at(move.to_square)
             if captured_piece:
-                piece_values = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
+                piece_values = {
+                    chess.PAWN: 1,
+                    chess.KNIGHT: 3,
+                    chess.BISHOP: 3,
+                    chess.ROOK: 5,
+                    chess.QUEEN: 9,
+                }
                 return piece_values.get(captured_piece.piece_type, 0)
             return 0
         except Exception as e:
@@ -926,7 +961,7 @@ class StockfishAnalyzer:
                     "best_move_san": best_move_san,
                     "is_best": bool(best_move and move.uci() == best_move),
                     "is_critical": abs(float(eval_change)) >= 1.0,
-                    "best_line": position_before.get("pv", [])[:5] if position_before.get("pv") else [],
+                    "best_line": (position_before.get("pv", [])[:5] if position_before.get("pv") else []),
                     "position": position_before.get("fen", board.fen()),
                     "time": time_spent,
                     "time_spent": time_spent,
@@ -943,7 +978,14 @@ class StockfishAnalyzer:
             logger.error(f"Error analyzing PGN game: {str(e)}")
             raise AnalysisError(f"Failed to analyze PGN game: {str(e)}")
 
-    def _classify_move(self, eval_change, eval_before=None, eval_after=None, played_move=None, best_move=None):
+    def _classify_move(
+        self,
+        eval_change,
+        eval_before=None,
+        eval_after=None,
+        played_move=None,
+        best_move=None,
+    ):
         """
         Classify a move based on evaluation change.
 

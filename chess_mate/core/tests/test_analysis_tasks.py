@@ -15,7 +15,12 @@ from django.utils import timezone
 def test_user(db):
     """Create test user with profile."""
     user = User.objects.create(username="testuser", email="test@example.com")
-    profile = Profile.objects.create(user=user, chess_com_username="testuser", lichess_username="testuser", credits=100)
+    profile = Profile.objects.create(
+        user=user,
+        chess_com_username="testuser",
+        lichess_username="testuser",
+        credits=100,
+    )
     return user
 
 
@@ -110,7 +115,11 @@ class TestAnalysisTasks:
         """Test successful game analysis."""
         # Call the task
         result = analyze_game(
-            game_id=test_game.id, user_id=test_user.id, stockfish_path="/path/to/stockfish", depth=20, use_ai=True
+            game_id=test_game.id,
+            user_id=test_user.id,
+            stockfish_path="/path/to/stockfish",
+            depth=20,
+            use_ai=True,
         )
 
         # Check that StockfishAnalyzer was initialized and used
@@ -141,7 +150,12 @@ class TestAnalysisTasks:
     def test_analyze_game_nonexistent_game(self, test_user):
         """Test analysis with non-existent game ID."""
         # Call the task with a non-existent game ID
-        result = analyze_game(game_id=999999, user_id=test_user.id, stockfish_path="/path/to/stockfish", depth=20)
+        result = analyze_game(
+            game_id=999999,
+            user_id=test_user.id,
+            stockfish_path="/path/to/stockfish",
+            depth=20,
+        )
 
         # Check that the result indicates failure
         assert result["status"] == "error"
@@ -157,7 +171,12 @@ class TestAnalysisTasks:
         self.mock_stockfish_instance.analyze_game.side_effect = Exception("Stockfish error")
 
         # Call the task
-        result = analyze_game(game_id=test_game.id, user_id=test_user.id, stockfish_path="/path/to/stockfish", depth=20)
+        result = analyze_game(
+            game_id=test_game.id,
+            user_id=test_user.id,
+            stockfish_path="/path/to/stockfish",
+            depth=20,
+        )
 
         # Check that the result indicates failure
         assert result["status"] == "error"
@@ -171,7 +190,11 @@ class TestAnalysisTasks:
         """Test analysis without AI feedback."""
         # Call the task with use_ai=False
         result = analyze_game(
-            game_id=test_game.id, user_id=test_user.id, stockfish_path="/path/to/stockfish", depth=20, use_ai=False
+            game_id=test_game.id,
+            user_id=test_user.id,
+            stockfish_path="/path/to/stockfish",
+            depth=20,
+            use_ai=False,
         )
 
         # Check that StockfishAnalyzer was used
@@ -206,7 +229,10 @@ class TestAnalysisTasks:
 
             # Call the batch task
             result = batch_analyze_games(
-                game_ids=[test_game.id, game2.id], user_id=test_user.id, stockfish_path="/path/to/stockfish", depth=20
+                game_ids=[test_game.id, game2.id],
+                user_id=test_user.id,
+                stockfish_path="/path/to/stockfish",
+                depth=20,
             )
 
             # Check that analyze_game was called for each game
@@ -240,7 +266,10 @@ class TestAnalysisTasks:
 
             # Call the batch task
             result = batch_analyze_games(
-                game_ids=[test_game.id, game2.id], user_id=test_user.id, stockfish_path="/path/to/stockfish", depth=20
+                game_ids=[test_game.id, game2.id],
+                user_id=test_user.id,
+                stockfish_path="/path/to/stockfish",
+                depth=20,
             )
 
             # Check that analyze_game was called for each game
@@ -256,7 +285,12 @@ class TestAnalysisTasks:
     def test_batch_analyze_empty_game_list(self, test_user):
         """Test batch analysis with empty game list."""
         # Call the batch task with an empty list
-        result = batch_analyze_games(game_ids=[], user_id=test_user.id, stockfish_path="/path/to/stockfish", depth=20)
+        result = batch_analyze_games(
+            game_ids=[],
+            user_id=test_user.id,
+            stockfish_path="/path/to/stockfish",
+            depth=20,
+        )
 
         # Check the result
         assert result["status"] == "error"

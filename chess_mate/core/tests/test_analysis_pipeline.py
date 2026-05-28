@@ -204,8 +204,20 @@ class TestGameAnalysis:
                 "analysis_complete": True,
                 "analysis_results": {
                     "moves": [
-                        {"move": "e4", "score": 10, "depth": 20, "nodes": 1000, "time": 0.5},
-                        {"move": "e5", "score": 15, "depth": 20, "nodes": 1000, "time": 0.5},
+                        {
+                            "move": "e4",
+                            "score": 10,
+                            "depth": 20,
+                            "nodes": 1000,
+                            "time": 0.5,
+                        },
+                        {
+                            "move": "e5",
+                            "score": 15,
+                            "depth": 20,
+                            "nodes": 1000,
+                            "time": 0.5,
+                        },
                     ],
                     "summary": {
                         "overall": {"accuracy": 85, "mistakes": 0, "blunders": 0},

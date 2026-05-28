@@ -231,7 +231,11 @@ class TestBatchAnalysisReportSerializer(TestCase):
         ]
         coaching_report = {
             "executive_summary": "Good performance",
-            "coaching_narrative": {"opening": "Strong", "middlegame": "OK", "endgame": "Weak"},
+            "coaching_narrative": {
+                "opening": "Strong",
+                "middlegame": "OK",
+                "endgame": "Weak",
+            },
         }
 
         batch_report = BatchAnalysisReport.objects.create(

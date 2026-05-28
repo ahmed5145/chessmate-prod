@@ -90,7 +90,12 @@ def analyze_game_safely(game_id, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use
                     game_id=game_id,
                 )
             except TASK_START_EXCEPTIONS as task_error:
-                logger.error("Failed to create task for game %s: %s", game_id, task_error, exc_info=True)
+                logger.error(
+                    "Failed to create task for game %s: %s",
+                    game_id,
+                    task_error,
+                    exc_info=True,
+                )
                 return {
                     "status": "error",
                     "message": f"Task creation failed: {task_error}",

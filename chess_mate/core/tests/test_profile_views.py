@@ -31,7 +31,11 @@ def test_user():
         lichess_username="testuser_lichess",
         elo_rating=1500,
         analysis_count=5,
-        preferences={"theme": "light", "notifications_enabled": True, "analysis_depth": "balanced"},
+        preferences={
+            "theme": "light",
+            "notifications_enabled": True,
+            "analysis_depth": "balanced",
+        },
     )
     return user
 
@@ -129,7 +133,10 @@ class TestProfileViews:
     def test_subscribe_pro_plan(self, authenticated_client, test_user):
         # Mock Stripe API calls
         with patch("stripe.PaymentIntent.create") as mock_payment_intent:
-            mock_payment_intent.return_value = {"id": "pi_test123", "client_secret": "secret_test123"}
+            mock_payment_intent.return_value = {
+                "id": "pi_test123",
+                "client_secret": "secret_test123",
+            }
 
             url = reverse("subscribe_pro_plan")
             data = {"plan": "monthly", "payment_method_id": "pm_test123"}
@@ -157,12 +164,18 @@ class TestProfileViews:
     def test_confirm_subscription(self, authenticated_client, test_user):
         # Create a pending subscription
         subscription = Subscription.objects.create(
-            user=test_user, plan="monthly", stripe_subscription_id="sub_test123", active=False
+            user=test_user,
+            plan="monthly",
+            stripe_subscription_id="sub_test123",
+            active=False,
         )
 
         # Mock Stripe API calls
         with patch("stripe.Subscription.retrieve") as mock_retrieve:
-            mock_retrieve.return_value = {"status": "active", "current_period_end": 1672531200}  # 2023-01-01T00:00:00Z
+            mock_retrieve.return_value = {
+                "status": "active",
+                "current_period_end": 1672531200,
+            }  # 2023-01-01T00:00:00Z
 
             url = reverse("confirm_subscription")
             data = {"subscription_id": "sub_test123"}
@@ -182,7 +195,10 @@ class TestProfileViews:
 
         # Mock Stripe API calls
         with patch("stripe.PaymentIntent.create") as mock_payment_intent:
-            mock_payment_intent.return_value = {"id": "pi_test123", "client_secret": "secret_test123"}
+            mock_payment_intent.return_value = {
+                "id": "pi_test123",
+                "client_secret": "secret_test123",
+            }
 
             url = reverse("purchase_credits")
             data = {"credit_package": "50_credits", "payment_method_id": "pm_test123"}
@@ -210,7 +226,11 @@ class TestProfileViews:
 
         # Create a pending payment
         payment = Payment.objects.create(
-            user=test_user, amount=9.99, credit_amount=50, stripe_payment_id="pi_test123", status="pending"
+            user=test_user,
+            amount=9.99,
+            credit_amount=50,
+            stripe_payment_id="pi_test123",
+            status="pending",
         )
 
         # Mock Stripe API calls
@@ -235,7 +255,13 @@ class TestProfileViews:
 
     def test_update_preferences(self, authenticated_client, test_user):
         url = reverse("update_preferences")
-        data = {"preferences": {"theme": "dark", "notifications_enabled": False, "analysis_depth": "deep"}}
+        data = {
+            "preferences": {
+                "theme": "dark",
+                "notifications_enabled": False,
+                "analysis_depth": "deep",
+            }
+        }
         response = authenticated_client.patch(url, data, format="json")
 
         assert response.status_code == status.HTTP_200_OK

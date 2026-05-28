@@ -13,7 +13,15 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="BatchAnalysisReport",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
                 ("task_id", models.CharField(db_index=True, max_length=255)),
                 ("game_ids", models.JSONField(blank=True, default=list)),
                 ("games_count", models.IntegerField(default=0)),

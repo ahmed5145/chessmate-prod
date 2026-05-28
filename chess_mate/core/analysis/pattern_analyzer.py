@@ -36,7 +36,12 @@ class PatternAnalyzer:
                 patterns = self._load_patterns_from_file()
 
                 # Cache patterns
-                cache_set("chess_patterns", patterns, timeout=86400, backend=CACHE_BACKEND_REDIS)  # 24 hours
+                cache_set(
+                    "chess_patterns",
+                    patterns,
+                    timeout=86400,
+                    backend=CACHE_BACKEND_REDIS,
+                )  # 24 hours
 
             return patterns
 
@@ -75,7 +80,12 @@ class PatternAnalyzer:
 
             if pattern_analysis:
                 # Cache analysis
-                cache_set(cache_key, pattern_analysis, timeout=3600, backend=CACHE_BACKEND_REDIS)  # 1 hour
+                cache_set(
+                    cache_key,
+                    pattern_analysis,
+                    timeout=3600,
+                    backend=CACHE_BACKEND_REDIS,
+                )  # 1 hour
 
             return pattern_analysis
 
@@ -92,7 +102,10 @@ class PatternAnalyzer:
 
             if not game_data:
                 # Generate game data
-                game_data = {"moves": self._get_game_moves(game), "positions": self._get_game_positions(game)}
+                game_data = {
+                    "moves": self._get_game_moves(game),
+                    "positions": self._get_game_positions(game),
+                }
 
                 # Cache game data
                 cache_set(cache_key, game_data, timeout=3600, backend=CACHE_BACKEND_REDIS)  # 1 hour
@@ -112,7 +125,14 @@ class PatternAnalyzer:
             # Format moves for analysis
             formatted_moves = []
             for move in moves:
-                formatted_moves.append({"fen": move.fen, "san": move.san, "number": move.number, "color": move.color})
+                formatted_moves.append(
+                    {
+                        "fen": move.fen,
+                        "san": move.san,
+                        "number": move.number,
+                        "color": move.color,
+                    }
+                )
 
             return formatted_moves
 
@@ -130,7 +150,11 @@ class PatternAnalyzer:
             formatted_positions = []
             for position in positions:
                 formatted_positions.append(
-                    {"fen": position.fen, "evaluation": position.evaluation, "depth": position.depth}
+                    {
+                        "fen": position.fen,
+                        "evaluation": position.evaluation,
+                        "depth": position.depth,
+                    }
                 )
 
             return formatted_positions
@@ -220,7 +244,11 @@ class PatternAnalyzer:
     def _calculate_pattern_statistics(self, patterns: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate pattern statistics."""
         try:
-            statistics = {"total_patterns": len(patterns), "pattern_types": {}, "pattern_frequency": {}}
+            statistics = {
+                "total_patterns": len(patterns),
+                "pattern_types": {},
+                "pattern_frequency": {},
+            }
 
             for pattern in patterns:
                 # Count pattern types
@@ -243,7 +271,11 @@ class PatternAnalyzer:
 
     def _initialize_methods(self):
         """Ensure all required methods are available."""
-        required_methods = ["_is_pin", "_has_isolated_pawn_structure", "_is_pawn_endgame"]
+        required_methods = [
+            "_is_pin",
+            "_has_isolated_pawn_structure",
+            "_is_pawn_endgame",
+        ]
         for method in required_methods:
             if not hasattr(self, method):
                 logger.error(f"Missing required method: {method}")

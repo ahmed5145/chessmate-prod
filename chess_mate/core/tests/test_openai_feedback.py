@@ -90,11 +90,26 @@ class TestOpenAIFeedback(TestCase):
                     "evaluation": "Equal position",
                     "personalized_comment": "Strong tactical play",
                 },
-                "opening": {"analysis": "Solid opening play", "suggestions": ["Develop pieces faster"]},
-                "middlegame": {"analysis": "Good tactical awareness", "suggestions": ["Look for combinations"]},
-                "endgame": {"analysis": "Technical conversion", "suggestions": ["Practice endgames"]},
-                "tactics": {"analysis": "Good tactical vision", "suggestions": ["Practice tactics"]},
-                "time_management": {"analysis": "Good time usage", "suggestions": ["Be more consistent"]},
+                "opening": {
+                    "analysis": "Solid opening play",
+                    "suggestions": ["Develop pieces faster"],
+                },
+                "middlegame": {
+                    "analysis": "Good tactical awareness",
+                    "suggestions": ["Look for combinations"],
+                },
+                "endgame": {
+                    "analysis": "Technical conversion",
+                    "suggestions": ["Practice endgames"],
+                },
+                "tactics": {
+                    "analysis": "Good tactical vision",
+                    "suggestions": ["Practice tactics"],
+                },
+                "time_management": {
+                    "analysis": "Good time usage",
+                    "suggestions": ["Be more consistent"],
+                },
             }
         }
 

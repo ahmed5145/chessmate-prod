@@ -120,7 +120,12 @@ class TestUtilViews:
         with patch.object(
             util_views,
             "VERSION_DATA",
-            {"version": "1.2.3", "build_date": "2023-05-15T12:00:00Z", "git_commit": "abc1234", "environment": "test"},
+            {
+                "version": "1.2.3",
+                "build_date": "2023-05-15T12:00:00Z",
+                "git_commit": "abc1234",
+                "environment": "test",
+            },
         ):
             url = reverse("version")
             response = api_client.get(url)
@@ -166,7 +171,11 @@ class TestUtilViews:
             "ips": {"127.0.0.1": {"total_requests": 500, "blocked_requests": 10}},
         }
 
-        with patch.object(util_views.rate_limiter, "get_rate_limit_info", return_value=mock_limiter_info):
+        with patch.object(
+            util_views.rate_limiter,
+            "get_rate_limit_info",
+            return_value=mock_limiter_info,
+        ):
             url = reverse("rate_limiter_info")
             response = authenticated_client.get(url)
 

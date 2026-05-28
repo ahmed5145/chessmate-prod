@@ -150,7 +150,12 @@ def validate_request(
             if request.method == "GET" and required_get_params:
                 for param in required_get_params:
                     if not request.GET.get(param):
-                        errors.append({"field": param, "message": f"Required GET parameter missing: {param}"})
+                        errors.append(
+                            {
+                                "field": param,
+                                "message": f"Required GET parameter missing: {param}",
+                            }
+                        )
 
             # Check if it's a POST/PUT request with JSON body
             elif request.method in ["POST", "PUT", "PATCH"] and required_fields:
@@ -162,14 +167,31 @@ def validate_request(
                         # Validate required fields
                         for field in required_fields:
                             if field not in data:
-                                errors.append({"field": field, "message": f"Required field missing: {field}"})
+                                errors.append(
+                                    {
+                                        "field": field,
+                                        "message": f"Required field missing: {field}",
+                                    }
+                                )
                 except json.JSONDecodeError:
-                    errors.append({"field": "body", "message": "Invalid JSON format in request body"})
+                    errors.append(
+                        {
+                            "field": "body",
+                            "message": "Invalid JSON format in request body",
+                        }
+                    )
 
             # If there are validation errors, return error response
             if errors:
                 logger.warning("Validation failed for %s: %s", request.path, errors)
-                return JsonResponse({"status": "error", "message": "Validation failed", "errors": errors}, status=400)
+                return JsonResponse(
+                    {
+                        "status": "error",
+                        "message": "Validation failed",
+                        "errors": errors,
+                    },
+                    status=400,
+                )
 
             # No validation errors, proceed with the view
             return view_func(request, *args, **kwargs)

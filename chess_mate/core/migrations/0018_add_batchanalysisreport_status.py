@@ -42,13 +42,21 @@ class Migration(migrations.Migration):
             model_name="player",
             name="color",
             field=models.CharField(
-                blank=True, choices=[("white", "White"), ("black", "Black")], max_length=10, null=True
+                blank=True,
+                choices=[("white", "White"), ("black", "Black")],
+                max_length=10,
+                null=True,
             ),
         ),
         migrations.AddField(
             model_name="player",
             name="game",
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to="core.game"),
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to="core.game",
+            ),
         ),
         migrations.AddField(
             model_name="player",
@@ -59,7 +67,10 @@ class Migration(migrations.Migration):
             model_name="player",
             name="user",
             field=models.ForeignKey(
-                blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to=settings.AUTH_USER_MODEL,
             ),
         ),
         migrations.AddField(

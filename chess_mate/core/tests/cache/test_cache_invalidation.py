@@ -215,7 +215,11 @@ class CacheInvalidationTestCase(TestCase):
         mock_invalidate_cache.assert_any_call("profile")
 
         # Test global invalidation
-        response = self.client.post("/api/v1/system/cache/clear/", data=json.dumps({}), content_type="application/json")
+        response = self.client.post(
+            "/api/v1/system/cache/clear/",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
 
         # Verify the response and that invalidate_cache was called with global tag
         self.assertEqual(response.status_code, 200)

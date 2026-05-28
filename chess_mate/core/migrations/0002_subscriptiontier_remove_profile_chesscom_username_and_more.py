@@ -17,7 +17,15 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="SubscriptionTier",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
                 ("name", models.CharField(max_length=100)),
                 ("slug", models.SlugField(unique=True)),
                 ("price", models.DecimalField(decimal_places=2, max_digits=10)),
@@ -26,7 +34,10 @@ class Migration(migrations.Migration):
                 ("credits_per_period", models.IntegerField(default=0)),
                 ("period_length", models.IntegerField(default=30)),
                 ("is_active", models.BooleanField(default=True)),
-                ("stripe_price_id", models.CharField(blank=True, max_length=100, null=True)),
+                (
+                    "stripe_price_id",
+                    models.CharField(blank=True, max_length=100, null=True),
+                ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
             ],
@@ -38,9 +49,23 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="Subscription",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("stripe_subscription_id", models.CharField(blank=True, max_length=100, null=True)),
-                ("stripe_customer_id", models.CharField(blank=True, max_length=100, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "stripe_subscription_id",
+                    models.CharField(blank=True, max_length=100, null=True),
+                ),
+                (
+                    "stripe_customer_id",
+                    models.CharField(blank=True, max_length=100, null=True),
+                ),
                 ("plan", models.CharField(max_length=100)),
                 (
                     "status",
@@ -62,11 +87,20 @@ class Migration(migrations.Migration):
                 ("is_active", models.BooleanField(default=True)),
                 ("credits_per_period", models.IntegerField(default=0)),
                 ("credits_remaining", models.IntegerField(default=0)),
-                ("last_credit_reset", models.DateTimeField(default=django.utils.timezone.now)),
+                (
+                    "last_credit_reset",
+                    models.DateTimeField(default=django.utils.timezone.now),
+                ),
                 ("metadata", models.JSONField(blank=True, default=dict)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
-                ("tier", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to="core.subscriptiontier")),
+                (
+                    "tier",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        to="core.subscriptiontier",
+                    ),
+                ),
                 (
                     "user",
                     models.ForeignKey(

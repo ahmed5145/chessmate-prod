@@ -200,7 +200,9 @@ def _compute_overall_accuracy(per_game_results: List[Dict[str, Any]]) -> float:
     return round(overall, 2)
 
 
-def _compute_phase_performance(per_game_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _compute_phase_performance(
+    per_game_results: List[Dict[str, Any]],
+) -> Dict[str, Any]:
     """
     Compute score, trend, and worst_aspect for each phase.
     worst_aspect uses enum: tactical_oversight | time_pressure | positional | technique
@@ -299,7 +301,9 @@ def _map_theme_to_aspect(tactical_theme: str) -> str:
     return enum_values.get(tactical_theme, "tactical_oversight")
 
 
-def _find_recurring_weaknesses(per_game_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _find_recurring_weaknesses(
+    per_game_results: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     """
     Find patterns (tactical themes) appearing in ≥30% of games.
     """
@@ -367,7 +371,9 @@ def _find_recurring_weaknesses(per_game_results: List[Dict[str, Any]]) -> List[D
     return recurring
 
 
-def _find_strength_patterns(per_game_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _find_strength_patterns(
+    per_game_results: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     """
     Find patterns where player performed well in ≥60% of games.
     This is currently a placeholder; in full implementation would track

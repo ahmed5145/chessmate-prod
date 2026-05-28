@@ -163,7 +163,11 @@ class TestGameAnalyzer:
         # Call the method with custom parameters
         game_ids = [self.game.id, game2.id]
         task = self.analyzer.batch_analyze_games_async(
-            game_ids=game_ids, user_id=self.user.id, use_ai=False, depth=15, stockfish_path="/custom/path/to/stockfish"
+            game_ids=game_ids,
+            user_id=self.user.id,
+            use_ai=False,
+            depth=15,
+            stockfish_path="/custom/path/to/stockfish",
         )
 
         # Check that the Celery task was called with the correct arguments

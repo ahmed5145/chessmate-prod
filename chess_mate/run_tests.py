@@ -23,7 +23,13 @@ sys.path.insert(0, BASE_DIR)
 if not hasattr(inspect, "formatargspec"):
 
     def formatargspec(
-        args, varargs=None, varkw=None, defaults=None, kwonlyargs=(), kwonlydefaults=None, annotations=None
+        args,
+        varargs=None,
+        varkw=None,
+        defaults=None,
+        kwonlyargs=(),
+        kwonlydefaults=None,
+        annotations=None,
     ):
         """Replacement for inspect.formatargspec removed in Python 3.12"""
         _ = defaults
@@ -49,7 +55,11 @@ if not hasattr(inspect, "formatargspec"):
     inspect.formatargspec = formatargspec  # type: ignore[attr-defined,assignment]
 
 
-ArgSpec: Any = getattr(inspect, "ArgSpec", namedtuple("ArgSpec", ["args", "varargs", "keywords", "defaults"]))
+ArgSpec: Any = getattr(
+    inspect,
+    "ArgSpec",
+    namedtuple("ArgSpec", ["args", "varargs", "keywords", "defaults"]),
+)
 
 if not hasattr(inspect, "getargspec"):
 

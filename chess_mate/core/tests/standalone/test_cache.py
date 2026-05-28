@@ -92,7 +92,11 @@ class TestCacheOperations:
                 {"id": 1, "name": "Alice", "roles": ["admin", "user"]},
                 {"id": 2, "name": "Bob", "roles": ["user"]},
             ],
-            "settings": {"theme": "dark", "notifications": True, "limits": {"max_queries": 100, "timeout": 30}},
+            "settings": {
+                "theme": "dark",
+                "notifications": True,
+                "limits": {"max_queries": 100, "timeout": 30},
+            },
         }
 
         # Store in cache

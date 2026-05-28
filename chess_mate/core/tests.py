@@ -17,7 +17,9 @@ class FeedbackTestCase(TestCase):
     def setUp(self):
         # Create a user first
         self.user = User.objects.create_user(
-            username=f"test_user_{uuid.uuid4().hex[:8]}", password="test_pass", email="test@example.com"
+            username=f"test_user_{uuid.uuid4().hex[:8]}",
+            password="test_pass",
+            email="test@example.com",
         )
         # Delete any existing profile for this user
         Profile.objects.filter(user=self.user).delete()
@@ -61,7 +63,9 @@ class FeedbackTestCase(TestCase):
 class ChessComServiceTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username=f"test_user_{uuid.uuid4().hex[:8]}", password="test_pass", email="test@example.com"
+            username=f"test_user_{uuid.uuid4().hex[:8]}",
+            password="test_pass",
+            email="test@example.com",
         )
         self.profile = Profile.objects.create(user=self.user, credits=10)
         self.service = ChessComService()
@@ -80,8 +84,14 @@ class ChessComServiceTestCase(TestCase):
                     "url": f"https://chess.com/game/{i}",
                     "pgn": f'[Event "Test Game {i}"]\n1. e4 e5',
                     "time_class": "rapid",
-                    "white": {"username": username if i % 2 == 0 else "opponent", "rating": 1500},
-                    "black": {"username": "opponent" if i % 2 == 0 else username, "rating": 1500},
+                    "white": {
+                        "username": username if i % 2 == 0 else "opponent",
+                        "rating": 1500,
+                    },
+                    "black": {
+                        "username": "opponent" if i % 2 == 0 else username,
+                        "rating": 1500,
+                    },
                     "time_control": "10+0",
                 }
             )

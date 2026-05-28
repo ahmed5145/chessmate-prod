@@ -153,7 +153,11 @@ def sample_games(test_user):
                     "summary": {"user_accuracy": 75.8},
                     "mistakes": [
                         {"type": "blunder", "move_number": 7, "piece": "queen"},
-                        {"type": "missed_checkmate", "move_number": 25, "piece": "rook"},
+                        {
+                            "type": "missed_checkmate",
+                            "move_number": 25,
+                            "piece": "rook",
+                        },
                     ],
                 }
             },
@@ -199,7 +203,10 @@ class TestDashboardViews:
 
     def test_dashboard_view_cache_hit(self, authenticated_client, test_user):
         # Mock cached data
-        mock_data = {"user": {"username": "testuser", "credits": 10}, "game_stats": {"total_games": 5}}
+        mock_data = {
+            "user": {"username": "testuser", "credits": 10},
+            "game_stats": {"total_games": 5},
+        }
 
         # Mock the cache to return data
         with patch.object(dashboard_views.cache_manager, "get", return_value=mock_data):
@@ -244,7 +251,14 @@ class TestDashboardViews:
 
     def test_get_performance_trend_cache_hit(self, authenticated_client, test_user):
         # Mock cached data
-        mock_data = [{"game_id": 1, "date": "2023-01-01T12:00:00Z", "accuracy": 85.5, "result": "win"}]
+        mock_data = [
+            {
+                "game_id": 1,
+                "date": "2023-01-01T12:00:00Z",
+                "accuracy": 85.5,
+                "result": "win",
+            }
+        ]
 
         # Mock the cache to return data
         with patch.object(dashboard_views.cache_manager, "get", return_value=mock_data):
@@ -292,7 +306,14 @@ class TestDashboardViews:
             "total_mistakes": 6,
             "by_type": [{"type": "blunder", "count": 3, "percentage": 50.0}],
             "by_game_phase": {"opening": 33.3, "middlegame": 50.0, "endgame": 16.7},
-            "by_piece": {"queen": 33.3, "king": 16.7, "rook": 33.3, "bishop": 16.7, "knight": 0, "pawn": 0},
+            "by_piece": {
+                "queen": 33.3,
+                "king": 16.7,
+                "rook": 33.3,
+                "bishop": 16.7,
+                "knight": 0,
+                "pawn": 0,
+            },
         }
 
         # Mock the cache to return data

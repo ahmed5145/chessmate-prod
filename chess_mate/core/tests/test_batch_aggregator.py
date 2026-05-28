@@ -23,10 +23,25 @@ def _make_game_result(
         "opening_name": opening_name,
         "analysis_failed": False,
         "phase_breakdown": {
-            "opening": {"moves": 8, "avg_eval_drop": opening_drop, "blunders": 0, "mistakes": 1},
+            "opening": {
+                "moves": 8,
+                "avg_eval_drop": opening_drop,
+                "blunders": 0,
+                "mistakes": 1,
+            },
             # Keep middlegame empty to validate no_data sentinel behavior
-            "middlegame": {"moves": 0, "avg_eval_drop": 0.0, "blunders": 0, "mistakes": 0},
-            "endgame": {"moves": 6, "avg_eval_drop": endgame_drop, "blunders": 1, "mistakes": 0},
+            "middlegame": {
+                "moves": 0,
+                "avg_eval_drop": 0.0,
+                "blunders": 0,
+                "mistakes": 0,
+            },
+            "endgame": {
+                "moves": 6,
+                "avg_eval_drop": endgame_drop,
+                "blunders": 1,
+                "mistakes": 0,
+            },
         },
         "move_quality": {
             "brilliant": 0,
@@ -116,7 +131,13 @@ def test_batch_aggregator_schema_structure():
         assert "trend" in phase_data
         if phase_data["score"] is not None:
             assert 0.0 <= phase_data["score"] <= 1.0
-        assert phase_data["trend"] in ["strong", "weak", "average", "inconsistent", "no_data"]
+        assert phase_data["trend"] in [
+            "strong",
+            "weak",
+            "average",
+            "inconsistent",
+            "no_data",
+        ]
 
     # Opening phase must include primary_openings
     opening_phase = batch_summary["phase_performance"]["opening"]
@@ -127,7 +148,12 @@ def test_batch_aggregator_schema_structure():
     for phase_name in ["middlegame", "endgame"]:
         phase_data = batch_summary["phase_performance"][phase_name]
         assert "worst_aspect" in phase_data
-        assert phase_data["worst_aspect"] in ["tactical_oversight", "time_pressure", "positional", "technique"]
+        assert phase_data["worst_aspect"] in [
+            "tactical_oversight",
+            "time_pressure",
+            "positional",
+            "technique",
+        ]
 
     # Verify recurring_weaknesses structure
     assert isinstance(batch_summary["recurring_weaknesses"], list)
