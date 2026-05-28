@@ -2,14 +2,15 @@
 Celery tasks for game analysis.
 """
 
-from datetime import datetime
 import json
 import logging
 import os
 import time
 import traceback
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
+import redis
 from celery import Task, chord, group, shared_task
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
@@ -18,7 +19,6 @@ from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 from openai import OpenAI, OpenAIError
-import redis
 
 from .ai_feedback import AIFeedbackGenerator
 from .analysis.batch_aggregator import BatchAggregationError, aggregate_batch
@@ -822,8 +822,8 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
         # module's globals; honoring that ensures mocks are detected.
         try:
             import sys
-            from unittest.mock import Mock as _Mock
             from importlib import import_module
+            from unittest.mock import Mock as _Mock
 
             shipped_impl = None
 
