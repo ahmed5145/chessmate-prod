@@ -262,7 +262,6 @@ const BatchAnalysisResults = () => {
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [extraInput, setExtraInput] = useState('');
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
-  const [combinedIdsForRetry, setCombinedIdsForRetry] = useState([]);
   const [confirmActionName, setConfirmActionName] = useState('');
   const [confirmItems, setConfirmItems] = useState([]);
   const [confirmUsing, setConfirmUsing] = useState('');
@@ -1092,8 +1091,7 @@ const BatchAnalysisResults = () => {
     prepareConfirm('Retry Failed Games', failedIds, 'Game IDs', { gameIds: failedIds });
   };
 
-  const handleRetryIncludeCompleted = async () => {
-    // Combine failed ids with completed game ids to reach the minimum batch size
+  const prepareAndOpenRetryConfirm = () => {
     if (!Array.isArray(failedGames) || failedGames.length === 0) {
       toast.error('No failed games to retry');
       return;
@@ -1102,15 +1100,11 @@ const BatchAnalysisResults = () => {
     const failedIds = failedGames
       .map((f) => (typeof f === 'string' ? f : f.game_id || f.id || f.gameId || null))
       .filter(Boolean);
-
     const completedIds = Array.isArray(results)
       ? results.map((r) => r.game_id || r.id || null).filter(Boolean)
       : [];
-
-    // pick completed IDs until we reach 5 total
     const needed = Math.max(0, 5 - failedIds.length);
     const toAdd = completedIds.slice(0, needed);
-
     const combined = Array.from(new Set([...failedIds, ...toAdd]));
 
     if (combined.length < 5) {
@@ -1118,27 +1112,7 @@ const BatchAnalysisResults = () => {
       return;
     }
 
-    // Open confirmation dialog for including completed games
     prepareConfirm('Retry with Completed Games', combined, 'Game IDs', { gameIds: combined });
-  };
-
-  const prepareAndOpenRetryConfirm = () => {
-    const failedIds = failedGames
-      .map((f) => (typeof f === 'string' ? f : f.game_id || f.id || f.gameId || null))
-      .filter(Boolean);
-    const completedIds = Array.isArray(results)
-      ? results.map((r) => r.game_id || r.id || null).filter(Boolean)
-      : [];
-    const needed = Math.max(0, 5 - failedIds.length);
-    const toAdd = completedIds.slice(0, needed);
-    const combined = Array.from(new Set([...failedIds, ...toAdd]));
-    setCombinedIdsForRetry(combined);
-    prepareConfirm('Retry with Completed Games', combined, 'Game IDs', { gameIds: combined });
-  };
-
-  const handleConfirmRetry = async () => {
-    // Backwards-compat confirm handler now delegates to generic executor
-    await executeConfirmedAction();
   };
 
   const handleRegenerateCoaching = async () => {
