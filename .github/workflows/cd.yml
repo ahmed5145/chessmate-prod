@@ -71,6 +71,7 @@ jobs:
           Dockerfile \
           docker-entrypoint.sh \
           .dockerignore \
+          .ebextensions/ \
           requirements.txt \
           README.md \
           -x "*/node_modules/*" "node_modules/*"

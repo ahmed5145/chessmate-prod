@@ -31,8 +31,10 @@ RUN pip install --upgrade pip \
 # Copy project
 COPY . /app/
 
-# Build frontend (if present). We install Node 18 and run the build inside the image
-RUN if [ -d "chess_mate/frontend" ] && [ -f "chess_mate/frontend/package.json" ]; then \
+# Use CI-built static assets when present; otherwise build inside the image (local dev only)
+RUN if [ -f "chess_mate/frontend/build/index.html" ]; then \
+            echo "Using prebuilt frontend from chess_mate/frontend/build"; \
+        elif [ -d "chess_mate/frontend" ] && [ -f "chess_mate/frontend/package.json" ]; then \
             curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
             apt-get update && apt-get install -y --no-install-recommends nodejs && \
             cd chess_mate/frontend && npm ci && npm run build && rm -rf node_modules; \

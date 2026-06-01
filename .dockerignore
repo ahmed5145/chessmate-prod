@@ -32,7 +32,9 @@ node_modules
 npm-debug.log
 **/node_modules
 **/dist
+# Keep CRA build output from CI (EB deploy); do not exclude chess_mate/frontend/build
 **/build
+!chess_mate/frontend/build
 
 # Project specific
 media/
@@ -74,8 +76,6 @@ data/
 # Exclude node_modules
 node_modules/
 chess_mate/frontend/node_modules
-chess_mate/frontend/build
-
 
 .venv311
 .venv
