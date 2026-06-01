@@ -125,3 +125,7 @@ chess_mate/test_results.txt
 
 # Ignore local script helpers matching print_*.py
 chess_mate/scripts/print_*.py
+
+# Ignore Cursor Rules
+.cursor/
+.cursorrules
