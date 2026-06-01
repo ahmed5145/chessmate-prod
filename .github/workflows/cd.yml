@@ -188,22 +188,30 @@ jobs:
         echo "Skipping staging deployment: required staging SSH secrets are not configured."
 
     - name: Post-deployment checks
+      env:
+        REQUIRE_HEALTHCHECK: ${{ (github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging' || github.ref == 'refs/heads/staging') && 'true' || 'false' }}
       run: |
         echo "Deployment completed for environment: $DEPLOY_ENV"
         echo "Running post-deployment checks..."
+
         if [ -z "$HEALTHCHECK_URL" ]; then
-          echo "HEALTHCHECK_URL is not configured; skipping health check."
+          if [ "$REQUIRE_HEALTHCHECK" = "true" ]; then
+            echo "ERROR: HEALTHCHECK_URL must be set for staging/production deploys."
+            echo "Set it to https://<host>/readiness/ in the GitHub Environment variables."
+            exit 1
+          fi
+          echo "HEALTHCHECK_URL is not configured; skipping health check (non-staging/production)."
           exit 0
         fi
 
         for i in {1..10}; do
           if curl -fsS "$HEALTHCHECK_URL" >/dev/null; then
-            echo "Post-deployment health check passed"
+            echo "Post-deployment health check passed: $HEALTHCHECK_URL"
             exit 0
           fi
           echo "Health check attempt $i failed; retrying in 10s..."
           sleep 10
         done
 
-        echo "Post-deployment health check failed after retries"
+        echo "Post-deployment health check failed after retries: $HEALTHCHECK_URL"
         exit 1
