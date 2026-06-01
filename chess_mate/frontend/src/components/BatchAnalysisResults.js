@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 import { getBatchReport, getBatchStatus, retryFailedGames } from '../services/apiRequests';
+import FailedGamesList, { normalizeFailedGames } from './batch/FailedGamesList';
 import {
   Box,
   Typography,
   CircularProgress,
   Button,
+  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -236,7 +238,10 @@ const normalizeBatchReport = (report) => {
 const applyBatchReport = (setResults, setFailedGames, setAggregateMetrics, report) => {
   const perGameResults = Array.isArray(report?.per_game_results) ? report.per_game_results : [];
   setResults(perGameResults);
-  setFailedGames(Array.isArray(report?.failed_games) ? report.failed_games : []);
+  const failures = normalizeFailedGames(
+    Array.isArray(report?.errors) && report.errors.length > 0 ? report.errors : report?.failed_games
+  );
+  setFailedGames((prev) => (failures.length > 0 ? failures : prev));
   setAggregateMetrics(normalizeBatchReport(report));
 };
 
@@ -258,8 +263,29 @@ const BatchAnalysisResults = () => {
   const [extraInput, setExtraInput] = useState('');
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [combinedIdsForRetry, setCombinedIdsForRetry] = useState([]);
+  const [confirmActionName, setConfirmActionName] = useState('');
+  const [confirmItems, setConfirmItems] = useState([]);
+  const [confirmUsing, setConfirmUsing] = useState('');
+  const [confirmPayload, setConfirmPayload] = useState(null);
   const [hasRawCoach, setHasRawCoach] = useState(false);
   const { isDarkMode } = useTheme();
+
+  // Helper: create friendly user message from an Error/Axios error
+  const extractUserMessage = (err, fallback) => {
+    if (!err) return fallback || 'Something went wrong';
+    // Axios-style response message
+    const dataMsg = err?.response?.data?.message || err?.response?.data?.detail;
+    if (dataMsg) return dataMsg;
+    // Map some known HTTP status codes
+    const status = err?.response?.status;
+    if (status === 401) return 'Your session expired — please sign in again.';
+    if (status === 403) return "You don't have permission to perform this action.";
+    if (status === 402) return 'Insufficient credits to perform this action.';
+    if (status === 404) return 'Requested report not found.';
+    // Fall back to the Error message or provided fallback
+    if (err?.message) return err.message;
+    return fallback || 'Something went wrong. Please try again.';
+  };
 
   const cardSx = {
     mb: 4,
@@ -329,7 +355,9 @@ const BatchAnalysisResults = () => {
           }
         } catch (err) {
           console.error('Error loading saved report:', err);
-          setError(err.message || 'Failed to load saved batch report');
+          const msg = extractUserMessage(err, 'Failed to load saved batch report.');
+          setError(msg);
+          toast.error(msg);
         } finally {
           setIsLoadingReport(false);
         }
@@ -370,7 +398,7 @@ const BatchAnalysisResults = () => {
 
         if (statusValue === 'PENDING' || statusValue === 'IN_PROGRESS' || statusValue === 'STARTED' || statusValue === 'PROGRESS') {
           if (Array.isArray(response.errors) && response.errors.length > 0) {
-            setFailedGames(response.errors);
+            setFailedGames(normalizeFailedGames(response.errors));
           }
           return false;
         }
@@ -379,8 +407,9 @@ const BatchAnalysisResults = () => {
           const report = await loadReportWithRetry(taskId);
           if (String(report.status || '').toLowerCase() === 'failed') {
             setStatus('FAILURE');
-            setError(report.message || 'Analysis failed');
-            toast.error(report.message || 'Analysis failed');
+            const msg = report.message || 'Analysis failed — insufficient successful games. Try adding more games and retry.';
+            setError(msg);
+            toast.error(msg);
             return true;
           }
 
@@ -399,14 +428,17 @@ const BatchAnalysisResults = () => {
           return true;
         } catch (reportErr) {
           console.error('Error loading batch report:', reportErr);
-          setError(reportErr.message || 'Failed to load batch report');
+          const msg = extractUserMessage(reportErr, 'Failed to load batch report.');
+          setError(msg);
+          toast.error(msg);
           return true;
         }
 
       } catch (err) {
         console.error('Error polling status:', err);
-        setError(err.message || 'Error checking analysis progress');
-        toast.error(err.message || 'Error checking analysis progress');
+        const msg = extractUserMessage(err, 'Error checking analysis progress.');
+        setError(msg);
+        toast.error(msg);
         return true;
       }
     };
@@ -1005,6 +1037,42 @@ const BatchAnalysisResults = () => {
     setCurrentTab(newValue);
   };
 
+  const prepareConfirm = (actionName, items, using, payload) => {
+    setConfirmActionName(actionName);
+    setConfirmItems(Array.isArray(items) ? items : []);
+    setConfirmUsing(using || 'Game IDs');
+    setConfirmPayload(payload || null);
+    setOpenConfirmDialog(true);
+  };
+
+  const executeConfirmedAction = async () => {
+    if (!confirmPayload) {
+      toast.error('Nothing to submit');
+      setOpenConfirmDialog(false);
+      return;
+    }
+
+    try {
+      setIsRetrying(true);
+      const resp = await retryFailedGames(confirmPayload);
+      const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
+      toast.success(`${confirmActionName} started`);
+      setOpenConfirmDialog(false);
+      if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
+    } catch (err) {
+      console.error(`Error executing ${confirmActionName}:`, err);
+      const msg = extractUserMessage(err, `Failed to start ${confirmActionName}.`);
+      toast.error(msg);
+      setError(msg);
+    } finally {
+      setIsRetrying(false);
+      setConfirmActionName('');
+      setConfirmItems([]);
+      setConfirmUsing('');
+      setConfirmPayload(null);
+    }
+  };
+
   const handleRetryFailed = async () => {
     if (!Array.isArray(failedGames) || failedGames.length === 0) {
       toast.error('No failed games to retry');
@@ -1020,18 +1088,8 @@ const BatchAnalysisResults = () => {
       return;
     }
 
-    try {
-      setIsRetrying(true);
-      const resp = await retryFailedGames({ gameIds: failedIds });
-      const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
-      toast.success('Retry batch started');
-      if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
-    } catch (err) {
-      console.error('Error retrying failed games:', err);
-      toast.error(err?.message || 'Failed to start retry batch');
-    } finally {
-      setIsRetrying(false);
-    }
+    // Open confirmation dialog for retrying failed games
+    prepareConfirm('Retry Failed Games', failedIds, 'Game IDs', { gameIds: failedIds });
   };
 
   const handleRetryIncludeCompleted = async () => {
@@ -1060,19 +1118,8 @@ const BatchAnalysisResults = () => {
       return;
     }
 
-    // If combined is prepared via confirm dialog, use it; otherwise proceed immediately
-    try {
-      setIsRetrying(true);
-      const resp = await retryFailedGames({ gameIds: combined });
-      const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
-      toast.success('Retry batch started (including completed games)');
-      if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
-    } catch (err) {
-      console.error('Error retrying failed games including completed:', err);
-      toast.error(err?.message || 'Failed to start retry batch');
-    } finally {
-      setIsRetrying(false);
-    }
+    // Open confirmation dialog for including completed games
+    prepareConfirm('Retry with Completed Games', combined, 'Game IDs', { gameIds: combined });
   };
 
   const prepareAndOpenRetryConfirm = () => {
@@ -1086,28 +1133,12 @@ const BatchAnalysisResults = () => {
     const toAdd = completedIds.slice(0, needed);
     const combined = Array.from(new Set([...failedIds, ...toAdd]));
     setCombinedIdsForRetry(combined);
-    setOpenConfirmDialog(true);
+    prepareConfirm('Retry with Completed Games', combined, 'Game IDs', { gameIds: combined });
   };
 
   const handleConfirmRetry = async () => {
-    setOpenConfirmDialog(false);
-    if (!combinedIdsForRetry || combinedIdsForRetry.length === 0) {
-      toast.error('No games selected for retry');
-      return;
-    }
-    try {
-      setIsRetrying(true);
-      const resp = await retryFailedGames({ gameIds: combinedIdsForRetry });
-      const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
-      toast.success('Retry batch started');
-      if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
-    } catch (err) {
-      console.error('Error confirming retry:', err);
-      toast.error(err?.message || 'Failed to start retry batch');
-    } finally {
-      setIsRetrying(false);
-      setCombinedIdsForRetry([]);
-    }
+    // Backwards-compat confirm handler now delegates to generic executor
+    await executeConfirmedAction();
   };
 
   const handleRegenerateCoaching = async () => {
@@ -1121,18 +1152,8 @@ const BatchAnalysisResults = () => {
       return;
     }
 
-    try {
-      setIsRetrying(true);
-      const resp = await retryFailedGames({ gameIds: successfulIds });
-      const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
-      toast.success('Regeneration batch started');
-      if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
-    } catch (err) {
-      console.error('Error regenerating coaching report:', err);
-      toast.error(err?.message || 'Failed to start regeneration batch');
-    } finally {
-      setIsRetrying(false);
-    }
+    // Open confirmation dialog for regeneration
+    prepareConfirm('Regenerate Coaching Report', successfulIds, 'Game IDs', { gameIds: successfulIds });
   };
 
   const handleOpenAdd = () => setOpenAddDialog(true);
@@ -1209,37 +1230,17 @@ const BatchAnalysisResults = () => {
 
     // Prefer submitting by IDs if we have enough IDs (>=5)
     if (combined.length >= 5) {
-      try {
-        setIsRetrying(true);
-        const resp = await retryFailedGames({ gameIds: combined });
-        const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
-        toast.success('Retry batch started');
-        handleCloseAdd();
-        if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
-      } catch (err) {
-        console.error('Error retrying failed games with added IDs:', err);
-        toast.error(err?.message || 'Failed to start retry batch');
-      } finally {
-        setIsRetrying(false);
-      }
+      // Open confirm dialog for IDs
+      handleCloseAdd();
+      prepareConfirm('Add & Retry', combined, 'Game IDs', { gameIds: combined });
       return;
     }
 
     // If not enough IDs, but we have PGNs, submit PGNs if there are >=5
     if (extraPgns.length >= 5) {
-      try {
-        setIsRetrying(true);
-        const resp = await retryFailedGames({ pgnList: extraPgns });
-        const newTaskId = resp?.task_id || resp?.batch_id || resp?.id;
-        toast.success('Retry batch started');
-        handleCloseAdd();
-        if (newTaskId) navigate(`/batch-analysis/results/${newTaskId}`);
-      } catch (err) {
-        console.error('Error retrying failed games with PGNs:', err);
-        toast.error(err?.message || 'Failed to start retry batch');
-      } finally {
-        setIsRetrying(false);
-      }
+      // Open confirm dialog for PGNs
+      handleCloseAdd();
+      prepareConfirm('Add & Retry', extraPgns, 'PGNs', { pgnList: extraPgns });
       return;
     }
 
@@ -1270,6 +1271,8 @@ const BatchAnalysisResults = () => {
           {results.length} games analyzed • {failedGames.length} failed
         </Typography>
 
+        <FailedGamesList failures={failedGames} />
+
         {failedGames.length > 0 && (
           <Box sx={{ mt: 2 }}>
             <Button variant="contained" color="primary" onClick={handleRetryFailed} disabled={isRetrying}>
@@ -1288,34 +1291,78 @@ const BatchAnalysisResults = () => {
               </>
             )}
             {status === 'PARTIAL' && !hasRawCoach && (
-              <Button variant="outlined" color="secondary" sx={{ ml: 2 }} onClick={handleRegenerateCoaching} disabled={isRetrying}>
-                {isRetrying ? 'Starting...' : 'Regenerate Coaching Report'}
-              </Button>
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', ml: 2 }}>
+                <Button variant="contained" color="secondary" onClick={handleRegenerateCoaching} disabled={isRetrying}>
+                  {isRetrying ? 'Starting...' : 'Regenerate Coaching Report'}
+                </Button>
+                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                  (coaching generation failed)
+                </Typography>
+              </Box>
             )}
           </Box>
         )}
           <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)} fullWidth maxWidth="sm">
-            <DialogTitle>Confirm Retry Batch</DialogTitle>
+            <DialogTitle>{confirmActionName || 'Confirm Batch Action'}</DialogTitle>
             <DialogContent>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                The retry batch will include the following game IDs:
+              <Typography variant="body1" sx={{ mb: 1 }}>
+                {confirmItems.length} {confirmItems.length === 1 ? 'game' : 'games'} will be submitted.
               </Typography>
-              <List dense>
-                {combinedIdsForRetry.map((id) => (
-                  <ListItem key={id}>
-                    <ListItemText primary={String(id)} />
-                  </ListItem>
-                ))}
-              </List>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Using: {confirmUsing || 'Game IDs'}
+              </Typography>
+              {/* Preview: show first 5 items only */}
+              {(() => {
+                const previewItems = confirmItems.slice(0, 5);
+                const moreCount = Math.max(0, confirmItems.length - previewItems.length);
+                const previewPGN = (pgn) => {
+                  if (!pgn) return '';
+                  const lines = String(pgn).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+                  const first = lines.length > 0 ? lines[0] : String(pgn).slice(0, 120);
+                  return first.length > 120 ? `${first.slice(0, 120)}...` : first;
+                };
+
+                return (
+                  <>
+                    <List dense sx={{ maxHeight: 240, overflow: 'auto' }}>
+                      {previewItems.map((it, idx) => (
+                        <ListItem key={`${String(it)}-${idx}`}>
+                          <ListItemText primary={confirmUsing === 'PGNs' ? previewPGN(it) : String(it)} />
+                        </ListItem>
+                      ))}
+                    </List>
+                    {moreCount > 0 && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        +{moreCount} more
+                      </Typography>
+                    )}
+                  </>
+                );
+              })()}
+              {confirmActionName === 'Regenerate Coaching Report' && (
+                <Typography variant="body2" color="warning.main" sx={{ mt: 2 }}>
+                  This starts a new batch and re-analyzes all selected games with Stockfish, then generates a new
+                  coaching report. Retries do not charge additional credits.
+                </Typography>
+              )}
               <Typography variant="body2" sx={{ mt: 2 }}>
-                Proceed to start a retry batch with these games? This will consume analysis credits.
+                Proceed to start this batch?
+                {confirmActionName !== 'Regenerate Coaching Report' &&
+                  ' Retries do not charge additional credits.'}
               </Typography>
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setOpenConfirmDialog(false)} disabled={isRetrying}>Cancel</Button>
-              <Button onClick={handleConfirmRetry} variant="contained" disabled={isRetrying}>Start Retry</Button>
+              <Button onClick={executeConfirmedAction} variant="contained" disabled={isRetrying}>{isRetrying ? 'Starting...' : 'Confirm'}</Button>
             </DialogActions>
           </Dialog>
+
+        {/* Banner for PARTIAL batches where coaching generation failed */}
+        {status === 'PARTIAL' && !hasRawCoach && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Your games were analyzed, but coaching report generation didn't complete. You can view your game stats below and regenerate the coaching report when ready.
+          </Alert>
+        )}
 
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
           <Tabs

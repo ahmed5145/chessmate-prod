@@ -307,4 +307,46 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     expect(Array.isArray(callArg.pgnList)).toBe(true);
     expect(callArg.pgnList.length).toBeGreaterThanOrEqual(5);
   });
+
+  test('displays per-game failure reasons from report errors', async () => {
+    const fakeReportWithErrors = {
+      status: 'partial',
+      per_game_results: [{ game_id: 'game_0' }, { game_id: 'game_1' }],
+      games_count: 4,
+      failed_games: [
+        { game_id: 'game_2', error: 'Invalid PGN' },
+        { game_id: 'game_3', error: 'Stockfish timeout' },
+      ],
+      errors: [
+        { game_id: 'game_2', message: 'Invalid PGN' },
+        { game_id: 'game_3', message: 'Stockfish timeout' },
+      ],
+      batch_summary: {
+        overall_accuracy: 0.5,
+        phase_performance: {
+          opening: { score: 0.5 },
+          middlegame: { score: 0.5 },
+          endgame: { score: 0.5 },
+        },
+        recurring_weaknesses: [],
+        strength_patterns: [],
+      },
+      coaching_report: { executive_summary: 'Partial', one_thing_to_do_today: 'Practice' },
+    };
+
+    getBatchReport.mockResolvedValueOnce(fakeReportWithErrors);
+
+    render(
+      <MemoryRouter initialEntries={['/batch-analysis/results/report/FAIL_REASONS']}>
+        <Routes>
+          <Route path="/batch-analysis/results/report/:reportId" element={<BatchAnalysisResults />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Combined Coaching Report');
+    expect(await screen.findByText(/Failed games \(2\)/)).toBeInTheDocument();
+    expect(screen.getByText('Invalid PGN')).toBeInTheDocument();
+    expect(screen.getByText('Stockfish timeout')).toBeInTheDocument();
+  });
 });

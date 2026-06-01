@@ -11,6 +11,22 @@ from rest_framework import serializers
 from .models import BatchAnalysisReport, Game
 
 
+def failed_games_to_errors(failed_list: List) -> List[Dict[str, Any]]:
+    """Map stored failed_games JSON to API errors list (game_id + message)."""
+    errors = []
+    if not isinstance(failed_list, list):
+        return errors
+    for item in failed_list:
+        if isinstance(item, dict):
+            errors.append(
+                {
+                    "game_id": item.get("game_id"),
+                    "message": item.get("error") or item.get("message") or "Unknown error",
+                }
+            )
+    return errors
+
+
 class BatchCreateSerializer(serializers.Serializer):
     """
     Validates and processes a batch of games for analysis.
@@ -152,18 +168,7 @@ class BatchStatusSerializer(serializers.Serializer):
 
     def get_errors(self, obj):
         """Extract error list from failed_games."""
-        failed_list = obj.get("failed_games", [])
-        errors = []
-        if isinstance(failed_list, list):
-            for item in failed_list:
-                if isinstance(item, dict):
-                    errors.append(
-                        {
-                            "game_id": item.get("game_id"),
-                            "message": item.get("error", "Unknown error"),
-                        }
-                    )
-        return errors
+        return failed_games_to_errors(obj.get("failed_games", []))
 
     def to_representation(self, instance):
         """Return the batch status payload expected by the frontend."""
@@ -171,17 +176,7 @@ class BatchStatusSerializer(serializers.Serializer):
         failed_list = instance.get("failed_games", [])
         completed_games = len(completed_list) if isinstance(completed_list, list) else 0
         failed_games = len(failed_list) if isinstance(failed_list, list) else 0
-        errors = []
-
-        if isinstance(failed_list, list):
-            for item in failed_list:
-                if isinstance(item, dict):
-                    errors.append(
-                        {
-                            "game_id": item.get("game_id"),
-                            "message": item.get("error", "Unknown error"),
-                        }
-                    )
+        errors = failed_games_to_errors(failed_list)
 
         games_count = instance.get("games_count", 0)
         batch_id = instance.get("id") or instance.get("batch_id")
@@ -205,6 +200,8 @@ class BatchAnalysisReportSerializer(serializers.ModelSerializer):
     JSONFields (batch_summary, per_game_results, coaching_report) pass through as-is.
     """
 
+    errors = serializers.SerializerMethodField()
+
     class Meta:
         model = BatchAnalysisReport
         fields = [
@@ -215,7 +212,12 @@ class BatchAnalysisReportSerializer(serializers.ModelSerializer):
             "batch_summary",
             "per_game_results",
             "coaching_report",
+            "failed_games",
+            "errors",
             "created_at",
             "updated_at",
         ]
         read_only_fields = fields
+
+    def get_errors(self, obj: BatchAnalysisReport) -> List[Dict[str, Any]]:
+        return failed_games_to_errors(obj.failed_games or [])

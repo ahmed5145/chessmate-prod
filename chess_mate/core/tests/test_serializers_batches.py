@@ -261,6 +261,27 @@ class TestBatchAnalysisReportSerializer(TestCase):
         assert "created_at" in result
         assert "updated_at" in result
 
+    def test_serializes_failed_games_and_errors(self):
+        """Report serializer exposes failure reasons for the frontend."""
+        failed_games = [
+            {"game_id": "game_1", "error": "Engine crash"},
+            {"game_id": "game_4", "error": "Invalid PGN"},
+        ]
+        batch_report = BatchAnalysisReport.objects.create(
+            user=self.user,
+            task_id="batch_failures",
+            status="partial",
+            games_count=6,
+            failed_games=failed_games,
+        )
+
+        result = BatchAnalysisReportSerializer(batch_report).data
+
+        assert result["failed_games"] == failed_games
+        assert len(result["errors"]) == 2
+        assert result["errors"][0]["message"] == "Engine crash"
+        assert result["errors"][1]["game_id"] == "game_4"
+
     def test_jsonfield_passthrough(self):
         """JSONFields pass through as-is (dict objects)."""
         complex_summary = {

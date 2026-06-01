@@ -86,6 +86,9 @@ class TestBatchViews(TestCase):
         assert response.data["completed_games"] == 3
         assert response.data["failed_games"] == 1
         assert response.data["progress"] == "3/10 games analyzed"
+        assert len(response.data["errors"]) == 1
+        assert response.data["errors"][0]["game_id"] == "game_4"
+        assert response.data["errors"][0]["message"] == "Timeout"
 
     def test_get_batch_status_404_wrong_user(self):
         """GET /api/v1/batches/{id}/status/ returns 404 for wrong user."""
@@ -193,6 +196,31 @@ class TestBatchViews(TestCase):
 
         assert response.status_code == 200
         assert response.data["status"] == "partial"
+
+    def test_get_batch_report_includes_failed_games_and_errors(self):
+        """GET report includes per-game failure details for the results UI."""
+        failed_games = [
+            {"game_id": "game_2", "error": "Invalid PGN"},
+            {"game_id": "game_7", "error": "Stockfish timeout"},
+        ]
+        batch = BatchAnalysisReport.objects.create(
+            user=self.user,
+            task_id="task-failures",
+            status="partial",
+            games_count=10,
+            batch_summary={"games_analyzed": 8},
+            per_game_results=[{"game_id": "game_0"}],
+            coaching_report={"executive_summary": "OK"},
+            failed_games=failed_games,
+        )
+
+        response = self.client.get(f"/api/v1/batches/{batch.id}/report/")
+
+        assert response.status_code == 200
+        assert response.data["failed_games"] == failed_games
+        assert len(response.data["errors"]) == 2
+        assert response.data["errors"][0]["message"] == "Invalid PGN"
+        assert response.data["errors"][1]["game_id"] == "game_7"
 
     def test_get_batch_report_404_wrong_user(self):
         """GET /api/v1/batches/{id}/report/ returns 404 for wrong user."""

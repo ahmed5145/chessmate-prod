@@ -694,6 +694,8 @@ export const getBatchReport = async (batchId) => {
             batch_summary = null,
             per_game_results = [],
             coaching_report = null,
+            failed_games = [],
+            errors = [],
             created_at,
             updated_at,
             message
@@ -708,6 +710,8 @@ export const getBatchReport = async (batchId) => {
             batch_summary,
             per_game_results,
             coaching_report, // may be null when status = partial
+            failed_games: Array.isArray(failed_games) ? failed_games : [],
+            errors: Array.isArray(errors) ? errors : [],
             created_at,
             updated_at,
             message // included for error cases
