@@ -1173,7 +1173,10 @@ def aggregate_and_report_task(
             # Extract player_rating from batch_summary (derived from game ELOs)
             player_rating = batch_summary.get("player_rating")
             coaching_report = _generate_coaching_report(batch_summary, per_game_results, player_rating=player_rating)
-            # Determine status: completed if all succeeded, partial if some failed
+            # Status matrix (see docs/SHIP_CONTRACT.md P0-5):
+            # - completed: coaching OK; failed_results may be non-empty (some games failed)
+            # - partial (here): some games failed but coaching succeeded
+            # - partial (CoachingGeneratorError below): coaching failed, analysis OK
             final_status = "completed" if failed_results == [] else "partial"
 
         except CoachingGeneratorError as exc:

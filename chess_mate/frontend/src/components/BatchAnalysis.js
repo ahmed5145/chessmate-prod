@@ -326,8 +326,8 @@ const BatchAnalysis = () => {
       if (prev.includes(gameId)) {
         return prev.filter((id) => id !== gameId);
       }
-      if (prev.length >= 50) {
-        toast.error('Maximum number of games for batch analysis is 50');
+      if (prev.length >= 30) {
+        toast.error('Maximum number of games for batch analysis is 30');
         return prev;
       }
       return [...prev, gameId];
@@ -335,7 +335,7 @@ const BatchAnalysis = () => {
   };
 
   const selectRecentGames = (count) => {
-    const limit = Math.min(count, 50, sortedFilteredGames.length);
+    const limit = Math.min(count, 30, sortedFilteredGames.length);
     const ids = sortedFilteredGames.slice(0, limit).map((game) => game.id);
     setSelectedGameIds(ids);
     setNumGames(limit);
@@ -366,7 +366,7 @@ const BatchAnalysis = () => {
             Batch Analysis
           </h1>
           <p className={`mt-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-            Analyze multiple games at once to get insights into your playing patterns (maximum 50 games).
+            Analyze multiple games at once to get insights into your playing patterns (maximum 30 games).
           </p>
         </div>
 
@@ -411,7 +411,7 @@ const BatchAnalysis = () => {
               <label htmlFor="numGames" className={`block text-sm font-medium ${
                 isDarkMode ? 'text-gray-200' : 'text-gray-700'
               }`}>
-                Number of Games (max 50)
+                Number of Games (max 30)
               </label>
               <div className="mt-1 relative rounded-md shadow-sm">
                 <input
@@ -419,7 +419,7 @@ const BatchAnalysis = () => {
                   name="numGames"
                   id="numGames"
                   min="1"
-                  max="50"
+                  max="30"
                   className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
                     isDarkMode
                       ? 'bg-gray-700 border-gray-600 text-white'
@@ -428,9 +428,9 @@ const BatchAnalysis = () => {
                   value={numGames}
                   onChange={(e) => {
                     const value = parseInt(e.target.value) || '';
-                    if (value > 50) {
-                      toast.error('Maximum number of games for batch analysis is 50');
-                      setNumGames(50);
+                    if (value > 30) {
+                      toast.error('Maximum number of games for batch analysis is 30');
+                      setNumGames(30);
                     } else {
                       setNumGames(value);
                     }
@@ -438,7 +438,7 @@ const BatchAnalysis = () => {
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                   <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    / 50
+                    / 30
                   </span>
                 </div>
               </div>
@@ -503,7 +503,7 @@ const BatchAnalysis = () => {
               <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                 Quick select recent:
               </span>
-              {[10, 20, 30, 50].map((count) => (
+              {[10, 20, 30].map((count) => (
                 <button
                   key={count}
                   type="button"
