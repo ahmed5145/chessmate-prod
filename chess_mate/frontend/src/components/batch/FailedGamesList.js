@@ -34,7 +34,7 @@ const formatGameLabel = (gameId) => {
   return id || 'Unknown game';
 };
 
-const FailedGamesList = ({ failures }) => {
+const FailedGamesList = ({ failures = [] }) => {
   const rows = normalizeFailedGames(failures);
   if (rows.length === 0) {
     return null;
@@ -72,10 +72,6 @@ FailedGamesList.propTypes = {
       }),
     ])
   ),
-};
-
-FailedGamesList.defaultProps = {
-  failures: [],
 };
 
 export default FailedGamesList;
