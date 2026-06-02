@@ -17,6 +17,15 @@ import { getBatchStatus, getBatchReport } from '../../services/apiRequests';
 import BatchAnalysisResults from '../BatchAnalysisResults';
 import userEvent from '@testing-library/user-event';
 
+jest.mock('react-hot-toast', () => ({
+  toast: { success: jest.fn(), error: jest.fn() },
+}));
+
+const clickConfirmDialog = async () => {
+  const confirm = await screen.findByRole('button', { name: /^Confirm$/i });
+  await userEvent.click(confirm);
+};
+
 const completedBatchReport = (overrides = {}) => ({
   status: 'completed',
   per_game_results: [{ game_id: 'g1', total_moves: 40, move_quality: { blunder: 0, mistake: 1, inaccuracy: 2 } }],
@@ -65,6 +74,7 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
 
     const retryButton = screen.getByRole('button', { name: /Retry Failed Games/i });
     await userEvent.click(retryButton);
+    await clickConfirmDialog();
 
     await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
   });
@@ -102,6 +112,7 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
 
     const startButton = screen.getByRole('button', { name: /Start Retry/i });
     fireEvent.click(startButton);
+    await clickConfirmDialog();
 
     await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
   });
@@ -128,8 +139,7 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
 
     const includeButton = screen.getByRole('button', { name: /Retry with Completed Games/i });
     await userEvent.click(includeButton);
-    const startButton = await screen.findByRole('button', { name: /Start Retry/i });
-    await userEvent.click(startButton);
+    await clickConfirmDialog();
 
     await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
     const callArg = retryFailedGames.mock.calls[0][0];
@@ -166,6 +176,7 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     await screen.findByText('Batch Analysis Results');
     const regenButton = await screen.findByRole('button', { name: /Regenerate Coaching Report/i });
     await userEvent.click(regenButton);
+    await clickConfirmDialog();
 
     await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
     const arg = retryFailedGames.mock.calls[0][0];
@@ -175,33 +186,24 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
 
   test('polls status then loads report and renders coaching section', async () => {
     jest.useFakeTimers();
-    // First call returns in-progress, second call returns completed
     getBatchStatus
-      .mockImplementationOnce(async () => ({ status: 'in_progress', completed_games: 0, games_count: 2, progress: 0 }))
-      .mockImplementationOnce(async () => ({ status: 'completed', completed_games: 2, games_count: 2, progress: 100 }));
+      .mockResolvedValueOnce({ status: 'in_progress', completed_games: 0, games_count: 2, progress: 0 })
+      .mockResolvedValueOnce({ status: 'completed', completed_games: 2, games_count: 2, progress: 100 });
 
-    const fakeReport = {
-      status: 'completed',
-      per_game_results: [ { game_id: 1, move_quality: { blunder: 0, mistake: 1, inaccuracy: 1 }, total_moves: 20 }, { game_id: 2, move_quality: { blunder: 1, mistake: 1, inaccuracy: 2 }, total_moves: 20 } ],
+    const fakeReport = completedBatchReport({
+      per_game_results: [
+        { game_id: 1, move_quality: { blunder: 0, mistake: 1, inaccuracy: 1 }, total_moves: 20 },
+        { game_id: 2, move_quality: { blunder: 1, mistake: 1, inaccuracy: 2 }, total_moves: 20 },
+      ],
       games_count: 2,
-      batch_summary: {
-        overall_accuracy: 0.8,
-        phase_performance: {
-          opening: { score: 0.8 },
-          middlegame: { score: 0.75 },
-          endgame: { score: 0.7 }
-        },
-        recurring_weaknesses: [],
-        strength_patterns: []
-      },
       coaching_report: {
         executive_summary: 'Coach summary',
         coaching_narrative: { opening: '', middlegame: '', endgame: '' },
         top_3_priorities: [],
         training_plan: {},
-        one_thing_to_do_today: 'Practice tactics'
-      }
-    };
+        one_thing_to_do_today: 'Practice tactics',
+      },
+    });
 
     getBatchReport.mockResolvedValue(fakeReport);
 
@@ -213,23 +215,17 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
       </MemoryRouter>
     );
 
-    // Advance timers to trigger the polling interval once
-    act(() => {
-      jest.advanceTimersByTime(2100);
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
     });
-
     await waitFor(() => expect(getBatchStatus).toHaveBeenCalledTimes(1));
 
-    // Advance timers to trigger the next poll and report loading
-    act(() => {
-      jest.advanceTimersByTime(2100);
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
     });
 
     await waitFor(() => expect(getBatchReport).toHaveBeenCalledWith('FAKE_TASK'));
-    // prefer findByText for async element queries
-    await screen.findByText('Combined Coaching Report');
-
-    expect(getBatchStatus).toHaveBeenCalled();
+    expect(await screen.findByText('Combined Coaching Report', { timeout: 10000 })).toBeInTheDocument();
     expect(screen.getByText(/Coach summary/)).toBeInTheDocument();
     jest.useRealTimers();
   });
@@ -290,6 +286,7 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
 
     const startButton = screen.getByRole('button', { name: /Start Retry/i });
     await userEvent.click(startButton);
+    await clickConfirmDialog();
 
     await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
     // ensure it was called with pgnList array
