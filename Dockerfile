@@ -4,7 +4,7 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
-ENV DJANGO_SETTINGS_MODULE=chess_mate.settings
+ENV DJANGO_SETTINGS_MODULE=chess_mate.settings_prod
 ENV PYTHONPATH=/app
 
 # Install system dependencies

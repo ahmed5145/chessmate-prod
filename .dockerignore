@@ -43,6 +43,10 @@ prometheus/
 grafana/
 nginx/
 k8s/
+docs/
+tests/
+*.md
+.github/
 
 # Temporary files
 *.swp

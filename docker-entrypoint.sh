@@ -77,7 +77,7 @@ echo "Resolved DB target: host=${DB_WAIT_HOST:-<empty>} port=${DB_WAIT_PORT} db=
 if [ -n "$DB_WAIT_HOST" ]; then
     echo "Waiting for postgres at $DB_WAIT_HOST:$DB_WAIT_PORT (max 120s)..."
     counter=0
-    max_attempts=120
+    max_attempts=60
     while [ $counter -lt $max_attempts ]; do
         if command -v pg_isready >/dev/null 2>&1; then
             if pg_isready -h "$DB_WAIT_HOST" -p "$DB_WAIT_PORT" -U "$DB_WAIT_USER" -d "$DB_WAIT_NAME" >/dev/null 2>&1; then
@@ -124,6 +124,10 @@ if [ "$REDIS_WAIT_HOST" ]; then
     if [ $counter -eq $max_attempts ]; then
         echo "WARNING: Redis did not respond after 30s, proceeding anyway..."
     fi
+fi
+
+if [ "${ENVIRONMENT:-}" = "production" ]; then
+    export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-chess_mate.settings_prod}"
 fi
 
 cd chess_mate

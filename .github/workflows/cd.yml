@@ -24,7 +24,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
     env:
       DEPLOY_ENV: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
@@ -33,22 +33,12 @@ jobs:
     steps:
     - uses: actions/checkout@v6
 
-    - name: Set up Python
-      uses: actions/setup-python@v6
-      with:
-        python-version: '3.11'
-
     - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
         node-version: '18'
         cache: 'npm'
         cache-dependency-path: 'chess_mate/frontend/package-lock.json'
-
-    - name: Install Backend Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
 
     - name: Install Frontend Dependencies
       working-directory: chess_mate/frontend
@@ -63,23 +53,10 @@ jobs:
         rm -rf chess_mate/frontend/node_modules
         rm -rf node_modules
 
-    - name: Package application
+    - name: Verify frontend build artifact
       run: |
-        zip -r chessmate-app.zip \
-          chess_mate/ \
-          chess_mate/frontend/build/ \
-          Dockerfile \
-          docker-entrypoint.sh \
-          .dockerignore \
-          .ebextensions/ \
-          requirements.txt \
-          README.md \
-          -x "*/node_modules/*" "node_modules/*"
-
-        if unzip -l chessmate-app.zip | grep -q "node_modules/"; then
-          echo "ERROR: node_modules found in deployment package"
-          exit 1
-        fi
+        test -f chess_mate/frontend/build/index.html
+        echo "Frontend build OK: chess_mate/frontend/build/index.html"
 
     - name: Evaluate Deployment Preconditions
       id: deploy_precheck
@@ -119,7 +96,48 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION || vars.AWS_REGION || 'us-east-1' }}
+        aws-region: ${{ secrets.AWS_REGION || vars.AWS_REGION || 'us-east-2' }}
+
+    - name: Login to Amazon ECR
+      if: ${{ (github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main') && steps.deploy_precheck.outputs.aws_ready == 'true' }}
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Ensure ECR repository exists
+      if: ${{ (github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main') && steps.deploy_precheck.outputs.aws_ready == 'true' }}
+      run: |
+        aws ecr describe-repositories --repository-names chessmate 2>/dev/null || \
+        aws ecr create-repository --repository-name chessmate
+
+    - name: Build and push Docker image to ECR
+      if: ${{ (github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main') && steps.deploy_precheck.outputs.aws_ready == 'true' }}
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: chessmate-${{ github.run_number }}-${{ github.sha }}
+      run: |
+        docker build -t "$ECR_REGISTRY/chessmate:$IMAGE_TAG" .
+        docker push "$ECR_REGISTRY/chessmate:$IMAGE_TAG"
+        echo "IMAGE_URI=$ECR_REGISTRY/chessmate:$IMAGE_TAG" >> "$GITHUB_ENV"
+
+    - name: Package Elastic Beanstalk deployment bundle (ECR image)
+      if: ${{ (github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main') && steps.deploy_precheck.outputs.aws_ready == 'true' }}
+      run: |
+        cat > Dockerrun.aws.json <<EOF
+        {
+          "AWSEBDockerrunVersion": "1",
+          "Image": {
+            "Name": "${IMAGE_URI}",
+            "Update": "true"
+          },
+          "Ports": [
+            {
+              "ContainerPort": 8000
+            }
+          ]
+        }
+        EOF
+        cat Dockerrun.aws.json
+        zip -r chessmate-app.zip Dockerrun.aws.json .ebextensions/
 
     - name: Deploy to Elastic Beanstalk
       if: ${{ (github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main') && steps.deploy_precheck.outputs.aws_ready == 'true' }}
@@ -130,7 +148,7 @@ jobs:
         application_name: chessmate
         environment_name: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'Chessmate-env-2' || 'ChessMate-Staging') }}
         version_label: chessmate-${{ github.run_number }}-${{ github.sha }}
-        region: ${{ secrets.AWS_REGION || vars.AWS_REGION || 'us-east-1' }}
+        region: ${{ secrets.AWS_REGION || vars.AWS_REGION || 'us-east-2' }}
         deployment_package: chessmate-app.zip
         use_existing_version_if_available: true
         wait_for_environment_recovery: true
