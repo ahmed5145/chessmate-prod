@@ -1,18 +1,20 @@
-# Staging smoke test (pre-production)
+# Production smoke test (pre-launch)
 
-Run on **staging** with real Celery worker, Redis, Stockfish, and OpenAI.  
+Use when you have **no staging environment**. Run on **production** with your own account.  
 Do **not** use `CELERY_TASK_ALWAYS_EAGER`.
 
-**Environment:** ___________________  
+**Environment:** `http://chessmate-prod.us-east-2.elasticbeanstalk.com` (or custom domain)  
 **Date:** ___________________  
 **Runner:** ___________________
 
 ## Prerequisites
 
-- [ ] Staging URL: `https://___________________`
+- [x] Health: `http://chessmate-prod.us-east-2.elasticbeanstalk.com/health/` → `ok`
+- [x] Readiness: `.../readiness/` → `{"status":"ready"}`
+- [ ] `ENABLE_CELERY=true` on EB + **redeploy** after adding it
+- [ ] App UI loads at `/` or `/login` (not only `/admin/`) — requires latest deploy with SPA routing fix
 - [ ] Test account with Lichess or Chess.com linked
 - [ ] ≥30 imported games available
-- [ ] `HEALTHCHECK_URL` / `curl https://<host>/readiness/` returns `{"status":"ready"}`
 
 ## Cases
 

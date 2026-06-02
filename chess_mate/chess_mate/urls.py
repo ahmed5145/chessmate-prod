@@ -10,9 +10,9 @@ from typing import Any, Callable
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.http import HttpRequest, JsonResponse
-from django.urls import include, path
-from django.views.generic import RedirectView
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import render
+from django.urls import include, path, re_path
 
 # Define type for views to prevent linter errors
 ViewType = Callable[[HttpRequest], Any]
@@ -33,9 +33,12 @@ except ImportError:
         return JsonResponse({"status": "ready"})
 
 
+def spa_index(request: HttpRequest) -> HttpResponse:
+    """Serve the React SPA (client-side routes like /login, /dashboard)."""
+    return render(request, "index.html")
+
+
 urlpatterns = [
-    # Redirect the root URL to the admin interface or API
-    path("", RedirectView.as_view(url="/admin/", permanent=False), name="index"),
     # Health check endpoints at root level for load balancers
     path("health/", health_check, name="health-check"),
     path("readiness/", readiness_check, name="readiness-check"),
@@ -43,6 +46,13 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/", include("core.urls")),  # Include core.urls for API v1
     path("api/system/", include("core.urls_system")),  # Legacy API prefix
+    # React SPA (must be last; excludes api/admin/health/static/media)
+    re_path(
+        r"^(?!api/|admin/|health/|readiness/|static/|media/).*$",
+        spa_index,
+        name="spa-index",
+    ),
+    path("", spa_index, name="index"),
 ]
 
 # Add static and media URLs in development

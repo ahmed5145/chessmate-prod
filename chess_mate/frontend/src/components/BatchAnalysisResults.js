@@ -343,6 +343,7 @@ const BatchAnalysisResults = () => {
             setProgress(100);
           } else {
             applyBatchReport(setResults, setFailedGames, setAggregateMetrics, report);
+            setHasRawCoach(Boolean(report.coaching_report));
             setMeta({
               total: report.games_count || (Array.isArray(report.per_game_results) ? report.per_game_results.length : 0),
               current: Array.isArray(report.per_game_results) ? report.per_game_results.length : 0,

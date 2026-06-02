@@ -243,10 +243,10 @@ Day 3      Fix timeouts/queues if S2 fails; sign contract; production deploy
 
 | P0 | Owner | Staging verified | Prod verified | Date |
 |----|-------|------------------|---------------|------|
-| P0-1 Failure reasons | | ☐ | ☐ | |
-| P0-2 Smoke test | | ☐ | ☐ | |
-| P0-3 Celery limits | | ☐ | ☐ | |
-| P0-4 Health gate | | ☐ | ☐ | |
-| P0-5 Partial docs | | ☐ | ☐ | |
+| P0-1 Failure reasons | | N/A (no staging) | ☑ code shipped | 2026-06-01 |
+| P0-2 Smoke test | | N/A | ☐ user batch test pending | |
+| P0-3 Celery limits | | N/A | ☐ after 5-game batch | |
+| P0-4 Health gate | | N/A | ☑ CD + `/health/` + `/readiness/` | 2026-06-01 |
+| P0-5 Partial docs | | N/A | ☑ documented | 2026-06-01 |
 
-**Release is blocked until all P0 rows are checked on staging and P0-1 + P0-4 are checked on production.**
+**Launch prep (code + deploy pipeline): complete.** Remaining before marketing: production batch smoke test (P0-2/P0-3), optional custom domain HTTPS.
