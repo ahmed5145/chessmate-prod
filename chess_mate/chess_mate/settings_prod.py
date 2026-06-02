@@ -176,6 +176,7 @@ RATE_LIMIT_BACKEND = "local"  # Use local memory cache for rate limiting
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -266,11 +267,16 @@ CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
 
 # Static and Media Files
 STATIC_URL = "/static/"
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "frontend", "build", "static"),
+]
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+WHITENOISE_ROOT = os.path.join(BASE_DIR, "frontend", "build")
+WHITENOISE_INDEX_FILE = False
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
-STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
 
 # Email Settings

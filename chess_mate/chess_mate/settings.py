@@ -123,6 +123,7 @@ MIDDLEWARE = [
     "core.middleware.RequestFixMiddleware",  # Fix request headers like Authorization
     "django.middleware.common.CommonMiddleware",  # Must be right after CORS
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -268,11 +269,15 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files configuration
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "frontend", "build", "static"),
 ]
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+# CRA build assets (favicon, manifest) live outside frontend/build/static
+WHITENOISE_ROOT = os.path.join(BASE_DIR, "frontend", "build")
+WHITENOISE_INDEX_FILE = False  # SPA routes use spa_index view, not root index.html
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 # Media files configuration
 MEDIA_URL = "/media/"
