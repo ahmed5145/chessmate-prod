@@ -126,11 +126,9 @@ if [ "$REDIS_WAIT_HOST" ]; then
     fi
 fi
 
-if [ "${ENVIRONMENT:-}" = "production" ]; then
-    export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-chess_mate.settings_prod}"
-fi
-
 cd chess_mate
+
+mkdir -p logs
 
 # Collect static files
 echo "Collecting static files..."

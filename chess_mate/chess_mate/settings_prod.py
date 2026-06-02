@@ -358,10 +358,7 @@ OPENAI_CACHE_KEY = "openai_rate_limit"
 OPENAI_CACHE_TIMEOUT = 3600
 
 # Stockfish Settings
-STOCKFISH_PATH = os.getenv(
-    "STOCKFISH_PATH",
-    "C:/Users/PCAdmin/Downloads/stockfish-windows-x86-64-avx2/stockfish/stockfish-windows-x86-64-avx2.exe",
-)
+STOCKFISH_PATH = os.getenv("STOCKFISH_PATH", "/usr/games/stockfish")
 STOCKFISH_DEPTH = int(os.getenv("STOCKFISH_DEPTH", "20"))
 STOCKFISH_THREADS = int(os.getenv("STOCKFISH_THREADS", "2"))
 STOCKFISH_HASH_SIZE = int(os.getenv("STOCKFISH_HASH_SIZE", "128"))

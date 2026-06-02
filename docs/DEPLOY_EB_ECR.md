@@ -16,12 +16,54 @@ The CD workflow creates `chessmate` automatically on first run. Or create manual
 aws ecr create-repository --repository-name chessmate --region us-east-2
 ```
 
-### 3. IAM for GitHub Actions user
+### 3. IAM for GitHub Actions user (`chessmate-deploy`)
 
-The same IAM user as `AWS_ACCESS_KEY_ID` needs:
+This is **separate** from the EC2 instance role. GitHub uses access keys for user **`chessmate-deploy`**.
 
-- Elastic Beanstalk deploy (existing)
-- ECR: `GetAuthorizationToken`, `CreateRepository`, `BatchCheckLayerAvailability`, `PutImage`, `InitiateLayerUpload`, `UploadLayerPart`, `CompleteLayerUpload`
+**Easiest (console):**
+
+1. IAM → **Users** → **chessmate-deploy**
+2. **Add permissions** → **Attach policies directly**
+3. Search and attach: **`AmazonEC2ContainerRegistryPowerUser`**
+4. Save
+
+That allows `ecr:GetAuthorizationToken` (required on `*`) and push/pull to your private repos.
+
+You already have Beanstalk deploy on this user; only ECR push was missing.
+
+**Do not use** the public ECR repo (`public.ecr.aws/...`) for CD. Use only:
+
+`381492194867.dkr.ecr.us-east-2.amazonaws.com/chessmate`
+
+**Optional custom policy** (instead of PowerUser) — IAM → user → Add permissions → Create inline policy → JSON:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrAuth",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrPushChessmate",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:DescribeRepositories",
+        "ecr:CreateRepository",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:PutImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload"
+      ],
+      "Resource": "arn:aws:ecr:us-east-2:381492194867:repository/chessmate"
+    }
+  ]
+}
+```
 
 ### 4. IAM for EB EC2 instance role (required for pull)
 
