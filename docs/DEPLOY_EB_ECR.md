@@ -79,19 +79,40 @@ Without this, deploy pulls fail and health stays **Red**.
 2. Or redeploy last good **Application version** (e.g. `chessmate-172`)
 3. Confirm: `curl http://chessmate-prod.us-east-2.elasticbeanstalk.com/health/`
 
-## Elastic Beanstalk environment variables (required for auth + batches)
+## Elastic Beanstalk environment variables
 
-| Variable | Example | Notes |
-|----------|---------|--------|
-| `REDIS_HOST` | `your-cache.xxxxx.cache.amazonaws.com` | ElastiCache hostname; **not** `localhost` |
-| `REDIS_PORT` | `6379` | |
-| `ENABLE_CELERY` | `true` | Starts worker in container; needs Redis |
-| `SECRET_KEY` | (strong random) | Required in production |
-| `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | RDS values | Or use RDS env vars EB injects |
+### Free tier (no ElastiCache) — bundled Redis in the Docker image
 
-Optional: `REDIS_URL=redis://host:6379/0` instead of `REDIS_HOST`.
+The image runs **redis-server on 127.0.0.1:6379** inside the same container. Set on EB (or rely on image defaults):
 
-Do **not** set `REACT_APP_API_URL=/api` at frontend build time (doubles the path to `/api/api/v1/...`).
+| Variable | Value |
+|----------|--------|
+| `USE_BUNDLED_REDIS` | `true` |
+| `REDIS_URL` | `redis://127.0.0.1:6379/0` |
+| `REDIS_HOST` | `127.0.0.1` |
+| `REDIS_PORT` | `6379` |
+| `ENABLE_CELERY` | `true` |
+| `SECRET_KEY` | (strong random) |
+| `DB_*` / RDS vars | Your Postgres |
+
+Do **not** set `REDIS_DISABLED=true` on EB if you want Celery/batches.
+
+Do **not** set `REACT_APP_API_URL` anywhere on EB or GitHub (CD builds with empty value → `/api/v1/...` only).
+
+### Later: ElastiCache (paid)
+
+Replace bundled Redis with:
+
+| Variable | Value |
+|----------|--------|
+| `USE_BUNDLED_REDIS` | `false` |
+| `REDIS_URL` | `redis://your-cluster.cache.amazonaws.com:6379/0` |
+| `REDIS_HOST` | ElastiCache endpoint |
+
+### Local development
+
+Copy repo template: `cp .env.example .env` and `cp chess_mate/frontend/.env.example chess_mate/frontend/.env.local`.  
+Run Redis via `docker compose up redis` or install Redis locally.
 
 ## Logs (faster than “last 100 lines”)
 

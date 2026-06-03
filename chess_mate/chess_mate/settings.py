@@ -300,10 +300,13 @@ REDIS_PORT = os.getenv("REDIS_PORT", "6379").strip()
 REDIS_DB = os.getenv("REDIS_DB", "0").strip()
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "").strip()
 
-# Construct Redis URL
-REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
-if REDIS_PASSWORD:
+_env_redis_url = os.getenv("REDIS_URL", "").strip()
+if _env_redis_url:
+    REDIS_URL = _env_redis_url
+elif REDIS_PASSWORD:
     REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+else:
+    REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 REDIS_SOCKET_TIMEOUT = int(env("REDIS_SOCKET_TIMEOUT", default=5))
 REDIS_SOCKET_CONNECT_TIMEOUT = int(env("REDIS_SOCKET_CONNECT_TIMEOUT", default=5))

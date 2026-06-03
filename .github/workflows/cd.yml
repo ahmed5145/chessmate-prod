@@ -46,6 +46,9 @@ jobs:
 
     - name: Build frontend
       working-directory: chess_mate/frontend
+      env:
+        # Empty = same-origin /api/v1/... (never set to /api — doubles the path)
+        REACT_APP_API_URL: ''
       run: npm run build
 
     - name: Prune frontend dependencies from deploy bundle

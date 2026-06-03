@@ -126,6 +126,35 @@ if [ "$REDIS_WAIT_HOST" ]; then
     fi
 fi
 
+start_bundled_redis() {
+    if [ "${USE_BUNDLED_REDIS:-false}" != "true" ]; then
+        return 0
+    fi
+    if nc -z 127.0.0.1 6379 2>/dev/null; then
+        echo "Redis already listening on 127.0.0.1:6379"
+        return 0
+    fi
+    echo "Starting bundled Redis (127.0.0.1:6379)..."
+    redis-server \
+        --bind 127.0.0.1 \
+        --port 6379 \
+        --daemonize yes \
+        --maxmemory 128mb \
+        --maxmemory-policy allkeys-lru \
+        --save ""
+    for i in $(seq 1 15); do
+        if nc -z 127.0.0.1 6379 2>/dev/null; then
+            echo "Bundled Redis is ready"
+            return 0
+        fi
+        sleep 1
+    done
+    echo "WARNING: Bundled Redis did not start in time"
+    return 1
+}
+
+start_bundled_redis
+
 cd chess_mate
 
 mkdir -p logs

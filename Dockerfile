@@ -6,12 +6,18 @@ ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
 ENV DJANGO_SETTINGS_MODULE=chess_mate.settings
 ENV PYTHONPATH=/app
+# Bundled Redis in container (free tier; no ElastiCache). Override on EB when using ElastiCache.
+ENV USE_BUNDLED_REDIS=true
+ENV REDIS_URL=redis://127.0.0.1:6379/0
+ENV REDIS_HOST=127.0.0.1
+ENV REDIS_PORT=6379
 
 # Install system dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         postgresql-client \
         stockfish \
+        redis-server \
         build-essential \
         libpq-dev \
         netcat-traditional \
