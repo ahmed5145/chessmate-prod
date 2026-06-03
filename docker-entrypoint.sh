@@ -183,12 +183,28 @@ if [[ -n "$DJANGO_SUPERUSER_USERNAME" ]] && [[ -n "$DJANGO_SUPERUSER_EMAIL" ]] &
     fi
 fi
 
-# Start Celery worker in background (must listen to all configured queues)
+# Start Celery worker (must survive after gunicorn exec — plain "&" often dies on exec)
 if [ "$ENABLE_CELERY" = "true" ]; then
     echo "Starting Celery worker (queues: default, analysis, batch_analysis)..."
-    celery -A chess_mate worker -l info -Q default,analysis,batch_analysis &
+    mkdir -p /app/chess_mate/logs
+    nohup celery -A chess_mate worker -l info \
+        -Q default,analysis,batch_analysis \
+        --without-gossip --without-mingle \
+        >> /app/chess_mate/logs/celery.log 2>&1 &
+    CELERY_PID=$!
+    disown "${CELERY_PID}" 2>/dev/null || true
+    echo "Celery worker pid=${CELERY_PID} (log: /app/chess_mate/logs/celery.log)"
+    sleep 2
+    if ! kill -0 "${CELERY_PID}" 2>/dev/null; then
+        echo "ERROR: Celery worker exited immediately. Last log lines:"
+        tail -40 /app/chess_mate/logs/celery.log 2>/dev/null || true
+    else
+        echo "Celery worker is running."
+    fi
+else
+    echo "ENABLE_CELERY is not true — batch analysis tasks will queue but not run."
 fi
 
-# Start Gunicorn
+# Start Gunicorn (PID 1 in container)
 echo "=== STARTING GUNICORN ON PORT 8000 ==="
 exec gunicorn chess_mate.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120 --error-logfile - --access-logfile -

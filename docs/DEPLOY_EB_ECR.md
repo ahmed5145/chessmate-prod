@@ -114,6 +114,36 @@ Replace bundled Redis with:
 Copy repo template: `cp .env.example .env` and `cp chess_mate/frontend/.env.example chess_mate/frontend/.env.local`.  
 Run Redis via `docker compose up redis` or install Redis locally.
 
-## Logs (faster than “last 100 lines”)
+## Logs (no SSH required)
 
-EB → **Logs** → **Request environment logs** → **Last 24 hours** → download bundle, open `var/log/eb-docker/containers/eb-current-app/*/stdouterr.log`
+You do **not** run `docker exec` on your PC. Logs live on the EB instance.
+
+1. AWS Console → **Elastic Beanstalk** → environment **ChessMate-Production** (or your env name).
+2. Left menu → **Logs** → **Request logs** → choose **Last 100 lines** (quick) or **Full logs** (zip, ~few minutes).
+3. Open the downloaded bundle and read:
+   - `var/log/eb-docker/containers/eb-current-app/*-stdouterr.log` — Django/Gunicorn (login, import, API errors)
+   - `var/log/eb-engine.log` — deploy, migrations, **“Celery worker pid=…”** at startup
+   - `var/log/nginx/access.log` — HTTP status codes
+
+### What to search for after deploy
+
+| Symptom | Search in stdouterr.log / eb-engine.log |
+|---------|----------------------------------------|
+| Batch stuck `0/5` | `Celery worker`, `batch=`, `analyze_single_game_subtask`, `Chord callback` |
+| Import 0 games | `Import returned 0 games` |
+| Celery dead | `ERROR: Celery worker exited immediately` |
+
+After the Celery fix, **eb-engine.log** on deploy should include:
+
+```text
+Celery worker pid=123 (log: /app/chess_mate/logs/celery.log)
+Celery worker is running.
+```
+
+If you use **eb cli** and SSH: `eb ssh` → `sudo docker ps` → `sudo docker exec -it <container_id> tail -f /app/chess_mate/logs/celery.log`
+
+### Batch status `0/5` for hours
+
+- Status only moves when **Celery workers** run the 5 analysis subtasks (Stockfish). The API sets `in_progress` immediately; `completed_games` increments as each game finishes.
+- Batches **#1–#3** started before a healthy worker will not finish; start a **new** batch after redeploy.
+- Confirm EB env var **`ENABLE_CELERY=true`**, then redeploy so the entrypoint starts the worker with queues `default,analysis,batch_analysis`.

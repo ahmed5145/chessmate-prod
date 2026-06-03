@@ -839,6 +839,25 @@ def batch_analyze_games(
 # ============================================================================
 
 
+def _record_batch_game_progress(batch_id: str, user_id: int, game_id: str, *, succeeded: bool) -> None:
+    """Update BatchAnalysisReport counters so /batches/{id}/status/ shows live progress."""
+    try:
+        batch_report = BatchAnalysisReport.objects.get(task_id=batch_id, user_id=user_id)
+        if succeeded:
+            completed = list(batch_report.completed_games or [])
+            if game_id not in completed:
+                completed.append(game_id)
+            batch_report.completed_games = completed
+            batch_report.save(update_fields=["completed_games", "updated_at"])
+        else:
+            failed = list(batch_report.failed_games or [])
+            failed.append({"game_id": game_id, "message": "analysis failed"})
+            batch_report.failed_games = failed
+            batch_report.save(update_fields=["failed_games", "updated_at"])
+    except Exception as exc:
+        logger.warning("Could not update batch progress for %s: %s", batch_id, exc)
+
+
 @shared_task(name="chess_mate.core.tasks.analyze_single_game_subtask", bind=False)
 def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: int) -> Dict[str, Any]:
     """
@@ -1011,12 +1030,14 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
         game_result = builder(pgn, game_id=game_id)
 
         if not game_result:
+            _record_batch_game_progress(batch_id, user_id, game_id, succeeded=False)
             return {
                 "game_id": game_id,
                 "status": "failed",
                 "error": "Failed to build game result (empty output)",
             }
 
+        _record_batch_game_progress(batch_id, user_id, game_id, succeeded=True)
         return {
             "game_id": game_id,
             "status": "success",
@@ -1025,6 +1046,7 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
 
     except Exception as exc:
         logger.exception(f"Error analyzing game {game_id} in batch {batch_id}: {str(exc)}")
+        _record_batch_game_progress(batch_id, user_id, game_id, succeeded=False)
         return {
             "game_id": game_id,
             "status": "failed",
