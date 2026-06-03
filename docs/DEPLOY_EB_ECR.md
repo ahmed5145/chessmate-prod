@@ -79,6 +79,20 @@ Without this, deploy pulls fail and health stays **Red**.
 2. Or redeploy last good **Application version** (e.g. `chessmate-172`)
 3. Confirm: `curl http://chessmate-prod.us-east-2.elasticbeanstalk.com/health/`
 
+## Elastic Beanstalk environment variables (required for auth + batches)
+
+| Variable | Example | Notes |
+|----------|---------|--------|
+| `REDIS_HOST` | `your-cache.xxxxx.cache.amazonaws.com` | ElastiCache hostname; **not** `localhost` |
+| `REDIS_PORT` | `6379` | |
+| `ENABLE_CELERY` | `true` | Starts worker in container; needs Redis |
+| `SECRET_KEY` | (strong random) | Required in production |
+| `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | RDS values | Or use RDS env vars EB injects |
+
+Optional: `REDIS_URL=redis://host:6379/0` instead of `REDIS_HOST`.
+
+Do **not** set `REACT_APP_API_URL=/api` at frontend build time (doubles the path to `/api/api/v1/...`).
+
 ## Logs (faster than “last 100 lines”)
 
 EB → **Logs** → **Request environment logs** → **Last 24 hours** → download bundle, open `var/log/eb-docker/containers/eb-current-app/*/stdouterr.log`

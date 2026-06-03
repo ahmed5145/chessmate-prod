@@ -286,8 +286,16 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Redis settings
-REDIS_DISABLED = os.getenv("REDIS_DISABLED", "False").lower() == "true"
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost").strip()
+REDIS_DISABLED = os.getenv("REDIS_DISABLED", "False").lower() == "true"
+# EB/Docker without ElastiCache: avoid connecting to localhost:6379 in production
+if (
+    not REDIS_DISABLED
+    and IS_PRODUCTION
+    and REDIS_HOST in ("localhost", "127.0.0.1")
+    and not os.getenv("REDIS_URL", "").strip()
+):
+    REDIS_DISABLED = True
 REDIS_PORT = os.getenv("REDIS_PORT", "6379").strip()
 REDIS_DB = os.getenv("REDIS_DB", "0").strip()
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "").strip()

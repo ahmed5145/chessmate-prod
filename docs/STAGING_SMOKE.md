@@ -12,6 +12,8 @@ Do **not** use `CELERY_TASK_ALWAYS_EAGER`.
 - [x] Health: `http://chessmate-prod.us-east-2.elasticbeanstalk.com/health/` → `ok`
 - [x] Readiness: `.../readiness/` → `{"status":"ready"}`
 - [ ] `ENABLE_CELERY=true` on EB + **redeploy** after adding it
+- [ ] Redis for Celery/cache: set **`REDIS_HOST`** (ElastiCache endpoint) or **`REDIS_URL`** on EB — not `localhost`
+- [ ] Do **not** set `REACT_APP_API_URL=/api` on build (causes `/api/api/v1/...`); leave unset for same-origin deploy
 - [ ] App UI loads at `/` or `/login` (not only `/admin/`)
 - [ ] `/static/js/main.*.js` returns **200** (not 404) — WhiteNoise + `collectstatic` on deploy
 - [ ] Test account with Lichess or Chess.com linked

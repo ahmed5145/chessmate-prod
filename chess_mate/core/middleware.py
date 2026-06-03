@@ -566,6 +566,18 @@ class RateLimitMiddleware:
         default_config.update(endpoint_config)
         return default_config
 
+    def _cache_get_safe(self, key, default=None):
+        try:
+            return cache.get(key, default)
+        except Exception:
+            return default
+
+    def _cache_set_safe(self, key, value, timeout=None):
+        try:
+            cache.set(key, value, timeout=timeout)
+        except Exception:
+            pass
+
     def _is_rate_limited(self, key, endpoint_type):
         """Return True when request count exceeds endpoint limits."""
         config = self._get_rate_limit_config(endpoint_type)
@@ -575,16 +587,16 @@ class RateLimitMiddleware:
         now = int(time.time())
         count, first_ts = self._memory_rate_state.get(key, (0, now))
 
-        cached_count = cache.get(key, None)
-        cached_first_ts = cache.get(f"{key}:ts", None)
+        cached_count = self._cache_get_safe(key, None)
+        cached_first_ts = self._cache_get_safe(f"{key}:ts", None)
         if cached_count is not None:
             count = int(cached_count)
         if cached_first_ts is not None:
             first_ts = int(cached_first_ts)
 
         if now - first_ts >= time_window:
-            cache.set(key, 1, timeout=time_window)
-            cache.set(f"{key}:ts", now, timeout=time_window)
+            self._cache_set_safe(key, 1, timeout=time_window)
+            self._cache_set_safe(f"{key}:ts", now, timeout=time_window)
             self._memory_rate_state[key] = (1, now)
             return False
 
@@ -592,8 +604,8 @@ class RateLimitMiddleware:
             return True
 
         ttl = max(1, time_window - max(0, now - first_ts))
-        cache.set(key, count + 1, timeout=ttl)
-        cache.set(f"{key}:ts", first_ts, timeout=ttl)
+        self._cache_set_safe(key, count + 1, timeout=ttl)
+        self._cache_set_safe(f"{key}:ts", first_ts, timeout=ttl)
         self._memory_rate_state[key] = (count + 1, first_ts)
         return False
 
@@ -601,7 +613,7 @@ class RateLimitMiddleware:
         """Get remaining requests within the current time window."""
         config = self._get_rate_limit_config(endpoint_type)
         max_requests = int(config.get("MAX_REQUESTS", 100))
-        count = int(cache.get(key, 0) or 0)
+        count = int(self._cache_get_safe(key, 0) or 0)
         if count == 0 and key in self._memory_rate_state:
             count = self._memory_rate_state[key][0]
         return max(0, max_requests - count)
@@ -611,7 +623,7 @@ class RateLimitMiddleware:
         config = self._get_rate_limit_config(endpoint_type)
         time_window = int(config.get("TIME_WINDOW", 3600))
         now = int(time.time())
-        first_ts = int(cache.get(f"{key}:ts", now) or now)
+        first_ts = int(self._cache_get_safe(f"{key}:ts", now) or now)
         if first_ts == now and key in self._memory_rate_state:
             first_ts = self._memory_rate_state[key][1]
         return max(0, time_window - max(0, now - first_ts))

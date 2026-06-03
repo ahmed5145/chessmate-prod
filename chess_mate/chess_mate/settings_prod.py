@@ -138,30 +138,47 @@ else:
 
     REDIS_URL = f"redis://{auth}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
+REDIS_DISABLED = os.getenv("REDIS_DISABLED", "False").lower() == "true"
+if (
+    not REDIS_DISABLED
+    and REDIS_HOST in ("localhost", "127.0.0.1")
+    and not (_env_redis_url and _env_redis_url.strip())
+):
+    REDIS_DISABLED = True
+
 # Cache settings
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "SOCKET_CONNECT_TIMEOUT": 5,
-            "SOCKET_TIMEOUT": 5,
-            "RETRY_ON_TIMEOUT": True,
-            "MAX_CONNECTIONS": 20,
-            "CONNECTION_POOL_KWARGS": {"max_connections": 10},
-            "KEY_PREFIX": "cm",
-            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
-            "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
+if REDIS_DISABLED:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "chessmate-default",
+            "TIMEOUT": 300,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "SOCKET_CONNECT_TIMEOUT": 5,
+                "SOCKET_TIMEOUT": 5,
+                "RETRY_ON_TIMEOUT": True,
+                "MAX_CONNECTIONS": 20,
+                "CONNECTION_POOL_KWARGS": {"max_connections": 10},
+                "KEY_PREFIX": "cm",
+                "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+                "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
+            },
         },
-    },
-    "local": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "chessmate-local",
-        "TIMEOUT": 300,
-        "OPTIONS": {"MAX_ENTRIES": 1000},
-    },
-}
+        "local": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "chessmate-local",
+            "TIMEOUT": 300,
+            "OPTIONS": {"MAX_ENTRIES": 1000},
+        },
+    }
 
 # Session settings - use database instead of cache
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
