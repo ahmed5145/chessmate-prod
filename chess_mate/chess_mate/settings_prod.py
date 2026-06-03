@@ -172,6 +172,21 @@ else:
                 "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
             },
         },
+        "redis": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "SOCKET_CONNECT_TIMEOUT": 5,
+                "SOCKET_TIMEOUT": 5,
+                "RETRY_ON_TIMEOUT": True,
+                "MAX_CONNECTIONS": 20,
+                "CONNECTION_POOL_KWARGS": {"max_connections": 10},
+                "KEY_PREFIX": "cm",
+                "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+                "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
+            },
+        },
         "local": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "LOCATION": "chessmate-local",

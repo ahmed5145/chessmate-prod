@@ -350,7 +350,16 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
             },
             "TIMEOUT": 300,
-        }
+        },
+        # Legacy alias used by core.cache (CACHE_BACKEND_REDIS)
+        "redis": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
+            "TIMEOUT": 300,
+        },
     }
 
 # Cache timeouts (in seconds)
