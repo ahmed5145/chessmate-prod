@@ -61,9 +61,8 @@ def get_redis_connection():
             # Create a Redis client with the connection pool
             client = redis.Redis(connection_pool=pool)
 
-        # Test connection with ping
         client.ping()
-        logger.info(f"Successfully connected to Redis at {redis_host}:{redis_port}")
+        logger.info("Successfully connected to Redis")
         return client
     except redis.RedisError as e:
         logger.warning(f"Redis error: {str(e)}")

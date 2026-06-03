@@ -105,27 +105,6 @@ if [ -n "$DB_WAIT_HOST" ]; then
     fi
 fi
 
-# Wait for redis
-REDIS_WAIT_HOST="${REDIS_HOST:-}"
-REDIS_WAIT_PORT="${REDIS_PORT:-6379}"
-echo "Resolved Redis target: host=${REDIS_WAIT_HOST:-<empty>} port=${REDIS_WAIT_PORT}"
-if [ "$REDIS_WAIT_HOST" ]; then
-    echo "Waiting for redis at $REDIS_WAIT_HOST:$REDIS_WAIT_PORT (max 30s)..."
-    counter=0
-    max_attempts=30
-    while [ $counter -lt $max_attempts ]; do
-        if nc -z "$REDIS_WAIT_HOST" "$REDIS_WAIT_PORT" 2>/dev/null; then
-            echo "Redis is ready!"
-            break
-        fi
-        counter=$((counter + 1))
-        sleep 1
-    done
-    if [ $counter -eq $max_attempts ]; then
-        echo "WARNING: Redis did not respond after 30s, proceeding anyway..."
-    fi
-fi
-
 start_bundled_redis() {
     if [ "${USE_BUNDLED_REDIS:-false}" != "true" ]; then
         return 0
@@ -154,6 +133,27 @@ start_bundled_redis() {
 }
 
 start_bundled_redis
+
+# Wait for redis (after bundled Redis may have started)
+REDIS_WAIT_HOST="${REDIS_HOST:-}"
+REDIS_WAIT_PORT="${REDIS_PORT:-6379}"
+echo "Resolved Redis target: host=${REDIS_WAIT_HOST:-<empty>} port=${REDIS_WAIT_PORT}"
+if [ "$REDIS_WAIT_HOST" ]; then
+    echo "Waiting for redis at $REDIS_WAIT_HOST:$REDIS_WAIT_PORT (max 30s)..."
+    counter=0
+    max_attempts=30
+    while [ $counter -lt $max_attempts ]; do
+        if nc -z "$REDIS_WAIT_HOST" "$REDIS_WAIT_PORT" 2>/dev/null; then
+            echo "Redis is ready!"
+            break
+        fi
+        counter=$((counter + 1))
+        sleep 1
+    done
+    if [ $counter -eq $max_attempts ]; then
+        echo "WARNING: Redis did not respond after 30s, proceeding anyway..."
+    fi
+fi
 
 cd chess_mate
 

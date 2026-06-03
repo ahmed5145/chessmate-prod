@@ -3,10 +3,8 @@ import { jwtDecode } from "jwt-decode";
 import { toast } from 'react-hot-toast';
 import { API_URL } from '../config';
 
-// Get the base URL from environment variables or use a default
-const getBaseUrl = () => {
-    return API_URL || '/api';
-};
+// Same-origin deploy: empty base; paths already start with /api/v1/
+const getBaseUrl = () => (API_URL || '').replace(/\/$/, '');
 
 const API_BASE_URL = getBaseUrl();
 
