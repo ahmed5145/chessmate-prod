@@ -21,7 +21,7 @@ const FetchGames = () => {
     try {
       const data = await fetchProfileData();
       const accounts = {
-        chesscom: data.chesscom_username,
+        chesscom: data.chess_com_username || data.chesscom_username,
         lichess: data.lichess_username
       };
 

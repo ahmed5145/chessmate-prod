@@ -183,10 +183,10 @@ if [[ -n "$DJANGO_SUPERUSER_USERNAME" ]] && [[ -n "$DJANGO_SUPERUSER_EMAIL" ]] &
     fi
 fi
 
-# Start Celery worker in background
+# Start Celery worker in background (must listen to all configured queues)
 if [ "$ENABLE_CELERY" = "true" ]; then
-    echo "Starting Celery worker..."
-    celery -A chess_mate worker -l info &
+    echo "Starting Celery worker (queues: default, analysis, batch_analysis)..."
+    celery -A chess_mate worker -l info -Q default,analysis,batch_analysis &
 fi
 
 # Start Gunicorn

@@ -200,7 +200,7 @@ export const fetchDashboardData = async () => {
 
 export const fetchExternalGames = async (platform, username, gameType, numGames = 10) => {
     try {
-        const effectiveGameType = gameType === "all" ? "rapid" : gameType;
+        const effectiveGameType = gameType || "all";
         console.log('Fetching external games...', { platform, username, gameType: effectiveGameType, numGames });
 
         // Get user ID and token from localStorage

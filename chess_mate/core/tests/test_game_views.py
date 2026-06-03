@@ -63,105 +63,65 @@ class TestGameViews:
         assert response.data[0]["white"] == "testuser"
         assert response.data[0]["black"] == "opponent"
 
-    @patch("core.chess_services.ChessComService.get_user_games")
-    def test_fetch_games_chess_com(self, mock_get_games, authenticated_client, test_user):
-        # Mock the chess.com service
-        mock_get_games.return_value = [
-            {
-                "white": {"username": "testuser"},
-                "black": {"username": "opponent1"},
-                "pgn": '[Event "Test Game 1"]\n1. e4 e5',
-                "time_control": "rapid",
-                "end_time": 1610000000,
-                "result": "1-0",
-            },
-            {
-                "white": {"username": "opponent2"},
-                "black": {"username": "testuser"},
-                "pgn": '[Event "Test Game 2"]\n1. d4 d5',
-                "time_control": "rapid",
-                "end_time": 1610010000,
-                "result": "0-1",
-            },
-        ]
+    @patch("core.chess_services.ChessComService.fetch_games")
+    def test_fetch_games_chess_com(self, mock_fetch_games, authenticated_client, test_user):
+        mock_fetch_games.return_value = {
+            "saved": 2,
+            "games": [{"game_id": "1"}, {"game_id": "2"}],
+            "message": "Successfully imported 2 rapid games",
+        }
 
-        # Create mock save_game function
-        with patch("core.chess_services.save_game") as mock_save_game:
-            # Make save_game return a game with ID
-            def side_effect(user, platform, data):
-                game = Game(id=len(mock_save_game.mock_calls))
-                return game
+        url = reverse("fetch_games")
+        data = {
+            "platform": "chess.com",
+            "username": "testuser",
+            "game_type": "rapid",
+            "num_games": 5,
+        }
 
-            mock_save_game.side_effect = side_effect
+        response = authenticated_client.post(url, data, format="json")
 
-            url = reverse("fetch_games")
-            data = {
-                "platform": "chess.com",
-                "username": "testuser",
-                "game_type": "rapid",
-                "num_games": 5,
-            }
+        assert response.status_code == status.HTTP_200_OK
+        assert mock_fetch_games.called
+        assert mock_fetch_games.call_args[0][0] == "testuser"
+        assert mock_fetch_games.call_args[0][1] == test_user
+        assert mock_fetch_games.call_args[0][2] == "rapid"
+        assert mock_fetch_games.call_args[0][3] == 5
+        assert response.data["imported_count"] == 2
+        assert response.data["saved_games"] == [0, 1]
 
-            response = authenticated_client.post(url, data, format="json")
+        profile = Profile.objects.get(user=test_user)
+        assert profile.credits == 8  # Started with 10, imported 2 games
 
-            assert response.status_code == status.HTTP_200_OK
-            assert mock_get_games.called
-            assert mock_get_games.call_args[0][0] == "testuser"
-            assert mock_get_games.call_args[0][1] == "rapid"
-            assert mock_get_games.call_args[0][2] == 5
-            assert mock_save_game.call_count == 2
-            assert response.data["saved_games"] == [0, 1]
+    @patch("core.chess_services.LichessService.fetch_games")
+    def test_fetch_games_lichess(self, mock_fetch_games, authenticated_client, test_user):
+        mock_fetch_games.return_value = {
+            "games_saved": 1,
+            "games_skipped": 0,
+            "message": "Successfully imported 1 new rapid games",
+        }
 
-            # Check if credits were deducted
-            profile = Profile.objects.get(user=test_user)
-            assert profile.credits == 8  # Started with 10, imported 2 games
+        url = reverse("fetch_games")
+        data = {
+            "platform": "lichess",
+            "username": "testuser",
+            "game_type": "rapid",
+            "num_games": 5,
+        }
 
-    @patch("core.chess_services.LichessService.get_user_games")
-    def test_fetch_games_lichess(self, mock_get_games, authenticated_client, test_user):
-        # Mock the lichess service
-        mock_get_games.return_value = [
-            {
-                "players": {
-                    "white": {"user": {"name": "testuser"}},
-                    "black": {"user": {"name": "opponent1"}},
-                },
-                "pgn": '[Event "Test Game 1"]\n1. e4 e5',
-                "speed": "rapid",
-                "createdAt": 1610000000,
-                "winner": "white",
-            }
-        ]
+        response = authenticated_client.post(url, data, format="json")
 
-        # Create mock save_game function
-        with patch("core.chess_services.save_game") as mock_save_game:
-            # Make save_game return a game with ID
-            def side_effect(user, platform, data):
-                game = Game(id=len(mock_save_game.mock_calls))
-                return game
+        assert response.status_code == status.HTTP_200_OK
+        assert mock_fetch_games.called
+        assert mock_fetch_games.call_args[0][0] == "testuser"
+        assert mock_fetch_games.call_args[0][1] == test_user
+        assert mock_fetch_games.call_args[0][2] == "rapid"
+        assert mock_fetch_games.call_args[0][3] == 5
+        assert response.data["imported_count"] == 1
+        assert response.data["saved_games"] == [0]
 
-            mock_save_game.side_effect = side_effect
-
-            url = reverse("fetch_games")
-            data = {
-                "platform": "lichess",
-                "username": "testuser",
-                "game_type": "rapid",
-                "num_games": 5,
-            }
-
-            response = authenticated_client.post(url, data, format="json")
-
-            assert response.status_code == status.HTTP_200_OK
-            assert mock_get_games.called
-            assert mock_get_games.call_args[0][0] == "testuser"
-            assert mock_get_games.call_args[0][1] == "rapid"
-            assert mock_get_games.call_args[0][2] == 5
-            assert mock_save_game.call_count == 1
-            assert response.data["saved_games"] == [0]
-
-            # Check if credits were deducted
-            profile = Profile.objects.get(user=test_user)
-            assert profile.credits == 9  # Started with 10
+        profile = Profile.objects.get(user=test_user)
+        assert profile.credits == 9  # Started with 10, imported 1 game
 
     def test_analyze_game(self, authenticated_client, test_user, test_game):
         # Set game to unanalyzed first

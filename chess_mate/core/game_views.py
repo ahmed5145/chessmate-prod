@@ -1381,38 +1381,60 @@ def import_external_games(request):
         lichess_cls = _resolve_compat_attr("core.chess_services", "LichessService", LichessService)
         save_game_fn = _resolve_compat_attr("core.chess_services", "save_game", save_game)
 
-        if platform == "chess.com":
-            service = chess_com_cls()
-        else:
-            service = lichess_cls()
-
-        # Get games using the legacy method name/signature when available.
-        if hasattr(service, "get_user_games"):
-            games = service.get_user_games(username, game_type, num_games)
-        else:
-            games = service.get_games(username, limit=num_games, game_type=game_type)
-
-        # Save games
+        import_user = User.objects.get(id=user_id)
         imported_count = 0
         saved_games: List[int] = []
-        for game_data in games:
-            try:
-                # Get the user object
-                user = User.objects.get(id=user_id)
-                # Canonical signature: save_game(game_data, username, user).
-                # Keep a compatibility fallback for legacy patched call signatures used in some tests.
-                try:
-                    saved_game = save_game_fn(game_data, username, user)
-                except TypeError:
-                    saved_game = save_game_fn(user, platform, game_data)
+        games: List[Any] = []
+        import_message = ""
 
-                if saved_game:
-                    imported_count += 1
-                    saved_games.append(imported_count - 1)
-            except (
-                Exception
-            ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
-                logger.error("Error saving game: %s", str(e))
+        # Prefer fetch_games (saves for the logged-in user). Fall back to get_user_games + save_game for tests.
+        if platform == "chess.com" and hasattr(chess_com_cls, "fetch_games"):
+            result = chess_com_cls.fetch_games(username, import_user, game_type, num_games)
+            imported_count = int(result.get("saved", 0) or 0)
+            games = result.get("games", []) or []
+            import_message = result.get("message", "")
+            saved_games = list(range(imported_count))
+        elif platform == "lichess" and hasattr(lichess_cls, "fetch_games"):
+            result = lichess_cls.fetch_games(username, import_user, game_type, num_games)
+            imported_count = int(result.get("games_saved", 0) or 0)
+            games = result.get("games", []) or []
+            import_message = result.get("message", "")
+            saved_games = list(range(imported_count))
+        else:
+            if platform == "chess.com":
+                service = chess_com_cls()
+            else:
+                service = lichess_cls()
+
+            if hasattr(service, "get_user_games"):
+                games = service.get_user_games(username, game_type, num_games, user=import_user)
+            else:
+                games = service.get_games(username, limit=num_games, game_type=game_type, user=import_user)
+
+            for game_data in games:
+                try:
+                    try:
+                        saved_game = save_game_fn(game_data, username, import_user)
+                    except TypeError:
+                        saved_game = save_game_fn(import_user, platform, game_data)
+
+                    if saved_game:
+                        imported_count += 1
+                        saved_games.append(imported_count - 1)
+                except (
+                    Exception
+                ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
+                    logger.error("Error saving game: %s", str(e))
+
+        if imported_count == 0:
+            logger.warning(
+                "Import returned 0 games: platform=%s username=%s game_type=%s num_games=%s message=%s",
+                platform,
+                username,
+                game_type,
+                num_games,
+                import_message,
+            )
 
         # Deduct credits if not staff
         if not request.user.is_staff:

@@ -361,36 +361,46 @@ class ChessComService:
             logger.error(f"Error saving game: {str(e)}")
             return None
 
-    def get_games(self, username: str, limit: int = 10, game_type: str = "all") -> List[Dict[str, Any]]:
+    def get_games(
+        self,
+        username: str,
+        limit: int = 10,
+        game_type: str = "all",
+        user: Optional[User] = None,
+    ) -> List[Dict[str, Any]]:
         """
-        Get games for a user from Chess.com.
-        This is a wrapper around fetch_games that returns a list of game data objects.
+        Get games for a user from Chess.com (fetch + save for the given Django user).
 
         Args:
             username: The Chess.com username
             limit: Maximum number of games to fetch (default: 10)
             game_type: Type of games to fetch (blitz, bullet, rapid, classical, all)
+            user: Logged-in Django user who owns imported games (required in production)
 
         Returns:
-            List of game data objects
+            List of game data objects that were saved
         """
         try:
-            # Create a dummy user if needed for testing/API functionality
-            user, _ = User.objects.get_or_create(username="api_system_user")
+            if user is None:
+                logger.warning("get_games called without user; falling back to api_system_user")
+                user, _ = User.objects.get_or_create(username="api_system_user")
 
-            # Fetch games
-            result = self.fetch_games(username, user, game_type, limit)
+            result = ChessComService.fetch_games(username, user, game_type, limit)
             logger.info(f"Retrieved {len(result.get('games', []))} games for {username}")
-
-            # Return the games list
             return result.get("games", [])
         except Exception as e:
             logger.error(f"Error getting games for {username}: {str(e)}", exc_info=True)
             return []
 
-    def get_user_games(self, username: str, game_type: str = "all", num_games: int = 10) -> List[Dict[str, Any]]:
+    def get_user_games(
+        self,
+        username: str,
+        game_type: str = "all",
+        num_games: int = 10,
+        user: Optional[User] = None,
+    ) -> List[Dict[str, Any]]:
         """Backward-compatible alias used by legacy tests."""
-        return self.get_games(username=username, limit=num_games, game_type=game_type)
+        return self.get_games(username=username, limit=num_games, game_type=game_type, user=user)
 
 
 class LichessService:
@@ -710,36 +720,51 @@ class LichessService:
             logger.error(f"Error saving game {game_id if game_id else 'unknown'}: {str(e)}")
             return None
 
-    def get_games(self, username: str, limit: int = 10, game_type: str = "all") -> List[Dict[str, Any]]:
+    def get_games(
+        self,
+        username: str,
+        limit: int = 10,
+        game_type: str = "all",
+        user: Optional[User] = None,
+    ) -> List[Dict[str, Any]]:
         """
-        Get games for a user from Lichess.
-        This is a wrapper around fetch_games that returns a list of game data objects.
+        Get games for a user from Lichess (fetch + save for the given Django user).
 
         Args:
             username: The Lichess username
             limit: Maximum number of games to fetch (default: 10)
             game_type: Type of games to fetch (blitz, bullet, rapid, classical, all)
+            user: Logged-in Django user who owns imported games (required in production)
 
         Returns:
-            List of game data objects
+            List of saved game data objects (may be empty; see fetch_games message)
         """
         try:
-            # Create a dummy user if needed for testing/API functionality
-            user, _ = User.objects.get_or_create(username="api_system_user")
+            if user is None:
+                logger.warning("get_games called without user; falling back to api_system_user")
+                user, _ = User.objects.get_or_create(username="api_system_user")
 
-            # Fetch games
-            result = self.fetch_games(username, user, game_type, limit)
-            logger.info(f"Retrieved {len(result.get('games', []))} games for {username}")
-
-            # Return the games list
+            result = LichessService.fetch_games(username, user, game_type, limit)
+            logger.info(
+                "Lichess import for %s: saved=%s skipped=%s",
+                username,
+                result.get("games_saved", 0),
+                result.get("games_skipped", 0),
+            )
             return result.get("games", [])
         except Exception as e:
             logger.error(f"Error getting games for {username}: {str(e)}", exc_info=True)
             return []
 
-    def get_user_games(self, username: str, game_type: str = "all", num_games: int = 10) -> List[Dict[str, Any]]:
+    def get_user_games(
+        self,
+        username: str,
+        game_type: str = "all",
+        num_games: int = 10,
+        user: Optional[User] = None,
+    ) -> List[Dict[str, Any]]:
         """Backward-compatible alias used by legacy tests."""
-        return self.get_games(username=username, limit=num_games, game_type=game_type)
+        return self.get_games(username=username, limit=num_games, game_type=game_type, user=user)
 
 
 def save_game(game: Dict[str, Any], username: str, user: User) -> Optional[Game]:

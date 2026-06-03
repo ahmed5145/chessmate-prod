@@ -69,6 +69,9 @@ app.conf.task_routes = {
     "chess_mate.core.tasks.batch_analyze_games_task": {"queue": "batch_analysis"},
     "core.tasks.batch_analyze_games_task": {"queue": "batch_analysis"},
     "core.tasks.analyze_batch_games_task": {"queue": "batch_analysis"},
+    "chess_mate.core.tasks.analyze_batch_task": {"queue": "batch_analysis"},
+    "chess_mate.core.tasks.analyze_single_game_subtask": {"queue": "batch_analysis"},
+    "chess_mate.core.tasks.aggregate_and_report_task": {"queue": "batch_analysis"},
     "core.tasks.*": {"queue": "default"},
 }
 

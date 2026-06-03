@@ -202,6 +202,7 @@ def profile_view(request):
                 "last_name": request.user.last_name,
                 "credits": profile.credits,
                 "chess_com_username": profile.chess_com_username,
+                "chesscom_username": profile.chess_com_username,
                 "lichess_username": profile.lichess_username,
                 "elo_rating": getattr(profile, "elo_rating", 1200),
                 "analysis_count": getattr(profile, "analysis_count", 0),
