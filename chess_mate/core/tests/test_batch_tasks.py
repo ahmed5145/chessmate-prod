@@ -34,7 +34,7 @@ class TestAnalyzeSingleGameSubtask(TestCase):
             assert result["game_id"] == "test_game_1"
             assert result["status"] == "success"
             assert result["result"] == mock_result
-            mock_build.assert_called_once_with(pgn, game_id=game_id)
+            mock_build.assert_called_once_with(pgn, game_id=game_id, depth=14)
 
     def test_subtask_exception_handling(self):
         """Subtask catches exceptions and returns failed envelope."""
