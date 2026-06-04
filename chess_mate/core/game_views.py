@@ -1441,8 +1441,14 @@ def import_external_games(request):
             profile.credits = max(0, profile.credits - imported_count)
             profile.save(update_fields=["credits"])
 
-        # Invalidate cache
+        # Invalidate cache (pattern + Redis user games list)
         invalidate_cache(f"user_{user_id}_games")
+        try:
+            from .redis_config import invalidate_user_games_cache
+
+            invalidate_user_games_cache(int(user_id))
+        except Exception as cache_exc:
+            logger.warning("Could not invalidate Redis games cache for user %s: %s", user_id, cache_exc)
 
         return Response(
             {

@@ -2,6 +2,7 @@
 Views for batch analysis operations (PRD section 11, Step 9).
 """
 
+import logging
 import uuid
 
 from rest_framework import status
@@ -10,12 +11,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import BatchAnalysisReport
-from .serializers_batches import (
-    BatchAnalysisReportSerializer,
-    BatchCreateSerializer,
-    BatchStatusSerializer,
-)
+from .serializers_batches import (BatchAnalysisReportSerializer,
+                                  BatchCreateSerializer, BatchStatusSerializer)
 from .tasks import analyze_batch_task
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(["POST"])
@@ -57,8 +57,16 @@ def batch_create_view(request):
         games_count=len(pgn_list),
     )
 
-    # Queue the analysis task
-    analyze_batch_task.delay(batch_id, pgn_list, request.user.id)
+    # Queue the analysis task (requires Celery worker — see docker-entrypoint.sh)
+    async_result = analyze_batch_task.delay(batch_id, pgn_list, request.user.id)
+    logger.info(
+        "Queued batch %s (report id=%s) celery_id=%s games=%s user=%s",
+        batch_id,
+        batch_report.pk,
+        async_result.id,
+        len(pgn_list),
+        request.user.id,
+    )
 
     return Response(
         {
