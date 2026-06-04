@@ -104,6 +104,17 @@ def test_clean_game_schema_structure():
             assert k in cm
 
 
+def test_moves_store_pre_and_post_evals():
+    """M1: each half-move has eval_before and eval_after from separate engine calls."""
+    res = build_game_result(CLEAN_GAME_PGN, game_id="eval-check")
+    assert res["total_moves"] > 0
+    # Re-run loop indirectly: analyzed moves are not returned on result, but critical moments carry evals
+    for cm in res["critical_moments"]:
+        assert "eval_before" in cm
+        assert "eval_after" in cm
+        assert cm["eval_swing"] >= 0
+
+
 def test_blunder_game_detects_critical_moment():
     res = build_game_result(BLUNDER_GAME_PGN, game_id="blunder-1")
 

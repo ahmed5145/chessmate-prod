@@ -63,8 +63,11 @@ const PhaseBreakdown = ({ batch_summary }) => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
-        Phase Performance
+      <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
+        Phase performance
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 3 }}>
+        Eval stability by phase (higher is better). Not Chess.com accuracy or ACPL.
       </Typography>
 
       <Grid container spacing={3}>
@@ -94,7 +97,7 @@ const PhaseBreakdown = ({ batch_summary }) => {
                     {capitalize(phaseKey)}
                   </Typography>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                    {progressValue}%
+                    {progressValue}% stable
                   </Typography>
                 </Box>
 

@@ -158,19 +158,37 @@ def _extract_date_range(pgn_list: Optional[List[str]]) -> str:
     return f"{dates_sorted[0]} to {dates_sorted[-1]}"
 
 
+def _player_outcome(result: Dict[str, Any]) -> str:
+    """win | loss | draw from the analyzed player's perspective."""
+    raw = (result.get("result") or "").strip()
+    color = result.get("player_color", "white")
+    if raw in ("1/2-1/2", "*"):
+        return "draw"
+    if raw == "1-0":
+        return "win" if color == "white" else "loss"
+    if raw == "0-1":
+        return "win" if color == "black" else "loss"
+    return "unknown"
+
+
+def _phase_score(phase_data: Dict[str, Any]) -> float:
+    avg_eval_drop = float(phase_data.get("avg_eval_drop", 0.0) or 0.0)
+    return max(0.0, min(1.0, 1.0 - avg_eval_drop))
+
+
 def _count_results(per_game_results: List[Dict[str, Any]]) -> Dict[str, int]:
-    """Count wins, losses, draws from game results."""
+    """Count wins, losses, draws from the analyzed player's perspective (M3)."""
     wins = 0
     losses = 0
     draws = 0
 
     for result in per_game_results:
-        result_str = result.get("result", "").strip()
-        if result_str == "1-0":
+        outcome = _player_outcome(result)
+        if outcome == "win":
             wins += 1
-        elif result_str == "0-1":
+        elif outcome == "loss":
             losses += 1
-        elif result_str == "1/2-1/2":
+        elif outcome == "draw":
             draws += 1
 
     return {
@@ -450,24 +468,6 @@ def _find_most_common_blunder_type(per_game_results: List[Dict[str, Any]]) -> st
         return "tactical_oversight"
 
     return "Unknown"
-
-
-def _player_outcome(result: Dict[str, Any]) -> str:
-    """win | loss | draw from the analyzed player's perspective."""
-    raw = (result.get("result") or "").strip()
-    color = result.get("player_color", "white")
-    if raw in ("1/2-1/2", "*"):
-        return "draw"
-    if raw == "1-0":
-        return "win" if color == "white" else "loss"
-    if raw == "0-1":
-        return "win" if color == "black" else "loss"
-    return "unknown"
-
-
-def _phase_score(phase_data: Dict[str, Any]) -> float:
-    avg_eval_drop = float(phase_data.get("avg_eval_drop", 0.0) or 0.0)
-    return max(0.0, min(1.0, 1.0 - avg_eval_drop))
 
 
 def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

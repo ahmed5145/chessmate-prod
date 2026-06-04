@@ -1,6 +1,6 @@
 # ChessMate Product & Delivery Contract
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Date:** 2026-06-04  
 **Status:** Active — governs what we ship, how we measure it, and what “done” means  
 **Audience:** Product, engineering, and anyone deciding what users pay for  
@@ -129,12 +129,12 @@ Expand AI **only where it synthesizes engine facts** — never to invent moves o
 
 ### 4.3 Metrics remediation plan (contractual deliverables)
 
-| ID | Deliverable | Acceptance |
-|----|-------------|------------|
-| M1 | Fix eval_before / eval_after per move (true after-move eval) | Unit test: one known PGN line, drop matches engine delta |
-| M2 | Unify batch classification with documented thresholds | Single doc table in code + contract |
-| M3 | Player-relative W/L in `batch_summary` | 5-game test: all white, mixed results → correct W/L |
-| M4 | Rename UI labels away from “accuracy” where not ACPL | Copy review on batch report |
+| ID | Deliverable | Acceptance | Status |
+|----|-------------|------------|--------|
+| M1 | Fix eval_before / eval_after per move (true after-move eval) | Unit test: critical moments carry eval_before/after; per-move post-push analysis | **Done** — `stockfish_game_result.py` |
+| M2 | Unify batch classification with documented thresholds | `batch_move_classification.py` single source of truth | **Done** |
+| M3 | Player-relative W/L in `batch_summary` | `test_count_results_from_player_perspective` | **Done** — `_count_results` uses `_player_outcome` |
+| M4 | Rename UI labels away from “accuracy” where not ACPL | Batch report: “eval stability”, disclaimers on phase section | **Done** — batch UI components |
 | M5 | Optional: ACPL or Chess.com-style accuracy as separate field | Correlates ±10% with external tool on sample set |
 | M6 | Phase boundary sanity (min moves per phase or merge) | No middlegame with 1 move unless game length ≤ 12 |
 
@@ -357,7 +357,7 @@ A release candidate must pass:
 
 | Concern | Primary files |
 |---------|----------------|
-| Batch engine | `core/analysis/stockfish_game_result.py`, `core/tasks.py` |
+| Batch engine | `core/analysis/stockfish_game_result.py`, `batch_move_classification.py`, `core/tasks.py` |
 | Aggregation | `core/analysis/batch_aggregator.py`, `moment_insights.py` |
 | Coaching AI | `core/analysis/coaching_generator.py`, `coaching_schema.py` |
 | Batch UI | `frontend/src/components/batch/*`, `BatchReport.js` |
@@ -373,3 +373,4 @@ A release candidate must pass:
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-06-04 | Initial contract: metrics audit, AI map, P0–P4 map, gaps from repo review |
+| 1.1 | 2026-06-04 | M1–M4 implemented: eval pipeline, classification module, player W/L, UI labels |

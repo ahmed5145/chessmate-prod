@@ -11,7 +11,7 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
   }
 
   const wld = batch_summary.win_loss_draw || {};
-  const accuracyPct = Math.round(Number(batch_summary.overall_accuracy || 0) * 100);
+  const stabilityPct = Math.round(Number(batch_summary.overall_accuracy || 0) * 100);
   const analyzed = batch_summary.games_analyzed ?? games_count ?? 0;
   const rating = batch_summary.player_rating;
   const dateRange = batch_summary.date_range;
@@ -34,10 +34,10 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
           </Grid>
           <Grid item xs={6} sm={3}>
             <Typography variant="caption" color="text.secondary">
-              Overall accuracy
+              Overall eval stability
             </Typography>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              {accuracyPct}%
+              {stabilityPct}%
             </Typography>
           </Grid>
           {rating != null && (

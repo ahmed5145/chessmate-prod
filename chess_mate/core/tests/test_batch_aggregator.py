@@ -4,7 +4,7 @@ Verifies schema completeness and field types.
 """
 
 import pytest
-from core.analysis.batch_aggregator import aggregate_batch
+from core.analysis.batch_aggregator import _count_results, aggregate_batch
 
 
 def _make_game_result(
@@ -238,6 +238,17 @@ def test_batch_aggregator_data_consistency():
         assert "detail" in pattern
         assert isinstance(pattern["detail"], str)
         assert pattern["detail"].strip() != ""
+
+
+def test_count_results_from_player_perspective():
+    """M3: 0-1 is a win for Black, loss for White."""
+    games = [
+        {"result": "0-1", "player_color": "white"},
+        {"result": "0-1", "player_color": "black"},
+        {"result": "1-0", "player_color": "black"},
+    ]
+    wld = _count_results(games)
+    assert wld == {"wins": 1, "losses": 2, "draws": 0}
 
 
 if __name__ == "__main__":

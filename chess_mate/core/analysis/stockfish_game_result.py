@@ -12,6 +12,11 @@ from typing import Any, Dict, List
 import chess
 
 from ..eco_codes import get_opening_name
+from .batch_move_classification import (
+    CRITICAL_MOMENT_MIN_PAWNS,
+    classify_deterioration,
+    player_eval_deterioration,
+)
 from .moment_insights import classify_endgame_material, classify_tactical_theme
 from .explanation_templates import get_explanation
 from .metrics_calculator import MetricsCalculator
@@ -88,10 +93,10 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
         game = chess.pgn.read_game(reader)
         board = game.board() if game else chess.Board()
         for i, move in enumerate(game.mainline_moves() if game else []):
-            is_white = board.turn
-            result = analyzer.analyze_position(board, depth=depth)
+            is_white = board.turn == chess.WHITE
+            result_before = analyzer.analyze_position(board, depth=depth)
+            eval_before = float(result_before.get("score", 0.0))
 
-            # Record SAN and FEN before making the move
             try:
                 san = board.san(move)
             except Exception:
@@ -99,27 +104,30 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
             uci = move.uci()
             fen_before = board.fen()
 
-            # Execute the move
             board.push(move)
 
-            # Store the analysis similar to analyzer.analyze_game
+            result_after = analyzer.analyze_position(board, depth=depth)
+            eval_after = float(result_after.get("score", 0.0))
+
             analyzed_move = {
                 "move_number": i // 2 + 1,
                 "move": uci,
                 "san": san,
                 "is_white": is_white,
-                "fen": result.get("fen", fen_before),
-                "position_score": result.get("score", 0.0),
-                "evaluation": result.get("score", 0.0),
-                "best_move": (result.get("pv") and result.get("pv")[0]) or "",
-                "best_line": result.get("pv", [])[:5] if result.get("pv") else [],
-                "depth": result.get("depth", 0),
-                "time": result.get("time", 0.0),
+                "fen": fen_before,
+                "position_score": eval_before,
+                "evaluation": eval_before,
+                "eval_before": eval_before,
+                "eval_after": eval_after,
+                "best_move": (result_before.get("pv") and result_before.get("pv")[0]) or "",
+                "best_line": result_before.get("pv", [])[:5] if result_before.get("pv") else [],
+                "depth": result_before.get("depth", 0),
+                "time": result_before.get("time", 0.0),
             }
-            if "centipawn_loss" in result:
-                analyzed_move["centipawn_loss"] = result["centipawn_loss"]
-            if "classification" in result:
-                analyzed_move["classification"] = result["classification"]
+            if "centipawn_loss" in result_before:
+                analyzed_move["centipawn_loss"] = result_before["centipawn_loss"]
+            if "classification" in result_before:
+                analyzed_move["classification"] = result_before["classification"]
 
             analyzed_moves.append(analyzed_move)
     except Exception as e:
@@ -204,13 +212,17 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
 
     opening_accuracy = (opening_matches / opening_evaluated) if opening_evaluated > 0 else None
 
-    # Compute avg_eval_drop per phase by scanning moves
-    # Build per-move eval_before using position_score and approximate eval_after by next move's position_score
-    eval_befores = [m.get("position_score", 0.0) for m in analyzed_moves]
-    eval_afters = [
-        eval_befores[i + 1] if i + 1 < len(eval_befores) else eval_befores[i] for i in range(len(eval_befores))
-    ]
-    eval_drops = [max(0.0, eval_befores[i] - eval_afters[i]) for i in range(len(eval_befores))]
+    # Per-move deterioration from true pre/post engine evals (White POV, player-relative)
+    eval_befores = []
+    eval_afters = []
+    eval_drops = []
+    for mv in analyzed_moves:
+        before = float(mv.get("eval_before", mv.get("position_score", 0.0)))
+        after = float(mv.get("eval_after", before))
+        is_white = bool(mv.get("is_white", True))
+        eval_befores.append(before)
+        eval_afters.append(after)
+        eval_drops.append(player_eval_deterioration(is_white, before, after))
 
     # Determine phase boundaries (in move indices, not half-moves)
     opening_end = int(metadata.get("opening_length", 0))
@@ -269,41 +281,22 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
     for i in range(len(analyzed_moves)):
         eval_before = float(eval_befores[i])
         eval_after = float(eval_afters[i])
+        mv = analyzed_moves[i]
+        is_white = bool(mv.get("is_white", True))
 
-        # Detect and cap mate scores (very high eval values like 100.0 or mate objects)
-        is_mate_before = False
-        is_mate_after = False
-        if eval_before >= 10.0:
-            is_mate_before = True
+        is_mate_before = eval_before >= 10.0
+        is_mate_after = eval_after >= 10.0
+        if is_mate_before:
             eval_before = 10.0
-        if eval_after >= 10.0:
-            is_mate_after = True
+        if is_mate_after:
             eval_after = 10.0
-
         eval_befores[i] = eval_before
         eval_afters[i] = eval_after
         has_mate[i] = is_mate_before or is_mate_after
 
-        # Compute deterioration: positive means position got worse
-        # If eval_after < eval_before, position deteriorated by that amount
-        if eval_after < eval_before:
-            deterioration = eval_before - eval_after
-        else:
-            # Position improved or stayed same; not a critical move
-            deterioration = 0.0
-
+        deterioration = player_eval_deterioration(is_white, eval_before, eval_after)
         move_deteriorations[i] = deterioration
-
-        # Classify based on deterioration thresholds
-        if deterioration >= 1.5:
-            classification = "blunder"
-        elif deterioration >= 0.5:
-            classification = "mistake"
-        elif deterioration >= 0.2:
-            classification = "inaccuracy"
-        else:
-            classification = "good"
-
+        classification = classify_deterioration(deterioration)
         move_classifications[i] = classification
 
         # Determine which phase this move belongs to
@@ -324,7 +317,9 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
 
     # Critical moments: top 3 worst moves by deterioration (only >= 0.2 threshold)
     critical_moves_candidates = [
-        (idx, move_deteriorations[idx]) for idx in range(len(analyzed_moves)) if move_deteriorations[idx] >= 0.2
+        (idx, move_deteriorations[idx])
+        for idx in range(len(analyzed_moves))
+        if move_deteriorations[idx] >= CRITICAL_MOMENT_MIN_PAWNS
     ]
     # Sort by deterioration (descending)
     critical_moves_candidates.sort(key=lambda x: x[1], reverse=True)

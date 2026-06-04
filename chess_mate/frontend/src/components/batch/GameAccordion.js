@@ -130,13 +130,13 @@ const GameAccordion = ({ per_game_results }) => {
                     {moveQuality.inaccuracy || 0} inaccuracies · {moveQuality.good || 0} good moves
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    Opening accuracy (game): {formatPercent(game.opening_accuracy)}
+                    Engine line match (opening): {formatPercent(game.opening_accuracy)}
                   </Typography>
                 </Box>
 
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                    Phase performance (avg eval drop → accuracy proxy)
+                    Phase eval stability
                   </Typography>
                   <Typography variant="body2">
                     Opening: {formatPercent(getPhaseScore(phaseBreakdown.opening?.avg_eval_drop))}
