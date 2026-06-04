@@ -111,6 +111,10 @@ Deliver one combined report for a selected batch of games that feels like a real
 - Analysis can remain asynchronous.
 - Pricing and credits can be finalized after product value is proven.
 
+## Related contract
+
+See **[PRODUCT_CONTRACT.md](./PRODUCT_CONTRACT.md)** for metrics definitions, AI scope, API guarantees, phased product map (P0–P4), and ship acceptance criteria.
+
 ## Open Decisions
 
 - Final credit model.
