@@ -124,58 +124,85 @@ export const registerUser = async (userData) => {
     }
 };
 
+const extractGamesFromPage = (data) => {
+    if (data?.results && Array.isArray(data.results)) {
+        return data.results;
+    }
+    if (data?.data && Array.isArray(data.data)) {
+        return data.data;
+    }
+    if (data?.games && Array.isArray(data.games)) {
+        return data.games;
+    }
+    if (Array.isArray(data)) {
+        return data;
+    }
+    return null;
+};
+
+const normalizeGameRow = (game) => {
+    const normalizedAnalysisStatus =
+        game.analysis_status || game.status || (game.analysis ? 'analyzed' : 'pending');
+    const isAnalyzed =
+        normalizedAnalysisStatus === 'analyzed' ||
+        normalizedAnalysisStatus === 'completed' ||
+        !!game.analysis;
+    return {
+        id: game.id,
+        opponent: game.opponent || 'Unknown',
+        result: game.result || 'unknown',
+        date_played: game.date_played || game.played_at || new Date().toISOString(),
+        played_at: game.played_at || game.date_played,
+        opening_name: game.opening_name || 'Unknown Opening',
+        time_control: game.time_control || game.time_control_type || 'unknown',
+        time_control_type: game.time_control_type || game.time_control || 'unknown',
+        status: game.status || normalizedAnalysisStatus,
+        analysis_status: normalizedAnalysisStatus,
+        analysis: isAnalyzed ? game.analysis || true : null,
+        white: game.white || game.opponent || 'Unknown',
+        black: game.black || game.user_username || 'Unknown',
+        pgn: game.pgn || '',
+        platform: game.platform || 'Unknown',
+    };
+};
+
+const resolveNextGamesPath = (nextUrl) => {
+    if (!nextUrl) {
+        return null;
+    }
+    if (nextUrl.startsWith('http')) {
+        const parsed = new URL(nextUrl);
+        return `${parsed.pathname}${parsed.search}`;
+    }
+    return nextUrl;
+};
+
 // Game management functions
 export const fetchUserGames = async () => {
     try {
-        console.log('Fetching user games...');
-        const response = await api.get("/api/v1/games/");
-        console.log('Games response:', response.data);
+        console.log('Fetching user games (all pages)...');
+        const allRawGames = [];
+        let path = '/api/v1/games/';
 
-        let games = [];
-
-        // Process different response formats to extract games
-        if (response.data?.results && Array.isArray(response.data.results)) {
-            games = response.data.results;
-        } else if (response.data?.data && Array.isArray(response.data.data)) {
-            games = response.data.data;
-        } else if (response.data?.games && Array.isArray(response.data.games)) {
-            games = response.data.games;
-        } else if (Array.isArray(response.data)) {
-            games = response.data;
-        } else {
-            console.error('Invalid response format:', response.data);
-            return { results: [] };
+        while (path) {
+            const response = await api.get(path);
+            const pageGames = extractGamesFromPage(response.data);
+            if (!pageGames) {
+                console.error('Invalid response format:', response.data);
+                break;
+            }
+            allRawGames.push(...pageGames);
+            path = resolveNextGamesPath(response.data?.next);
         }
 
-        // Normalize and validate each game object
-        const normalizedGames = games.map(game => {
-            const normalizedAnalysisStatus = game.analysis_status || game.status || (game.analysis ? 'analyzed' : 'pending');
-            return {
-                id: game.id,
-                opponent: game.opponent || 'Unknown',
-                result: game.result || 'unknown',
-                date_played: game.date_played || game.played_at || new Date().toISOString(),
-                opening_name: game.opening_name || 'Unknown Opening',
-                time_control: game.time_control || game.time_control_type || 'unknown',
-                time_control_type: game.time_control_type || game.time_control || 'unknown',
-                status: game.status || normalizedAnalysisStatus,
-                analysis_status: normalizedAnalysisStatus,
-                white: game.white || game.opponent || 'Unknown',
-                black: game.black || game.user_username || 'Unknown',
-                pgn: game.pgn || '',
-                platform: game.platform || 'Unknown',
-                // Add any other required fields with defaults
-            };
-        });
+        const normalizedGames = allRawGames.map(normalizeGameRow);
+        console.log(`Loaded ${normalizedGames.length} games across API pages`);
 
-        console.log('Normalized games:', normalizedGames);
-
-        // Return in the format expected by components
         return {
             results: normalizedGames,
             count: normalizedGames.length,
-            next: response.data?.next || null,
-            previous: response.data?.previous || null
+            next: null,
+            previous: null,
         };
     } catch (error) {
         console.error('Error fetching games:', error);

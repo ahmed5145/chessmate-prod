@@ -1381,6 +1381,22 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
         _group = globals().get("group")
         _chord = globals().get("chord")
 
+    # Single-container EB: parallel chord runs multiple Stockfish processes and often stalls after game 1.
+    if os.environ.get("SEQUENTIAL_BATCH_ANALYSIS", "").lower() in ("1", "true", "yes"):
+        logger.info(
+            f"Batch {batch_id}: SEQUENTIAL_BATCH_ANALYSIS enabled — analyzing {len(game_pgn_list)} games one at a time"
+        )
+        results: List[Dict[str, Any]] = []
+        for i, pgn in enumerate(game_pgn_list):
+            logger.info(f"Batch {batch_id}: starting game {i + 1}/{len(game_pgn_list)}")
+            try:
+                results.append(analyze_single_game_subtask(pgn, f"game_{i}", batch_id, user_id))
+            except Exception as exc:
+                logger.exception(f"Batch {batch_id} game {i} failed: {exc}")
+                results.append({"game_id": f"game_{i}", "status": "failed", "error": str(exc)})
+        aggregate_and_report_task(results, batch_id, game_pgn_list, user_id)
+        return batch_id
+
     # Build group of subtasks: one per game
     subtasks = _group(
         analyze_single_game_subtask.s(pgn, f"game_{i}", batch_id, user_id) for i, pgn in enumerate(game_pgn_list)

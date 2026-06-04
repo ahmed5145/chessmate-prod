@@ -186,9 +186,12 @@ fi
 # Start Celery worker — do NOT use "exec gunicorn" before this; it can kill background workers.
 # Logs go to container stdout (--logfile=-) so EB "Request logs" shows batch/Celery output.
 if [ "$ENABLE_CELERY" = "true" ]; then
-    echo "Starting Celery worker (queues: default, analysis, batch_analysis)..."
+    export SEQUENTIAL_BATCH_ANALYSIS="${SEQUENTIAL_BATCH_ANALYSIS:-true}"
+    echo "Starting Celery worker (queues: default, analysis, batch_analysis; sequential batch=${SEQUENTIAL_BATCH_ANALYSIS})..."
     celery -A chess_mate worker -l info \
         -Q default,analysis,batch_analysis \
+        --concurrency=1 \
+        --pool=prefork \
         --without-gossip --without-mingle \
         --logfile=- &
     CELERY_PID=$!

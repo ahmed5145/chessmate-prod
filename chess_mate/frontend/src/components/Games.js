@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Filter, Search, ChevronLeft, ChevronRight, Swords, CheckCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { fetchUserGames } from '../services/apiRequests';
@@ -23,6 +23,7 @@ const Games = () => {
   const [gamesPerPage] = useState(10);
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Filter and sort games
   const filteredAndSortedGames = games
@@ -37,8 +38,20 @@ const Games = () => {
         );
       }
       // Then apply analysis filter
-      if (filters.analyzed === 'analyzed') return !!game.analysis;
-      if (filters.analyzed === 'unanalyzed') return !game.analysis;
+      if (filters.analyzed === 'analyzed') {
+        return (
+          game.analysis_status === 'analyzed' ||
+          game.analysis_status === 'completed' ||
+          !!game.analysis
+        );
+      }
+      if (filters.analyzed === 'unanalyzed') {
+        return (
+          game.analysis_status !== 'analyzed' &&
+          game.analysis_status !== 'completed' &&
+          !game.analysis
+        );
+      }
       return true;
     })
     .sort((a, b) => {
@@ -88,7 +101,7 @@ const Games = () => {
 
   useEffect(() => {
     loadGames();
-  }, []);
+  }, [location.key]);
 
   // Helper function to determine if a game should be polled
   const shouldPollGame = (game) => {
