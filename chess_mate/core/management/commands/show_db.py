@@ -14,5 +14,13 @@ class Command(BaseCommand):
         self.stdout.write(f"NAME={db.get('NAME')}")
         self.stdout.write(f"USER={db.get('USER')}")
 
-        User = get_user_model()
-        self.stdout.write(f"auth_user count={User.objects.count()}")
+        try:
+            User = get_user_model()
+            self.stdout.write(f"auth_user count={User.objects.count()}")
+        except Exception as exc:
+            self.stdout.write(
+                self.style.ERROR(
+                    f"Could not connect to database: {exc}. "
+                    "If running from your PC, add RDS inbound PostgreSQL 5432 from My IP."
+                )
+            )
