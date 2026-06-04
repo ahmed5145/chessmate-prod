@@ -551,29 +551,39 @@ export const checkBatchAnalysisStatus = async (taskId) => {
     }
 };
 
+const BATCH_STATUS_CHUNK_SIZE = 20;
+
 export const checkMultipleAnalysisStatuses = async (gameIds) => {
     try {
-        console.log('Checking status for', gameIds.length, 'games:', gameIds);
+        const ids = [...gameIds];
+        console.log('Checking status for', ids.length, 'games:', ids);
 
-        // Use the api instance which handles authentication correctly
-        const response = await api.post(`/api/v1/games/batch-status/`, {
-            game_ids: gameIds
-        });
-
-        console.log('Batch status API response:', response.status, response.data);
-
-        if (!response.data || !response.data.statuses) {
-            console.error('Batch status API error: Invalid response format', response.data);
-
-            // Return simulated progress for each game ID instead of empty object
-            const simulatedStatuses = {};
-            gameIds.forEach(gameId => {
-                simulatedStatuses[gameId] = simulateProgressResponse(gameId);
-            });
-            return simulatedStatuses;
+        if (ids.length === 0) {
+            return {};
         }
 
-        return response.data.statuses;
+        const mergedStatuses = {};
+
+        for (let i = 0; i < ids.length; i += BATCH_STATUS_CHUNK_SIZE) {
+            const chunk = ids.slice(i, i + BATCH_STATUS_CHUNK_SIZE);
+            const response = await api.post(`/api/v1/games/batch-status/`, {
+                game_ids: chunk,
+            });
+
+            console.log('Batch status API response:', response.status, response.data);
+
+            if (!response.data || !response.data.statuses) {
+                console.error('Batch status API error: Invalid response format', response.data);
+                chunk.forEach((gameId) => {
+                    mergedStatuses[gameId] = simulateProgressResponse(gameId);
+                });
+                continue;
+            }
+
+            Object.assign(mergedStatuses, response.data.statuses);
+        }
+
+        return mergedStatuses;
     } catch (error) {
         console.error('Batch status API error:', error);
 
