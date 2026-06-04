@@ -142,6 +142,7 @@ TEMPLATES = [
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [
             os.path.join(BASE_DIR, "frontend", "build"),
+            os.path.join(BASE_DIR, "templates"),
             os.path.join(BASE_DIR, "core", "templates"),
         ],
         "APP_DIRS": True,
@@ -615,3 +616,7 @@ else:
     EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
     EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
     DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@localhost")
+
+# Password reset links in email (must match template copy)
+PASSWORD_RESET_TIMEOUT = env.int("PASSWORD_RESET_TIMEOUT", default=60 * 60 * 24)  # 24 hours
+FRONTEND_URL = env("FRONTEND_URL", default="")

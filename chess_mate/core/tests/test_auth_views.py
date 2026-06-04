@@ -170,12 +170,17 @@ class TestAuthViews:
         url = reverse("request_password_reset")
         data = {"email": "test@example.com"}
 
-        with patch("django.core.mail.send_mail", return_value=1):
+        with patch("django.core.mail.send_mail", return_value=1) as mock_send:
             with patch("core.email_utils.is_email_configured", return_value=True):
                 response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_200_OK
         assert "message" in response.data
+        mock_send.assert_called_once()
+        html_message = mock_send.call_args.kwargs.get("html_message") or ""
+        assert "Reset Your Password" in html_message
+        assert "/reset-password/" in html_message
+        assert "expire" in html_message.lower()
 
     def test_request_password_reset_email_unavailable(self, api_client, test_user):
         url = reverse("request_password_reset")
@@ -195,10 +200,11 @@ class TestAuthViews:
             return_value=True,
         ):
             url = reverse("reset_password")
+            uid = urlsafe_base64_encode(force_bytes(test_user.pk))
             data = {
+                "uid": uid,
                 "token": "valid-token",
-                "user_id": str(test_user.id),
-                "password": "NewStrong.Password.123",
+                "new_password": "NewStrong.Password.123",
             }
 
             response = api_client.post(url, data, format="json")

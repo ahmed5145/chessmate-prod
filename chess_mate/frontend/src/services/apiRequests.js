@@ -803,9 +803,10 @@ export const requestPasswordReset = async (email) => {
     }
 };
 
-export const resetPassword = async (token, newPassword) => {
+export const resetPassword = async (uid, token, newPassword) => {
     try {
         const response = await api.post("/api/v1/auth/reset-password/confirm/", {
+            uid,
             token,
             new_password: newPassword
         });

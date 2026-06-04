@@ -1,12 +1,15 @@
 import React, { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useTheme } from "../context/ThemeContext";
 import { resetPassword } from "../services/apiRequests";
 
 const ResetPassword = () => {
+  const { uid: uidParam, token: tokenParam } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const resetUid = uidParam || searchParams.get("uid");
+  const resetToken = tokenParam || searchParams.get("token");
   const { isDarkMode } = useTheme();
   const [formData, setFormData] = useState({
     password: '',
@@ -76,12 +79,11 @@ const ResetPassword = () => {
 
     setIsLoading(true);
     try {
-      const token = searchParams.get('token');
-      if (!token) {
-        throw new Error('Invalid or missing reset token');
+      if (!resetUid || !resetToken) {
+        throw new Error('Invalid or missing reset link');
       }
 
-      await resetPassword(token, formData.password);
+      await resetPassword(resetUid, resetToken, formData.password);
       toast.success('Password reset successful!');
       navigate('/reset-password-success');
     } catch (error) {
@@ -101,6 +103,11 @@ const ResetPassword = () => {
             <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Please enter your new password below
             </p>
+            {(!resetUid || !resetToken) && (
+              <p className="mt-3 text-sm text-red-600">
+                This reset link is invalid or incomplete. Request a new link from the forgot password page.
+              </p>
+            )}
           </div>
 
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -178,7 +185,7 @@ const ResetPassword = () => {
             <div>
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !resetUid || !resetToken}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Resetting Password...' : 'Reset Password'}

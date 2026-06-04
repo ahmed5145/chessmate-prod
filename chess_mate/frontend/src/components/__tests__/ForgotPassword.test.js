@@ -33,7 +33,9 @@ describe("ForgotPassword Component", () => {
   });
 
   it("handles successful password reset request", async () => {
-    requestPasswordReset.mockResolvedValueOnce({});
+    requestPasswordReset.mockResolvedValueOnce({
+      message: "If an account exists, reset instructions were sent to your email",
+    });
 
     render(
       <BrowserRouter>
@@ -51,7 +53,9 @@ describe("ForgotPassword Component", () => {
       expect(requestPasswordReset).toHaveBeenCalledWith("test@example.com");
     });
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith("Password reset instructions sent to your email");
+      expect(toast.success).toHaveBeenCalledWith(
+        "If an account exists, reset instructions were sent to your email"
+      );
     });
 
     expect(mockNavigate).not.toHaveBeenCalled();

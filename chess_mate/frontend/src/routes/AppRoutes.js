@@ -40,6 +40,8 @@ const AppRoutes = () => {
         element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />}
       />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:uid/:token/" element={<ResetPassword />} />
+      <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/reset-password-success" element={<ResetPasswordSuccess />} />
       <Route path="/reset-password-failed" element={<ResetPasswordFailed />} />

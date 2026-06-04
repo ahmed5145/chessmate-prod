@@ -120,7 +120,7 @@ export const refreshTokens = async () => {
     }
 };
 
-export const resetPassword = async (token, newPassword) => {
+export const resetPassword = async (uid, token, newPassword) => {
     try {
         const response = await fetch(buildApiUrl('/api/v1/auth/reset-password/confirm/'), {
             method: 'POST',
@@ -128,6 +128,7 @@ export const resetPassword = async (token, newPassword) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
+                uid,
                 token,
                 new_password: newPassword
             })

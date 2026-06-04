@@ -1,5 +1,7 @@
 """Helpers for outbound email configuration checks."""
 
+import os
+
 from django.conf import settings
 
 
@@ -28,3 +30,27 @@ def password_reset_unavailable_message() -> str:
         "Password reset email is temporarily unavailable. "
         "Please try again later or contact support."
     )
+
+
+def password_reset_expiry_hours() -> int:
+    """Hours until reset links expire (matches PASSWORD_RESET_TIMEOUT)."""
+    timeout_seconds = int(getattr(settings, "PASSWORD_RESET_TIMEOUT", 60 * 60 * 24))
+    return max(1, timeout_seconds // 3600)
+
+
+def get_frontend_base_url(request=None) -> str:
+    """Public SPA origin for links in emails (FRONTEND_URL or current request host)."""
+    explicit = (getattr(settings, "FRONTEND_URL", None) or os.environ.get("FRONTEND_URL") or "").strip()
+    if explicit:
+        return explicit.rstrip("/")
+
+    if request is not None:
+        scheme = "https" if request.is_secure() else "http"
+        return f"{scheme}://{request.get_host()}"
+
+    return "http://localhost:3000"
+
+
+def build_password_reset_url(uid: str, token: str, request=None) -> str:
+    base = get_frontend_base_url(request)
+    return f"{base}/reset-password/{uid}/{token}"

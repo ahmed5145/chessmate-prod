@@ -498,34 +498,40 @@ def request_password_reset(request):
     token = default_token_generator.make_token(user)
     uid = urlsafe_base64_encode(force_bytes(user.pk))
 
-    # Create reset link
-    current_site = get_current_site(request)
-    domain = request.get_host() or current_site.domain
-    reset_link = f"http://{domain}/reset-password/{uid}/{token}/"
+    from .email_utils import build_password_reset_url, password_reset_expiry_hours
 
-    # Prepare email content
+    reset_url = build_password_reset_url(uid, token, request)
+    expiry_hours = password_reset_expiry_hours()
+
     mail_subject = "Reset your ChessMate password"
     try:
-        message = str(
-            render_to_string(
-                "email/password_reset_email.html",
-                {
-                    "user": user,
-                    "reset_link": reset_link,
-                },
-            )
+        from django.utils import timezone
+
+        message = render_to_string(
+            "email/password_reset.html",
+            {
+                "user": user,
+                "reset_url": reset_url,
+                "expiry_hours": expiry_hours,
+                "current_year": timezone.now().year,
+            },
         )
-    except Exception:
-        message = f"Use this link to reset your password: {reset_link}"
+    except Exception as template_error:
+        logger.warning("Password reset template render failed: %s", template_error)
+        message = (
+            f"Use this link to reset your password (expires in {expiry_hours} hours): "
+            f"{reset_url}"
+        )
 
     try:
         # Send email
+        html_body = str(message)
         mail.send_mail(
             subject=mail_subject,
-            message=strip_tags(message),
+            message=strip_tags(html_body),
             from_email=None,  # Use DEFAULT_FROM_EMAIL from settings
             recipient_list=[email],
-            html_message=message,
+            html_message=html_body,
         )
 
         logger.info(f"Password reset email sent to {email}")

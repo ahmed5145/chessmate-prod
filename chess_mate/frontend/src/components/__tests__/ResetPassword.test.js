@@ -21,7 +21,8 @@ jest.mock("../../context/ThemeContext", () => ({
 jest.mock("react-router-dom", () => ({
   ...jest.requireActual("react-router-dom"),
   useNavigate: () => mockNavigate,
-  useSearchParams: () => [new URLSearchParams("token=test-token")],
+  useSearchParams: () => [new URLSearchParams("")],
+  useParams: () => ({ uid: "test-uid", token: "test-token" }),
 }));
 
 const mockNavigate = jest.fn();
@@ -61,7 +62,7 @@ describe("ResetPassword Component", () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(resetPassword).toHaveBeenCalledWith("test-token", "Newpassword123!");
+      expect(resetPassword).toHaveBeenCalledWith("test-uid", "test-token", "Newpassword123!");
     });
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith("Password reset successful!");
@@ -91,7 +92,7 @@ describe("ResetPassword Component", () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(resetPassword).toHaveBeenCalledWith("test-token", "Newpassword123!");
+      expect(resetPassword).toHaveBeenCalledWith("test-uid", "test-token", "Newpassword123!");
     });
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Invalid token");
