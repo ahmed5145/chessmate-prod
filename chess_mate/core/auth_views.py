@@ -460,9 +460,22 @@ def token_refresh_view(request):
 @api_error_handler
 def request_password_reset(request):
     """Send password reset email with token."""
+    from .email_utils import is_email_configured, password_reset_unavailable_message
+
     email = request.data.get("email")
     if not email:
         raise APIValidationError([{"field": "email", "message": "Email is required"}])
+
+    if not is_email_configured():
+        logger.error("Password reset requested but email is not configured (missing SMTP env vars)")
+        return Response(
+            {
+                "status": "error",
+                "message": password_reset_unavailable_message(),
+                "email_available": False,
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
 
     try:
         user = User.objects.get(email=email)
@@ -473,6 +486,7 @@ def request_password_reset(request):
             {
                 "status": "success",
                 "message": "If an account with this email exists, a password reset link has been sent.",
+                "email_available": True,
             }
         )
 
@@ -516,16 +530,18 @@ def request_password_reset(request):
             {
                 "status": "success",
                 "message": "Password reset link has been sent to your email.",
+                "email_available": True,
             }
         )
     except Exception as e:
-        logger.error(f"Failed to send password reset email: {str(e)}")
-        # We don't want to expose that the email exists, so return a success response
+        logger.error(f"Failed to send password reset email: {str(e)}", exc_info=True)
         return Response(
             {
-                "status": "success",
-                "message": "Password reset link has been sent to your email if an account exists.",
-            }
+                "status": "error",
+                "message": password_reset_unavailable_message(),
+                "email_available": False,
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
 
