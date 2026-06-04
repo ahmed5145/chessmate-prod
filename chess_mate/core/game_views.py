@@ -8,6 +8,7 @@ Including game retrieval, analysis, and batch processing endpoints.
 
 import importlib
 import json
+
 # Standard library imports
 import logging
 import sys
@@ -16,6 +17,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from celery.result import AsyncResult  # type: ignore
+
 # Django imports
 from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError, OperationalError, transaction
@@ -25,29 +27,37 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 from rest_framework import status, viewsets
+
 # Third-party imports
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .analysis.feedback_generator import \
-    FeedbackGenerator as CoachingFeedbackGenerator
+from .analysis.feedback_generator import FeedbackGenerator as CoachingFeedbackGenerator
 from .cache import cache_get, cache_set
 from .cache_invalidation import invalidate_cache, invalidates_cache
 from .chess_services import ChessComService, LichessService, save_game
 from .chess_utils import extract_metadata_from_pgn, validate_pgn
 from .constants import MAX_BATCH_SIZE
-from .decorators import (api_login_required, auth_csrf_exempt, rate_limit,
-                         track_request_time, validate_request)
-from .error_handling import (ResourceNotFoundError, ValidationError,
-                             create_error_response, handle_api_error)
+from .decorators import (
+    api_login_required,
+    auth_csrf_exempt,
+    rate_limit,
+    track_request_time,
+    validate_request,
+)
+from .error_handling import (
+    ResourceNotFoundError,
+    ValidationError,
+    create_error_response,
+    handle_api_error,
+)
+
 # Local application imports
-from .models import (BatchAnalysisReport, Game, GameAnalysis, Player, Profile,
-                     User)
+from .models import BatchAnalysisReport, Game, GameAnalysis, Player, Profile, User
 from .serializers import GameSerializer
 from .task_manager import TaskManager
-from .tasks import (analyze_batch_games_task, analyze_game_task,
-                    batch_analyze_games_task)
+from .tasks import analyze_batch_games_task, analyze_game_task, batch_analyze_games_task
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -1590,8 +1600,9 @@ def check_analysis_status(request, task_id):
         )
 
     try:
-        from chess_mate.celery import \
-            app as celery_app  # type: ignore[import-not-found]
+        from chess_mate.celery import (
+            app as celery_app,  # type: ignore[import-not-found]
+        )
     except ImportError:
         async_result = async_result_cls(task_id)
     else:
@@ -1640,8 +1651,9 @@ def check_batch_analysis_status(request, task_id):
         )
 
     try:
-        from chess_mate.celery import \
-            app as celery_app  # type: ignore[import-not-found]
+        from chess_mate.celery import (
+            app as celery_app,  # type: ignore[import-not-found]
+        )
     except ImportError:
         async_result = async_result_cls(task_id)
     else:

@@ -23,19 +23,30 @@ from openai import OpenAI, OpenAIError
 
 from .ai_feedback import AIFeedbackGenerator
 from .analysis.batch_aggregator import BatchAggregationError, aggregate_batch
-from .analysis.coaching_generator import (CoachingGeneratorError,
-                                          generate_coaching_report)
+from .analysis.coaching_generator import (
+    CoachingGeneratorError,
+    generate_coaching_report,
+)
 from .analysis.metrics_calculator import MetricsError
 from .analysis.stockfish_game_result import build_game_result
 from .cache import cache_delete, cache_get, cache_set, cacheable
-from .error_handling import (ExternalServiceError, ResourceNotFoundError,
-                             TaskError, ValidationError)
+from .error_handling import (
+    ExternalServiceError,
+    ResourceNotFoundError,
+    TaskError,
+    ValidationError,
+)
 from .game_analyzer import AnalysisError, GameAnalyzer
 from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
-from .task_manager import (TASK_STATUS_FAILURE, TASK_STATUS_PENDING,
-                           TASK_STATUS_RETRY, TASK_STATUS_REVOKED,
-                           TASK_STATUS_STARTED, TASK_STATUS_SUCCESS,
-                           TaskManager)
+from .task_manager import (
+    TASK_STATUS_FAILURE,
+    TASK_STATUS_PENDING,
+    TASK_STATUS_RETRY,
+    TASK_STATUS_REVOKED,
+    TASK_STATUS_STARTED,
+    TASK_STATUS_SUCCESS,
+    TaskManager,
+)
 
 logger = get_task_logger(__name__)
 

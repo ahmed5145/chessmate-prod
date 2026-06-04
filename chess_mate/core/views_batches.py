@@ -11,8 +11,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import BatchAnalysisReport
-from .serializers_batches import (BatchAnalysisReportSerializer,
-                                  BatchCreateSerializer, BatchStatusSerializer)
+from .serializers_batches import (
+    BatchAnalysisReportSerializer,
+    BatchCreateSerializer,
+    BatchStatusSerializer,
+)
 from .tasks import analyze_batch_task
 
 logger = logging.getLogger(__name__)
