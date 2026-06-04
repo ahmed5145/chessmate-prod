@@ -114,6 +114,10 @@ Replace bundled Redis with:
 Copy repo template: `cp .env.example .env` and `cp chess_mate/frontend/.env.example chess_mate/frontend/.env.local`.  
 Run Redis via `docker compose up redis` or install Redis locally.
 
+## Production admin / RDS / stuck batches
+
+RDS is not reachable from your home PC (security group). Run `manage.py` **inside the EB container** — see **[PROD_OPS.md](./PROD_OPS.md)** (`list_users`, `grant_credits`, `cancel_batch`, `reset_user_password`).
+
 ## Logs (no SSH required)
 
 You do **not** run `docker exec` on your PC. Logs live on the EB instance.

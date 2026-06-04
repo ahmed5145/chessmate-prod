@@ -1,2 +1,9 @@
+branch-defaults:
+  main:
+    environment: Chessmate-env-2
 global:
+  application_name: chessmate
+  default_region: us-east-2
   profile: null
+  # Set profile to chessmate-deploy after: aws configure --profile chessmate-deploy
+  # Then: $env:AWS_PROFILE = "chessmate-deploy"  (PowerShell)

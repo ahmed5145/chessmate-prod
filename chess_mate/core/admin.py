@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 
-from .models import Game, GameAnalysis, Player, Profile, Transaction
+from .models import BatchAnalysisReport, Game, GameAnalysis, Player, Profile, Transaction
 
 
 class ProfileInline(admin.StackedInline):
@@ -112,6 +112,16 @@ class GameAnalysisAdmin(admin.ModelAdmin):
     search_fields = ("game__white", "game__black", "game__user__username")
     ordering = ("-created_at",)
     raw_id_fields = ("game",)
+
+
+@admin.register(BatchAnalysisReport)
+class BatchAnalysisReportAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "task_id", "status", "games_count", "created_at", "updated_at")
+    list_filter = ("status", "created_at")
+    search_fields = ("task_id", "user__username", "user__email")
+    ordering = ("-created_at",)
+    raw_id_fields = ("user",)
+    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(Transaction)
