@@ -65,7 +65,7 @@ def _detect_opening_name_from_pgn(pgn: str) -> (str, float):
 import io
 
 
-def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
+def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[str, Any]:
     """Produce the per-game result JSON object as defined in PRD section 11.
 
     Args:
@@ -76,6 +76,8 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
         Dict matching the required per-game schema
     """
     analyzer = StockfishAnalyzer.get_instance()
+    if depth is None:
+        depth = int(os.environ.get("BATCH_ANALYSIS_DEPTH", os.environ.get("STOCKFISH_DEPTH", "20")))
 
     # Analyze game (per-move). Use analyze_position directly to avoid
     # incompatible keyword arguments in some analyzer versions.
@@ -86,7 +88,7 @@ def build_game_result(pgn: str, game_id: str = None) -> Dict[str, Any]:
         board = game.board() if game else chess.Board()
         for i, move in enumerate(game.mainline_moves() if game else []):
             is_white = board.turn
-            result = analyzer.analyze_position(board, depth=20)
+            result = analyzer.analyze_position(board, depth=depth)
 
             # Record SAN and FEN before making the move
             try:

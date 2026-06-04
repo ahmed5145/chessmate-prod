@@ -858,7 +858,12 @@ def _record_batch_game_progress(batch_id: str, user_id: int, game_id: str, *, su
         logger.warning("Could not update batch progress for %s: %s", batch_id, exc)
 
 
-@shared_task(name="chess_mate.core.tasks.analyze_single_game_subtask", bind=False)
+@shared_task(
+    name="chess_mate.core.tasks.analyze_single_game_subtask",
+    bind=False,
+    soft_time_limit=840,
+    time_limit=900,
+)
 def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: int) -> Dict[str, Any]:
     """
     Analyze a single game and return structured result envelope.
@@ -1026,8 +1031,17 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
                 f"[batch={batch_id}] analyze_single_game_subtask: selected build_game_result (logging failed)"
             )
 
+        batch_depth = int(os.environ.get("BATCH_ANALYSIS_DEPTH", "14"))
+        logger.info(f"[batch={batch_id}] analyzing game {game_id} at depth={batch_depth}")
+        try:
+            import sys as _sys
+
+            _sys.stderr.write(f"[batch={batch_id}] game={game_id} depth={batch_depth} start\n")
+        except Exception:
+            _log_ignored_exception(f"Ignoring stderr write failure for game {game_id}")
+
         # Build per-game result using resolved builder
-        game_result = builder(pgn, game_id=game_id)
+        game_result = builder(pgn, game_id=game_id, depth=batch_depth)
 
         if not game_result:
             _record_batch_game_progress(batch_id, user_id, game_id, succeeded=False)
@@ -1255,7 +1269,12 @@ def aggregate_and_report_task(
         }
 
 
-@shared_task(name="chess_mate.core.tasks.analyze_batch_task", bind=False)
+@shared_task(
+    name="chess_mate.core.tasks.analyze_batch_task",
+    bind=False,
+    soft_time_limit=7200,
+    time_limit=7500,
+)
 def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) -> str:
     """
     Fan-out/fan-in batch analysis task.
@@ -1272,6 +1291,12 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
         Celery task ID or status string
     """
     logger.info(f"Starting batch analysis for batch {batch_id}: {len(game_pgn_list)} games")
+    try:
+        import sys as _sys
+
+        _sys.stderr.write(f"[batch={batch_id}] analyze_batch_task started games={len(game_pgn_list)}\n")
+    except Exception:
+        _log_ignored_exception(f"Ignoring stderr write failure for batch {batch_id}")
 
     # Mark batch as in_progress
     try:

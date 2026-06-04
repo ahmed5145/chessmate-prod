@@ -187,7 +187,8 @@ fi
 # Logs go to container stdout (--logfile=-) so EB "Request logs" shows batch/Celery output.
 if [ "$ENABLE_CELERY" = "true" ]; then
     export SEQUENTIAL_BATCH_ANALYSIS="${SEQUENTIAL_BATCH_ANALYSIS:-true}"
-    echo "Starting Celery worker (queues: default, analysis, batch_analysis; sequential batch=${SEQUENTIAL_BATCH_ANALYSIS})..."
+    export BATCH_ANALYSIS_DEPTH="${BATCH_ANALYSIS_DEPTH:-14}"
+    echo "Starting Celery worker (queues: default, analysis, batch_analysis; sequential batch=${SEQUENTIAL_BATCH_ANALYSIS}; depth=${BATCH_ANALYSIS_DEPTH})..."
     celery -A chess_mate worker -l info \
         -Q default,analysis,batch_analysis \
         --concurrency=1 \
