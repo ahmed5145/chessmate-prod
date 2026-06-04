@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 from core.analysis.coaching_schema import BATCH_COACHING_REPORT_SCHEMA
@@ -33,6 +34,90 @@ def _load_coaching_report_schema() -> Optional[Dict[str, Any]]:
     if isinstance(json_schema, dict) and "schema" in json_schema:
         return json_schema["schema"]
     return json_schema
+
+
+_GAME_ID_RE = re.compile(r"game_\d+", re.IGNORECASE)
+_MOVE_RE = re.compile(r"move\s*#?\s*\d+", re.IGNORECASE)
+
+
+def _text_blob(*parts: Any) -> str:
+    return " ".join(str(p) for p in parts if p is not None).lower()
+
+
+def validate_coaching_citations(
+    parsed: Dict[str, Any],
+    batch_summary: Dict[str, Any],
+    per_game_summaries: List[Dict[str, Any]],
+) -> List[str]:
+    """
+    Post-check that coaching prose references grounded batch facts.
+    Returns human-readable validation errors (empty if OK).
+    """
+    errors: List[str] = []
+    game_ids = {s.get("game_id") for s in per_game_summaries if s.get("game_id")}
+
+    priorities = parsed.get("top_3_priorities") or []
+    if game_ids and priorities:
+        cited_game = False
+        cited_move = False
+        for priority in priorities:
+            blob = _text_blob(
+                priority.get("title"),
+                priority.get("why_it_matters"),
+                priority.get("specific_drill"),
+            )
+            if any(gid and gid.lower() in blob for gid in game_ids):
+                cited_game = True
+            if _GAME_ID_RE.search(blob):
+                cited_game = True
+            if _MOVE_RE.search(blob):
+                cited_move = True
+        if not cited_game:
+            errors.append(
+                "top_3_priorities must cite at least one game_id from per_game_summaries "
+                "(e.g. game_0) in title or specific_drill."
+            )
+        if not cited_move:
+            errors.append(
+                "top_3_priorities must cite at least one move number "
+                "(e.g. 'move 22') from critical_moments in specific_drill or title."
+            )
+
+    opening_insights = batch_summary.get("opening_insights") or []
+    if opening_insights:
+        opening_names = [
+            str(item.get("opening_name", "")).lower()
+            for item in opening_insights
+            if isinstance(item, dict) and item.get("opening_name")
+        ]
+        narrative = _text_blob(
+            parsed.get("executive_summary"),
+            (parsed.get("coaching_narrative") or {}).get("opening"),
+        )
+        if opening_names and not any(name in narrative for name in opening_names):
+            errors.append(
+                "executive_summary or coaching_narrative.opening must name an opening "
+                "from batch_summary.opening_insights."
+            )
+
+    endgame_insights = batch_summary.get("endgame_insights") or []
+    if endgame_insights:
+        endgame_tokens = []
+        for item in endgame_insights:
+            if not isinstance(item, dict):
+                continue
+            for key in ("label", "endgame_type", "study_focus"):
+                val = item.get(key)
+                if val:
+                    endgame_tokens.append(str(val).lower().replace("_", " "))
+        endgame_text = _text_blob((parsed.get("coaching_narrative") or {}).get("endgame"))
+        if endgame_tokens and not any(token in endgame_text for token in endgame_tokens if len(token) > 3):
+            errors.append(
+                "coaching_narrative.endgame must reference an endgame type or study_focus "
+                "from batch_summary.endgame_insights."
+            )
+
+    return errors
 
 
 def _validate_coaching_report(parsed: Dict[str, Any]) -> None:
@@ -197,36 +282,68 @@ def generate_coaching_report(
 
         logger.info(f"Coaching generation prompt length: {len(user_message)} chars")
 
+        def _parse_response(response_obj: Any) -> Dict[str, Any]:
+            """
+            Support both the OpenAI SDK response shape and our test double shape.
+
+            - Tests / some SDK paths: response.output_parsed (dict)
+            - Production chat completions: response.choices[0].message.content (JSON string)
+            """
+            if hasattr(response_obj, "output_parsed") and response_obj.output_parsed is not None:
+                parsed_obj = response_obj.output_parsed
+                if isinstance(parsed_obj, dict):
+                    return parsed_obj
+                raise CoachingGeneratorError(f"OpenAI returned unexpected type: {type(parsed_obj)}")
+
+            content = response_obj.choices[0].message.content
+            logger.info(f"OpenAI response (first 200 chars): {content[:200]}")
+            try:
+                loaded = json.loads(content)
+            except json.JSONDecodeError as exc:
+                raise CoachingGeneratorError(f"OpenAI returned non-JSON response: {content[:200]}") from exc
+
+            if not isinstance(loaded, dict):
+                raise CoachingGeneratorError(
+                    f"OpenAI returned unexpected type: {type(loaded)}, content: {content[:200]}"
+                )
+            return loaded
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ]
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
+            messages=messages,
             response_format=response_format,
         )
-
-        # Support both the OpenAI SDK response shape and our test double shape.
-        if hasattr(response, "output_parsed") and response.output_parsed is not None:
-            parsed = response.output_parsed
-            if isinstance(parsed, dict):
-                _validate_coaching_report(parsed)
-                return parsed
-            raise CoachingGeneratorError(f"OpenAI returned unexpected type: {type(parsed)}")
-
-        # Extract JSON string from response.choices[0].message.content
-        content = response.choices[0].message.content
-        logger.info(f"OpenAI response (first 200 chars): {content[:200]}")
-
-        try:
-            parsed = json.loads(content)
-        except json.JSONDecodeError as e:
-            raise CoachingGeneratorError(f"OpenAI returned non-JSON response: {content[:200]}") from e
-
-        if not isinstance(parsed, dict):
-            raise CoachingGeneratorError(f"OpenAI returned unexpected type: {type(parsed)}, content: {content[:200]}")
-
+        parsed = _parse_response(response)
         _validate_coaching_report(parsed)
+
+        citation_errors = validate_coaching_citations(parsed, batch_summary, per_game_summaries)
+        if citation_errors:
+            logger.warning("Coaching citation validation failed, retrying once: %s", citation_errors)
+            retry_message = (
+                user_message
+                + "\n\nYour previous JSON failed grounding checks. Fix and return new JSON only:\n"
+                + "\n".join(f"- {err}" for err in citation_errors)
+            )
+            retry_response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": retry_message},
+                ],
+                response_format=response_format,
+            )
+            parsed = _parse_response(retry_response)
+            _validate_coaching_report(parsed)
+            citation_errors = validate_coaching_citations(parsed, batch_summary, per_game_summaries)
+            if citation_errors:
+                logger.warning(
+                    "Coaching citations still weak after retry (serving report anyway): %s",
+                    citation_errors,
+                )
 
         return parsed
 

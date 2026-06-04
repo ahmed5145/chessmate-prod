@@ -44,6 +44,7 @@ const BatchReport = () => {
   const [completedGames, setCompletedGames] = useState(0);
   const [totalGames, setTotalGames] = useState(0);
   const [error, setError] = useState(null);
+  const [failedReport, setFailedReport] = useState(null);
   const intervalRef = useRef(null);
   const loadingReportRef = useRef(false);
   const finishedRef = useRef(false);
@@ -72,7 +73,13 @@ const BatchReport = () => {
         if (!isMounted) {
           return;
         }
-        setBatchReport(report);
+        if (report?.status === 'failed') {
+          setFailedReport(report);
+          setBatchReport(null);
+        } else {
+          setFailedReport(null);
+          setBatchReport(report);
+        }
       } catch (reportError) {
         if (!isMounted) {
           return;
@@ -156,7 +163,17 @@ const BatchReport = () => {
 
         {status === 'failed' ? (
           <Alert severity="error" sx={{ mb: 3, width: '100%' }}>
-            Analysis failed — insufficient games succeeded. Please try again with more games.
+            {failedReport?.message ||
+              'Analysis failed — insufficient games succeeded. Please try again with at least 5 games.'}
+            {failedReport?.credits_refunded && failedReport?.credits_refunded_amount ? (
+              <>
+                {' '}
+                Your account was refunded {failedReport.credits_refunded_amount} credit
+                {failedReport.credits_refunded_amount === 1 ? '' : 's'} for this batch.
+              </>
+            ) : failedReport?.credits_refunded ? (
+              <> Your credits for this batch were refunded.</>
+            ) : null}
           </Alert>
         ) : null}
 

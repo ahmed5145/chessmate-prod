@@ -60,7 +60,7 @@ def test_generate_coaching_report_success(monkeypatch):
                 "title": "T1",
                 "why_it_matters": "W",
                 "how_to_fix": "H",
-                "specific_drill": "D",
+                "specific_drill": "In game_0 move 22, drill the fork pattern from the critical moment.",
                 "estimated_study_hours": 1,
             },
             {
@@ -122,3 +122,50 @@ def test_generate_coaching_report_raises_on_api_error(monkeypatch):
         cg.generate_coaching_report(batch_summary, per_game_results)
 
     assert "Coaching generation failed" in str(excinfo.value)
+
+
+def test_validate_coaching_citations_requires_game_and_move():
+    batch_summary = {
+        "opening_insights": [{"opening_name": "Italian Game", "status": "struggling"}],
+        "endgame_insights": [{"label": "rook and pawn", "study_focus": "Lucena bridge building"}],
+    }
+    summaries = [{"game_id": "game_0", "critical_moments": [{"move_number": 22}]}]
+    weak = {
+        "executive_summary": "You need to improve.",
+        "coaching_narrative": {"opening": "Openings need work.", "middlegame": "M", "endgame": "Endgames."},
+        "top_3_priorities": [
+            {
+                "rank": 1,
+                "title": "Tactics",
+                "why_it_matters": "W",
+                "how_to_fix": "H",
+                "specific_drill": "Do puzzles",
+                "estimated_study_hours": 1,
+            }
+        ],
+    }
+    errors = cg.validate_coaching_citations(weak, batch_summary, summaries)
+    assert any("game_id" in e for e in errors)
+    assert any("move number" in e for e in errors)
+    assert any("opening" in e for e in errors)
+    assert any("endgame" in e for e in errors)
+
+    strong = {
+        "executive_summary": "Italian Game losses drove this batch.",
+        "coaching_narrative": {
+            "opening": "Italian Game scores were low.",
+            "middlegame": "M",
+            "endgame": "Rook and pawn Lucena bridge building needs review.",
+        },
+        "top_3_priorities": [
+            {
+                "rank": 1,
+                "title": "Fork in game_0",
+                "why_it_matters": "W",
+                "how_to_fix": "H",
+                "specific_drill": "Replay game_0 move 22 fork defense.",
+                "estimated_study_hours": 1,
+            }
+        ],
+    }
+    assert cg.validate_coaching_citations(strong, batch_summary, summaries) == []

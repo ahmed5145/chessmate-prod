@@ -34,9 +34,6 @@ const BatchAnalysis = () => {
   const { isDarkMode } = useTheme();
   const userContext = useContext(UserContext);
   const credits = userContext?.credits ?? 0;
-  void AlertCircle;
-  void Coins;
-  void credits;
   const navigate = useNavigate();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const pollingErrorCountRef = useRef(0);
@@ -224,6 +221,11 @@ const BatchAnalysis = () => {
       return;
     }
 
+    if (credits < gamesToAnalyze.length) {
+      toast.error(`Insufficient credits. This batch needs ${gamesToAnalyze.length} credits.`);
+      return;
+    }
+
     if (gamesToAnalyze.length > 30) {
       toast.error('Maximum number of games for batch analysis is 30');
       return;
@@ -322,6 +324,11 @@ const BatchAnalysis = () => {
     return bDate - aDate;
   });
 
+  const requiredCredits =
+    selectedGameIds.length > 0
+      ? selectedGameIds.length
+      : Math.min(Math.max(Number(numGames) || 10, 0), sortedFilteredGames.length);
+
   const toggleSelectedGame = (gameId) => {
     setSelectedGameIds((prev) => {
       if (prev.includes(gameId)) {
@@ -367,36 +374,47 @@ const BatchAnalysis = () => {
             Batch Analysis
           </h1>
           <p className={`mt-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-            Analyze multiple games at once to get insights into your playing patterns (maximum 30 games).
+            Batch coach analysis finds patterns across your recent games (default 10, min 5, max 30).
           </p>
         </div>
 
-        {/* Credits Info */}
-        {/*
+        <div className={`mb-6 p-4 rounded-lg border ${
+          isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-indigo-50 border-indigo-100'
+        }`}>
+          <h2 className={`text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-indigo-900'}`}>
+            What to expect
+          </h2>
+          <ul className={`text-sm space-y-1 list-disc pl-5 ${isDarkMode ? 'text-gray-300' : 'text-indigo-900'}`}>
+            <li>1 credit per game, charged when you start (refunded if the batch hard-fails).</li>
+            <li>Engine depth is fixed internally for consistent metrics — not configurable.</li>
+            <li>Typical runtime: about 1–3 minutes per game; you can leave the page and open the report from history.</li>
+            <li>At least 5 games must analyze successfully or the batch fails and credits are returned.</li>
+          </ul>
+        </div>
+
         <div className={`mb-8 p-4 rounded-lg ${
           isDarkMode ? 'bg-gray-800' : 'bg-white'
         } shadow-sm`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Coins className={`h-5 w-5 ${credits < numGames ? 'text-red-500' : 'text-green-500'}`} />
+              <Coins className={`h-5 w-5 ${credits < requiredCredits ? 'text-red-500' : 'text-green-500'}`} />
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Available Credits: {credits}
+                Available credits: {credits}
               </span>
             </div>
             <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Required Credits: {numGames}
+              Required for this run: {requiredCredits}
             </div>
           </div>
-          {credits < numGames && (
+          {credits < requiredCredits && (
             <div className="mt-2 flex items-start space-x-2">
               <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
               <p className="text-sm text-red-500">
-                Insufficient credits. You need {numGames - credits} more credits to analyze {numGames} games.
+                Insufficient credits. You need {requiredCredits - credits} more to analyze {requiredCredits} games.
               </p>
             </div>
           )}
         </div>
-        */}
 
         {/* Analysis Options */}
         <div className={`mb-8 p-6 rounded-lg ${
@@ -419,7 +437,7 @@ const BatchAnalysis = () => {
                   type="number"
                   name="numGames"
                   id="numGames"
-                  min="1"
+                  min="5"
                   max="30"
                   className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
                     isDarkMode
@@ -699,7 +717,7 @@ const BatchAnalysis = () => {
         ) : (
           <button
             onClick={startBatchAnalysis}
-            disabled={isAnalyzing}
+            disabled={isAnalyzing || credits < requiredCredits || requiredCredits < 5}
             className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
               isAnalyzing ? 'bg-gray-400 cursor-not-allowed' : isDarkMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'
             }`}

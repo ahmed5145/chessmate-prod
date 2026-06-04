@@ -236,8 +236,8 @@ See `core/analysis/coaching_schema.py`. No extra keys without schema version bum
 
 - [ ] Metrics remediation M1–M4 (truthful numbers + labels)
 - [ ] Deploy + validate `opening_insights` / `endgame_insights` on new batches
-- [ ] Coaching prompt v2: mandatory citations (game_id, move, opening name, endgame type)
-- [ ] Single report route; deprecate legacy results or redirect
+- [x] Coaching prompt v2: mandatory citations (game_id, move, opening name, endgame type) + validation retry
+- [x] Single report route; deprecate legacy results or redirect
 - [ ] Report header: record, eval stability, rating, analysis depth/disclaimer
 - [ ] Critical moments expanded by default; link to `/game/:id/analysis` where ID maps
 
@@ -245,7 +245,7 @@ See `core/analysis/coaching_schema.py`. No extra keys without schema version bum
 
 - [ ] Forgot-password / auth polish on custom domain
 - [ ] Credits consistent on `chessmate` DB
-- [ ] Batch run expectations copy (time, depth, credits)
+- [x] Batch run expectations copy (time, depth, credits, refund on hard-fail)
 
 ### P2 — Worth paying repeatedly (6–10 weeks)
 
@@ -260,7 +260,7 @@ See `core/analysis/coaching_schema.py`. No extra keys without schema version bum
 
 **Horizontal**
 
-- [ ] Email on batch complete
+- [x] Email on batch complete
 - [ ] Dashboard “latest coach insight” from last batch
 - [ ] Export PDF / share read-only link
 - [ ] ACPL or secondary accuracy metric (M5)
@@ -398,3 +398,4 @@ Assumptions: ~10-game batch, coaching prompt ~8–12k input tokens + ~2–4k out
 | 1.1 | 2026-06-04 | M1–M4 implemented: eval pipeline, classification module, player W/L, UI labels |
 | 1.2 | 2026-06-01 | §11 locked: default 10 games, flat credits, eval stability + ACPL, batch-only launch, complete email, legacy URL redirect |
 | 1.2.1 | 2026-06-01 | Credit refund on batch hard-fail (`credits_charged` / `credits_refunded` on report) |
+| 1.2.2 | 2026-06-01 | Coaching citation validator + retry; batch expectations UI; failed-report refund message |

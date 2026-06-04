@@ -725,7 +725,9 @@ export const getBatchReport = async (batchId) => {
             errors = [],
             created_at,
             updated_at,
-            message
+            message,
+            credits_refunded,
+            credits_refunded_amount
         } = response.data;
 
         // Return full structure with all fields present
@@ -741,7 +743,9 @@ export const getBatchReport = async (batchId) => {
             errors: Array.isArray(errors) ? errors : [],
             created_at,
             updated_at,
-            message // included for error cases
+            message, // included for error cases
+            credits_refunded: Boolean(credits_refunded),
+            credits_refunded_amount: credits_refunded_amount ?? null
         };
     } catch (error) {
         console.error('Error fetching batch report:', error);
