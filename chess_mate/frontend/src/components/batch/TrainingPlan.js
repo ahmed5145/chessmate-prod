@@ -50,8 +50,16 @@ const TrainingPlan = ({ coaching_report }) => {
         4-Week Training Plan
       </Typography>
 
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        AI-suggested study outline based on this batch. Pair with the game breakdown above for specific positions.
+      </Typography>
+
       {weeks.map((week) => (
-        <Accordion key={week.key} sx={{ mb: 2 }}>
+        <Accordion
+          key={week.key}
+          defaultExpanded={week.key === 'week_1'}
+          sx={{ mb: 2 }}
+        >
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
               {week.label}

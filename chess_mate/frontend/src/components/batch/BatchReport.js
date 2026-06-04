@@ -26,8 +26,11 @@ import {
   Container
 } from '@mui/material';
 import BatchLoadingScreen from './BatchLoadingScreen';
+import BatchReportHeader from './BatchReportHeader';
 import ExecutiveSummary from './ExecutiveSummary';
 import PhaseBreakdown from './PhaseBreakdown';
+import RecurringPatterns from './RecurringPatterns';
+import CoachingNarrative from './CoachingNarrative';
 import TopPriorities from './TopPriorities';
 import TrainingPlan from './TrainingPlan';
 import GameAccordion from './GameAccordion';
@@ -158,9 +161,15 @@ const BatchReport = () => {
         ) : null}
 
         {showReport ? (
-          <Box sx={{ display: 'grid', gap: 4 }}>
+          <Box sx={{ display: 'grid', gap: 2 }}>
+            <BatchReportHeader
+              batch_summary={batchReport.batch_summary}
+              games_count={batchReport.games_count}
+            />
             <ExecutiveSummary coaching_report={batchReport.coaching_report} />
             <PhaseBreakdown batch_summary={batchReport.batch_summary} />
+            <RecurringPatterns batch_summary={batchReport.batch_summary} />
+            <CoachingNarrative coaching_report={batchReport.coaching_report} />
             <TopPriorities coaching_report={batchReport.coaching_report} />
             <TrainingPlan coaching_report={batchReport.coaching_report} />
             <GameAccordion per_game_results={batchReport.per_game_results} />
