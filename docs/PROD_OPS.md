@@ -59,10 +59,10 @@ Wrong `DB_NAME` = you change a different database than the live site.
 set REDIS_DISABLED=true
 set ENVIRONMENT=production
 set DJANGO_SETTINGS_MODULE=chess_mate.settings
-set DB_HOST=chessmate-db.ct2c8gou6c3u.us-east-2.rds.amazonaws.com
+set DB_HOST=your-rds-endpoint.region.rds.amazonaws.com
 set DB_NAME=chessmate
-set DB_USER=chessmate_user
-set DB_PASSWORD=paste-from-eb-console
+set DB_USER=your_db_user
+set DB_PASSWORD=from-eb-console-only
 set DB_PORT=5432
 cd C:\Users\PCAdmin\Desktop\chessmate_prod\chess_mate
 python manage.py show_db
@@ -262,6 +262,33 @@ print("password reset for", u.username)
 ```
 
 Exit shell with `exit()`.
+
+---
+
+## Password reset email (Gmail on EB)
+
+Set on **Chessmate-env-2** → Configuration → Software:
+
+| Variable | Notes |
+|----------|--------|
+| `EMAIL_HOST` | `smtp.gmail.com` |
+| `EMAIL_PORT` | `587` |
+| `EMAIL_USE_TLS` | `True` |
+| `EMAIL_HOST_USER` | Gmail address |
+| `EMAIL_HOST_PASSWORD` | **Google App Password** (not your normal Gmail password) |
+| `DEFAULT_FROM_EMAIL` | Same as `EMAIL_HOST_USER` |
+
+Create an app password: Google Account → Security → 2-Step Verification → App passwords.
+
+If SMTP fails, the API returns **503** with a clear message (no fake “email sent”). Use `python manage.py reset_user_password` on the **`chessmate`** database instead.
+
+## Batch analysis stuck at 1/5
+
+- Celery runs games **one at a time** (`SEQUENTIAL_BATCH_ANALYSIS=true`).
+- Each game can take **several minutes**; UI may sit at `1/5` while game 2 is analyzing.
+- Default **`BATCH_ANALYSIS_DEPTH=14`** (set on EB to tune speed vs quality).
+- In Full logs → stdouterr, search: `analyze_batch_task started`, `game=game_1 depth=`, `game=game_2`.
+- Deploy during a batch **kills** the worker (exit 137); cancel the batch and start a new one after deploy.
 
 ---
 
