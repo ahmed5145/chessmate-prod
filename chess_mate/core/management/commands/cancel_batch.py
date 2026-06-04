@@ -1,3 +1,4 @@
+from core.batch_credits import refund_batch_credits_on_hard_fail
 from core.models import BatchAnalysisReport
 from django.core.management.base import BaseCommand, CommandError
 
@@ -38,9 +39,11 @@ class Command(BaseCommand):
         failed.append({"game_id": "_batch", "error": options["reason"]})
         report.failed_games = failed
         report.save(update_fields=["status", "failed_games", "updated_at"])
+        refunded = refund_batch_credits_on_hard_fail(report)
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"Batch id={report.pk} task_id={report.task_id}: {previous} -> failed ({options['reason']})"
+                + (f"; refunded {refunded} credits" if refunded else "")
             )
         )

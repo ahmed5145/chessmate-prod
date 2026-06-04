@@ -1124,6 +1124,7 @@ def aggregate_and_report_task(
             batch_report.status = "failed"
             batch_report.per_game_results = per_game_results
             batch_report.save(update_fields=["status", "per_game_results", "updated_at"])
+            _refund_failed_batch_credits(batch_report)
 
             return {
                 "status": "failed",
@@ -1196,6 +1197,7 @@ def aggregate_and_report_task(
             batch_report.status = "failed"
             batch_report.per_game_results = per_game_results
             batch_report.save(update_fields=["status", "per_game_results", "updated_at"])
+            _refund_failed_batch_credits(batch_report)
 
             return {
                 "status": "failed",
@@ -1270,6 +1272,7 @@ def aggregate_and_report_task(
             batch_report = BatchAnalysisReport.objects.get(task_id=batch_id, user_id=user_id)
             batch_report.status = "failed"
             batch_report.save(update_fields=["status", "updated_at"])
+            _refund_failed_batch_credits(batch_report)
         except Exception:
             _log_ignored_exception(f"Ignoring batch report failure update for batch {batch_id}")
 
@@ -1278,6 +1281,20 @@ def aggregate_and_report_task(
             "batch_id": batch_id,
             "reason": f"Aggregation failed: {str(exc)}",
         }
+
+
+def _refund_failed_batch_credits(batch_report: BatchAnalysisReport) -> None:
+    try:
+        from .batch_credits import refund_batch_credits_on_hard_fail
+
+        refund_batch_credits_on_hard_fail(batch_report)
+    except Exception as refund_exc:
+        logger.error(
+            "Credit refund failed for batch id=%s: %s",
+            getattr(batch_report, "pk", None),
+            refund_exc,
+            exc_info=True,
+        )
 
 
 @shared_task(

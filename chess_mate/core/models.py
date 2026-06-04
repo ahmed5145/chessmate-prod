@@ -904,6 +904,8 @@ class BatchAnalysisReport(models.Model):
     per_game_results = models.JSONField(null=True, blank=True, default=None)
     coaching_report = models.JSONField(null=True, blank=True, default=None)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    credits_charged = models.PositiveIntegerField(default=0)
+    credits_refunded = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

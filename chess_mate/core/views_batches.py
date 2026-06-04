@@ -85,6 +85,7 @@ def batch_create_view(request):
             task_id=batch_id,
             status="pending",
             games_count=games_count,
+            credits_charged=credits_required,
         )
 
     # Queue the analysis task (requires Celery worker — see docker-entrypoint.sh)
@@ -188,13 +189,14 @@ def batch_report_view(request, batch_id):
 
     # If analysis failed, return error message
     if batch_report.status == "failed":
-        return Response(
-            {
-                "status": "failed",
-                "message": "Analysis failed — insufficient games succeeded",
-            },
-            status=status.HTTP_200_OK,
-        )
+        payload = {
+            "status": "failed",
+            "message": "Analysis failed — insufficient games succeeded",
+            "credits_refunded": batch_report.credits_refunded,
+        }
+        if batch_report.credits_refunded and batch_report.credits_charged:
+            payload["credits_refunded_amount"] = batch_report.credits_charged
+        return Response(payload, status=status.HTTP_200_OK)
 
     # If analysis is completed or partial, return full report
     if batch_report.status in ["completed", "partial"]:

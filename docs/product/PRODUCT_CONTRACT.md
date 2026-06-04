@@ -338,7 +338,7 @@ A release candidate must pass:
 | # | Decision | Choice |
 |---|----------|--------|
 | 1 | Default batch size | **10** (min 5, max 30) |
-| 2 | Credit cost | **Flat per game** (`BATCH_CREDITS_PER_GAME=1`); Stockfish depth **internal only** (`BATCH_ANALYSIS_DEPTH=14`, not user-facing) |
+| 2 | Credit cost | **Flat per game** (`BATCH_CREDITS_PER_GAME=1`); charged on batch create; **full refund on hard-fail** (`status=failed`, e.g. &lt;5 games succeed); no refund on `partial`/`completed` |
 | 3 | Canonical report URL | **`/batch-report/:id`** (integer PK); legacy `/batch-analysis/results/*` → redirect |
 | 4 | Metrics naming | **`overall_eval_stability`** in API/UI; **`overall_acpl`** added; `overall_accuracy` kept as deprecated alias |
 | 5 | Launch brand | **Batch coach only** for first ~1000 users; single-game analysis post-launch |
@@ -397,3 +397,4 @@ Assumptions: ~10-game batch, coaching prompt ~8–12k input tokens + ~2–4k out
 | 1.0 | 2026-06-04 | Initial contract: metrics audit, AI map, P0–P4 map, gaps from repo review |
 | 1.1 | 2026-06-04 | M1–M4 implemented: eval pipeline, classification module, player W/L, UI labels |
 | 1.2 | 2026-06-01 | §11 locked: default 10 games, flat credits, eval stability + ACPL, batch-only launch, complete email, legacy URL redirect |
+| 1.2.1 | 2026-06-01 | Credit refund on batch hard-fail (`credits_charged` / `credits_refunded` on report) |
