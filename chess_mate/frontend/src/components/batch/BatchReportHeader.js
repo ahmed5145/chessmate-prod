@@ -11,7 +11,10 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
   }
 
   const wld = batch_summary.win_loss_draw || {};
-  const stabilityPct = Math.round(Number(batch_summary.overall_accuracy || 0) * 100);
+  const stabilityRaw =
+    batch_summary.overall_eval_stability ?? batch_summary.overall_accuracy ?? 0;
+  const stabilityPct = Math.round(Number(stabilityRaw) * 100);
+  const acpl = batch_summary.overall_acpl;
   const analyzed = batch_summary.games_analyzed ?? games_count ?? 0;
   const rating = batch_summary.player_rating;
   const dateRange = batch_summary.date_range;
@@ -40,6 +43,16 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
               {stabilityPct}%
             </Typography>
           </Grid>
+          {acpl != null && (
+            <Grid item xs={6} sm={3}>
+              <Typography variant="caption" color="text.secondary">
+                Average ACPL
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {Number(acpl).toFixed(1)}
+              </Typography>
+            </Grid>
+          )}
           {rating != null && (
             <Grid item xs={6} sm={3}>
               <Typography variant="caption" color="text.secondary">

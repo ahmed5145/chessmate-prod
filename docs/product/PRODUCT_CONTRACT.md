@@ -1,6 +1,6 @@
 # ChessMate Product & Delivery Contract
 
-**Version:** 1.1  
+**Version:** 1.2  
 **Date:** 2026-06-04  
 **Status:** Active — governs what we ship, how we measure it, and what “done” means  
 **Audience:** Product, engineering, and anyone deciding what users pay for  
@@ -110,7 +110,9 @@ Expand AI **only where it synthesizes engine facts** — never to invent moves o
 
 | Metric | Formula (current code) | User-facing label | Trust level |
 |--------|------------------------|-------------------|-------------|
-| `overall_accuracy` | Weighted avg of `(1 - avg_eval_drop)` per phase move | “Overall accuracy” | **Medium** — not Chess.com ACPL accuracy |
+| `overall_eval_stability` | Weighted avg of `(1 - avg_eval_drop)` per phase move | “Overall eval stability” | **Medium** — internal score, not Chess.com accuracy |
+| `overall_acpl` | Mean centipawn loss per half-move (player moves) | “Average ACPL” | **Medium** — comparable to common site metrics when M1 eval chain is correct |
+| `overall_accuracy` | Alias of `overall_eval_stability` | Deprecated | — |
 | Phase `score` | `1 - avg_eval_drop` for moves in phase | “Opening 87%” | **Medium** — drops are pawn-scale, not normalized ACPL |
 | `opening_accuracy` (per game) | % opening moves in engine top-3 | Rarely shown in batch UI | **Low–medium** — depends on `best_line` quality |
 | `move_quality.*` | Counts from deterioration thresholds (≥0.2 inaccuracy, ≥0.5 mistake, ≥1.5 blunder) | Blunder/mistake counts | **Medium** — consistent within batch |
@@ -331,17 +333,37 @@ A release candidate must pass:
 
 ---
 
-## 11. Open decisions (need owner input)
+## 11. Product decisions (locked for launch)
 
-| # | Decision | Options |
-|---|----------|---------|
-| 1 | Default batch size | 5 / 10 / 20 |
-| 2 | Credit cost per game at depth 14 | Flat vs tiered |
-| 3 | Canonical report URL | `/batch-report/:id` only vs keep legacy |
-| 4 | Rename “accuracy” globally | Eval stability vs invest in ACPL |
-| 5 | Single-game vs batch brand | One product or batch-only paid |
-| 6 | Email on complete in P1 or P2 | — |
-| 7 | OpenAI model for coaching | Stay mini vs upgrade for prose quality |
+| # | Decision | Choice |
+|---|----------|--------|
+| 1 | Default batch size | **10** (min 5, max 30) |
+| 2 | Credit cost | **Flat per game** (`BATCH_CREDITS_PER_GAME=1`); Stockfish depth **internal only** (`BATCH_ANALYSIS_DEPTH=14`, not user-facing) |
+| 3 | Canonical report URL | **`/batch-report/:id`** (integer PK); legacy `/batch-analysis/results/*` → redirect |
+| 4 | Metrics naming | **`overall_eval_stability`** in API/UI; **`overall_acpl`** added; `overall_accuracy` kept as deprecated alias |
+| 5 | Launch brand | **Batch coach only** for first ~1000 users; single-game analysis post-launch |
+| 6 | Email on complete | **Yes** (`BATCH_SEND_COMPLETE_EMAIL`, template `email/batch_complete.html`) |
+| 7 | OpenAI coaching model | **gpt-4o-mini** at launch; upgrade path documented in Appendix C |
+
+---
+
+## Appendix C — OpenAI cost vs credit pricing (estimates)
+
+Assumptions: ~10-game batch, coaching prompt ~8–12k input tokens + ~2–4k output JSON per batch (not per game).
+
+| Model | Approx. $/batch (coaching only) | Prose quality | Notes |
+|-------|----------------------------------|---------------|--------|
+| **gpt-4o-mini** | **$0.001–0.003** | Good structure, occasional generic phrasing | **Default** — margin-friendly at 1 credit/game |
+| **gpt-4o** | **$0.02–0.05** | Richer narrative, better citations discipline | ~10–20× coaching cost; does **not** dominate unit economics |
+| **gpt-4o** + longer prompts | **$0.05–0.15** | Best quality if we add per-game notes | Requires higher credit price or batch surcharge |
+
+**Dominant cost** on Elastic Beanstalk is **Stockfish CPU time** (depth 14 × N games), not OpenAI. Rule of thumb for pricing credits:
+
+- At **1 credit/game**, user pays linearly with compute; coaching mini cost is **&lt;1%** of infra at typical AWS worker rates unless batches are huge.
+- Moving coaching to **gpt-4o** adds roughly **$0.02–0.04 per 10-game batch** (~2–4 cents). To preserve similar margin, you could either absorb it (marketing: “premium prose”) or add **+0.1–0.2 credits/batch** equivalent — far less than doubling per-game price.
+- **Do not** expose depth or model toggles to users at launch; keep depth in settings and model in `coaching_generator.py` for ops-controlled upgrades.
+
+**Recommendation:** Ship mini; run A/B on internal batches with 4o before changing retail credits. If 4o wins qualitatively, consider **“Pro coaching”** as +1 flat credit per batch (not per game) rather than repricing every game.
 
 ---
 
@@ -374,3 +396,4 @@ A release candidate must pass:
 |---------|------|---------|
 | 1.0 | 2026-06-04 | Initial contract: metrics audit, AI map, P0–P4 map, gaps from repo review |
 | 1.1 | 2026-06-04 | M1–M4 implemented: eval pipeline, classification module, player W/L, UI labels |
+| 1.2 | 2026-06-01 | §11 locked: default 10 games, flat credits, eval stability + ACPL, batch-only launch, complete email, legacy URL redirect |

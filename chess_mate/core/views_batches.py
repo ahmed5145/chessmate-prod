@@ -5,12 +5,14 @@ Views for batch analysis operations (PRD section 11, Step 9).
 import logging
 import uuid
 
+from django.conf import settings
+from django.db import transaction
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import BatchAnalysisReport
+from .models import BatchAnalysisReport, Profile
 from .serializers_batches import (
     BatchAnalysisReportSerializer,
     BatchCreateSerializer,
@@ -48,17 +50,42 @@ def batch_create_view(request):
 
     # Extract validated PGN list
     pgn_list = serializer.validated_data["pgn_list"]
+    games_count = len(pgn_list)
+    credits_per_game = int(getattr(settings, "BATCH_CREDITS_PER_GAME", 1))
+    credits_required = games_count * credits_per_game
+
+    try:
+        profile = Profile.objects.get(user=request.user)
+    except Profile.DoesNotExist:
+        return Response(
+            {"detail": "User profile not found."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if profile.credits < credits_required:
+        return Response(
+            {
+                "detail": "Insufficient credits for this batch.",
+                "required_credits": credits_required,
+                "available_credits": profile.credits,
+                "credits_per_game": credits_per_game,
+            },
+            status=status.HTTP_402_PAYMENT_REQUIRED,
+        )
 
     # Generate batch_id as UUID string
     batch_id = str(uuid.uuid4())
 
-    # Create BatchAnalysisReport with pending status
-    batch_report = BatchAnalysisReport.objects.create(
-        user=request.user,
-        task_id=batch_id,
-        status="pending",
-        games_count=len(pgn_list),
-    )
+    with transaction.atomic():
+        profile.credits -= credits_required
+        profile.save(update_fields=["credits"])
+
+        batch_report = BatchAnalysisReport.objects.create(
+            user=request.user,
+            task_id=batch_id,
+            status="pending",
+            games_count=games_count,
+        )
 
     # Queue the analysis task (requires Celery worker — see docker-entrypoint.sh)
     async_result = analyze_batch_task.delay(batch_id, pgn_list, request.user.id)
@@ -67,7 +94,7 @@ def batch_create_view(request):
         batch_id,
         batch_report.pk,
         async_result.id,
-        len(pgn_list),
+        games_count,
         request.user.id,
     )
 
@@ -76,7 +103,9 @@ def batch_create_view(request):
             "batch_id": batch_report.pk,
             "task_id": batch_id,
             "status": "pending",
-            "games_count": len(pgn_list),
+            "games_count": games_count,
+            "credits_charged": credits_required,
+            "remaining_credits": profile.credits,
         },
         status=status.HTTP_202_ACCEPTED,
     )

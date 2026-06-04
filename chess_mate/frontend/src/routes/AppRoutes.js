@@ -12,7 +12,7 @@ import Credits from '../components/Credits';
 import Games from '../components/Games';
 import SingleGameAnalysis from '../components/SingleGameAnalysis';
 import BatchAnalysis from '../components/BatchAnalysis';
-import BatchAnalysisResults from '../components/BatchAnalysisResults';
+import BatchLegacyRedirect from '../components/BatchLegacyRedirect';
 import BatchUpload from '../components/batch/BatchUpload';
 import BatchReport from '../components/batch/BatchReport';
 import FetchGames from '../components/FetchGames';
@@ -115,7 +115,7 @@ const AppRoutes = () => {
         path="/batch-analysis/results/:taskId"
         element={
           <ProtectedRoute>
-            <BatchAnalysisResults />
+            <BatchLegacyRedirect />
           </ProtectedRoute>
         }
       />
@@ -123,7 +123,7 @@ const AppRoutes = () => {
         path="/batch-analysis/results/report/:reportId"
         element={
           <ProtectedRoute>
-            <BatchAnalysisResults />
+            <BatchLegacyRedirect />
           </ProtectedRoute>
         }
       />

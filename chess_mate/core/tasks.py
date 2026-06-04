@@ -1031,7 +1031,7 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
                 f"[batch={batch_id}] analyze_single_game_subtask: selected build_game_result (logging failed)"
             )
 
-        batch_depth = int(os.environ.get("BATCH_ANALYSIS_DEPTH", "14"))
+        batch_depth = int(getattr(settings, "BATCH_ANALYSIS_DEPTH", 14))
         logger.info(f"[batch={batch_id}] analyzing game {game_id} at depth={batch_depth}")
         try:
             import sys as _sys
@@ -1244,6 +1244,17 @@ def aggregate_and_report_task(
         )
 
         logger.info(f"Batch {batch_id} completed with status {final_status}")
+
+        if getattr(settings, "BATCH_SEND_COMPLETE_EMAIL", True) and final_status in (
+            "completed",
+            "partial",
+        ):
+            try:
+                from .batch_notifications import send_batch_complete_email
+
+                send_batch_complete_email(batch_report.user, batch_report)
+            except Exception as email_exc:
+                logger.warning("Batch complete email failed for %s: %s", batch_id, email_exc)
 
         return {
             "status": final_status,

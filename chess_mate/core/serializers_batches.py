@@ -6,6 +6,7 @@ from io import StringIO
 from typing import Any, Dict, List
 
 import chess.pgn
+from django.conf import settings
 from rest_framework import serializers
 
 from .models import BatchAnalysisReport, Game
@@ -99,11 +100,18 @@ class BatchCreateSerializer(serializers.Serializer):
         # Validate batch size
         batch_size = len(pgn_list)
 
-        if batch_size < 5:
-            raise serializers.ValidationError("Batch analysis requires at least 5 games to detect patterns.")
+        min_games = int(getattr(settings, "BATCH_MIN_GAMES", 5))
+        max_games = int(getattr(settings, "BATCH_MAX_GAMES", 30))
 
-        if batch_size > 30:
-            raise serializers.ValidationError("Batch analysis supports a maximum of 30 games.")
+        if batch_size < min_games:
+            raise serializers.ValidationError(
+                f"Batch analysis requires at least {min_games} games to detect patterns."
+            )
+
+        if batch_size > max_games:
+            raise serializers.ValidationError(
+                f"Batch analysis supports a maximum of {max_games} games."
+            )
 
         # Validate each PGN is parseable
         validated_pgns = []

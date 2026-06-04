@@ -9,6 +9,7 @@ import statistics
 from collections import Counter
 from typing import Any, Dict, List, Optional
 
+from .batch_metrics import compute_batch_acpl
 from .moment_insights import ENDGAME_STUDY_HINTS
 
 logger = logging.getLogger(__name__)
@@ -93,8 +94,8 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
     # Extract win/loss/draw
     win_loss_draw = _count_results(per_game_results)
 
-    # Compute overall_accuracy: weighted average of phase scores across all games
-    overall_accuracy = _compute_overall_accuracy(per_game_results)
+    overall_eval_stability = _compute_overall_eval_stability(per_game_results)
+    overall_acpl = compute_batch_acpl(per_game_results)
 
     # Phase performance: score, trend, primary_openings/worst_aspect
     phase_performance = _compute_phase_performance(per_game_results)
@@ -119,7 +120,9 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
         "games_analyzed": games_analyzed,
         "player_rating": player_rating,
         "date_range": date_range,
-        "overall_accuracy": overall_accuracy,
+        "overall_eval_stability": overall_eval_stability,
+        "overall_acpl": overall_acpl,
+        "overall_accuracy": overall_eval_stability,  # deprecated alias
         "win_loss_draw": win_loss_draw,
         "phase_performance": phase_performance,
         "recurring_weaknesses": recurring_weaknesses,
@@ -198,8 +201,8 @@ def _count_results(per_game_results: List[Dict[str, Any]]) -> Dict[str, int]:
     }
 
 
-def _compute_overall_accuracy(per_game_results: List[Dict[str, Any]]) -> float:
-    """Weighted average of phase scores."""
+def _compute_overall_eval_stability(per_game_results: List[Dict[str, Any]]) -> float:
+    """Weighted average of phase eval stability scores (1 - avg_eval_drop)."""
     if not per_game_results:
         return 0.0
 

@@ -5,7 +5,7 @@ Tests for batch analysis views (PRD section 11, Step 9).
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from core.models import BatchAnalysisReport
+from core.models import BatchAnalysisReport, Profile
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
@@ -18,6 +18,7 @@ class TestBatchViews(TestCase):
     def setUp(self):
         """Create test user and API client."""
         self.user = User.objects.create_user(username="testuser", password="testpass")
+        Profile.objects.create(user=self.user, credits=100)
         self.client = APIClient()
 
         # Generate JWT token for authentication

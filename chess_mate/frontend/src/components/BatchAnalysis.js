@@ -26,7 +26,7 @@ const BatchAnalysis = () => {
   const [estimatedTime, setEstimatedTime] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [startTime, setStartTime] = useState(null);
-  const [taskId, setTaskId] = useState(null);
+  const [batchId, setBatchId] = useState(null);
   const [availableGames, setAvailableGames] = useState([]);
   const [selectedTimeControl, setSelectedTimeControl] = useState('all');
   const [gameSelectionFilter, setGameSelectionFilter] = useState('unanalyzed');
@@ -87,10 +87,10 @@ const BatchAnalysis = () => {
     let toastId;
 
     const checkProgress = async () => {
-      if (!taskId) return;
+      if (!batchId) return;
 
       try {
-        const response = await getBatchStatus(taskId);
+        const response = await getBatchStatus(batchId);
         console.log('Status response:', response);
         pollingErrorCountRef.current = 0;
 
@@ -111,7 +111,7 @@ const BatchAnalysis = () => {
             setTotalGames(total);
             if (toastId) toast.dismiss(toastId);
             toast.success('Analysis completed!');
-            navigateReliably(`/batch-analysis/results/${taskId}`, { replace: true });
+            navigateReliably(`/batch-report/${batchId}`, { replace: true });
             return true;
 
           case 'FAILED':
@@ -123,12 +123,13 @@ const BatchAnalysis = () => {
             setTotalGames(total);
             if (toastId) toast.dismiss(toastId);
             toast.error(errors[0]?.message || 'Batch analysis failed');
-            navigateReliably(`/batch-analysis/results/${taskId}`, { replace: true });
+            navigateReliably(`/batch-report/${batchId}`, { replace: true });
             return true;
 
           case 'PROGRESS':
           case 'STARTED':
           case 'PENDING':
+          case 'IN_PROGRESS':
             if (total > 0) {
               setCurrentProgress(completed);
               setTotalGames(total);
@@ -171,7 +172,7 @@ const BatchAnalysis = () => {
       }
     };
 
-    if (isAnalyzing && taskId) {
+    if (isAnalyzing && batchId) {
       // Initial check
       checkProgress();
       // Then start polling
@@ -186,7 +187,7 @@ const BatchAnalysis = () => {
         toast.dismiss(toastId);
       }
     };
-  }, [isAnalyzing, taskId, navigate, navigateReliably, totalGames]);
+  }, [isAnalyzing, batchId, navigate, navigateReliably, totalGames]);
 
   useEffect(() => {
     let timer;
@@ -236,14 +237,14 @@ const BatchAnalysis = () => {
 
       const response = await createBatch({ gameIds: gamesToAnalyze });
 
-      if (response?.task_id) {
-        setTaskId(response.task_id);
+      if (response?.batch_id) {
+        setBatchId(response.batch_id);
         const totalRequested = gamesToAnalyze.length;
         setTotalGames(response.games_count || totalRequested);
         setEstimatedTime(totalRequested * 2);
         toast.success('Analysis started! This may take a few minutes.');
       } else {
-        throw new Error('No task ID received');
+        throw new Error('No batch ID received');
       }
     } catch (error) {
       console.error('Error starting batch analysis:', error);
@@ -609,7 +610,7 @@ const BatchAnalysis = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => navigateReliably(`/batch-analysis/results/report/${report.id}`)}
+                        onClick={() => navigateReliably(`/batch-report/${report.id}`)}
                         className={`px-3 py-1.5 text-sm rounded-md border ${
                           isDarkMode
                             ? 'border-gray-600 text-gray-200 hover:bg-gray-700'

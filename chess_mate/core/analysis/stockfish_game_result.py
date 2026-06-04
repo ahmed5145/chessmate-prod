@@ -12,6 +12,7 @@ from typing import Any, Dict, List
 import chess
 
 from ..eco_codes import get_opening_name
+from .batch_metrics import compute_game_acpl
 from .batch_move_classification import (
     CRITICAL_MOMENT_MIN_PAWNS,
     classify_deterioration,
@@ -401,6 +402,7 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
         "player_color": "white",
         "opening_name": opening_name,
         "opening_accuracy": opening_accuracy,
+        "acpl": compute_game_acpl(analyzed_moves),
         "phase_breakdown": phase_breakdown,
         "move_quality": move_quality_out,
         "critical_moments": critical_moments,

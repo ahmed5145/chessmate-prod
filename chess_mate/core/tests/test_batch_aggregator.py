@@ -93,7 +93,9 @@ def test_batch_aggregator_schema_structure():
     assert isinstance(batch_summary, dict)
     assert "games_analyzed" in batch_summary
     assert "date_range" in batch_summary
-    assert "overall_accuracy" in batch_summary
+    assert "overall_eval_stability" in batch_summary
+    assert "overall_acpl" in batch_summary
+    assert "overall_accuracy" in batch_summary  # deprecated alias
     assert "win_loss_draw" in batch_summary
     assert "phase_performance" in batch_summary
     assert "recurring_weaknesses" in batch_summary
@@ -111,9 +113,12 @@ def test_batch_aggregator_schema_structure():
 
     assert isinstance(batch_summary["date_range"], str)
 
-    assert isinstance(batch_summary["overall_accuracy"], (float, int, type(None)))
-    if batch_summary["overall_accuracy"] is not None:
-        assert 0.0 <= batch_summary["overall_accuracy"] <= 1.0
+    assert isinstance(batch_summary["overall_eval_stability"], (float, int, type(None)))
+    if batch_summary["overall_eval_stability"] is not None:
+        assert 0.0 <= batch_summary["overall_eval_stability"] <= 1.0
+
+    assert isinstance(batch_summary["overall_acpl"], (float, int))
+    assert batch_summary["overall_acpl"] >= 0.0
 
     assert isinstance(batch_summary["win_loss_draw"], dict)
     assert "wins" in batch_summary["win_loss_draw"]
