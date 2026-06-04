@@ -502,6 +502,14 @@ ANALYSIS_DEPTH = int(env("ANALYSIS_DEPTH", default=20))  # Stockfish analysis de
 ANALYSIS_MOVE_TIME = int(env("ANALYSIS_MOVE_TIME", default=100))  # ms per move for Stockfish
 MAX_POSITIONS_PER_GAME = int(env("MAX_POSITIONS_PER_GAME", default=300))  # Max positions to analyze per game
 
+# Batch coach (launch product) — depth is internal only, not user-facing
+BATCH_MIN_GAMES = env.int("BATCH_MIN_GAMES", default=5)
+BATCH_MAX_GAMES = env.int("BATCH_MAX_GAMES", default=30)
+BATCH_DEFAULT_GAMES = env.int("BATCH_DEFAULT_GAMES", default=10)
+BATCH_CREDITS_PER_GAME = env.int("BATCH_CREDITS_PER_GAME", default=1)
+BATCH_ANALYSIS_DEPTH = env.int("BATCH_ANALYSIS_DEPTH", default=14)
+BATCH_SEND_COMPLETE_EMAIL = env.bool("BATCH_SEND_COMPLETE_EMAIL", default=True)
+
 # Use our custom Redis client
 REDIS_CLIENT_CLASS = "chess_mate.core.redis_config.get_redis_client"
 
