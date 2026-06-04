@@ -45,7 +45,7 @@ urlpatterns = [
     # Admin and API endpoints
     path("admin/", admin.site.urls),
     path("api/v1/", include("core.urls")),  # Include core.urls for API v1
-    # Legacy frontend builds used baseURL /api + paths /api/v1/... 
+    # Legacy frontend builds used baseURL /api + paths /api/v1/...
     # -- remove after all clients updated
     path("api/api/v1/", include("core.urls")),
     path("api/system/", include("core.urls_system")),  # Legacy API prefix

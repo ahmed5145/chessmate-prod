@@ -26,7 +26,5 @@ class Command(BaseCommand):
         profile.save(update_fields=["credits"])
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"User {user.username} ({email}): credits {before} -> {profile.credits} ({amount:+d})"
-            )
+            self.style.SUCCESS(f"User {user.username} ({email}): credits {before} -> {profile.credits} ({amount:+d})")
         )

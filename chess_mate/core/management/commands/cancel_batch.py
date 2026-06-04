@@ -30,9 +30,7 @@ class Command(BaseCommand):
             report = qs.get()
 
         if report.status in ("completed", "partial"):
-            raise CommandError(
-                f"Batch id={report.pk} is already {report.status}; not cancelling."
-            )
+            raise CommandError(f"Batch id={report.pk} is already {report.status}; not cancelling.")
 
         previous = report.status
         report.status = "failed"

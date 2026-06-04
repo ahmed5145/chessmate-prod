@@ -40,7 +40,6 @@ class Command(BaseCommand):
             flags.append("staff")
         self.stdout.write(
             self.style.SUCCESS(
-                f"Password updated for {user.username} ({email})"
-                + (f" — now {', '.join(flags)}" if flags else "")
+                f"Password updated for {user.username} ({email})" + (f" — now {', '.join(flags)}" if flags else "")
             )
         )

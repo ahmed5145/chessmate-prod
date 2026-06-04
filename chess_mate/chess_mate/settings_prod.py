@@ -139,11 +139,7 @@ else:
     REDIS_URL = f"redis://{auth}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 REDIS_DISABLED = os.getenv("REDIS_DISABLED", "False").lower() == "true"
-if (
-    not REDIS_DISABLED
-    and REDIS_HOST in ("localhost", "127.0.0.1")
-    and not (_env_redis_url and _env_redis_url.strip())
-):
+if not REDIS_DISABLED and REDIS_HOST in ("localhost", "127.0.0.1") and not (_env_redis_url and _env_redis_url.strip()):
     REDIS_DISABLED = True
 
 # Cache settings

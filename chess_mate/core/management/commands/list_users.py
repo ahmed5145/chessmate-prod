@@ -33,6 +33,5 @@ class Command(BaseCommand):
                 credits = "no profile"
             admin = "admin" if user.is_superuser else ("staff" if user.is_staff else "user")
             self.stdout.write(
-                f"id={user.id} username={user.username!r} email={user.email!r} "
-                f"credits={credits} role={admin}"
+                f"id={user.id} username={user.username!r} email={user.email!r} " f"credits={credits} role={admin}"
             )
