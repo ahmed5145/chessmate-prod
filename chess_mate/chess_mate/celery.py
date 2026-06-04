@@ -39,7 +39,8 @@ def _safe_get_celery_Celery():
 Celery = _safe_get_celery_Celery()
 
 from celery.schedules import crontab  # type: ignore
-from celery.signals import after_setup_logger, after_setup_task_logger, worker_init
+from celery.signals import (after_setup_logger, after_setup_task_logger,
+                            worker_init)
 from django.conf import settings
 from kombu import Exchange, Queue
 
