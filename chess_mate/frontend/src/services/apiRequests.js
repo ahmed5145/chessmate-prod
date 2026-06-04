@@ -784,11 +784,20 @@ export const updateUserProfile = async (profileData) => {
 export const requestPasswordReset = async (email) => {
     try {
         const response = await api.post("/api/v1/auth/reset-password/", { email });
+        if (response.data?.status === 'error') {
+            throw new Error(
+                response.data.message ||
+                "Password reset email is temporarily unavailable. Please try again later."
+            );
+        }
         return response.data;
     } catch (error) {
         console.error('Password reset request error:', error);
         if (error.response?.data?.message) {
             throw new Error(error.response.data.message);
+        }
+        if (error.message) {
+            throw error;
         }
         throw new Error("Failed to send password reset link. Please try again later.");
     }

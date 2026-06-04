@@ -12,8 +12,8 @@ const ForgotPassword = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await requestPasswordReset(email);
-      toast.success("Password reset instructions sent to your email");
+      const result = await requestPasswordReset(email);
+      toast.success(result?.message || "If an account exists, reset instructions were sent to your email");
       setEmail("");
     } catch (error) {
       toast.error(error.message || "Failed to send reset instructions");

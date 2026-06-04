@@ -171,10 +171,22 @@ class TestAuthViews:
         data = {"email": "test@example.com"}
 
         with patch("django.core.mail.send_mail", return_value=1):
-            response = api_client.post(url, data, format="json")
+            with patch("core.email_utils.is_email_configured", return_value=True):
+                response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_200_OK
         assert "message" in response.data
+
+    def test_request_password_reset_email_unavailable(self, api_client, test_user):
+        url = reverse("request_password_reset")
+        data = {"email": "test@example.com"}
+
+        with patch("core.email_utils.is_email_configured", return_value=False):
+            response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.data["status"] == "error"
+        assert response.data["email_available"] is False
 
     def test_reset_password(self, api_client, test_user):
         # Mock token validation
