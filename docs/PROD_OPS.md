@@ -1,5 +1,82 @@
 # Production operations (no direct RDS from your PC)
 
+## AWS credentials file on Windows (not key.pem)
+
+**`~/.aws/credentials`** on your PC is:
+
+`C:\Users\PCAdmin\.aws\credentials`
+
+That file stores **IAM access keys** for the AWS CLI/EB CLI. Example:
+
+```ini
+[chessmate-deploy]
+aws_access_key_id = AKIA....................
+aws_secret_access_key = ........................................
+```
+
+Create keys in IAM → **chessmate-deploy** → Security credentials → Create access key, then:
+
+```bat
+aws configure --profile chessmate-deploy
+```
+
+**`key.pem` / `cert.pem` in the repo** are old **SSH key** files (server login). They are **not** the same as the credentials file above. Instance Connect does not use your repo `key.pem`. You can leave them gitignored; they are unrelated to `aws sts get-caller-identity`.
+
+Removing `[default]` is fine; always run:
+
+```bat
+set AWS_PROFILE=chessmate-deploy
+```
+
+---
+
+## Do NOT run `eb ssh --setup` unless you accept downtime
+
+`eb ssh Chessmate-env-2 --setup` **terminates all EC2 instances** and replaces them so EB can install an SSH keypair. The app will be **down during replacement**. Only use that if you explicitly accept that risk.
+
+Prefer **Session Manager** (no port 22) or **temporary RDS access** (below) instead.
+
+```bat
+cd C:\Users\PCAdmin\Desktop\chessmate_prod\chess_mate
+eb use Chessmate-env-2
+```
+
+---
+
+## Run prod `manage.py` from your PC (when SSH fails)
+
+Temporarily allow **your IP** to reach **RDS** (not the whole internet forever):
+
+1. AWS → **RDS** → database **chessmate-db** → **VPC security groups** → click the RDS SG.
+2. **Inbound** → **Add rule**: PostgreSQL **5432**, source **My IP** → Save.
+3. EB → **Chessmate-env-2** → **Configuration** → **Software** → note `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_PORT` (or `RDS_*` names).
+4. On your PC (CMD), from `chess_mate`:
+
+**Critical:** `DB_NAME` must match Elastic Beanstalk exactly — usually **`chessmate`** or **`chessmate_prod`**, **not** `postgres`.  
+Wrong `DB_NAME` = you change a different database than the live site.
+
+```bat
+set REDIS_DISABLED=true
+set ENVIRONMENT=production
+set DJANGO_SETTINGS_MODULE=chess_mate.settings
+set DB_HOST=chessmate-db.ct2c8gou6c3u.us-east-2.rds.amazonaws.com
+set DB_NAME=chessmate
+set DB_USER=chessmate_user
+set DB_PASSWORD=paste-from-eb-console
+set DB_PORT=5432
+cd C:\Users\PCAdmin\Desktop\chessmate_prod\chess_mate
+python manage.py show_db
+python manage.py list_users ahmed
+python manage.py reset_user_password ahmed.ps5145@gmail.com "YourNewPass123!" --superuser
+python manage.py grant_credits --user-id 43 1000
+```
+
+5. **Remove** the RDS inbound rule (My IP on 5432) when finished.
+
+This hits **production data** — double-check emails and amounts.
+
+---
+
 ## Why `psql` from your laptop times out
 
 RDS is almost always in a **private VPC**. The security group allows port **5432 only from the Elastic Beanstalk EC2 instances**, not from the public internet. That is correct for security.
@@ -20,12 +97,19 @@ Use the deploy user from your project docs (e.g. **`chessmate-deploy`**) with ac
 
 ```powershell
 aws configure --profile chessmate-deploy
-# Enter Access Key ID, Secret, region us-east-2, output json
+# Access Key + Secret for chessmate-deploy (NOT s3-cloudfront-dressera-user)
+aws configure set region us-east-2 --profile chessmate-deploy
+
+# Verify EB CLI will use the right user (must NOT show s3-cloudfront-dressera-user):
+aws sts get-caller-identity --profile chessmate-deploy
 
 $env:AWS_PROFILE = "chessmate-deploy"
 cd C:\Users\PCAdmin\Desktop\chessmate_prod\chess_mate
-eb init
+eb list
+eb ssh Chessmate-env-2
 ```
+
+If `aws sts get-caller-identity` without `--profile` still shows `s3-cloudfront-dressera-user`, your **[default]** profile is wrong — always set `$env:AWS_PROFILE = "chessmate-deploy"` before `eb`, or rely on **EC2 Instance Connect** (no AWS CLI needed).
 
 When prompted:
 
@@ -58,12 +142,60 @@ sudo docker exec -it "$CONTAINER" bash -c "cd /app/chess_mate && python manage.p
 
 Replace emails/passwords. **Production only** — local `manage.py` uses your local DB.
 
-### EC2 Connect without EB CLI
+### EC2 Instance Connect (recommended — SSM offline is OK)
 
-1. AWS Console → **Elastic Beanstalk** → **Chessmate-env-2**
-2. **Environment overview** → click the **EC2 instance id**
-3. **Connect** → **EC2 Instance Connect** or **Session Manager** (if enabled)
-4. Run the `sudo docker exec` commands above
+Session Manager **Offline** is common on older EB AMIs. Use **EC2 Instance Connect** instead:
+
+1. AWS Console → **EC2** → **Instances** → select `i-0274eb8d94d0c01e0` (Chessmate-env-2)
+2. **Connect** → tab **EC2 Instance Connect**
+3. **Username:** `ec2-user` (Amazon Linux on EB — try this before `root`)
+4. **Connect** → browser terminal opens on the instance
+5. Run:
+
+```bash
+sudo docker ps
+CONTAINER=$(sudo docker ps -q | head -1)
+echo "Using container: $CONTAINER"
+sudo docker exec -it "$CONTAINER" bash -c "cd /app/chess_mate && python manage.py list_users"
+```
+
+If `ec2-user` fails, retry with username `root`.
+
+### "Failed to connect" / SSH error on Instance Connect
+
+Port 22 may be open only to **another security group** (not the public internet). Check **both** SGs on the instance:
+
+| SG | What to look for |
+|----|------------------|
+| `AWSEBSecurityGroup` | SSH source = **same SG** or **load balancer only** → Instance Connect from browser **will fail** |
+| `chessmate-app-sg` | SSH **My IP** → should work if your IP is correct |
+
+**Fix:** On **AWSEBSecurityGroup** (`sg-02136a5edd0baa663`), **Add** (do not only edit) a **new** inbound rule:
+
+- SSH, port **22**, source **My IP** (must create a *new* rule if the existing SSH rule uses source `sg-...`)
+
+Also try:
+
+- Phone **hotspot** (some ISPs block outbound port 22).
+- IAM user **chessmate-deploy** → add inline policy allowing `ec2-instance-connect:SendSSHPublicKey` and `ec2:DescribeInstances` on `*`.
+
+If SSH still fails, use **temporary RDS access** (above) or enable **Session Manager** (below) — do not run `eb ssh --setup` unless you accept instance replacement.
+
+**Alternative:** `eb ssh` (CMD):
+
+```bat
+set AWS_PROFILE=chessmate-deploy
+cd C:\Users\PCAdmin\Desktop\chessmate_prod\chess_mate
+eb ssh Chessmate-env-2
+```
+
+Then the same `sudo docker exec` commands below.
+
+### Enable Session Manager later (optional)
+
+SSM **Offline** = instance role missing **`AmazonSSMManagedInstanceCore`** or agent not running.
+
+EB → **Configuration** → **Security** → EC2 instance profile → attach policy **AmazonSSMManagedInstanceCore** → **Restart app server(s)**. Then **Connect** → **Session Manager** works without opening port 22.
 
 ---
 
@@ -85,6 +217,51 @@ Elastic Beanstalk → **Configuration** → **Software** → **Environment prope
 | `DJANGO_SUPERUSER_PASSWORD` | (strong password) |
 
 **Redeploy.** Entrypoint runs `createsuperuser --noinput` only when the user does **not** already exist. It does **not** reset an existing password.
+
+---
+
+## Before your next deploy (commands not in the image yet)
+
+If you have **not** pushed the new management commands, use **Django shell** on the same container:
+
+```bash
+CONTAINER=$(sudo docker ps -q | head -1)
+sudo docker exec -it "$CONTAINER" bash -c "cd /app/chess_mate && python manage.py shell"
+```
+
+Then paste:
+
+```python
+from django.contrib.auth import get_user_model
+from core.models import Profile, BatchAnalysisReport
+
+User = get_user_model()
+# List users
+for u in User.objects.filter(email__icontains="ahmed"):
+    print(u.id, u.username, u.email, getattr(u.profile, "credits", "?"))
+
+# +1000 credits
+u = User.objects.get(email__iexact="ahmedmohamed200354@gmail.com")
+p, _ = Profile.objects.get_or_create(user=u)
+p.credits += 1000
+p.save()
+print("credits now", p.credits)
+
+# Cancel stuck batch 5
+r = BatchAnalysisReport.objects.get(pk=5)
+r.status = "failed"
+r.save()
+print("batch", r.pk, r.status)
+
+# Reset admin password (pick your email)
+u = User.objects.get(email__iexact="YOUR_EMAIL@example.com")
+u.set_password("ChooseANewStrongPassword123!")
+u.is_staff = u.is_superuser = u.is_active = True
+u.save()
+print("password reset for", u.username)
+```
+
+Exit shell with `exit()`.
 
 ---
 
