@@ -9,6 +9,8 @@ import statistics
 from collections import Counter
 from typing import Any, Dict, List, Optional
 
+from .moment_insights import ENDGAME_STUDY_HINTS
+
 logger = logging.getLogger(__name__)
 
 
@@ -106,6 +108,10 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
     # Most common blunder type
     most_common_blunder_type = _find_most_common_blunder_type(per_game_results)
 
+    # Opening / endgame insights (specific, engine-derived — not generic tactic labels)
+    opening_insights = _compute_opening_insights(per_game_results)
+    endgame_insights = _compute_endgame_insights(per_game_results)
+
     # Best and worst phases with solid-phases sentinel
     worst_phase, best_phase, all_phases_solid = _find_phase_extremes(phase_performance)
 
@@ -117,6 +123,8 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
         "win_loss_draw": win_loss_draw,
         "phase_performance": phase_performance,
         "recurring_weaknesses": recurring_weaknesses,
+        "opening_insights": opening_insights,
+        "endgame_insights": endgame_insights,
         "strength_patterns": strength_patterns,
         "most_common_blunder_type": most_common_blunder_type,
         "worst_phase": worst_phase,
@@ -337,7 +345,7 @@ def _find_recurring_weaknesses(
                 theme_games[theme] = []
             theme_games[theme].append(game_id)
 
-    # Filter by threshold (≥30%) and build result
+    # Filter by threshold (≥30%) and build result (cap tactical themes — opening/endgame insights are separate)
     recurring = []
     for theme, game_count in sorted(theme_game_counts.items(), key=lambda x: x[1], reverse=True):
         if game_count >= threshold:
@@ -365,10 +373,11 @@ def _find_recurring_weaknesses(
                     "avg_eval_swing": round(avg_swing, 2),
                     "impact": impact,
                     "example_game_ids": example_ids,
+                    "detail": f"Tactical theme '{theme.replace('_', ' ')}' appeared in critical moments.",
                 }
             )
 
-    return recurring
+    return recurring[:2]
 
 
 def _find_strength_patterns(
@@ -441,6 +450,145 @@ def _find_most_common_blunder_type(per_game_results: List[Dict[str, Any]]) -> st
         return "tactical_oversight"
 
     return "Unknown"
+
+
+def _player_outcome(result: Dict[str, Any]) -> str:
+    """win | loss | draw from the analyzed player's perspective."""
+    raw = (result.get("result") or "").strip()
+    color = result.get("player_color", "white")
+    if raw in ("1/2-1/2", "*"):
+        return "draw"
+    if raw == "1-0":
+        return "win" if color == "white" else "loss"
+    if raw == "0-1":
+        return "win" if color == "black" else "loss"
+    return "unknown"
+
+
+def _phase_score(phase_data: Dict[str, Any]) -> float:
+    avg_eval_drop = float(phase_data.get("avg_eval_drop", 0.0) or 0.0)
+    return max(0.0, min(1.0, 1.0 - avg_eval_drop))
+
+
+def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Per-opening performance so coaching can name lines the player struggles in.
+    """
+    by_opening: Dict[str, List[Dict[str, Any]]] = {}
+    for result in per_game_results:
+        name = (result.get("opening_name") or "").strip()
+        if not name or name.lower() == "unknown":
+            continue
+        by_opening.setdefault(name, []).append(result)
+
+    insights: List[Dict[str, Any]] = []
+    for opening_name, games in by_opening.items():
+        outcomes = [_player_outcome(g) for g in games]
+        wins = outcomes.count("win")
+        losses = outcomes.count("loss")
+        draws = outcomes.count("draw")
+        opening_scores = [
+            _phase_score(g.get("phase_breakdown", {}).get("opening", {}))
+            for g in games
+            if int(g.get("phase_breakdown", {}).get("opening", {}).get("moves", 0) or 0) > 0
+        ]
+        avg_opening_score = round(sum(opening_scores) / len(opening_scores), 2) if opening_scores else None
+
+        status = "neutral"
+        recommendation = None
+        if losses >= 2 or (len(games) >= 2 and losses > wins):
+            status = "struggling"
+            recommendation = (
+                f"You lost {losses} of {len(games)} games as {opening_name}. "
+                f"Review mainline theory and typical plans for this opening — "
+                f"consider a simpler repertoire alternative if scores stay low."
+            )
+        elif wins >= 2 and losses == 0:
+            status = "strong"
+            recommendation = (
+                f"{opening_name} is working well ({wins}W-{losses}L in this batch). "
+                f"Deepen theory on the lines you already play rather than switching openings."
+            )
+        elif avg_opening_score is not None and avg_opening_score < 0.65:
+            status = "needs_work"
+            recommendation = (
+                f"Opening phase accuracy in {opening_name} averaged {int(avg_opening_score * 100)}%. "
+                f"Study model games and common middlegame plans from this opening."
+            )
+
+        if status == "neutral" and not recommendation:
+            continue
+
+        insights.append(
+            {
+                "opening_name": opening_name,
+                "games": len(games),
+                "record": f"{wins}W-{losses}L-{draws}D",
+                "avg_opening_score": avg_opening_score,
+                "status": status,
+                "recommendation": recommendation,
+                "example_game_ids": [g.get("game_id") for g in games[:3] if g.get("game_id")],
+            }
+        )
+
+    insights.sort(key=lambda x: (0 if x["status"] == "struggling" else 1, -x["games"]))
+    return insights[:5]
+
+
+def _compute_endgame_insights(per_game_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Endgame types where the player lost evaluation (from FEN at critical moments).
+    """
+    type_games: Dict[str, set] = {}
+    type_swings: Dict[str, List[float]] = {}
+    type_examples: Dict[str, List[Dict[str, Any]]] = {}
+
+    for result in per_game_results:
+        game_id = result.get("game_id", "unknown")
+        endgame_phase = result.get("phase_breakdown", {}).get("endgame", {})
+        if int(endgame_phase.get("moves", 0) or 0) < 4:
+            continue
+
+        for moment in result.get("critical_moments", []):
+            if moment.get("phase") != "endgame":
+                continue
+            if moment.get("type") not in ("blunder", "mistake"):
+                continue
+            eg_type = moment.get("endgame_material") or "general_endgame"
+            type_games.setdefault(eg_type, set()).add(game_id)
+            type_swings.setdefault(eg_type, []).append(float(moment.get("eval_swing", 0.0) or 0.0))
+            examples = type_examples.setdefault(eg_type, [])
+            if len(examples) < 3:
+                examples.append(
+                    {
+                        "game_id": game_id,
+                        "move_number": moment.get("move_number"),
+                        "played_move": moment.get("played_move"),
+                        "best_move": moment.get("best_move"),
+                    }
+                )
+
+    total_games = len(per_game_results)
+    insights: List[Dict[str, Any]] = []
+    for eg_type, game_ids in sorted(type_games.items(), key=lambda kv: len(kv[1]), reverse=True):
+        count = len(game_ids)
+        if count < 2 and total_games >= 5:
+            continue
+        swings = type_swings.get(eg_type, [])
+        avg_swing = round(sum(swings) / len(swings), 2) if swings else 0.0
+        label = eg_type.replace("_", " ")
+        insights.append(
+            {
+                "endgame_type": eg_type,
+                "label": label,
+                "frequency": f"{count}/{total_games} games",
+                "avg_eval_swing": avg_swing,
+                "study_focus": ENDGAME_STUDY_HINTS.get(eg_type, ENDGAME_STUDY_HINTS["general_endgame"]),
+                "example_moments": type_examples.get(eg_type, []),
+            }
+        )
+
+    return insights[:4]
 
 
 def _find_phase_extremes(phase_performance: Dict[str, Any]) -> tuple:

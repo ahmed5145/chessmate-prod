@@ -79,10 +79,23 @@ def _build_per_game_summary(item: Dict[str, Any]) -> Dict[str, Any]:
     mistake_count = int(move_quality.get("mistake", 0) or 0)
 
     tactical_themes = []
-    for m in result.get("critical_moments", [])[:10]:
+    critical_moments = []
+    for m in result.get("critical_moments", [])[:5]:
         theme = m.get("tactical_theme")
         if theme and theme not in tactical_themes:
             tactical_themes.append(theme)
+        critical_moments.append(
+            {
+                "move_number": m.get("move_number"),
+                "phase": m.get("phase"),
+                "type": m.get("type"),
+                "played_move": m.get("played_move"),
+                "best_move": m.get("best_move"),
+                "tactical_theme": theme,
+                "endgame_material": m.get("endgame_material"),
+                "eval_swing": m.get("eval_swing"),
+            }
+        )
 
     return {
         "game_id": game_id,
@@ -92,6 +105,7 @@ def _build_per_game_summary(item: Dict[str, Any]) -> Dict[str, Any]:
         "blunder_count": blunder_count,
         "mistake_count": mistake_count,
         "tactical_themes": tactical_themes,
+        "critical_moments": critical_moments,
     }
 
 
@@ -129,7 +143,13 @@ def generate_coaching_report(
         "Use only the provided aggregated metrics and per-game summaries. Do not invent openings, move numbers, tactical themes, or chess facts that are not present in the input. Be direct, specific, and practical. No generic advice. No motivational filler. No hedging. No markdown. No prose outside the JSON object.\n"
         "Return only valid JSON that exactly matches the supplied schema. Every field is required. Use concise coaching language. If some games failed or data is missing, reflect that succinctly inside the JSON fields rather than outside the schema.\n"
         "If a player rating is provided, calibrate all advice, drills, and priorities to that skill level. A 1200-rated player needs fundamentals. A 1600-rated player needs pattern recognition and basic strategy. A 2000-rated player needs deep calculation, complex positional play, and advanced endgame technique — do not recommend beginner drills.\n"
-        'CRITICAL: If a phase has trend: "no_data", do not reference it as a weakness or strength — skip it entirely in the coaching narrative for that phase and note data was insufficient.'
+        'CRITICAL: If a phase has trend: "no_data", do not reference it as a weakness or strength — skip it entirely in the coaching narrative for that phase and note data was insufficient.\n'
+        "MANDATORY SPECIFICITY:\n"
+        "- If batch_summary contains opening_insights, you MUST name at least one opening by name in executive_summary or opening narrative and reference its record/recommendation.\n"
+        "- If batch_summary contains endgame_insights, you MUST name the endgame type (e.g. rook and pawn) in endgame narrative and cite study_focus wording.\n"
+        "- top_3_priorities titles and specific_drill must cite real game_id and move_number from per_game_summaries.critical_moments when available (e.g. 'In game_0 move 22...').\n"
+        "- training_plan weeks must differ from each other and reference concrete weaknesses from opening_insights/endgame_insights/recurring_weaknesses — not generic 'do puzzles daily' every week.\n"
+        "- Do not only say fork or missed_tactic; tie tactics to the listed moments and openings."
     )
 
     user_template = (

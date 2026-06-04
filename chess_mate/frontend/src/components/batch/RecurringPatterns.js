@@ -25,13 +25,108 @@ const RecurringPatterns = ({ batch_summary }) => {
   const strengths = Array.isArray(batch_summary.strength_patterns)
     ? batch_summary.strength_patterns
     : [];
+  const openingInsights = Array.isArray(batch_summary.opening_insights)
+    ? batch_summary.opening_insights
+    : [];
+  const endgameInsights = Array.isArray(batch_summary.endgame_insights)
+    ? batch_summary.endgame_insights
+    : [];
 
-  if (weaknesses.length === 0 && strengths.length === 0) {
+  if (
+    weaknesses.length === 0 &&
+    strengths.length === 0 &&
+    openingInsights.length === 0 &&
+    endgameInsights.length === 0
+  ) {
     return null;
   }
 
   return (
     <Container maxWidth="lg" sx={{ py: 2 }}>
+      {openingInsights.length > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+            Opening matchups (your games)
+          </Typography>
+          <List dense disablePadding>
+            {openingInsights.map((item) => (
+              <ListItem
+                key={item.opening_name}
+                sx={{
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  py: 1.5,
+                  borderLeft: 3,
+                  borderColor: item.status === 'struggling' ? 'error.main' : 'success.main',
+                  pl: 2,
+                  mb: 1
+                }}
+              >
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
+                  <Chip size="small" label={item.opening_name} color="primary" variant="outlined" />
+                  <Chip size="small" label={item.record || ''} variant="outlined" />
+                  {item.avg_opening_score != null && (
+                    <Chip
+                      size="small"
+                      label={`Opening phase ${Math.round(item.avg_opening_score * 100)}%`}
+                      variant="outlined"
+                    />
+                  )}
+                </Box>
+                {item.recommendation && (
+                  <Typography variant="body2">{item.recommendation}</Typography>
+                )}
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      )}
+
+      {endgameInsights.length > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+            Endgame trouble spots
+          </Typography>
+          <List dense disablePadding>
+            {endgameInsights.map((item) => (
+              <ListItem
+                key={item.endgame_type}
+                sx={{
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  py: 1.5,
+                  borderLeft: 3,
+                  borderColor: 'warning.main',
+                  pl: 2,
+                  mb: 1
+                }}
+              >
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
+                  <Chip size="small" label={item.label || item.endgame_type} color="warning" variant="outlined" />
+                  <Chip size="small" label={item.frequency || ''} variant="outlined" />
+                </Box>
+                {item.study_focus && (
+                  <Typography variant="body2" sx={{ mb: 0.5 }}>
+                    {item.study_focus}
+                  </Typography>
+                )}
+                {Array.isArray(item.example_moments) && item.example_moments.length > 0 && (
+                  <Typography variant="caption" color="text.secondary">
+                    Examples:{' '}
+                    {item.example_moments
+                      .map(
+                        (ex) =>
+                          `${ex.game_id} move ${ex.move_number} (played ${ex.played_move}, best ${ex.best_move})`
+                      )
+                      .join(' · ')}
+                  </Typography>
+                )}
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      )}
+
       {weaknesses.length > 0 && (
         <Box sx={{ mb: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
@@ -60,7 +155,7 @@ const RecurringPatterns = ({ batch_summary }) => {
                   )}
                 </Box>
                 <ListItemText
-                  primary={`Avg eval swing: ${Number(item.avg_eval_swing || 0).toFixed(1)}`}
+                  primary={item.detail || `Avg eval swing: ${Number(item.avg_eval_swing || 0).toFixed(1)}`}
                   secondary={
                     Array.isArray(item.example_game_ids) && item.example_game_ids.length > 0
                       ? `Seen in: ${item.example_game_ids.join(', ')}`

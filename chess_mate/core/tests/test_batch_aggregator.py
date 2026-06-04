@@ -97,6 +97,8 @@ def test_batch_aggregator_schema_structure():
     assert "win_loss_draw" in batch_summary
     assert "phase_performance" in batch_summary
     assert "recurring_weaknesses" in batch_summary
+    assert "opening_insights" in batch_summary
+    assert "endgame_insights" in batch_summary
     assert "strength_patterns" in batch_summary
     assert "most_common_blunder_type" in batch_summary
     assert "worst_phase" in batch_summary

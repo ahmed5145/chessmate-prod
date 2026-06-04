@@ -201,6 +201,14 @@ const GameAccordion = ({ per_game_results }) => {
                               variant="outlined"
                             />
                           )}
+                          {moment.endgame_material && (
+                            <Chip
+                              size="small"
+                              label={String(moment.endgame_material).replace(/_/g, ' ')}
+                              color="info"
+                              variant="outlined"
+                            />
+                          )}
                         </Box>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           Played {moment.played_move || '?'} · engine suggests {moment.best_move || '?'} · swing{' '}

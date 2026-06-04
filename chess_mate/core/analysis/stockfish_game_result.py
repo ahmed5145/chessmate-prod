@@ -12,6 +12,7 @@ from typing import Any, Dict, List
 import chess
 
 from ..eco_codes import get_opening_name
+from .moment_insights import classify_endgame_material, classify_tactical_theme
 from .explanation_templates import get_explanation
 from .metrics_calculator import MetricsCalculator
 from .stockfish_analyzer import StockfishAnalyzer
@@ -353,76 +354,12 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
             mv.get("best_line") and mv.get("best_line")[0] if mv.get("best_line") else ""
         )
 
-        # Determine tactical theme using heuristics
-        try:
-            board_before = chess.Board(fen) if fen else None
-        except Exception:
-            board_before = None
+        played_uci = mv.get("move")
+        best_uci = best_move if isinstance(best_move, str) else None
+        if best_uci and hasattr(best_move, "uci"):
+            best_uci = best_move.uci()
 
-        tactical_theme = "missed_tactic"
-        explanation = ""
-        if board_before is not None:
-            try:
-                uci = mv.get("move")
-                move_obj = chess.Move.from_uci(uci) if uci else None
-                board_after = board_before.copy()
-                if move_obj:
-                    board_after.push(move_obj)
-
-                # heuristic fork detection: any opponent piece attacking >=2 of our high-value pieces
-                opponent_color = not board_after.turn
-                attacked_counts = 0
-                for sq in chess.SQUARES:
-                    piece = board_after.piece_at(sq)
-                    if piece and piece.color == opponent_color:
-                        # count how many of our pieces this piece attacks
-                        attacked = 0
-                        for target_sq in chess.SQUARES:
-                            target_piece = board_after.piece_at(target_sq)
-                            if target_piece and target_piece.color == (not opponent_color):
-                                if board_after.is_attacked_by(opponent_color, target_sq):
-                                    attacked += 1
-                        if attacked >= 2:
-                            tactical_theme = "fork"
-                            break
-
-                # pin detection
-                if tactical_theme == "missed_tactic":
-                    for sq in chess.SQUARES:
-                        piece = board_after.piece_at(sq)
-                        if piece and piece.color == board_after.turn:
-                            try:
-                                if board_after.is_pinned(board_after.turn, sq):
-                                    tactical_theme = "pin"
-                                    break
-                            except Exception:
-                                continue
-
-                # skewer detection: find sliding attacks on high-value piece with lesser piece behind
-                if tactical_theme == "missed_tactic":
-                    for sq in chess.SQUARES:
-                        piece = board_after.piece_at(sq)
-                        if (
-                            piece
-                            and piece.color == (not board_after.turn)
-                            and piece.piece_type in [chess.BISHOP, chess.ROOK, chess.QUEEN]
-                        ):
-                            # check rays
-                            for dir_sq in chess.SQUARES:
-                                # naive: skip complex ray logic; check if this attacker attacks a queen and behind is rook
-                                pass
-                    # fallback: detect hanging piece
-                if tactical_theme == "missed_tactic":
-                    # detect hanging: moved-to square attacked and not defended
-                    if move_obj:
-                        to_sq = move_obj.to_square
-                        if board_after.is_attacked_by(not board_after.turn, to_sq) and not board_after.is_attacked_by(
-                            board_after.turn, to_sq
-                        ):
-                            tactical_theme = "hanging_piece"
-
-            except Exception:
-                tactical_theme = "missed_tactic"
+        tactical_theme = classify_tactical_theme(fen, played_uci, best_uci)
 
         # generate explanation via template
         explanation = get_explanation(
@@ -452,6 +389,8 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
             "tactical_theme": tactical_theme,
             "explanation": explanation,
         }
+        if phase == "endgame" and fen:
+            moment["endgame_material"] = classify_endgame_material(fen)
         # Add is_mate flag if mate was detected in eval scores
         if has_mate.get(idx, False):
             moment["is_mate"] = True
