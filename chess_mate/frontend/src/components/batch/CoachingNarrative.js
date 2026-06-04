@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Box, Container, Grid, Paper, Typography } from '@mui/material';
+import { Container, Grid, Paper, Typography } from '@mui/material';
 
 const CoachingNarrative = ({ coaching_report }) => {
   const narrative = coaching_report?.coaching_narrative;
