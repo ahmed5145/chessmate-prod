@@ -267,7 +267,8 @@ Exit shell with `exit()`.
 
 ## Password reset email (Gmail on EB)
 
-Set on **Chessmate-env-2** → Configuration → Software:
+Production uses **`DJANGO_SETTINGS_MODULE=chess_mate.settings`** (not `settings_prod`).  
+SMTP must be set via **EB environment properties** (spelling exact):
 
 | Variable | Notes |
 |----------|--------|
@@ -275,12 +276,17 @@ Set on **Chessmate-env-2** → Configuration → Software:
 | `EMAIL_PORT` | `587` |
 | `EMAIL_USE_TLS` | `True` |
 | `EMAIL_HOST_USER` | Gmail address |
-| `EMAIL_HOST_PASSWORD` | **Google App Password** (not your normal Gmail password) |
-| `DEFAULT_FROM_EMAIL` | Same as `EMAIL_HOST_USER` |
+| `EMAIL_HOST_PASSWORD` | **Google App Password** (16 chars) |
+| `DEFAULT_FROM_EMAIL` | Same as `EMAIL_HOST_USER` — not `DEFAUL_FROM_EMAIL` |
 
 Create an app password: Google Account → Security → 2-Step Verification → App passwords.
 
-If SMTP fails, the API returns **503** with a clear message (no fake “email sent”). Use `python manage.py reset_user_password` on the **`chessmate`** database instead.
+API response `reason` field (after fix deploy):
+
+- `not_configured` — Django never saw `EMAIL_HOST_*` (wrong settings module or typo in env name)
+- `send_failed` — creds present but Gmail SMTP rejected (check Full logs for `Failed to send password reset email`)
+
+If SMTP fails, use `python manage.py reset_user_password` on the **`chessmate`** database instead.
 
 ## Batch analysis stuck at 1/5
 

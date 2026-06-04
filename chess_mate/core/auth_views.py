@@ -467,12 +467,16 @@ def request_password_reset(request):
         raise APIValidationError([{"field": "email", "message": "Email is required"}])
 
     if not is_email_configured():
-        logger.error("Password reset requested but email is not configured (missing SMTP env vars)")
+        logger.error(
+            "Password reset: email not configured (set EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, "
+            "DEFAULT_FROM_EMAIL on EB; production uses chess_mate.settings)"
+        )
         return Response(
             {
                 "status": "error",
                 "message": password_reset_unavailable_message(),
                 "email_available": False,
+                "reason": "not_configured",
             },
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
@@ -540,6 +544,7 @@ def request_password_reset(request):
                 "status": "error",
                 "message": password_reset_unavailable_message(),
                 "email_available": False,
+                "reason": "send_failed",
             },
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
