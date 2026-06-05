@@ -112,6 +112,7 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
 
     # Opening / endgame insights (specific, engine-derived — not generic tactic labels)
     opening_insights = _compute_opening_insights(per_game_results)
+    repertoire_gaps = _compute_repertoire_gaps(opening_insights)
     endgame_insights = _compute_endgame_insights(per_game_results)
 
     # Best and worst phases with solid-phases sentinel
@@ -132,6 +133,7 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
         "phase_performance": phase_performance,
         "recurring_weaknesses": recurring_weaknesses,
         "opening_insights": opening_insights,
+        "repertoire_gaps": repertoire_gaps,
         "endgame_insights": endgame_insights,
         "strength_patterns": strength_patterns,
         "most_common_blunder_type": most_common_blunder_type,
@@ -624,6 +626,9 @@ def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
         if status == "neutral" and not recommendation:
             continue
 
+        colors = [g.get("player_color", "white") for g in games]
+        player_color = "black" if colors.count("black") > colors.count("white") else "white"
+
         insights.append(
             {
                 "opening_name": opening_name,
@@ -631,6 +636,7 @@ def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
                 "record": f"{wins}W-{losses}L-{draws}D",
                 "avg_opening_score": avg_opening_score,
                 "status": status,
+                "player_color": player_color,
                 "recommendation": recommendation,
                 "example_game_ids": [g.get("game_id") for g in games[:3] if g.get("game_id")],
             }
@@ -638,6 +644,30 @@ def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
 
     insights.sort(key=lambda x: (0 if x["status"] == "struggling" else 1, -x["games"]))
     return insights[:5]
+
+
+def _compute_repertoire_gaps(opening_insights: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Openings where the player is losing or underperforming — repertoire review targets."""
+    gaps = []
+    for item in opening_insights:
+        if item.get("status") not in ("struggling", "needs_work"):
+            continue
+        color = item.get("player_color", "white")
+        gaps.append(
+            {
+                "opening_name": item.get("opening_name"),
+                "record": item.get("record"),
+                "player_color": color,
+                "status": item.get("status"),
+                "avg_opening_score": item.get("avg_opening_score"),
+                "recommendation": item.get("recommendation"),
+                "summary": (
+                    f"As {color}, {item.get('opening_name')} ({item.get('record')}) "
+                    f"is a repertoire gap in this batch."
+                ),
+            }
+        )
+    return gaps[:3]
 
 
 def _compute_endgame_insights(per_game_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

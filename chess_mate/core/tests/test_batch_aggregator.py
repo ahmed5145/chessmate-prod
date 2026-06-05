@@ -101,6 +101,8 @@ def test_batch_aggregator_schema_structure():
     assert "phase_performance" in batch_summary
     assert "recurring_weaknesses" in batch_summary
     assert "opening_insights" in batch_summary
+    assert "repertoire_gaps" in batch_summary
+    assert isinstance(batch_summary["repertoire_gaps"], list)
     assert "endgame_insights" in batch_summary
     assert "strength_patterns" in batch_summary
     assert "most_common_blunder_type" in batch_summary

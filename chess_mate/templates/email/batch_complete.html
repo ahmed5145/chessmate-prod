@@ -19,13 +19,16 @@
         <div class="content">
             <p>Hello {{ user.username }},</p>
             <p>Your batch coach analysis of <strong>{{ games_count }} games</strong> has finished (status: {{ status }}).</p>
-            {% if overall_eval_stability or overall_acpl %}
+            {% if coach_snippet %}
+            <p style="font-size:15px;color:#333;"><em>{{ coach_snippet }}{% if coach_snippet|length >= 220 %}…{% endif %}</em></p>
+            {% endif %}
+            {% if overall_accuracy_pct or stability_pct %}
             <div class="stats">
-                {% if overall_eval_stability %}
-                <p style="margin:4px 0;">Overall eval stability: {{ overall_eval_stability|floatformat:0 }}% (internal score)</p>
+                {% if overall_accuracy_pct %}
+                <p style="margin:4px 0;">Accuracy: {{ overall_accuracy_pct|floatformat:1 }}%</p>
                 {% endif %}
-                {% if overall_acpl %}
-                <p style="margin:4px 0;">Average ACPL: {{ overall_acpl }}</p>
+                {% if stability_pct %}
+                <p style="margin:4px 0;">Eval stability: {{ stability_pct|floatformat:1 }}% (batch-wide)</p>
                 {% endif %}
             </div>
             {% endif %}
