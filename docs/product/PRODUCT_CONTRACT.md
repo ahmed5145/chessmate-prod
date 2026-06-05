@@ -338,7 +338,7 @@ A release candidate must pass:
 | # | Decision | Choice |
 |---|----------|--------|
 | 1 | Default batch size | **10** (min 5, max 30) |
-| 2 | Credit cost | **Flat per game** (`BATCH_CREDITS_PER_GAME=1`); charged on batch create; **full refund on hard-fail** (`status=failed`, e.g. &lt;5 games succeed); no refund on `partial`/`completed` |
+| 2 | Credit cost | **Import: 1 credit/game** (storage). **Batch analysis: included** (`BATCH_CREDITS_PER_GAME=0`). If batch charging is enabled later, **full refund on hard-fail** only. |
 | 3 | Canonical report URL | **`/batch-report/:id`** (integer PK); legacy `/batch-analysis/results/*` → redirect |
 | 4 | Metrics naming | **`overall_eval_stability`** in API/UI; **`overall_acpl`** added; `overall_accuracy` kept as deprecated alias |
 | 5 | Launch brand | **Batch coach only** for first ~1000 users; single-game analysis post-launch |

@@ -62,7 +62,7 @@ def batch_create_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if profile.credits < credits_required:
+    if credits_required > 0 and profile.credits < credits_required:
         return Response(
             {
                 "detail": "Insufficient credits for this batch.",
@@ -77,8 +77,9 @@ def batch_create_view(request):
     batch_id = str(uuid.uuid4())
 
     with transaction.atomic():
-        profile.credits -= credits_required
-        profile.save(update_fields=["credits"])
+        if credits_required > 0:
+            profile.credits -= credits_required
+            profile.save(update_fields=["credits"])
 
         batch_report = BatchAnalysisReport.objects.create(
             user=request.user,

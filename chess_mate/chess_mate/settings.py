@@ -506,7 +506,8 @@ MAX_POSITIONS_PER_GAME = int(env("MAX_POSITIONS_PER_GAME", default=300))  # Max 
 BATCH_MIN_GAMES = env.int("BATCH_MIN_GAMES", default=5)
 BATCH_MAX_GAMES = env.int("BATCH_MAX_GAMES", default=30)
 BATCH_DEFAULT_GAMES = env.int("BATCH_DEFAULT_GAMES", default=10)
-BATCH_CREDITS_PER_GAME = env.int("BATCH_CREDITS_PER_GAME", default=1)
+# Batch analysis is included for imported games; credits are charged on import (1/game).
+BATCH_CREDITS_PER_GAME = env.int("BATCH_CREDITS_PER_GAME", default=0)
 BATCH_ANALYSIS_DEPTH = env.int("BATCH_ANALYSIS_DEPTH", default=14)
 BATCH_SEND_COMPLETE_EMAIL = env.bool("BATCH_SEND_COMPLETE_EMAIL", default=True)
 

@@ -11,7 +11,6 @@ import { UserContext } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart2,
-  AlertCircle,
   Clock,
   Coins
 } from 'lucide-react';
@@ -221,11 +220,6 @@ const BatchAnalysis = () => {
       return;
     }
 
-    if (credits < gamesToAnalyze.length) {
-      toast.error(`Insufficient credits. This batch needs ${gamesToAnalyze.length} credits.`);
-      return;
-    }
-
     if (gamesToAnalyze.length > 30) {
       toast.error('Maximum number of games for batch analysis is 30');
       return;
@@ -385,35 +379,25 @@ const BatchAnalysis = () => {
             What to expect
           </h2>
           <ul className={`text-sm space-y-1 list-disc pl-5 ${isDarkMode ? 'text-gray-300' : 'text-indigo-900'}`}>
-            <li>1 credit per game, charged when you start (refunded if the batch hard-fails).</li>
+            <li>Batch coach analysis is included for games already on your account (credits are used when you import games).</li>
             <li>Engine depth is fixed internally for consistent metrics — not configurable.</li>
             <li>Typical runtime: about 1–3 minutes per game; you can leave the page and open the report from history.</li>
-            <li>At least 5 games must analyze successfully or the batch fails and credits are returned.</li>
+            <li>At least 5 games must analyze successfully or the batch fails.</li>
           </ul>
         </div>
 
         <div className={`mb-8 p-4 rounded-lg ${
           isDarkMode ? 'bg-gray-800' : 'bg-white'
         } shadow-sm`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Coins className={`h-5 w-5 ${credits < requiredCredits ? 'text-red-500' : 'text-green-500'}`} />
-              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Available credits: {credits}
-              </span>
-            </div>
-            <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Required for this run: {requiredCredits}
-            </div>
+          <div className="flex items-center space-x-2">
+            <Coins className="h-5 w-5 text-indigo-500" />
+            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Available credits: {credits}
+            </span>
+            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              (used when importing games from Lichess/Chess.com)
+            </span>
           </div>
-          {credits < requiredCredits && (
-            <div className="mt-2 flex items-start space-x-2">
-              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-              <p className="text-sm text-red-500">
-                Insufficient credits. You need {requiredCredits - credits} more to analyze {requiredCredits} games.
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Analysis Options */}
@@ -717,7 +701,7 @@ const BatchAnalysis = () => {
         ) : (
           <button
             onClick={startBatchAnalysis}
-            disabled={isAnalyzing || credits < requiredCredits || requiredCredits < 5}
+            disabled={isAnalyzing || requiredCredits < 5}
             className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
               isAnalyzing ? 'bg-gray-400 cursor-not-allowed' : isDarkMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'
             }`}

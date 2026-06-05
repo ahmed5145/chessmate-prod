@@ -70,10 +70,10 @@ const Login = () => {
                   type="email"
                   autoComplete="email"
                   required
-                  className={`block w-full pl-10 sm:text-sm rounded-md ${
+                  className={`block w-full pl-10 sm:text-sm rounded-md border ${
                     isDarkMode
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500'
-                      : 'border-gray-300 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500'
+                      : 'bg-white border-gray-300 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500'
                   }`}
                   placeholder="you@example.com"
                   value={email}
@@ -97,10 +97,10 @@ const Login = () => {
                   type="password"
                   autoComplete="current-password"
                   required
-                  className={`block w-full pl-10 sm:text-sm rounded-md ${
+                  className={`block w-full pl-10 sm:text-sm rounded-md border ${
                     isDarkMode
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500'
-                      : 'border-gray-300 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500'
+                      : 'bg-white border-gray-300 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500'
                   }`}
                   placeholder="••••••••"
                   value={password}

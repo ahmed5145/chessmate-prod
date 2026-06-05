@@ -42,12 +42,17 @@ const CoachingNarrative = ({ coaching_report }) => {
       </Grid>
       {coaching_report.one_thing_to_do_today && (
         <Paper
-          sx={{
+          sx={(theme) => ({
             mt: 2,
             p: 2,
-            bgcolor: 'primary.main',
-            color: 'primary.contrastText'
-          }}
+            border: '1px solid',
+            borderColor: theme.palette.mode === 'dark' ? 'primary.dark' : 'primary.main',
+            bgcolor:
+              theme.palette.mode === 'dark'
+                ? 'rgba(99, 102, 241, 0.12)'
+                : 'primary.main',
+            color: theme.palette.mode === 'dark' ? 'text.primary' : 'primary.contrastText',
+          })}
         >
           <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
             Do today

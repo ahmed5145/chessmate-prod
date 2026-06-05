@@ -69,9 +69,55 @@ python manage.py show_db
 python manage.py list_users ahmed
 python manage.py reset_user_password ahmed.ps5145@gmail.com "YourNewPass123!" --superuser
 python manage.py grant_credits --user-id 43 1000
+python manage.py showmigrations core | findstr /V "[X]"
+python manage.py migrate --noinput
 ```
 
 5. **Remove** the RDS inbound rule (My IP on 5432) when finished.
+
+---
+
+## Database migrations on production (EB)
+
+Migrations **do not appear in application request logs**. They run at **container start** if your deploy uses `scripts/entrypoint.sh` (`python manage.py migrate --noinput`).
+
+### Check whether a migration is applied
+
+**Option A — from your PC** (temporary RDS access, same env vars as above):
+
+```bat
+cd C:\Users\PCAdmin\Desktop\chessmate_prod\chess_mate
+set REDIS_DISABLED=true
+set ENVIRONMENT=production
+set DJANGO_SETTINGS_MODULE=chess_mate.settings
+REM set DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT from EB console
+python manage.py showmigrations core
+```
+
+Look for `[X]` next to `0023_batchanalysisreport_credits` (and any newer rows).
+
+**Option B — on the EB instance** (Session Manager / EC2 Instance Connect):
+
+```bash
+sudo docker ps
+sudo docker exec -it <container_id> bash
+cd /var/app/current  # or path shown in container
+python manage.py showmigrations core
+```
+
+### Run migrations manually (if deploy did not)
+
+Inside the same container (or via Option A with RDS access):
+
+```bash
+python manage.py migrate --noinput
+python manage.py showmigrations core
+```
+
+### After deploy
+
+- New columns (`credits_charged`, `credits_refunded`) exist only after `0023` is applied.
+- If `showmigrations` shows `[ ] 0023_...`, run `migrate` before relying on credit refunds.
 
 This hits **production data** — double-check emails and amounts.
 
