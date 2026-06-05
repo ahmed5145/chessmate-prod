@@ -77,47 +77,62 @@ python manage.py migrate --noinput
 
 ---
 
-## Database migrations on production (EB)
+## Database migrations on production (Windows — recommended)
 
-Migrations **do not appear in application request logs**. They run at **container start** if your deploy uses `scripts/entrypoint.sh` (`python manage.py migrate --noinput`).
+You **do not need SSH, sudo, or Docker** on Windows. Run Django against prod RDS from your PC (same pattern as `grant_credits` above).
 
-### Check whether a migration is applied
+Migrations **do not show up in EB HTTP logs**. Either they ran at deploy (`scripts/entrypoint.sh` → `migrate --noinput`) or you run them manually below.
 
-**Option A — from your PC** (temporary RDS access, same env vars as above):
+### Step 1 — Allow your PC to reach RDS (temporary)
+
+1. AWS Console → **RDS** → **chessmate-db** → VPC security group → **Inbound rules**.
+2. Add **PostgreSQL 5432**, source **My IP** → Save.
+
+### Step 2 — Copy DB settings from Elastic Beanstalk
+
+1. AWS Console → **Elastic Beanstalk** → **Chessmate-env-2** → **Configuration** → **Software**.
+2. Note: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_PORT` (names may be `RDS_*`).
+
+**Important:** `DB_NAME` is usually **`chessmate`** or **`chessmate_prod`**, not `postgres`.
+
+### Step 3 — CMD commands (run from `chess_mate` folder)
 
 ```bat
 cd C:\Users\PCAdmin\Desktop\chessmate_prod\chess_mate
+
 set REDIS_DISABLED=true
 set ENVIRONMENT=production
 set DJANGO_SETTINGS_MODULE=chess_mate.settings
-REM set DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT from EB console
+set DB_HOST=paste-from-eb-console
+set DB_NAME=chessmate
+set DB_USER=paste-from-eb-console
+set DB_PASSWORD=paste-from-eb-console
+set DB_PORT=5432
+
 python manage.py showmigrations core
 ```
 
-Look for `[X]` next to `0023_batchanalysisreport_credits` (and any newer rows).
+**Read the output:**
 
-**Option B — on the EB instance** (Session Manager / EC2 Instance Connect):
+- `[X] 0023_batchanalysisreport_credits` → migration **already applied** on prod. Nothing else to do.
+- `[ ] 0023_batchanalysisreport_credits` → run:
 
-```bash
-sudo docker ps
-sudo docker exec -it <container_id> bash
-cd /var/app/current  # or path shown in container
-python manage.py showmigrations core
-```
-
-### Run migrations manually (if deploy did not)
-
-Inside the same container (or via Option A with RDS access):
-
-```bash
+```bat
 python manage.py migrate --noinput
 python manage.py showmigrations core
 ```
 
-### After deploy
+### Step 4 — Remove RDS inbound rule
 
-- New columns (`credits_charged`, `credits_refunded`) exist only after `0023` is applied.
-- If `showmigrations` shows `[ ] 0023_...`, run `migrate` before relying on credit refunds.
+Delete the “My IP on 5432” rule when finished.
+
+### What you already confirmed
+
+Your local run showed all core migrations through **0023** with `[X]` — **prod DB is up to date** for credit-refund columns.
+
+### Optional — EB instance (only if RDS from PC is blocked)
+
+Use **AWS Console → EC2 → Instances → Connect** (Session Manager). Linux commands there use `sudo` — not on your Windows PC. Find container with `docker ps`, then `docker exec` — only if you cannot use Step 1–3.
 
 This hits **production data** — double-check emails and amounts.
 
