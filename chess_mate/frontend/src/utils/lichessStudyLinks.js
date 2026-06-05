@@ -113,9 +113,10 @@ export const collectStudyLinksFromBatchSummary = (batchSummary) => {
     if (!type) {
       return;
     }
+    const url = item.study_url || lichessEndgamePracticeUrl(type);
     addLink(
       `${String(item.label || type).replace(/_/g, ' ')} practice`,
-      lichessEndgamePracticeUrl(type),
+      url,
       'endgame'
     );
   });

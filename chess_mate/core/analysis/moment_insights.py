@@ -44,6 +44,16 @@ def classify_endgame_material(fen: str) -> str:
     return "general_endgame"
 
 
+ENDGAME_LICHESS_URLS = {
+    "rook_and_pawn": "https://lichess.org/practice/endgames/rook",
+    "rook_endgame": "https://lichess.org/practice/endgames/rook",
+    "king_and_pawn": "https://lichess.org/practice/endgames/pawn",
+    "queen_endgame": "https://lichess.org/practice/endgames/queen",
+    "general_endgame": "https://lichess.org/learn",
+    "unknown_endgame": "https://lichess.org/learn",
+}
+
+
 ENDGAME_STUDY_HINTS = {
     "rook_and_pawn": (
         "Study rook-and-pawn endgames: Lucena (building a bridge), Philidor (rook on 3rd rank), "

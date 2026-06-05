@@ -5,8 +5,51 @@ import { UserContext } from '../contexts/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
 
+const FALLBACK_PACKAGES = [
+  {
+    id: 'basic',
+    name: 'Coach Starter',
+    credits: 50,
+    price_display: '$9.99',
+    description: 'Import games for your first batch coach reports',
+    popular: false,
+    features: [
+      '50 game imports (1 credit per game)',
+      '~5 batch coach reports (10 games each)',
+      'Full Stockfish + AI coaching per batch'
+    ]
+  },
+  {
+    id: 'pro',
+    name: 'Coach Plus',
+    credits: 100,
+    price_display: '$17.99',
+    description: 'Regular batch coach analysis across a month of play',
+    popular: true,
+    features: [
+      '100 game imports',
+      '~10 batch coach reports (10 games each)',
+      'Compare batches over time'
+    ]
+  },
+  {
+    id: 'premium',
+    name: 'Coach Pro',
+    credits: 250,
+    price_display: '$39.99',
+    description: 'Serious improvement loop — many batches and imports',
+    popular: false,
+    features: [
+      '250 game imports',
+      '~25 batch coach reports (10 games each)',
+      'Best value per batch report'
+    ]
+  }
+];
+
 const Credits = () => {
   const [loading, setLoading] = useState(false);
+  const [packages, setPackages] = useState(FALLBACK_PACKAGES);
   const { credits, fetchUserData } = useContext(UserContext);
   const { isDarkMode } = useTheme();
 
@@ -14,22 +57,40 @@ const Credits = () => {
     fetchUserData();
   }, [fetchUserData]);
 
+  useEffect(() => {
+    const loadPackages = async () => {
+      try {
+        const response = await api.get('/api/v1/credits/packages/');
+        if (Array.isArray(response.data?.packages) && response.data.packages.length > 0) {
+          setPackages(response.data.packages);
+        }
+      } catch (error) {
+        console.warn('Using fallback credit packages:', error);
+      }
+    };
+    loadPackages();
+  }, []);
+
   const handlePurchase = async (packageId) => {
     setLoading(true);
     try {
-      const accessToken = localStorage.getItem('tokens') ? JSON.parse(localStorage.getItem('tokens')).access : null;
+      const accessToken = localStorage.getItem('tokens')
+        ? JSON.parse(localStorage.getItem('tokens')).access
+        : null;
       if (!accessToken) {
         toast.error('Please log in to purchase credits');
         return;
       }
 
-      const response = await api.post('/api/purchase-credits/', {
-        package_id: packageId
-      }, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
+      const response = await api.post(
+        '/api/v1/purchase-credits/',
+        { package_id: packageId },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
         }
-      });
+      );
 
       if (!response.data.checkout_url) {
         throw new Error('No checkout URL received');
@@ -38,63 +99,20 @@ const Credits = () => {
       window.location.href = response.data.checkout_url;
     } catch (error) {
       console.error('Error processing request:', error);
-      toast.error(error.message || 'Failed to process request');
+      toast.error(error.response?.data?.detail || error.message || 'Failed to process request');
     } finally {
       setLoading(false);
     }
   };
 
-  const creditPackages = [
-    {
-      id: 'basic',
-      name: 'Basic Package',
-      credits: 100,
-      price: 9.99,
-      description: 'Perfect for casual players',
-      features: [
-        '100 game analyses',
-        'Basic feedback',
-        'Opening suggestions',
-        'Valid for 3 months'
-      ]
-    },
-    {
-      id: 'pro',
-      name: 'Pro Package',
-      credits: 300,
-      price: 24.99,
-      description: 'Great for regular analysis',
-      popular: true,
-      features: [
-        '300 game analyses',
-        'Detailed feedback',
-        'Opening & middlegame suggestions',
-        'Valid for 6 months'
-      ]
-    },
-    {
-      id: 'premium',
-      name: 'Premium Package',
-      credits: 1000,
-      price: 79.99,
-      description: 'Best value for serious players',
-      features: [
-        '1000 game analyses',
-        'Advanced feedback',
-        'Complete game analysis',
-        'Valid for 12 months'
-      ]
-    }
-  ];
-
   return (
     <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       <div className="sm:flex sm:flex-col sm:align-center">
         <h2 className={`text-3xl font-extrabold ${isDarkMode ? 'text-white' : 'text-gray-900'} sm:text-center`}>
-          Purchase Analysis Credits
+          Batch Coach Credits
         </h2>
         <p className={`mt-5 text-xl ${isDarkMode ? 'text-gray-300' : 'text-gray-500'} sm:text-center`}>
-          Get credits to analyze your chess games and receive detailed feedback
+          Credits import games from Chess.com or Lichess. Batch coach analysis is included once games are on your account.
         </p>
         <div className="mt-4 text-center">
           <span className={`inline-flex items-center px-4 py-2 rounded-md ${
@@ -107,7 +125,7 @@ const Credits = () => {
       </div>
 
       <div className="mt-12 space-y-4 sm:mt-16 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-6 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:mx-0 xl:grid-cols-3">
-        {creditPackages.map((pkg) => (
+        {packages.map((pkg) => (
           <div
             key={pkg.id}
             className={`rounded-lg shadow-sm divide-y ${
@@ -140,20 +158,22 @@ const Credits = () => {
               </p>
               <p className="mt-8">
                 <span className={`text-4xl font-extrabold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  ${pkg.price}
+                  {pkg.price_display || `$${pkg.price}`}
                 </span>
               </p>
               <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
-                for {pkg.credits} credits
+                {pkg.credits} credits
+                {pkg.batch_reports_approx
+                  ? ` · ~${pkg.batch_reports_approx} batch reports`
+                  : ''}
               </p>
               <button
+                type="button"
                 onClick={() => handlePurchase(pkg.id)}
                 disabled={loading}
                 className={`mt-8 block w-full text-white font-medium py-2 px-4 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
                   pkg.popular
-                    ? isDarkMode
-                      ? 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'
-                      : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'
+                    ? 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'
                     : isDarkMode
                       ? 'bg-gray-600 hover:bg-gray-700 focus:ring-gray-500'
                       : 'bg-gray-600 hover:bg-gray-700 focus:ring-gray-500'
@@ -164,16 +184,17 @@ const Credits = () => {
             </div>
             <div className="px-6 pt-6 pb-8">
               <h4 className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                What's included
+                What&apos;s included
               </h4>
               <ul className="mt-6 space-y-4">
-                {pkg.features.map((feature, index) => (
+                {(pkg.features || []).map((feature, index) => (
                   <li key={index} className="flex space-x-3">
                     <svg
                       className={`flex-shrink-0 h-5 w-5 ${isDarkMode ? 'text-green-400' : 'text-green-500'}`}
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 20 20"
                       fill="currentColor"
+                      aria-hidden="true"
                     >
                       <path
                         fillRule="evenodd"

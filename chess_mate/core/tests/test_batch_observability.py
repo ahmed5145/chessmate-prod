@@ -1,7 +1,12 @@
 import json
 import logging
 
-from core.batch_observability import log_batch_completed, log_batch_event, log_batch_started
+from core.batch_observability import (
+    classify_analysis_error,
+    log_batch_completed,
+    log_batch_event,
+    log_batch_started,
+)
 
 
 def test_log_batch_event_emits_json(caplog):
@@ -44,3 +49,7 @@ def test_log_batch_completed_includes_coaching_flags(caplog):
     assert payload["coaching_ok"] is False
     assert payload["coaching_error"] == "rate limit"
     assert payload["duration_seconds"] == 120.5
+
+
+def test_classify_analysis_error_timeout():
+    assert classify_analysis_error("Task timed out after 600s") == "stockfish_timeout"

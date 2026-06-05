@@ -10,7 +10,8 @@ from collections import Counter
 from typing import Any, Dict, List, Optional
 
 from .batch_metrics import compute_batch_accuracy, compute_batch_acpl
-from .moment_insights import ENDGAME_STUDY_HINTS
+from ..rating_band_coaching import rating_band_coaching
+from .moment_insights import ENDGAME_LICHESS_URLS, ENDGAME_STUDY_HINTS
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,7 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
         "all_phases_solid": all_phases_solid,
         "top_critical_moments": top_critical_moments,
         "time_management_summary": time_management_summary,
+        "rating_band_coaching": rating_band_coaching(player_rating),
     }
 
     return result
@@ -724,6 +726,7 @@ def _compute_endgame_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
                 "frequency": f"{count}/{total_games} games",
                 "avg_eval_swing": avg_swing,
                 "study_focus": ENDGAME_STUDY_HINTS.get(eg_type, ENDGAME_STUDY_HINTS["general_endgame"]),
+                "study_url": ENDGAME_LICHESS_URLS.get(eg_type, ENDGAME_LICHESS_URLS["general_endgame"]),
                 "example_moments": type_examples.get(eg_type, []),
             }
         )

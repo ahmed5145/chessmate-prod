@@ -13,6 +13,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .batch_coaching import regenerate_batch_coaching
+from .batch_compare import (
+    build_compare_narrative,
+    metric_delta,
+    weakness_themes,
+)
 from .models import BatchAnalysisReport, Profile
 from .serializers_batches import (
     BatchAnalysisReportSerializer,
@@ -337,42 +342,34 @@ def batch_compare_view(request, batch_id):
     current_summary = current.batch_summary if isinstance(current.batch_summary, dict) else {}
     other_summary = other.batch_summary if isinstance(other.batch_summary, dict) else {}
 
-    def weakness_themes(summary: dict) -> set:
-        themes = set()
-        for item in summary.get("recurring_weaknesses") or []:
-            if isinstance(item, dict):
-                theme = item.get("pattern") or item.get("theme") or item.get("type") or item.get("label")
-                if theme:
-                    themes.add(str(theme))
-        return themes
-
     current_themes = weakness_themes(current_summary)
     other_themes = weakness_themes(other_summary)
 
-    def metric_delta(key: str):
-        cur = current_summary.get(key)
-        prev = other_summary.get(key)
-        if cur is None or prev is None:
-            return None
-        try:
-            return round(float(cur) - float(prev), 2)
-        except (TypeError, ValueError):
-            return None
+    metrics = {
+        "overall_accuracy_pct_delta": metric_delta(current_summary, other_summary, "overall_accuracy_pct"),
+        "overall_eval_stability_delta": metric_delta(
+            current_summary, other_summary, "overall_eval_stability"
+        ),
+    }
+    weaknesses = {
+        "persisting": sorted(current_themes & other_themes),
+        "resolved": sorted(other_themes - current_themes),
+        "new": sorted(current_themes - other_themes),
+    }
 
     return Response(
         {
             "current_batch_id": current.id,
             "other_batch_id": other.id,
             "other_created_at": other.created_at,
-            "metrics": {
-                "overall_accuracy_pct_delta": metric_delta("overall_accuracy_pct"),
-                "overall_eval_stability_delta": metric_delta("overall_eval_stability"),
-            },
-            "weaknesses": {
-                "persisting": sorted(current_themes & other_themes),
-                "resolved": sorted(other_themes - current_themes),
-                "new": sorted(current_themes - other_themes),
-            },
+            "metrics": metrics,
+            "weaknesses": weaknesses,
+            "narrative": build_compare_narrative(
+                metrics=metrics,
+                weaknesses=weaknesses,
+                current_summary=current_summary,
+                other_summary=other_summary,
+            ),
         },
         status=status.HTTP_200_OK,
     )

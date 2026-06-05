@@ -23,7 +23,7 @@ from openai import OpenAI, OpenAIError
 
 from .ai_feedback import AIFeedbackGenerator
 from .analysis.batch_aggregator import BatchAggregationError, aggregate_batch
-from .batch_observability import log_batch_completed, log_batch_started
+from .batch_observability import log_batch_completed, log_batch_game_failed, log_batch_started
 from .analysis.coaching_generator import (
     CoachingGeneratorError,
     generate_coaching_report,
@@ -1075,6 +1075,7 @@ def analyze_single_game_subtask(
 
         if not game_result:
             _record_batch_game_progress(batch_id, user_id, game_id, succeeded=False)
+            log_batch_game_failed(batch_id, game_id, "Failed to build game result (empty output)")
             return {
                 "game_id": game_id,
                 "status": "failed",
@@ -1089,12 +1090,14 @@ def analyze_single_game_subtask(
         }
 
     except Exception as exc:
-        logger.exception(f"Error analyzing game {game_id} in batch {batch_id}: {str(exc)}")
+        error_message = str(exc)
+        logger.exception(f"Error analyzing game {game_id} in batch {batch_id}: {error_message}")
         _record_batch_game_progress(batch_id, user_id, game_id, succeeded=False)
+        log_batch_game_failed(batch_id, game_id, error_message)
         return {
             "game_id": game_id,
             "status": "failed",
-            "error": str(exc),
+            "error": error_message,
         }
 
 

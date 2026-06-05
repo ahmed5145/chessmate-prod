@@ -99,6 +99,8 @@ class TestBatchViews(TestCase):
         assert "hanging_piece" in response.data["weaknesses"]["persisting"]
         assert "fork" in response.data["weaknesses"]["new"]
         assert response.data["metrics"]["overall_accuracy_pct_delta"] == 5.0
+        assert isinstance(response.data.get("narrative"), str)
+        assert len(response.data["narrative"]) > 10
 
     def test_post_batch_share_enables_public_link(self):
         batch = BatchAnalysisReport.objects.create(

@@ -32,6 +32,30 @@ def log_batch_started(batch_id: Any, user_id: int, games_count: int) -> None:
     )
 
 
+def classify_analysis_error(error_message: str) -> str:
+    """Bucket Stockfish / worker failures for monitoring."""
+    msg = str(error_message or "").lower()
+    if any(token in msg for token in ("memory", "oom", "cannot allocate", "killed")):
+        return "stockfish_oom"
+    if any(token in msg for token in ("timeout", "timed out", "time limit", "soft time limit")):
+        return "stockfish_timeout"
+    if "stockfish" in msg or "engine" in msg:
+        return "stockfish_error"
+    if "pgn" in msg or "parse" in msg:
+        return "pgn_parse_error"
+    return "analysis_error"
+
+
+def log_batch_game_failed(batch_id: Any, game_id: str, error_message: str) -> None:
+    log_batch_event(
+        "batch_game_failed",
+        batch_id,
+        game_id=game_id,
+        error_type=classify_analysis_error(error_message),
+        error=error_message[:500] if error_message else None,
+    )
+
+
 def log_batch_completed(
     batch_id: Any,
     *,

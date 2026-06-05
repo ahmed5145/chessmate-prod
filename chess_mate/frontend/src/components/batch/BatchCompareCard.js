@@ -70,9 +70,14 @@ const BatchCompareCard = ({ batchId }) => {
       <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
         vs previous batch (#{compare.other_batch_id})
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
         Accuracy {formatDelta(accDelta, '%')} · eval stability {formatDelta(stabDelta, '%')}
       </Typography>
+      {compare.narrative && (
+        <Typography variant="body2" sx={{ mb: 1.5 }}>
+          {compare.narrative}
+        </Typography>
+      )}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         {Array.isArray(weaknesses.persisting) && weaknesses.persisting.length > 0 && (
           <Alert severity="warning" icon={false} sx={{ py: 0.5 }}>

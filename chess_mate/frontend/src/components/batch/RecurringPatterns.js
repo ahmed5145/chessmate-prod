@@ -6,6 +6,7 @@ import React from 'react';
 import {
   Alert,
   Box,
+  Button,
   Chip,
   Container,
   List,
@@ -13,6 +14,7 @@ import {
   ListItemText,
   Typography
 } from '@mui/material';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 
 const RecurringPatterns = ({ batch_summary }) => {
   if (!batch_summary) {
@@ -112,6 +114,19 @@ const RecurringPatterns = ({ batch_summary }) => {
                   <Typography variant="body2" sx={{ mb: 0.5 }}>
                     {item.study_focus}
                   </Typography>
+                )}
+                {item.study_url && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    href={item.study_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    endIcon={<OpenInNewIcon fontSize="small" />}
+                    sx={{ mt: 0.5 }}
+                  >
+                    Practice on Lichess
+                  </Button>
                 )}
                 {Array.isArray(item.example_moments) && item.example_moments.length > 0 && (
                   <Typography variant="caption" color="text.secondary">

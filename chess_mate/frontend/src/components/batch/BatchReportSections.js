@@ -18,6 +18,7 @@ import BatchCompareCard from './BatchCompareCard';
 import TimeManagementInsight from './TimeManagementInsight';
 import RepertoireGaps from './RepertoireGaps';
 import StudyDrillLinks from './StudyDrillLinks';
+import RatingBandCoaching from './RatingBandCoaching';
 import './batchReportPrint.css';
 import './batchReportScreen.css';
 
@@ -51,6 +52,7 @@ const BatchReportSections = ({
       <PhaseBreakdown batch_summary={batchReport.batch_summary} />
       <RepertoireGaps batch_summary={batchReport.batch_summary} />
       <RecurringPatterns batch_summary={batchReport.batch_summary} />
+      <RatingBandCoaching batch_summary={batchReport.batch_summary} />
       <StudyDrillLinks batch_summary={batchReport.batch_summary} />
       <CoachingNarrative coaching_report={batchReport.coaching_report} />
       <TopPriorities coaching_report={batchReport.coaching_report} />

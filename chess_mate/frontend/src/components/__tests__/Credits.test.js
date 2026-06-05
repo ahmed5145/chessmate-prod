@@ -15,6 +15,7 @@ jest.mock('react-hot-toast');
 
 jest.mock('../../services/api', () => ({
   post: jest.fn(),
+  get: jest.fn(),
 }));
 
 // Mock useNavigate
@@ -36,6 +37,8 @@ describe('Credits Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     api.post.mockReset();
+    api.get.mockReset();
+    api.get.mockResolvedValue({ data: { packages: [] } });
   });
 
   test('renders credit packages', () => {
@@ -47,9 +50,9 @@ describe('Credits Component', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/Basic Package/i)).toBeInTheDocument();
-    expect(screen.getByText(/Pro Package/i)).toBeInTheDocument();
-    expect(screen.getByText(/Premium Package/i)).toBeInTheDocument();
+    expect(screen.getByText(/Coach Starter/i)).toBeInTheDocument();
+    expect(screen.getByText(/Coach Plus/i)).toBeInTheDocument();
+    expect(screen.getByText(/Coach Pro/i)).toBeInTheDocument();
   });
 
   test('displays current credits', () => {
@@ -82,7 +85,7 @@ describe('Credits Component', () => {
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith(
-        '/api/purchase-credits/',
+        '/api/v1/purchase-credits/',
         { package_id: 'basic' },
         {
           headers: {

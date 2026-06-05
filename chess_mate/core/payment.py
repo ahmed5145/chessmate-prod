@@ -9,24 +9,35 @@ except ImportError:
 
 from django.conf import settings
 
-# Credit package definitions
+from .credit_packages import CREDIT_PACKAGES as _PACKAGES
+
+# Back-compat alias for imports expecting payment.CREDIT_PACKAGES
 CREDIT_PACKAGES = {
-    "basic": {
-        "name": "Basic Package",
-        "credits": 100,
-        "price": 999,
-    },  # in cents (9.99 USD)
-    "pro": {
-        "name": "Pro Package",
-        "credits": 300,
-        "price": 2499,
-    },  # in cents (24.99 USD)
-    "premium": {
-        "name": "Premium Package",
-        "credits": 1000,
-        "price": 4999,
-    },  # in cents (49.99 USD)
+    key: {
+        "name": value["name"],
+        "credits": value["credits"],
+        "price": value["price_cents"],
+    }
+    for key, value in _PACKAGES.items()
 }
+
+
+def _frontend_base_url() -> str:
+    return getattr(settings, "FRONTEND_URL", "").rstrip("/") or "http://localhost:3000"
+
+
+def _payment_success_url() -> str:
+    explicit = getattr(settings, "PAYMENT_SUCCESS_URL", "").strip()
+    if explicit:
+        return explicit if "{CHECKOUT_SESSION_ID}" in explicit else f"{explicit}?session_id={{CHECKOUT_SESSION_ID}}"
+    return f"{_frontend_base_url()}/credits?session_id={{CHECKOUT_SESSION_ID}}"
+
+
+def _payment_cancel_url() -> str:
+    explicit = getattr(settings, "PAYMENT_CANCEL_URL", "").strip()
+    if explicit:
+        return explicit
+    return f"{_frontend_base_url()}/credits"
 
 
 class PaymentProcessor:
@@ -58,8 +69,8 @@ class PaymentProcessor:
                     }
                 ],
                 mode="payment",
-                success_url=f"{settings.PAYMENT_SUCCESS_URL}?session_id={{CHECKOUT_SESSION_ID}}",
-                cancel_url=settings.PAYMENT_CANCEL_URL,
+                success_url=_payment_success_url(),
+                cancel_url=_payment_cancel_url(),
                 metadata={
                     "user_id": user_id,
                     "package_id": package_id,
