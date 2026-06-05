@@ -237,6 +237,78 @@ class TestBatchViews(TestCase):
 
         assert response.status_code == 404
 
+    def test_post_regenerate_coaching_success(self):
+        """POST regenerate-coaching reuses frozen analysis and updates coaching_report."""
+        batch_summary = {
+            "games_analyzed": 5,
+            "player_rating": 1500,
+            "opening_insights": [{"opening_name": "Italian Game", "status": "strong"}],
+        }
+        per_game_results = [{"game_id": f"game_{i}", "total_moves": 40} for i in range(5)]
+        batch = BatchAnalysisReport.objects.create(
+            user=self.user,
+            task_id="task-regen",
+            status="partial",
+            games_count=5,
+            batch_summary=batch_summary,
+            per_game_results=per_game_results,
+            coaching_report=None,
+        )
+
+        new_coaching = {
+            "executive_summary": "Updated summary",
+            "coaching_narrative": {"opening": "O", "middlegame": "M", "endgame": "E"},
+            "top_3_priorities": [
+                {
+                    "rank": 1,
+                    "title": "game_0 move 12",
+                    "why_it_matters": "W",
+                    "how_to_fix": "H",
+                    "specific_drill": "Drill game_0 move 12",
+                    "estimated_study_hours": 1,
+                },
+                {
+                    "rank": 2,
+                    "title": "T2",
+                    "why_it_matters": "W2",
+                    "how_to_fix": "H2",
+                    "specific_drill": "D2",
+                    "estimated_study_hours": 1,
+                },
+                {
+                    "rank": 3,
+                    "title": "T3",
+                    "why_it_matters": "W3",
+                    "how_to_fix": "H3",
+                    "specific_drill": "D3",
+                    "estimated_study_hours": 1,
+                },
+            ],
+            "training_plan": {"week_1": "w1", "week_2": "w2", "week_3": "w3", "week_4": "w4"},
+            "one_thing_to_do_today": "Practice",
+        }
+
+        with patch("core.views_batches.generate_coaching_report", return_value=new_coaching):
+            response = self.client.post(f"/api/v1/batches/{batch.id}/regenerate-coaching/")
+
+        assert response.status_code == 200
+        assert response.data["coaching_report"] == new_coaching
+        assert response.data["status"] == "completed"
+
+        batch.refresh_from_db()
+        assert batch.coaching_report == new_coaching
+        assert batch.status == "completed"
+
+    def test_post_regenerate_coaching_rejects_pending(self):
+        batch = BatchAnalysisReport.objects.create(
+            user=self.user,
+            task_id="task-pending-regen",
+            status="in_progress",
+            games_count=5,
+        )
+        response = self.client.post(f"/api/v1/batches/{batch.id}/regenerate-coaching/")
+        assert response.status_code == 400
+
     def test_post_batch_unauthenticated(self):
         """POST /api/v1/batches/ requires JWT authentication."""
         client = APIClient()  # No auth

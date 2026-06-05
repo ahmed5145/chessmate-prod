@@ -12,6 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from .analysis.coaching_generator import CoachingGeneratorError, generate_coaching_report
 from .models import BatchAnalysisReport, Profile
 from .serializers_batches import (
     BatchAnalysisReportSerializer,
@@ -209,3 +210,55 @@ def batch_report_view(request, batch_id):
         {"detail": "Unknown batch status."},
         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def batch_regenerate_coaching_view(request, batch_id):
+    """
+    POST /api/v1/batches/{batch_id}/regenerate-coaching/
+
+    Re-run OpenAI coaching from frozen batch_summary + per_game_results (no Stockfish).
+    """
+    try:
+        batch_report = BatchAnalysisReport.objects.get(id=batch_id, user=request.user)
+    except BatchAnalysisReport.DoesNotExist:
+        return Response({"detail": "Batch not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if batch_report.status not in ("completed", "partial"):
+        return Response(
+            {"detail": "Batch analysis must finish before regenerating coaching."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    batch_summary = batch_report.batch_summary
+    per_game_results = batch_report.per_game_results or []
+    if not batch_summary or len(per_game_results) < 5:
+        return Response(
+            {"detail": "Insufficient saved analysis data to regenerate coaching."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        coaching_report = generate_coaching_report(
+            batch_summary,
+            per_game_results,
+            player_rating=batch_summary.get("player_rating"),
+        )
+    except CoachingGeneratorError as exc:
+        logger.warning("Coaching regeneration failed for batch %s: %s", batch_id, exc)
+        return Response(
+            {"detail": "Coaching regeneration failed. Please try again later."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    batch_report.coaching_report = coaching_report
+    update_fields = ["coaching_report", "updated_at"]
+    failed_list = batch_report.failed_games or []
+    if batch_report.status == "partial" and not failed_list:
+        batch_report.status = "completed"
+        update_fields.append("status")
+    batch_report.save(update_fields=update_fields)
+
+    serializer = BatchAnalysisReportSerializer(batch_report)
+    return Response(serializer.data, status=status.HTTP_200_OK)
