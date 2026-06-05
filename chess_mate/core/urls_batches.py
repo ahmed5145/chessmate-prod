@@ -15,4 +15,9 @@ urlpatterns = [
         views_batches.batch_regenerate_coaching_view,
         name="batch-regenerate-coaching",
     ),
+    path(
+        "<int:batch_id>/compare/",
+        views_batches.batch_compare_view,
+        name="batch-compare",
+    ),
 ]

@@ -39,6 +39,8 @@ import TopPriorities from './TopPriorities';
 import TrainingPlan from './TrainingPlan';
 import GameAccordion from './GameAccordion';
 import FailedGamesList from './FailedGamesList';
+import TopCriticalMoments from './TopCriticalMoments';
+import BatchCompareCard from './BatchCompareCard';
 import { getBatchStatus, getBatchReport, regenerateBatchCoaching } from '../../services/apiRequests';
 
 const BatchReport = () => {
@@ -247,6 +249,11 @@ const BatchReport = () => {
             <BatchReportHeader
               batch_summary={batchReport.batch_summary}
               games_count={batchReport.games_count}
+            />
+            <BatchCompareCard batchId={batchId} />
+            <TopCriticalMoments
+              batch_summary={batchReport.batch_summary}
+              per_game_results={batchReport.per_game_results}
             />
             <ExecutiveSummary coaching_report={batchReport.coaching_report} />
             <PhaseBreakdown batch_summary={batchReport.batch_summary} />

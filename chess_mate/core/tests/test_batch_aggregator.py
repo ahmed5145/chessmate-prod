@@ -107,6 +107,9 @@ def test_batch_aggregator_schema_structure():
     assert "worst_phase" in batch_summary
     assert "best_phase" in batch_summary
     assert "all_phases_solid" in batch_summary
+    assert "top_critical_moments" in batch_summary
+    assert isinstance(batch_summary["top_critical_moments"], list)
+    assert len(batch_summary["top_critical_moments"]) <= 3
 
     # Verify field types
     assert isinstance(batch_summary["games_analyzed"], int)

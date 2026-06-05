@@ -79,6 +79,7 @@ def _batch_create_response(request):
 
     # Extract validated PGN list
     pgn_list = serializer.validated_data["pgn_list"]
+    source_game_ids = serializer.validated_data.get("source_game_ids") or [None] * len(pgn_list)
     games_count = len(pgn_list)
     credits_per_game = int(getattr(settings, "BATCH_CREDITS_PER_GAME", 1))
     credits_required = games_count * credits_per_game
@@ -115,11 +116,12 @@ def _batch_create_response(request):
             task_id=batch_id,
             status="pending",
             games_count=games_count,
+            game_ids=source_game_ids,
             credits_charged=credits_required,
         )
 
     # Queue the analysis task (requires Celery worker — see docker-entrypoint.sh)
-    async_result = analyze_batch_task.delay(batch_id, pgn_list, request.user.id)
+    async_result = analyze_batch_task.delay(batch_id, pgn_list, request.user.id, source_game_ids)
     logger.info(
         "Queued batch %s (report id=%s) celery_id=%s games=%s user=%s",
         batch_id,
@@ -290,3 +292,95 @@ def batch_regenerate_coaching_view(request, batch_id):
 
     serializer = BatchAnalysisReportSerializer(batch_report)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def batch_compare_view(request, batch_id):
+    """
+    GET /api/v1/batches/{batch_id}/compare/?other=<id|previous>
+
+    Compare recurring weaknesses and headline metrics vs another batch.
+    """
+    try:
+        current = BatchAnalysisReport.objects.get(id=batch_id, user=request.user)
+    except BatchAnalysisReport.DoesNotExist:
+        return Response({"detail": "Batch not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if current.status not in ("completed", "partial"):
+        return Response(
+            {"detail": "Current batch must be completed before comparing."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    other_param = request.query_params.get("other", "previous")
+    if other_param == "previous":
+        other = (
+            BatchAnalysisReport.objects.filter(
+                user=request.user,
+                status__in=["completed", "partial"],
+                pk__lt=current.pk,
+            )
+            .order_by("-pk")
+            .first()
+        )
+        if not other:
+            return Response(
+                {"detail": "No earlier batch report to compare against."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+    else:
+        try:
+            other_id = int(other_param)
+        except (TypeError, ValueError):
+            return Response({"detail": "Invalid other batch id."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            other = BatchAnalysisReport.objects.get(id=other_id, user=request.user)
+        except BatchAnalysisReport.DoesNotExist:
+            return Response({"detail": "Comparison batch not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if other.id == current.id:
+        return Response({"detail": "Choose a different batch to compare."}, status=status.HTTP_400_BAD_REQUEST)
+
+    current_summary = current.batch_summary if isinstance(current.batch_summary, dict) else {}
+    other_summary = other.batch_summary if isinstance(other.batch_summary, dict) else {}
+
+    def weakness_themes(summary: dict) -> set:
+        themes = set()
+        for item in summary.get("recurring_weaknesses") or []:
+            if isinstance(item, dict):
+                theme = item.get("pattern") or item.get("theme") or item.get("type") or item.get("label")
+                if theme:
+                    themes.add(str(theme))
+        return themes
+
+    current_themes = weakness_themes(current_summary)
+    other_themes = weakness_themes(other_summary)
+
+    def metric_delta(key: str):
+        cur = current_summary.get(key)
+        prev = other_summary.get(key)
+        if cur is None or prev is None:
+            return None
+        try:
+            return round(float(cur) - float(prev), 2)
+        except (TypeError, ValueError):
+            return None
+
+    return Response(
+        {
+            "current_batch_id": current.id,
+            "other_batch_id": other.id,
+            "other_created_at": other.created_at,
+            "metrics": {
+                "overall_accuracy_pct_delta": metric_delta("overall_accuracy_pct"),
+                "overall_eval_stability_delta": metric_delta("overall_eval_stability"),
+            },
+            "weaknesses": {
+                "persisting": sorted(current_themes & other_themes),
+                "resolved": sorted(other_themes - current_themes),
+                "new": sorted(current_themes - other_themes),
+            },
+        },
+        status=status.HTTP_200_OK,
+    )

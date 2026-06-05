@@ -721,6 +721,24 @@ export const getBatchStatus = async (batchId) => {
  *
  * POST /api/v1/batches/{batchId}/regenerate-coaching/
  */
+/**
+ * GET /api/v1/batches/{batchId}/compare/?other=<id|previous>
+ */
+export const fetchBatchCompare = async (batchId, other = 'previous') => {
+    try {
+        const response = await api.get(`/api/v1/batches/${batchId}/compare/`, {
+            params: { other }
+        });
+        return response.data;
+    } catch (error) {
+        const payload = error.response?.data || { detail: 'Failed to load batch comparison.' };
+        const err = new Error(payload.detail || 'Failed to load batch comparison.');
+        err.status = error.response?.status;
+        err.response = error.response;
+        throw err;
+    }
+};
+
 export const regenerateBatchCoaching = async (batchId) => {
     try {
         if (!batchId) {

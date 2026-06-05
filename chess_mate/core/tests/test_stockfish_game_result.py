@@ -1,5 +1,9 @@
 import pytest
-from core.analysis.stockfish_game_result import StockfishAnalyzer, build_game_result
+from core.analysis.stockfish_game_result import (
+    StockfishAnalyzer,
+    build_game_result,
+    infer_player_color_from_headers,
+)
 
 
 class _FakeAnalyzer:
@@ -113,6 +117,31 @@ def test_moves_store_pre_and_post_evals():
         assert "eval_before" in cm
         assert "eval_after" in cm
         assert cm["eval_swing"] >= 0
+
+
+def test_infer_player_color_matches_platform_username():
+    assert infer_player_color_from_headers("Alice", "Bob", chess_com_username="alice") == "white"
+    assert infer_player_color_from_headers("Alice", "Bob", lichess_username="bob") == "black"
+    assert infer_player_color_from_headers("Alice", "Bob") == "white"
+
+
+def test_build_game_result_saved_game_id_and_player_color():
+    pgn = """
+[Event "Color"]
+[White "MyChessUser"]
+[Black "Opponent"]
+[Result "0-1"]
+
+1. e4 e5 2. Nf3 Nc6 1-0
+"""
+    res = build_game_result(
+        pgn,
+        game_id="game_0",
+        saved_game_id=42,
+        chess_com_username="MyChessUser",
+    )
+    assert res["player_color"] == "white"
+    assert res["saved_game_id"] == 42
 
 
 def test_blunder_game_detects_critical_moment():

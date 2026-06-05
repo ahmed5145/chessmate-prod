@@ -64,6 +64,41 @@ class TestBatchViews(TestCase):
         assert response.data["results"][0]["coach_summary"] == "Latest batch insight."
         assert response.data["results"][0]["overall_accuracy_pct"] == 81.2
 
+    def test_get_batch_compare_vs_previous(self):
+        older = BatchAnalysisReport.objects.create(
+            user=self.user,
+            task_id="older-batch",
+            status="completed",
+            games_count=5,
+            batch_summary={
+                "recurring_weaknesses": [{"pattern": "hanging_piece"}],
+                "overall_accuracy_pct": 70.0,
+                "overall_eval_stability": 0.8,
+            },
+        )
+        newer = BatchAnalysisReport.objects.create(
+            user=self.user,
+            task_id="newer-batch",
+            status="completed",
+            games_count=5,
+            batch_summary={
+                "recurring_weaknesses": [
+                    {"pattern": "hanging_piece"},
+                    {"pattern": "fork"},
+                ],
+                "overall_accuracy_pct": 75.0,
+                "overall_eval_stability": 0.85,
+            },
+        )
+
+        response = self.client.get(f"/api/v1/batches/{newer.id}/compare/?other=previous")
+
+        assert response.status_code == 200
+        assert response.data["other_batch_id"] == older.id
+        assert "hanging_piece" in response.data["weaknesses"]["persisting"]
+        assert "fork" in response.data["weaknesses"]["new"]
+        assert response.data["metrics"]["overall_accuracy_pct_delta"] == 5.0
+
     def test_get_batch_list_requires_auth(self):
         client = APIClient()
         response = client.get("/api/v1/batches/")

@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Typography,
   Accordion,
@@ -11,9 +12,11 @@ import {
   Chip,
   Container,
   Box,
-  Divider
+  Divider,
+  Link
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import FenBoardImage from './FenBoardImage';
 
 const GameAccordion = ({ per_game_results }) => {
   if (!per_game_results || !Array.isArray(per_game_results) || per_game_results.length === 0) {
@@ -128,6 +131,17 @@ const GameAccordion = ({ per_game_results }) => {
                     variant="outlined"
                   />
                 )}
+                {game.saved_game_id ? (
+                  <Link
+                    component={RouterLink}
+                    to={`/game/${game.saved_game_id}/analysis`}
+                    variant="caption"
+                    onClick={(event) => event.stopPropagation()}
+                    sx={{ ml: 'auto' }}
+                  >
+                    Saved game analysis
+                  </Link>
+                ) : null}
                 <Typography variant="caption" color="text.secondary">
                   {game.total_moves || 0} moves · {moveQuality.blunder || 0} blunders
                 </Typography>
@@ -199,6 +213,11 @@ const GameAccordion = ({ per_game_results }) => {
                           borderColor: `${momentSeverityColor(moment.type)}.main`
                         }}
                       >
+                        {index === 0 && momentIndex < 3 && moment.fen ? (
+                          <Box sx={{ mb: 1 }}>
+                            <FenBoardImage fen={moment.fen} size={200} />
+                          </Box>
+                        ) : null}
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
                           <Chip
                             size="small"

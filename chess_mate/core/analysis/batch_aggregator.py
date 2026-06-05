@@ -117,6 +117,8 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
     # Best and worst phases with solid-phases sentinel
     worst_phase, best_phase, all_phases_solid = _find_phase_extremes(phase_performance)
 
+    top_critical_moments = _top_critical_moments(per_game_results, limit=3)
+
     result = {
         "games_analyzed": games_analyzed,
         "player_rating": player_rating,
@@ -135,9 +137,30 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
         "worst_phase": worst_phase,
         "best_phase": best_phase,
         "all_phases_solid": all_phases_solid,
+        "top_critical_moments": top_critical_moments,
     }
 
     return result
+
+
+def _top_critical_moments(per_game_results: List[Dict[str, Any]], limit: int = 3) -> List[Dict[str, Any]]:
+    """Batch-wide worst moments by eval swing (for FEN boards and quick review)."""
+    ranked: List[Dict[str, Any]] = []
+    for game_result in per_game_results:
+        game_id = game_result.get("game_id")
+        saved_game_id = game_result.get("saved_game_id")
+        for moment in game_result.get("critical_moments") or []:
+            if not isinstance(moment, dict):
+                continue
+            ranked.append(
+                {
+                    **moment,
+                    "game_id": game_id,
+                    "saved_game_id": saved_game_id,
+                }
+            )
+    ranked.sort(key=lambda item: float(item.get("eval_swing") or 0), reverse=True)
+    return ranked[:limit]
 
 
 def _extract_date_range(pgn_list: Optional[List[str]]) -> str:

@@ -77,12 +77,42 @@ def _detect_opening_name_from_pgn(pgn: str) -> (str, float):
 import io
 
 
-def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[str, Any]:
+def infer_player_color_from_headers(
+    white: str,
+    black: str,
+    *,
+    chess_com_username: str = "",
+    lichess_username: str = "",
+) -> str:
+    """Match PGN player names to linked platform usernames; default white."""
+    for username in (chess_com_username, lichess_username):
+        name = (username or "").strip()
+        if not name:
+            continue
+        if white and white.strip().lower() == name.lower():
+            return "white"
+        if black and black.strip().lower() == name.lower():
+            return "black"
+    return "white"
+
+
+def build_game_result(
+    pgn: str,
+    game_id: str = None,
+    depth: int = None,
+    *,
+    saved_game_id: int | None = None,
+    chess_com_username: str = "",
+    lichess_username: str = "",
+) -> Dict[str, Any]:
     """Produce the per-game result JSON object as defined in PRD section 11.
 
     Args:
         pgn: game PGN text
         game_id: optional identifier to include in result
+        saved_game_id: ChessMate Game PK when batch was built from saved games
+        chess_com_username: profile username for color inference
+        lichess_username: profile username for color inference
 
     Returns:
         Dict matching the required per-game schema
@@ -411,8 +441,14 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
         game = chess.pgn.read_game(reader)
         if game:
             result["result"] = game.headers.get("Result", "")
-            # determine player's color as white by default
-            result["player_color"] = "white"
+            white_name = game.headers.get("White", "")
+            black_name = game.headers.get("Black", "")
+            result["player_color"] = infer_player_color_from_headers(
+                white_name,
+                black_name,
+                chess_com_username=chess_com_username,
+                lichess_username=lichess_username,
+            )
             # Extract ELO ratings from headers
             try:
                 white_elo_str = game.headers.get("WhiteElo")
@@ -444,5 +480,8 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
         phase_acc = compute_phase_accuracy(analyzed_moves, start, end, player_color)
         if phase_acc is not None:
             result["phase_breakdown"][phase_name]["accuracy"] = phase_acc
+
+    if saved_game_id is not None:
+        result["saved_game_id"] = saved_game_id
 
     return result

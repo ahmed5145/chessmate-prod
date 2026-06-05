@@ -64,12 +64,14 @@ class BatchCreateSerializer(serializers.Serializer):
         game_ids = data.get("game_ids", [])
         files = data.get("files", [])
 
-        # Collect PGN strings from both sources
+        # Collect PGN strings and parallel saved-game IDs (None for uploads/raw PGN).
         pgn_list = []
+        source_game_ids: List[Any] = []
 
         # Process games field (list of PGN strings)
         if games:
             pgn_list.extend(games)
+            source_game_ids.extend([None] * len(games))
 
         # Process files field (uploaded PGN files)
         if files:
@@ -79,6 +81,7 @@ class BatchCreateSerializer(serializers.Serializer):
                     if isinstance(content, bytes):
                         content = content.decode("utf-8")
                     pgn_list.append(content)
+                    source_game_ids.append(None)
                 except Exception as e:
                     raise serializers.ValidationError(f"Failed to read uploaded file: {str(e)}")
 
@@ -93,7 +96,9 @@ class BatchCreateSerializer(serializers.Serializer):
 
             games_by_id = {game_id: pgn for game_id, pgn in game_rows}
             try:
-                pgn_list.extend(games_by_id[game_id] for game_id in game_ids)
+                for game_id in game_ids:
+                    pgn_list.append(games_by_id[game_id])
+                    source_game_ids.append(game_id)
             except KeyError as exc:
                 raise serializers.ValidationError("One or more game IDs are invalid or do not belong to you.") from exc
 
@@ -129,6 +134,7 @@ class BatchCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError(f"Game at index {index}: Failed to parse PGN: {str(e)}")
 
         data["pgn_list"] = validated_pgns
+        data["source_game_ids"] = source_game_ids[: len(validated_pgns)]
         return data
 
     def to_representation(self, instance):

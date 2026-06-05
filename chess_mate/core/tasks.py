@@ -864,7 +864,13 @@ def _record_batch_game_progress(batch_id: str, user_id: int, game_id: str, *, su
     soft_time_limit=840,
     time_limit=900,
 )
-def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: int) -> Dict[str, Any]:
+def analyze_single_game_subtask(
+    pgn: str,
+    game_id: str,
+    batch_id: str,
+    user_id: int,
+    saved_game_id: int | None = None,
+) -> Dict[str, Any]:
     """
     Analyze a single game and return structured result envelope.
 
@@ -1040,8 +1046,27 @@ def analyze_single_game_subtask(pgn: str, game_id: str, batch_id: str, user_id: 
         except Exception:
             _log_ignored_exception(f"Ignoring stderr write failure for game {game_id}")
 
+        chess_com_username = ""
+        lichess_username = ""
+        try:
+            from .models import Profile
+
+            profile = Profile.objects.filter(user_id=user_id).only("chess_com_username", "lichess_username").first()
+            if profile:
+                chess_com_username = profile.chess_com_username or ""
+                lichess_username = profile.lichess_username or ""
+        except Exception:
+            _log_ignored_exception(f"Ignoring profile lookup failure for user {user_id}")
+
         # Build per-game result using resolved builder
-        game_result = builder(pgn, game_id=game_id, depth=batch_depth)
+        game_result = builder(
+            pgn,
+            game_id=game_id,
+            depth=batch_depth,
+            saved_game_id=saved_game_id,
+            chess_com_username=chess_com_username,
+            lichess_username=lichess_username,
+        )
 
         if not game_result:
             _record_batch_game_progress(batch_id, user_id, game_id, succeeded=False)
@@ -1303,7 +1328,12 @@ def _refund_failed_batch_credits(batch_report: BatchAnalysisReport) -> None:
     soft_time_limit=7200,
     time_limit=7500,
 )
-def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) -> str:
+def analyze_batch_task(
+    batch_id: str,
+    game_pgn_list: List[str],
+    user_id: int,
+    source_game_ids: List | None = None,
+) -> str:
     """
     Fan-out/fan-in batch analysis task.
 
@@ -1338,7 +1368,10 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
         )
         batch_report.status = "in_progress"
         batch_report.games_count = len(game_pgn_list)
-        batch_report.game_ids = list(range(len(game_pgn_list)))  # Placeholder game IDs
+        if source_game_ids:
+            batch_report.game_ids = source_game_ids
+        elif not batch_report.game_ids:
+            batch_report.game_ids = [None] * len(game_pgn_list)
         batch_report.save(update_fields=["status", "games_count", "game_ids", "updated_at"])
     except Exception as exc:
         logger.error(f"Failed to create/update batch report for {batch_id}: {str(exc)}")
@@ -1439,20 +1472,32 @@ def analyze_batch_task(batch_id: str, game_pgn_list: List[str], user_id: int) ->
         logger.info(
             f"Batch {batch_id}: SEQUENTIAL_BATCH_ANALYSIS enabled — analyzing {len(game_pgn_list)} games one at a time"
         )
+        resolved_ids = source_game_ids or [None] * len(game_pgn_list)
         results: List[Dict[str, Any]] = []
         for i, pgn in enumerate(game_pgn_list):
             logger.info(f"Batch {batch_id}: starting game {i + 1}/{len(game_pgn_list)}")
+            saved_id = resolved_ids[i] if i < len(resolved_ids) else None
             try:
-                results.append(analyze_single_game_subtask(pgn, f"game_{i}", batch_id, user_id))
+                results.append(
+                    analyze_single_game_subtask(pgn, f"game_{i}", batch_id, user_id, saved_id)
+                )
             except Exception as exc:
                 logger.exception(f"Batch {batch_id} game {i} failed: {exc}")
                 results.append({"game_id": f"game_{i}", "status": "failed", "error": str(exc)})
         aggregate_and_report_task(results, batch_id, game_pgn_list, user_id)
         return batch_id
 
+    resolved_ids = source_game_ids or [None] * len(game_pgn_list)
     # Build group of subtasks: one per game
     subtasks = _group(
-        analyze_single_game_subtask.s(pgn, f"game_{i}", batch_id, user_id) for i, pgn in enumerate(game_pgn_list)
+        analyze_single_game_subtask.s(
+            pgn,
+            f"game_{i}",
+            batch_id,
+            user_id,
+            resolved_ids[i] if i < len(resolved_ids) else None,
+        )
+        for i, pgn in enumerate(game_pgn_list)
     )
 
     # Chain group to callback
