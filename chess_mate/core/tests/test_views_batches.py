@@ -28,6 +28,47 @@ class TestBatchViews(TestCase):
         # Authenticate client with JWT
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
 
+    def test_get_batch_list_returns_user_reports(self):
+        """GET /api/v1/batches/ returns newest batches for the authenticated user."""
+        other_user = User.objects.create_user(username="listother", password="pass")
+        BatchAnalysisReport.objects.create(
+            user=other_user,
+            task_id="other-task",
+            status="completed",
+            games_count=5,
+        )
+        mine_old = BatchAnalysisReport.objects.create(
+            user=self.user,
+            task_id="mine-old",
+            status="completed",
+            games_count=5,
+            coaching_report={"executive_summary": "Older batch insight."},
+            batch_summary={"overall_accuracy_pct": 72.5},
+        )
+        mine_new = BatchAnalysisReport.objects.create(
+            user=self.user,
+            task_id="mine-new",
+            status="partial",
+            games_count=10,
+            coaching_report={"executive_summary": "Latest batch insight."},
+            batch_summary={"overall_accuracy_pct": 81.2},
+        )
+
+        response = self.client.get("/api/v1/batches/?limit=10")
+
+        assert response.status_code == 200
+        assert response.data["count"] == 2
+        assert len(response.data["results"]) == 2
+        assert response.data["results"][0]["id"] == mine_new.id
+        assert response.data["results"][1]["id"] == mine_old.id
+        assert response.data["results"][0]["coach_summary"] == "Latest batch insight."
+        assert response.data["results"][0]["overall_accuracy_pct"] == 81.2
+
+    def test_get_batch_list_requires_auth(self):
+        client = APIClient()
+        response = client.get("/api/v1/batches/")
+        assert response.status_code in [401, 403]
+
     def test_post_batch_create_returns_202(self):
         """POST /api/v1/batches/ creates batch and returns 202."""
         pgn_data = [

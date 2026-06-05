@@ -22,9 +22,12 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
   return (
     <Container maxWidth="lg" sx={{ py: 2 }}>
       <Paper sx={{ p: 3, border: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+        <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
           Batch analysis · {analyzed} games
           {dateRange ? ` · ${dateRange}` : ''}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+          Engine depth 14 · move labels and accuracy are Stockfish-derived, not AI guesses.
         </Typography>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={6} sm={3}>

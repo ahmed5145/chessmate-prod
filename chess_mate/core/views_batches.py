@@ -17,6 +17,7 @@ from .models import BatchAnalysisReport, Profile
 from .serializers_batches import (
     BatchAnalysisReportSerializer,
     BatchCreateSerializer,
+    BatchListItemSerializer,
     BatchStatusSerializer,
 )
 from .tasks import analyze_batch_task
@@ -24,9 +25,36 @@ from .tasks import analyze_batch_task
 logger = logging.getLogger(__name__)
 
 
-@api_view(["POST"])
+@api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
-def batch_create_view(request):
+def batch_collection_view(request):
+    """GET /api/v1/batches/ — list history. POST — create a new batch job."""
+    if request.method == "GET":
+        return _batch_list_response(request)
+    return _batch_create_response(request)
+
+
+def _batch_list_response(request):
+    """
+    GET /api/v1/batches/?limit=20
+
+    List the authenticated user's batch reports (newest first).
+    """
+    try:
+        limit = int(request.query_params.get("limit", 20))
+    except (TypeError, ValueError):
+        limit = 20
+    limit = max(1, min(limit, 50))
+
+    queryset = (
+        BatchAnalysisReport.objects.filter(user=request.user)
+        .order_by("-created_at")[:limit]
+    )
+    serializer = BatchListItemSerializer(queryset, many=True)
+    return Response({"results": serializer.data, "count": len(serializer.data)}, status=status.HTTP_200_OK)
+
+
+def _batch_create_response(request):
     """
     POST /api/v1/batches/
 

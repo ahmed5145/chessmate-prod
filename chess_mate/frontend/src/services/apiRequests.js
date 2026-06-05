@@ -463,20 +463,35 @@ export const checkBatchAnalysisStatus = async (taskId) => {
     }
 };
 
-// DEPRECATED: Phase 1 task model — use API directly for saved reports if needed
-// This endpoint lists old batch reports using /api/v1/games/batch-reports/ task-based model.
-// Kept for backward compatibility only.
+/**
+ * List the user's batch reports (Phase 2 /api/v1/batches/).
+ * Falls back to legacy task-based endpoint if the new API is unavailable.
+ */
 export const fetchBatchReportHistory = async (limit = 20) => {
     try {
-        const response = await api.get('/api/v1/games/batch-reports/', {
+        const response = await api.get('/api/v1/batches/', {
             params: { limit }
         });
 
-        if (!response.data || !Array.isArray(response.data.results)) {
+        if (response.data && Array.isArray(response.data.results)) {
+            return response.data.results;
+        }
+    } catch (error) {
+        if (error?.response?.status && error.response.status !== 404) {
+            console.warn('Phase 2 batch history unavailable, trying legacy endpoint.', error);
+        }
+    }
+
+    try {
+        const legacy = await api.get('/api/v1/games/batch-reports/', {
+            params: { limit }
+        });
+
+        if (!legacy.data || !Array.isArray(legacy.data.results)) {
             return [];
         }
 
-        return response.data.results;
+        return legacy.data.results;
     } catch (error) {
         console.error('Error fetching batch report history:', error);
         throw error.response?.data || new Error('Failed to fetch batch report history');

@@ -201,6 +201,46 @@ class BatchStatusSerializer(serializers.Serializer):
         }
 
 
+def _coaching_summary_snippet(coaching_report: Any, max_len: int = 200) -> str:
+    """One-line preview from coaching_report for list/history views."""
+    if not isinstance(coaching_report, dict):
+        return ""
+    raw = coaching_report.get("executive_summary") or coaching_report.get("summary") or ""
+    if isinstance(raw, list):
+        raw = raw[0] if raw else ""
+    text = str(raw).strip()
+    if len(text) <= max_len:
+        return text
+    return f"{text[: max_len - 1].rstrip()}…"
+
+
+class BatchListItemSerializer(serializers.ModelSerializer):
+    """Lightweight batch row for history lists."""
+
+    coach_summary = serializers.SerializerMethodField()
+    overall_accuracy_pct = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BatchAnalysisReport
+        fields = [
+            "id",
+            "status",
+            "games_count",
+            "coach_summary",
+            "overall_accuracy_pct",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    def get_coach_summary(self, obj: BatchAnalysisReport) -> str:
+        return _coaching_summary_snippet(obj.coaching_report)
+
+    def get_overall_accuracy_pct(self, obj: BatchAnalysisReport):
+        summary = obj.batch_summary if isinstance(obj.batch_summary, dict) else {}
+        return summary.get("overall_accuracy_pct")
+
+
 class BatchAnalysisReportSerializer(serializers.ModelSerializer):
     """
     Serializes a completed batch analysis report.

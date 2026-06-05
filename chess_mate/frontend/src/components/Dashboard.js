@@ -77,6 +77,45 @@ const QuickAction = ({ title, icon: Icon, description, to, color }) => {
   );
 };
 
+const LatestBatchCoachCard = ({ coach, isDarkMode }) => {
+  if (!coach?.summary) {
+    return null;
+  }
+
+  const created = coach.created_at ? formatDate(coach.created_at) : null;
+
+  return (
+    <div className={`p-4 rounded-xl mb-4 ${isDarkMode ? 'bg-indigo-950/40 border border-indigo-800' : 'bg-indigo-50 border border-indigo-200'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-indigo-200' : 'text-indigo-900'}`}>
+            Latest coach insight
+          </h3>
+          <p className={`text-xs mt-1 ${isDarkMode ? 'text-indigo-300/80' : 'text-indigo-700'}`}>
+            Batch #{coach.batch_id}
+            {coach.games_count ? ` · ${coach.games_count} games` : ''}
+            {coach.overall_accuracy_pct != null ? ` · ${Number(coach.overall_accuracy_pct).toFixed(1)}% accuracy` : ''}
+            {created ? ` · ${created}` : ''}
+          </p>
+          <p className={`text-sm mt-2 line-clamp-3 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+            {coach.summary}
+          </p>
+        </div>
+        <Link
+          to={`/batch-report/${coach.batch_id}`}
+          className={`shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg ${
+            isDarkMode
+              ? 'bg-indigo-800 text-indigo-100 hover:bg-indigo-700'
+              : 'bg-indigo-600 text-white hover:bg-indigo-700'
+          }`}
+        >
+          Open report
+        </Link>
+      </div>
+    </div>
+  );
+};
+
 const InsightCard = ({ title, insights, icon: Icon }) => {
   const { isDarkMode } = useTheme();
 
@@ -334,15 +373,21 @@ const Dashboard = () => {
               to="/fetch-games"
             />
             <QuickAction
+              title="Batch Coach"
+              description="Run a 5–30 game coaching report"
+              icon={Brain}
+              to="/batch-analysis"
+            />
+            <QuickAction
               title="Game Analysis"
               description="Review your analyzed games"
-              icon={Brain}
+              icon={BarChart}
               to="/games"
             />
             <QuickAction
               title="Performance"
               description="Check your detailed statistics"
-              icon={BarChart}
+              icon={PieChart}
               to="/profile"
             />
             <QuickAction
@@ -417,6 +462,10 @@ const Dashboard = () => {
             <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Insights
             </h2>
+            <LatestBatchCoachCard
+              coach={dashboardData?.latest_batch_coach}
+              isDarkMode={isDarkMode}
+            />
             <InsightCard
               title="Performance Insights"
               icon={PieChart}

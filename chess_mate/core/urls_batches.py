@@ -7,7 +7,7 @@ from django.urls import path
 from . import views_batches
 
 urlpatterns = [
-    path("", views_batches.batch_create_view, name="batch-create"),
+    path("", views_batches.batch_collection_view, name="batch-collection"),
     path("<int:batch_id>/status/", views_batches.batch_status_view, name="batch-status"),
     path("<int:batch_id>/report/", views_batches.batch_report_view, name="batch-report"),
     path(

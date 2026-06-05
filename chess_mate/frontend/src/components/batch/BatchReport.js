@@ -38,6 +38,7 @@ import CoachingNarrative from './CoachingNarrative';
 import TopPriorities from './TopPriorities';
 import TrainingPlan from './TrainingPlan';
 import GameAccordion from './GameAccordion';
+import FailedGamesList from './FailedGamesList';
 import { getBatchStatus, getBatchReport, regenerateBatchCoaching } from '../../services/apiRequests';
 
 const BatchReport = () => {
@@ -238,6 +239,11 @@ const BatchReport = () => {
                 </Button>
               ) : null}
             </Stack>
+            {status === 'partial' ? (
+              <FailedGamesList
+                failures={batchReport.errors || batchReport.failed_games || []}
+              />
+            ) : null}
             <BatchReportHeader
               batch_summary={batchReport.batch_summary}
               games_count={batchReport.games_count}

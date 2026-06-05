@@ -591,7 +591,18 @@ const BatchAnalysis = () => {
                   No saved reports yet. Run a batch analysis to create your first report.
                 </div>
               ) : (
-                reportHistory.map((report) => (
+                reportHistory.map((report) => {
+                  const statusLabel = report.status || 'completed';
+                  const statusColors = {
+                    completed: isDarkMode ? 'bg-green-900/40 text-green-300' : 'bg-green-100 text-green-800',
+                    partial: isDarkMode ? 'bg-amber-900/40 text-amber-300' : 'bg-amber-100 text-amber-800',
+                    failed: isDarkMode ? 'bg-red-900/40 text-red-300' : 'bg-red-100 text-red-800',
+                    in_progress: isDarkMode ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-blue-800',
+                    pending: isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700',
+                  };
+                  const statusClass = statusColors[statusLabel] || statusColors.completed;
+
+                  return (
                   <div
                     key={report.id}
                     className={`px-3 py-3 border-b last:border-b-0 ${
@@ -600,11 +611,21 @@ const BatchAnalysis = () => {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className={`text-sm font-medium truncate ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                          {report.games_count || 0} games analyzed
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className={`text-sm font-medium truncate ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                            Batch #{report.id} · {report.games_count || 0} games
+                          </div>
+                          <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${statusClass}`}>
+                            {statusLabel.replace('_', ' ')}
+                          </span>
+                          {report.overall_accuracy_pct != null && (
+                            <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              {Number(report.overall_accuracy_pct).toFixed(1)}% accuracy
+                            </span>
+                          )}
                         </div>
                         <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {report.coach_summary || 'Combined coaching report'}
+                          {report.coach_summary || 'Open report for coaching insights'}
                         </div>
                         <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                           {new Date(report.created_at).toLocaleString()}
@@ -623,7 +644,8 @@ const BatchAnalysis = () => {
                       </button>
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

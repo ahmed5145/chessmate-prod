@@ -21,7 +21,8 @@ from rest_framework.response import Response
 from .cache import cache_delete, cache_get, cache_set, generate_cache_key
 
 # Local application imports
-from .models import Game, GameAnalysis, Profile
+from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
+from .serializers_batches import _coaching_summary_snippet
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -204,6 +205,25 @@ def dashboard_view(request):
                         }
                     )
 
+        latest_batch_coach = None
+        latest_batch = (
+            BatchAnalysisReport.objects.filter(user=user, status__in=["completed", "partial"])
+            .order_by("-created_at")
+            .first()
+        )
+        if latest_batch:
+            summary_text = _coaching_summary_snippet(latest_batch.coaching_report)
+            if summary_text:
+                batch_summary = latest_batch.batch_summary if isinstance(latest_batch.batch_summary, dict) else {}
+                latest_batch_coach = {
+                    "batch_id": latest_batch.id,
+                    "created_at": latest_batch.created_at,
+                    "games_count": latest_batch.games_count,
+                    "status": latest_batch.status,
+                    "summary": summary_text,
+                    "overall_accuracy_pct": batch_summary.get("overall_accuracy_pct"),
+                }
+
         # Construct the response data
         dashboard_data = {
             "user": {
@@ -236,6 +256,7 @@ def dashboard_view(request):
             "platform_stats": platform_data,
             "analysis_insights": analysis_insights,
             "insights": analysis_insights,
+            "latest_batch_coach": latest_batch_coach,
             "openings": [],
             "performance": {
                 "overall": {
