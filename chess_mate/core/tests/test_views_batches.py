@@ -412,7 +412,7 @@ class TestBatchViews(TestCase):
             "one_thing_to_do_today": "Practice",
         }
 
-        with patch("core.views_batches.generate_coaching_report", return_value=new_coaching):
+        with patch("core.batch_coaching.generate_coaching_report", return_value=new_coaching):
             response = self.client.post(f"/api/v1/batches/{batch.id}/regenerate-coaching/")
 
         assert response.status_code == 200

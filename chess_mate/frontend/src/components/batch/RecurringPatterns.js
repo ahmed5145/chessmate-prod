@@ -64,6 +64,9 @@ const RecurringPatterns = ({ batch_summary }) => {
               >
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
                   <Chip size="small" label={item.opening_name} color="primary" variant="outlined" />
+                  {item.eco_code && (
+                    <Chip size="small" label={`ECO ${item.eco_code}`} variant="outlined" />
+                  )}
                   <Chip size="small" label={item.record || ''} variant="outlined" />
                   {item.avg_opening_score != null && (
                     <Chip

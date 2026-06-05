@@ -628,10 +628,13 @@ def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
 
         colors = [g.get("player_color", "white") for g in games]
         player_color = "black" if colors.count("black") > colors.count("white") else "white"
+        eco_codes = sorted({g.get("eco_code") for g in games if g.get("eco_code")})
 
         insights.append(
             {
                 "opening_name": opening_name,
+                "eco_code": eco_codes[0] if len(eco_codes) == 1 else None,
+                "eco_codes": eco_codes[:3],
                 "games": len(games),
                 "record": f"{wins}W-{losses}L-{draws}D",
                 "avg_opening_score": avg_opening_score,
@@ -656,6 +659,8 @@ def _compute_repertoire_gaps(opening_insights: List[Dict[str, Any]]) -> List[Dic
         gaps.append(
             {
                 "opening_name": item.get("opening_name"),
+                "eco_code": item.get("eco_code"),
+                "eco_codes": item.get("eco_codes") or [],
                 "record": item.get("record"),
                 "player_color": color,
                 "status": item.get("status"),

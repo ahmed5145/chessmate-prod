@@ -19,6 +19,7 @@ import TimeManagementInsight from './TimeManagementInsight';
 import RepertoireGaps from './RepertoireGaps';
 import StudyDrillLinks from './StudyDrillLinks';
 import './batchReportPrint.css';
+import './batchReportScreen.css';
 
 const BatchReportSections = ({
   batchReport,

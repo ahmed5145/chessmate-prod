@@ -14,6 +14,7 @@ def _make_game_result(
     opening_drop: float,
     endgame_drop: float,
     tactical_theme: str,
+    eco_code: str | None = None,
 ):
     """Create a lightweight per-game result fixture for batch aggregation tests."""
     return {
@@ -21,6 +22,7 @@ def _make_game_result(
         "result": result,
         "player_color": "white",
         "opening_name": opening_name,
+        "eco_code": eco_code,
         "analysis_failed": False,
         "phase_breakdown": {
             "opening": {
@@ -65,11 +67,11 @@ def _make_game_result(
 def test_batch_aggregator_schema_structure():
     """Test that batch aggregator produces all required fields with correct types."""
     # Use lightweight fixtures instead of engine-backed analysis to keep test deterministic.
-    clean_result = _make_game_result("clean-1", "1-0", "Italian Game", 0.18, 0.22, "pin")
-    blunder_result = _make_game_result("blunder-1", "0-1", "Sicilian Defense", 0.38, 0.70, "fork")
-    clean_result_2 = _make_game_result("clean-2", "1-0", "Italian Game", 0.12, 0.25, "pin")
-    clean_result_3 = _make_game_result("clean-3", "1/2-1/2", "French Defense", 0.20, 0.28, "hanging_piece")
-    blunder_result_2 = _make_game_result("blunder-2", "0-1", "Caro-Kann Defense", 0.42, 0.75, "fork")
+    clean_result = _make_game_result("clean-1", "1-0", "Italian Game", 0.18, 0.22, "pin", "C50")
+    blunder_result = _make_game_result("blunder-1", "0-1", "Sicilian Defense", 0.38, 0.70, "fork", "B90")
+    clean_result_2 = _make_game_result("clean-2", "1-0", "Italian Game", 0.12, 0.25, "pin", "C50")
+    clean_result_3 = _make_game_result("clean-3", "1/2-1/2", "French Defense", 0.20, 0.28, "hanging_piece", "C00")
+    blunder_result_2 = _make_game_result("blunder-2", "0-1", "Caro-Kann Defense", 0.42, 0.75, "fork", "B12")
 
     per_game_results = [
         clean_result,
@@ -101,6 +103,8 @@ def test_batch_aggregator_schema_structure():
     assert "phase_performance" in batch_summary
     assert "recurring_weaknesses" in batch_summary
     assert "opening_insights" in batch_summary
+    italian = next(i for i in batch_summary["opening_insights"] if i["opening_name"] == "Italian Game")
+    assert italian.get("eco_code") == "C50"
     assert "repertoire_gaps" in batch_summary
     assert isinstance(batch_summary["repertoire_gaps"], list)
     assert "endgame_insights" in batch_summary

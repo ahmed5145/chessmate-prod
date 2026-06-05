@@ -1,0 +1,32 @@
+/* Batch report — mobile / narrow viewport polish (screen only) */
+@media screen and (max-width: 600px) {
+  .batch-report-print-root .MuiContainer-root {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .batch-report-print-root .MuiPaper-root {
+    padding: 16px !important;
+  }
+
+  .batch-report-print-root .MuiGrid-item {
+    min-width: 0;
+  }
+
+  .batch-report-print-root .MuiTypography-h6 {
+    font-size: 1.05rem;
+  }
+
+  .batch-report-print-root img {
+    max-width: 100% !important;
+  }
+
+  .batch-report-print-root .MuiAccordionSummary-content {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .batch-report-print-root .MuiChip-root {
+    max-width: 100%;
+  }
+}

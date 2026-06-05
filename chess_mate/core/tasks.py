@@ -23,6 +23,7 @@ from openai import OpenAI, OpenAIError
 
 from .ai_feedback import AIFeedbackGenerator
 from .analysis.batch_aggregator import BatchAggregationError, aggregate_batch
+from .batch_observability import log_batch_completed, log_batch_started
 from .analysis.coaching_generator import (
     CoachingGeneratorError,
     generate_coaching_report,
@@ -1154,6 +1155,16 @@ def aggregate_and_report_task(
             batch_report.per_game_results = per_game_results
             batch_report.save(update_fields=["status", "per_game_results", "updated_at"])
             _refund_failed_batch_credits(batch_report)
+            _duration = (timezone.now() - batch_report.created_at).total_seconds()
+            log_batch_completed(
+                batch_id,
+                final_status="failed",
+                games_analyzed=successful_count,
+                games_failed=len(failed_results),
+                duration_seconds=_duration,
+                coaching_ok=False,
+                aggregation_failed=True,
+            )
 
             return {
                 "status": "failed",
@@ -1227,6 +1238,17 @@ def aggregate_and_report_task(
             batch_report.per_game_results = per_game_results
             batch_report.save(update_fields=["status", "per_game_results", "updated_at"])
             _refund_failed_batch_credits(batch_report)
+            _duration = (timezone.now() - batch_report.created_at).total_seconds()
+            log_batch_completed(
+                batch_id,
+                final_status="failed",
+                games_analyzed=successful_count,
+                games_failed=len(failed_results),
+                duration_seconds=_duration,
+                coaching_ok=False,
+                aggregation_failed=True,
+                coaching_error=str(exc),
+            )
 
             return {
                 "status": "failed",
@@ -1236,6 +1258,7 @@ def aggregate_and_report_task(
 
         # Generate coaching report using OpenAI
         coaching_report = None
+        coaching_error = None
         try:
             # Extract player_rating from batch_summary (derived from game ELOs)
             player_rating = batch_summary.get("player_rating")
@@ -1249,7 +1272,8 @@ def aggregate_and_report_task(
         except CoachingGeneratorError as exc:
             # Degraded mode: coaching failure doesn't fail the entire batch
             # Save what we have (batch_summary + per_game_results) and mark as partial
-            logger.warning(f"Batch {batch_id}: coaching generation failed (degraded mode): {str(exc)}")
+            coaching_error = str(exc)
+            logger.warning(f"Batch {batch_id}: coaching generation failed (degraded mode): {coaching_error}")
             coaching_report = None
             final_status = "partial"
 
@@ -1284,6 +1308,16 @@ def aggregate_and_report_task(
         )
 
         logger.info(f"Batch {batch_id} completed with status {final_status}")
+        _duration = (timezone.now() - batch_report.created_at).total_seconds()
+        log_batch_completed(
+            batch_id,
+            final_status=final_status,
+            games_analyzed=successful_count,
+            games_failed=len(failed_results),
+            duration_seconds=_duration,
+            coaching_ok=coaching_report is not None,
+            coaching_error=coaching_error,
+        )
 
         if getattr(settings, "BATCH_SEND_COMPLETE_EMAIL", True) and final_status in (
             "completed",
@@ -1386,6 +1420,7 @@ def analyze_batch_task(
         elif not batch_report.game_ids:
             batch_report.game_ids = [None] * len(game_pgn_list)
         batch_report.save(update_fields=["status", "games_count", "game_ids", "updated_at"])
+        log_batch_started(batch_id, user_id, len(game_pgn_list))
     except Exception as exc:
         logger.error(f"Failed to create/update batch report for {batch_id}: {str(exc)}")
 

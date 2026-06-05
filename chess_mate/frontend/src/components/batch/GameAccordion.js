@@ -89,11 +89,13 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
 
         const gameAccuracy = game.accuracy;
 
+        const shouldExpand = index === 0 || criticalMoments.length > 0;
+
         return (
           <Accordion
             id={game.game_id ? `batch-game-${game.game_id}` : undefined}
             key={game.game_id || index}
-            defaultExpanded={index === 0}
+            defaultExpanded={shouldExpand}
             sx={{ mb: 2 }}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>

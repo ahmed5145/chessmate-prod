@@ -221,12 +221,14 @@ def build_game_result(
 
     # Extract opening name from ECO header tag (present in chess.com/lichess imports)
     opening_name = "Unknown"
+    eco_code = None
     try:
         pgn_io = io.StringIO(pgn)
         pgn_game = chess.pgn.read_game(pgn_io)
         if pgn_game:
-            eco_code = pgn_game.headers.get("ECO", "")
-            if eco_code:
+            raw_eco = (pgn_game.headers.get("ECO") or "").strip().upper()
+            if raw_eco:
+                eco_code = raw_eco[:3]
                 opening_name = get_opening_name(eco_code) or "Unknown"
     except Exception:
         pass
@@ -425,6 +427,7 @@ def build_game_result(
         "result": "",
         "player_color": "white",
         "opening_name": opening_name,
+        "eco_code": eco_code,
         "opening_accuracy": opening_accuracy,
         "acpl": compute_game_acpl(analyzed_moves),
         "phase_breakdown": phase_breakdown,

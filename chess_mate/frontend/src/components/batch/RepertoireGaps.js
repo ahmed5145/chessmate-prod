@@ -50,6 +50,9 @@ const RepertoireGaps = ({ batch_summary }) => {
           >
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
               <Chip size="small" label={gap.opening_name} color="error" variant="outlined" />
+              {gap.eco_code && (
+                <Chip size="small" label={`ECO ${gap.eco_code}`} variant="outlined" />
+              )}
               {gap.player_color && (
                 <Chip size="small" label={`as ${gap.player_color}`} variant="outlined" />
               )}

@@ -12,11 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .analysis.coaching_generator import CoachingGeneratorError, generate_coaching_report
-from .analysis.per_game_coach_generator import (
-    attach_coach_notes_to_results,
-    generate_per_game_coach_notes,
-)
+from .batch_coaching import regenerate_batch_coaching
 from .models import BatchAnalysisReport, Profile
 from .serializers_batches import (
     BatchAnalysisReportSerializer,
@@ -277,45 +273,14 @@ def batch_regenerate_coaching_view(request, batch_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    batch_summary = batch_report.batch_summary
-    per_game_results = batch_report.per_game_results or []
-    if not batch_summary or len(per_game_results) < 5:
-        return Response(
-            {"detail": "Insufficient saved analysis data to regenerate coaching."},
-            status=status.HTTP_400_BAD_REQUEST,
+    ok, message = regenerate_batch_coaching(batch_report)
+    if not ok:
+        status_code = (
+            status.HTTP_400_BAD_REQUEST
+            if "Insufficient" in message or "must finish" in message
+            else status.HTTP_503_SERVICE_UNAVAILABLE
         )
-
-    try:
-        coaching_report = generate_coaching_report(
-            batch_summary,
-            per_game_results,
-            player_rating=batch_summary.get("player_rating"),
-        )
-    except CoachingGeneratorError as exc:
-        logger.warning("Coaching regeneration failed for batch %s: %s", batch_id, exc)
-        return Response(
-            {"detail": "Coaching regeneration failed. Please try again later."},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
-        )
-
-    per_game_results = list(per_game_results)
-    try:
-        coach_notes = generate_per_game_coach_notes(
-            per_game_results,
-            player_rating=batch_summary.get("player_rating"),
-        )
-        per_game_results = attach_coach_notes_to_results(per_game_results, coach_notes)
-        batch_report.per_game_results = per_game_results
-    except Exception as exc:
-        logger.warning("Per-game coach note regeneration failed for batch %s: %s", batch_id, exc)
-
-    batch_report.coaching_report = coaching_report
-    update_fields = ["coaching_report", "per_game_results", "updated_at"]
-    failed_list = batch_report.failed_games or []
-    if batch_report.status == "partial" and not failed_list:
-        batch_report.status = "completed"
-        update_fields.append("status")
-    batch_report.save(update_fields=update_fields)
+        return Response({"detail": message}, status=status_code)
 
     serializer = BatchAnalysisReportSerializer(batch_report)
     return Response(serializer.data, status=status.HTTP_200_OK)
