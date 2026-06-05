@@ -110,6 +110,7 @@ def test_batch_aggregator_schema_structure():
     assert "top_critical_moments" in batch_summary
     assert isinstance(batch_summary["top_critical_moments"], list)
     assert len(batch_summary["top_critical_moments"]) <= 3
+    assert "time_management_summary" in batch_summary
 
     # Verify field types
     assert isinstance(batch_summary["games_analyzed"], int)

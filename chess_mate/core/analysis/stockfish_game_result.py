@@ -23,6 +23,7 @@ from .batch_move_classification import (
     classify_deterioration,
     player_eval_deterioration,
 )
+from .batch_pgn_time import compute_time_management_from_pgn
 from .moment_insights import classify_endgame_material, classify_tactical_theme
 from .explanation_templates import get_explanation
 from .metrics_calculator import MetricsCalculator
@@ -483,5 +484,20 @@ def build_game_result(
 
     if saved_game_id is not None:
         result["saved_game_id"] = saved_game_id
+
+    critical_move_numbers = [
+        int(m.get("move_number"))
+        for m in critical_moments
+        if m.get("move_number") is not None
+    ]
+    time_management = compute_time_management_from_pgn(
+        pgn,
+        player_color,
+        opening_end,
+        endgame_start,
+        critical_move_numbers=critical_move_numbers,
+    )
+    if time_management.get("has_clock_data"):
+        result["time_management"] = time_management
 
     return result

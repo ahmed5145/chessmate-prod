@@ -9,20 +9,36 @@ from django.conf import settings
 from django.db import transaction
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .analysis.coaching_generator import CoachingGeneratorError, generate_coaching_report
+from .analysis.per_game_coach_generator import (
+    attach_coach_notes_to_results,
+    generate_per_game_coach_notes,
+)
 from .models import BatchAnalysisReport, Profile
 from .serializers_batches import (
     BatchAnalysisReportSerializer,
     BatchCreateSerializer,
     BatchListItemSerializer,
+    BatchPublicReportSerializer,
     BatchStatusSerializer,
 )
 from .tasks import analyze_batch_task
 
 logger = logging.getLogger(__name__)
+
+
+def _build_share_url(request, share_token) -> str:
+    path = f"/share/batch/{share_token}"
+    frontend_base = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+    if frontend_base:
+        return f"{frontend_base}{path}"
+    try:
+        return request.build_absolute_uri(path)
+    except Exception:
+        return path
 
 
 @api_view(["GET", "POST"])
@@ -282,8 +298,19 @@ def batch_regenerate_coaching_view(request, batch_id):
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
+    per_game_results = list(per_game_results)
+    try:
+        coach_notes = generate_per_game_coach_notes(
+            per_game_results,
+            player_rating=batch_summary.get("player_rating"),
+        )
+        per_game_results = attach_coach_notes_to_results(per_game_results, coach_notes)
+        batch_report.per_game_results = per_game_results
+    except Exception as exc:
+        logger.warning("Per-game coach note regeneration failed for batch %s: %s", batch_id, exc)
+
     batch_report.coaching_report = coaching_report
-    update_fields = ["coaching_report", "updated_at"]
+    update_fields = ["coaching_report", "per_game_results", "updated_at"]
     failed_list = batch_report.failed_games or []
     if batch_report.status == "partial" and not failed_list:
         batch_report.status = "completed"
@@ -384,3 +411,62 @@ def batch_compare_view(request, batch_id):
         },
         status=status.HTTP_200_OK,
     )
+
+
+@api_view(["POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+def batch_share_view(request, batch_id):
+    """
+    POST /api/v1/batches/{batch_id}/share/ — enable link sharing.
+    DELETE — revoke the public link.
+    """
+    try:
+        batch_report = BatchAnalysisReport.objects.get(id=batch_id, user=request.user)
+    except BatchAnalysisReport.DoesNotExist:
+        return Response({"detail": "Batch not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if batch_report.status not in ("completed", "partial"):
+        return Response(
+            {"detail": "Only completed batch reports can be shared."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if request.method == "DELETE":
+        batch_report.share_token = None
+        batch_report.save(update_fields=["share_token", "updated_at"])
+        return Response({"shared": False}, status=status.HTTP_200_OK)
+
+    if not batch_report.share_token:
+        batch_report.share_token = uuid.uuid4()
+        batch_report.save(update_fields=["share_token", "updated_at"])
+
+    share_url = _build_share_url(request, batch_report.share_token)
+    return Response(
+        {
+            "shared": True,
+            "share_token": str(batch_report.share_token),
+            "share_url": share_url,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def batch_public_report_view(request, share_token):
+    """
+    GET /api/v1/batches/public/{share_token}/report/
+
+    Anonymous read-only view of a shared batch report.
+    """
+    try:
+        batch_report = BatchAnalysisReport.objects.get(
+            share_token=share_token,
+            status__in=["completed", "partial"],
+        )
+    except BatchAnalysisReport.DoesNotExist:
+        return Response({"detail": "Shared report not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    payload = BatchPublicReportSerializer.from_batch_report(batch_report)
+    serializer = BatchPublicReportSerializer(payload)
+    return Response(serializer.data, status=status.HTTP_200_OK)

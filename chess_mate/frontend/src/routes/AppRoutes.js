@@ -15,6 +15,7 @@ import BatchAnalysis from '../components/BatchAnalysis';
 import BatchLegacyRedirect from '../components/BatchLegacyRedirect';
 import BatchUpload from '../components/batch/BatchUpload';
 import BatchReport from '../components/batch/BatchReport';
+import BatchSharedReport from '../components/batch/BatchSharedReport';
 import FetchGames from '../components/FetchGames';
 import PaymentSuccess from '../components/PaymentSuccess';
 import PaymentCancel from '../components/PaymentCancel';
@@ -45,6 +46,7 @@ const AppRoutes = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/reset-password-success" element={<ResetPasswordSuccess />} />
       <Route path="/reset-password-failed" element={<ResetPasswordFailed />} />
+      <Route path="/share/batch/:shareToken" element={<BatchSharedReport />} />
 
       {/* Protected routes */}
       <Route

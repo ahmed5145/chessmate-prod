@@ -1,51 +1,20 @@
 /**
- * BatchReport.js
- *
- * Page that polls batch status, loads the final report, and renders the
- * analysis sections in the approved order.
- *
- * Route params:
- *   - batchId: string
- *
- * State:
- *   - batchReport: object | null
- *   - status: string
- *   - progress: string
- *   - completedGames: number
- *   - totalGames: number
- *   - error: string | null
- *
- * Pure page component with polling side effects only.
+ * BatchReport.js — poll status, load report, share + print actions.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import {
-  Alert,
-  Box,
-  Button,
-  Container,
-  Stack,
-  Typography
-} from '@mui/material';
+import { Alert, Box, Container } from '@mui/material';
 import BatchLoadingScreen from './BatchLoadingScreen';
-import BatchReportHeader from './BatchReportHeader';
-import ExecutiveSummary from './ExecutiveSummary';
-import PhaseBreakdown from './PhaseBreakdown';
-import RecurringPatterns from './RecurringPatterns';
-import CoachingNarrative from './CoachingNarrative';
-import TopPriorities from './TopPriorities';
-import TrainingPlan from './TrainingPlan';
-import GameAccordion from './GameAccordion';
-import FailedGamesList from './FailedGamesList';
-import TopCriticalMoments from './TopCriticalMoments';
-import BatchCompareCard from './BatchCompareCard';
+import BatchReportActions from './BatchReportActions';
+import BatchReportSections from './BatchReportSections';
 import { getBatchStatus, getBatchReport, regenerateBatchCoaching } from '../../services/apiRequests';
 
 const BatchReport = () => {
   const { batchId } = useParams();
   const [batchReport, setBatchReport] = useState(null);
+  const [shareToken, setShareToken] = useState(null);
   const [status, setStatus] = useState('pending');
   const [progress, setProgress] = useState('');
   const [completedGames, setCompletedGames] = useState(0);
@@ -87,6 +56,7 @@ const BatchReport = () => {
         } else {
           setFailedReport(null);
           setBatchReport(report);
+          setShareToken(report?.share_token || null);
         }
       } catch (reportError) {
         if (!isMounted) {
@@ -173,6 +143,7 @@ const BatchReport = () => {
     try {
       const updated = await regenerateBatchCoaching(batchId);
       setBatchReport(updated);
+      setShareToken(updated?.share_token || shareToken);
       setStatus(updated?.status || status);
       toast.success('Coaching report updated.');
     } catch (regenError) {
@@ -186,12 +157,14 @@ const BatchReport = () => {
 
   return (
     <Box sx={{ minHeight: '100vh' }}>
-      <BatchLoadingScreen
-        status={status}
-        progress={progress}
-        completed_games={completedGames}
-        total_games={totalGames}
-      />
+      <Box className="batch-report-no-print">
+        <BatchLoadingScreen
+          status={status}
+          progress={progress}
+          completed_games={completedGames}
+          total_games={totalGames}
+        />
+      </Box>
 
       <Container maxWidth="lg" sx={{ py: 4 }}>
         {error ? (
@@ -217,52 +190,23 @@ const BatchReport = () => {
         ) : null}
 
         {showReport ? (
-          <Box sx={{ display: 'grid', gap: 2 }}>
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              alignItems={{ xs: 'stretch', sm: 'center' }}
-              justifyContent="space-between"
-              spacing={1}
-              sx={{ px: { xs: 0, sm: 1 } }}
-            >
-              <Typography variant="body2" color="text.secondary">
-                {batchReport.coaching_report
-                  ? 'Coaching is AI-generated from your engine analysis.'
-                  : 'Coaching unavailable — regenerate to try again.'}
-              </Typography>
-              {canRegenerate ? (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  disabled={regenerating}
-                  onClick={handleRegenerateCoaching}
-                >
-                  {regenerating ? 'Regenerating…' : 'Regenerate coaching'}
-                </Button>
-              ) : null}
-            </Stack>
-            {status === 'partial' ? (
-              <FailedGamesList
-                failures={batchReport.errors || batchReport.failed_games || []}
-              />
-            ) : null}
-            <BatchReportHeader
-              batch_summary={batchReport.batch_summary}
-              games_count={batchReport.games_count}
+          <>
+            <BatchReportActions
+              batchId={batchId}
+              shareToken={shareToken}
+              onShareTokenChange={setShareToken}
+              canRegenerate={canRegenerate}
+              regenerating={regenerating}
+              onRegenerateCoaching={handleRegenerateCoaching}
+              hasCoaching={Boolean(batchReport.coaching_report)}
             />
-            <BatchCompareCard batchId={batchId} />
-            <TopCriticalMoments
-              batch_summary={batchReport.batch_summary}
-              per_game_results={batchReport.per_game_results}
+            <BatchReportSections
+              batchReport={batchReport}
+              status={status}
+              batchId={batchId}
+              readOnly={false}
             />
-            <ExecutiveSummary coaching_report={batchReport.coaching_report} />
-            <PhaseBreakdown batch_summary={batchReport.batch_summary} />
-            <RecurringPatterns batch_summary={batchReport.batch_summary} />
-            <CoachingNarrative coaching_report={batchReport.coaching_report} />
-            <TopPriorities coaching_report={batchReport.coaching_report} />
-            <TrainingPlan coaching_report={batchReport.coaching_report} />
-            <GameAccordion per_game_results={batchReport.per_game_results} />
-          </Box>
+          </>
         ) : null}
       </Container>
     </Box>

@@ -2,6 +2,7 @@
 Tests for batch analysis views (PRD section 11, Step 9).
 """
 
+import uuid
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -98,6 +99,53 @@ class TestBatchViews(TestCase):
         assert "hanging_piece" in response.data["weaknesses"]["persisting"]
         assert "fork" in response.data["weaknesses"]["new"]
         assert response.data["metrics"]["overall_accuracy_pct_delta"] == 5.0
+
+    def test_post_batch_share_enables_public_link(self):
+        batch = BatchAnalysisReport.objects.create(
+            user=self.user,
+            task_id="share-task",
+            status="completed",
+            games_count=5,
+            batch_summary={"games_analyzed": 5},
+            per_game_results=[{"game_id": "game_0", "saved_game_id": 99}],
+            coaching_report={"executive_summary": "Test"},
+        )
+
+        response = self.client.post(f"/api/v1/batches/{batch.id}/share/")
+        assert response.status_code == 200
+        assert response.data["shared"] is True
+        assert response.data["share_token"]
+
+        batch.refresh_from_db()
+        assert batch.share_token is not None
+
+        client = APIClient()
+        public = client.get(f"/api/v1/batches/public/{batch.share_token}/report/")
+        assert public.status_code == 200
+        assert public.data["games_count"] == 5
+        assert public.data["per_game_results"][0].get("saved_game_id") is None
+
+    def test_delete_batch_share_revokes_link(self):
+        token = uuid.uuid4()
+        batch = BatchAnalysisReport.objects.create(
+            user=self.user,
+            task_id="revoke-task",
+            status="completed",
+            games_count=5,
+            share_token=token,
+            batch_summary={"games_analyzed": 5},
+            per_game_results=[],
+        )
+
+        response = self.client.delete(f"/api/v1/batches/{batch.id}/share/")
+        assert response.status_code == 200
+
+        batch.refresh_from_db()
+        assert batch.share_token is None
+
+        client = APIClient()
+        public = client.get(f"/api/v1/batches/public/{token}/report/")
+        assert public.status_code == 404
 
     def test_get_batch_list_requires_auth(self):
         client = APIClient()

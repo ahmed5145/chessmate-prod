@@ -118,6 +118,7 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
     worst_phase, best_phase, all_phases_solid = _find_phase_extremes(phase_performance)
 
     top_critical_moments = _top_critical_moments(per_game_results, limit=3)
+    time_management_summary = _compute_time_management_summary(per_game_results)
 
     result = {
         "games_analyzed": games_analyzed,
@@ -138,9 +139,66 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
         "best_phase": best_phase,
         "all_phases_solid": all_phases_solid,
         "top_critical_moments": top_critical_moments,
+        "time_management_summary": time_management_summary,
     }
 
     return result
+
+
+def _compute_time_management_summary(
+    per_game_results: List[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """Batch-level clock pattern when enough games include PGN clock data."""
+    if not per_game_results:
+        return None
+
+    timed_games = [
+        result
+        for result in per_game_results
+        if isinstance(result.get("time_management"), dict)
+        and result["time_management"].get("has_clock_data")
+    ]
+    if len(timed_games) < max(2, int(len(per_game_results) * 0.3)):
+        return None
+
+    avg_per_move_values = [
+        float(result["time_management"]["avg_seconds_per_move"])
+        for result in timed_games
+        if result["time_management"].get("avg_seconds_per_move") is not None
+    ]
+    rushed_critical_total = sum(
+        int(result["time_management"].get("rushed_critical_count") or 0) for result in timed_games
+    )
+    low_endgame_games = sum(
+        1 for result in timed_games if result["time_management"].get("pattern") == "low_endgame_time"
+    )
+
+    pattern = None
+    insight = None
+    if rushed_critical_total >= max(2, len(timed_games) // 2):
+        pattern = "rushed_critical_moments"
+        insight = (
+            "You often used very little time right before big eval swings. "
+            "Pause on candidate moves when the position is tactically sharp."
+        )
+    elif low_endgame_games >= max(2, len(timed_games) // 3):
+        pattern = "low_endgame_time"
+        insight = (
+            "Endgame phases show much less time per move than the opening. "
+            "Budget clock for conversion and defensive resources in the endgame."
+        )
+    elif avg_per_move_values:
+        batch_avg = sum(avg_per_move_values) / len(avg_per_move_values)
+        pattern = "clock_data_available"
+        insight = f"Average think time across timed games: {batch_avg:.1f}s per move."
+
+    return {
+        "games_with_clock_data": len(timed_games),
+        "games_analyzed": len(per_game_results),
+        "rushed_critical_total": rushed_critical_total,
+        "pattern": pattern,
+        "insight": insight,
+    }
 
 
 def _top_critical_moments(per_game_results: List[Dict[str, Any]], limit: int = 3) -> List[Dict[str, Any]]:

@@ -28,7 +28,7 @@ const scrollToGame = (gameId) => {
   }
 };
 
-const TopCriticalMoments = ({ batch_summary, per_game_results }) => {
+const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false }) => {
   let moments = Array.isArray(batch_summary?.top_critical_moments)
     ? batch_summary.top_critical_moments
     : [];
@@ -98,7 +98,7 @@ const TopCriticalMoments = ({ batch_summary, per_game_results }) => {
                     View in breakdown
                   </Link>
                 ) : null}
-                {moment.saved_game_id ? (
+                {!readOnly && moment.saved_game_id ? (
                   <Link
                     component={RouterLink}
                     to={`/game/${moment.saved_game_id}/analysis`}

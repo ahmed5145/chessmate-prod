@@ -247,6 +247,44 @@ class BatchListItemSerializer(serializers.ModelSerializer):
         return summary.get("overall_accuracy_pct")
 
 
+def sanitize_per_game_results_for_public(
+    per_game_results: List[Dict[str, Any]] | None,
+) -> List[Dict[str, Any]]:
+    """Strip private links/ids from per-game payloads for anonymous viewers."""
+    if not isinstance(per_game_results, list):
+        return []
+    sanitized = []
+    for game in per_game_results:
+        if not isinstance(game, dict):
+            continue
+        row = dict(game)
+        row.pop("saved_game_id", None)
+        sanitized.append(row)
+    return sanitized
+
+
+class BatchPublicReportSerializer(serializers.Serializer):
+    """Read-only public batch report (no auth)."""
+
+    status = serializers.CharField()
+    games_count = serializers.IntegerField()
+    batch_summary = serializers.JSONField()
+    per_game_results = serializers.JSONField()
+    coaching_report = serializers.JSONField(allow_null=True)
+    created_at = serializers.DateTimeField()
+
+    @classmethod
+    def from_batch_report(cls, batch_report: BatchAnalysisReport) -> Dict[str, Any]:
+        return {
+            "status": batch_report.status,
+            "games_count": batch_report.games_count,
+            "batch_summary": batch_report.batch_summary or {},
+            "per_game_results": sanitize_per_game_results_for_public(batch_report.per_game_results),
+            "coaching_report": batch_report.coaching_report,
+            "created_at": batch_report.created_at,
+        }
+
+
 class BatchAnalysisReportSerializer(serializers.ModelSerializer):
     """
     Serializes a completed batch analysis report.
@@ -268,6 +306,7 @@ class BatchAnalysisReportSerializer(serializers.ModelSerializer):
             "coaching_report",
             "failed_games",
             "errors",
+            "share_token",
             "created_at",
             "updated_at",
         ]

@@ -906,6 +906,7 @@ class BatchAnalysisReport(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     credits_charged = models.PositiveIntegerField(default=0)
     credits_refunded = models.BooleanField(default=False)
+    share_token = models.UUIDField(null=True, blank=True, unique=True, db_index=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

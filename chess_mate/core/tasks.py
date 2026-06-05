@@ -27,6 +27,10 @@ from .analysis.coaching_generator import (
     CoachingGeneratorError,
     generate_coaching_report,
 )
+from .analysis.per_game_coach_generator import (
+    attach_coach_notes_to_results,
+    generate_per_game_coach_notes,
+)
 from .analysis.metrics_calculator import MetricsError
 from .analysis.stockfish_game_result import build_game_result
 from .cache import cache_delete, cache_get, cache_set, cacheable
@@ -1248,6 +1252,15 @@ def aggregate_and_report_task(
             logger.warning(f"Batch {batch_id}: coaching generation failed (degraded mode): {str(exc)}")
             coaching_report = None
             final_status = "partial"
+
+        try:
+            coach_notes = generate_per_game_coach_notes(
+                per_game_results,
+                player_rating=batch_summary.get("player_rating"),
+            )
+            per_game_results = attach_coach_notes_to_results(per_game_results, coach_notes)
+        except Exception as exc:
+            logger.warning("Batch %s: per-game coach notes failed: %s", batch_id, exc)
 
         # Persist to BatchAnalysisReport
         batch_report.batch_summary = batch_summary

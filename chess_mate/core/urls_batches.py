@@ -8,6 +8,12 @@ from . import views_batches
 
 urlpatterns = [
     path("", views_batches.batch_collection_view, name="batch-collection"),
+    path(
+        "public/<uuid:share_token>/report/",
+        views_batches.batch_public_report_view,
+        name="batch-public-report",
+    ),
+    path("<int:batch_id>/share/", views_batches.batch_share_view, name="batch-share"),
     path("<int:batch_id>/status/", views_batches.batch_status_view, name="batch-status"),
     path("<int:batch_id>/report/", views_batches.batch_report_view, name="batch-report"),
     path(

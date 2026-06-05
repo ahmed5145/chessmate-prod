@@ -1,0 +1,23 @@
+@media print {
+  .batch-report-no-print {
+    display: none !important;
+  }
+
+  .batch-report-print-root .MuiAccordion-root {
+    break-inside: avoid;
+  }
+
+  .batch-report-print-root .MuiAccordionDetails-root {
+    display: block !important;
+  }
+
+  .batch-report-print-root .MuiCollapse-root {
+    height: auto !important;
+    visibility: visible !important;
+  }
+
+  .batch-report-print-root .MuiCollapse-hidden {
+    height: auto !important;
+    visibility: visible !important;
+  }
+}

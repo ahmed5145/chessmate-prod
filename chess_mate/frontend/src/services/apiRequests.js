@@ -724,6 +724,45 @@ export const getBatchStatus = async (batchId) => {
 /**
  * GET /api/v1/batches/{batchId}/compare/?other=<id|previous>
  */
+/**
+ * POST /api/v1/batches/{batchId}/share/
+ */
+export const enableBatchShare = async (batchId) => {
+    try {
+        const response = await api.post(`/api/v1/batches/${batchId}/share/`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error('Failed to enable batch sharing');
+    }
+};
+
+/**
+ * DELETE /api/v1/batches/{batchId}/share/
+ */
+export const revokeBatchShare = async (batchId) => {
+    try {
+        const response = await api.delete(`/api/v1/batches/${batchId}/share/`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error('Failed to revoke batch sharing');
+    }
+};
+
+/**
+ * GET /api/v1/batches/public/{shareToken}/report/ (no auth)
+ */
+export const getPublicBatchReport = async (shareToken) => {
+    try {
+        const { default: axios } = await import('axios');
+        const { API_URL } = await import('../config');
+        const base = (API_URL || '').replace(/\/$/, '');
+        const response = await axios.get(`${base}/api/v1/batches/public/${shareToken}/report/`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error('Shared report not found');
+    }
+};
+
 export const fetchBatchCompare = async (batchId, other = 'previous') => {
     try {
         const response = await api.get(`/api/v1/batches/${batchId}/compare/`, {

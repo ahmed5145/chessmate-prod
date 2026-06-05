@@ -18,7 +18,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FenBoardImage from './FenBoardImage';
 
-const GameAccordion = ({ per_game_results }) => {
+const GameAccordion = ({ per_game_results, readOnly = false }) => {
   if (!per_game_results || !Array.isArray(per_game_results) || per_game_results.length === 0) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -131,7 +131,7 @@ const GameAccordion = ({ per_game_results }) => {
                     variant="outlined"
                   />
                 )}
-                {game.saved_game_id ? (
+                {!readOnly && game.saved_game_id ? (
                   <Link
                     component={RouterLink}
                     to={`/game/${game.saved_game_id}/analysis`}
@@ -150,6 +150,32 @@ const GameAccordion = ({ per_game_results }) => {
 
             <AccordionDetails>
               <Box sx={{ display: 'grid', gap: 2 }}>
+                {game.coach_note ? (
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: 'action.hover',
+                      border: '1px solid',
+                      borderColor: 'divider'
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Coach note (worst moment)
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {game.coach_note}
+                    </Typography>
+                  </Box>
+                ) : null}
+                {game.time_management?.has_clock_data ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Clock: {game.time_management.avg_seconds_per_move}s avg per move
+                    {game.time_management.rushed_critical_count
+                      ? ` · ${game.time_management.rushed_critical_count} rushed critical move(s)`
+                      : ''}
+                  </Typography>
+                ) : null}
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
                     Move quality
