@@ -18,12 +18,14 @@ const BatchLegacyRedirect = () => {
     }
 
     if (/^\d+$/.test(String(raw))) {
-      navigate(`/batch-report/${raw}`, { replace: true });
+      const target = `/batch-report/${raw}`;
+      // Hard navigation avoids SPA catch-all sending users to /dashboard on stale bundles.
+      window.location.replace(target);
       return;
     }
 
     toast.error('This report link is outdated. Open your report from Batch Analysis history.');
-    navigate('/batch-analysis', { replace: true });
+    window.location.replace('/batch-analysis');
   }, [raw, navigate]);
 
   return (

@@ -126,9 +126,11 @@ python manage.py showmigrations core
 
 Delete the “My IP on 5432” rule when finished.
 
-### What you already confirmed
+### Important — did you hit prod or local?
 
-Your local run showed all core migrations through **0023** with `[X]` — **prod DB is up to date** for credit-refund columns.
+`REM set DB_HOST...` does **not** set variables. If you skipped Step 2 (pasting real `DB_HOST`, `DB_PASSWORD`, etc. from EB), Django used your **local** `.env` / default database — not production.
+
+To verify **production**, you must paste the four values from EB **Configuration → Software**, open RDS **5432 from My IP**, then run `showmigrations`. When `[X] 0023_batchanalysisreport_credits` appears with prod credentials, prod is migrated.
 
 ### Optional — EB instance (only if RDS from PC is blocked)
 

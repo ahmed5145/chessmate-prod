@@ -111,7 +111,7 @@ Expand AI **only where it synthesizes engine facts** — never to invent moves o
 | Metric | Formula (current code) | User-facing label | Trust level |
 |--------|------------------------|-------------------|-------------|
 | `overall_eval_stability` | Weighted avg of `(1 - avg_eval_drop)` per phase move | “Overall eval stability” | **Medium** — internal score, not Chess.com accuracy |
-| `overall_acpl` | Mean centipawn loss per half-move (player moves) | “Average ACPL” | **Medium** — comparable to common site metrics when M1 eval chain is correct |
+| `overall_acpl` | Mean centipawn loss per half-move (player moves) | *(internal only until M5)* | **Medium** — not shown to users; M5 ships Chess.com-style accuracy % instead |
 | `overall_accuracy` | Alias of `overall_eval_stability` | Deprecated | — |
 | Phase `score` | `1 - avg_eval_drop` for moves in phase | “Opening 87%” | **Medium** — drops are pawn-scale, not normalized ACPL |
 | `opening_accuracy` (per game) | % opening moves in engine top-3 | Rarely shown in batch UI | **Low–medium** — depends on `best_line` quality |
@@ -137,8 +137,14 @@ Expand AI **only where it synthesizes engine facts** — never to invent moves o
 | M2 | Unify batch classification with documented thresholds | `batch_move_classification.py` single source of truth | **Done** |
 | M3 | Player-relative W/L in `batch_summary` | `test_count_results_from_player_perspective` | **Done** — `_count_results` uses `_player_outcome` |
 | M4 | Rename UI labels away from “accuracy” where not ACPL | Batch report: “eval stability”, disclaimers on phase section | **Done** — batch UI components |
-| M5 | Optional: ACPL or Chess.com-style accuracy as separate field | Correlates ±10% with external tool on sample set |
-| M6 | Phase boundary sanity (min moves per phase or merge) | No middlegame with 1 move unless game length ≤ 12 |
+| M5 | **Chess.com-style accuracy** in UI (replace ACPL for users) | Header + phases show “Accuracy %” users recognize; ACPL kept internal only; correlate ±10% with external tool on sample |
+| M6 | Phase boundary sanity (min moves per phase or merge) | No move 13 labeled “endgame” with 25 endgame moves; no 1-move middlegame unless game ≤ 12 moves |
+| M7 | Tactical theme dedup / threshold | Same theme on 5/5 games only when justified; cap recurring tactical themes at 2 |
+| M8 | Priority → game accordion links | Click priority scrolls/highlights `game_X` in breakdown |
+| M9 | Batch vs per-game metric tooltips | Header “eval stability” explains batch-wide average vs accordion per-game scores |
+| M7 | Tactical theme dedup / threshold | Not `missed_tactic` + `hanging_piece` on 5/5 games unless truly universal; cap repetitive chips |
+| M8 | Priority → game accordion links | Click priority scrolls/highlights `game_X` in breakdown |
+| M9 | Batch vs per-game metric tooltips | Explain batch header % is weighted across games; accordion is per-game |
 
 ---
 
@@ -251,7 +257,7 @@ See `core/analysis/coaching_schema.py`. No extra keys without schema version bum
 
 **Vertical**
 
-- [ ] Regenerate coaching only (API + UI)
+- [x] Regenerate coaching only (API + UI) — `POST /api/v1/batches/{id}/regenerate-coaching/`
 - [ ] Per-game coach blurb (AI) on worst moment — cached
 - [ ] FEN mini-board or static diagram for top 3 moments
 - [ ] Time management in batch (when PGN clocks exist)
@@ -263,7 +269,7 @@ See `core/analysis/coaching_schema.py`. No extra keys without schema version bum
 - [x] Email on batch complete
 - [ ] Dashboard “latest coach insight” from last batch
 - [ ] Export PDF / share read-only link
-- [ ] ACPL or secondary accuracy metric (M5)
+- [ ] Chess.com-style accuracy metric (M5) — **not** raw ACPL in UI
 
 ### P3 — Moat widening (10–16 weeks)
 

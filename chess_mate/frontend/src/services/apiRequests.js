@@ -701,6 +701,30 @@ export const getBatchStatus = async (batchId) => {
  *   message: "Analysis failed — insufficient games succeeded"
  * }
  */
+/**
+ * Regenerate coaching narrative only (reuses saved Stockfish analysis).
+ *
+ * POST /api/v1/batches/{batchId}/regenerate-coaching/
+ */
+export const regenerateBatchCoaching = async (batchId) => {
+    try {
+        if (!batchId) {
+            throw new Error('Batch ID is required');
+        }
+
+        const response = await api.post(`/api/v1/batches/${batchId}/regenerate-coaching/`);
+
+        if (!response.data) {
+            throw new Error('Invalid response from server');
+        }
+
+        return response.data;
+    } catch (error) {
+        console.error('Error regenerating batch coaching:', error);
+        throw error.response?.data || new Error('Failed to regenerate coaching');
+    }
+};
+
 export const getBatchReport = async (batchId) => {
     try {
         if (!batchId) {

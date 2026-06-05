@@ -20,10 +20,14 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import {
   Alert,
   Box,
-  Container
+  Button,
+  Container,
+  Stack,
+  Typography
 } from '@mui/material';
 import BatchLoadingScreen from './BatchLoadingScreen';
 import BatchReportHeader from './BatchReportHeader';
@@ -34,7 +38,7 @@ import CoachingNarrative from './CoachingNarrative';
 import TopPriorities from './TopPriorities';
 import TrainingPlan from './TrainingPlan';
 import GameAccordion from './GameAccordion';
-import { getBatchStatus, getBatchReport } from '../../services/apiRequests';
+import { getBatchStatus, getBatchReport, regenerateBatchCoaching } from '../../services/apiRequests';
 
 const BatchReport = () => {
   const { batchId } = useParams();
@@ -45,6 +49,7 @@ const BatchReport = () => {
   const [totalGames, setTotalGames] = useState(0);
   const [error, setError] = useState(null);
   const [failedReport, setFailedReport] = useState(null);
+  const [regenerating, setRegenerating] = useState(false);
   const intervalRef = useRef(null);
   const loadingReportRef = useRef(false);
   const finishedRef = useRef(false);
@@ -144,6 +149,37 @@ const BatchReport = () => {
   }, [batchId]);
 
   const showReport = batchReport && ['completed', 'partial'].includes(status);
+  const canRegenerate =
+    showReport &&
+    Array.isArray(batchReport?.per_game_results) &&
+    batchReport.per_game_results.length >= 5;
+
+  const handleRegenerateCoaching = async () => {
+    if (!canRegenerate || regenerating) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Regenerate the coaching report from your saved game analysis? Stockfish will not re-run (about 10–30 seconds).'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setRegenerating(true);
+    try {
+      const updated = await regenerateBatchCoaching(batchId);
+      setBatchReport(updated);
+      setStatus(updated?.status || status);
+      toast.success('Coaching report updated.');
+    } catch (regenError) {
+      const message =
+        regenError?.detail || regenError?.message || 'Could not regenerate coaching. Try again later.';
+      toast.error(message);
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   return (
     <Box sx={{ minHeight: '100vh' }}>
@@ -179,6 +215,29 @@ const BatchReport = () => {
 
         {showReport ? (
           <Box sx={{ display: 'grid', gap: 2 }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+              justifyContent="space-between"
+              spacing={1}
+              sx={{ px: { xs: 0, sm: 1 } }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                {batchReport.coaching_report
+                  ? 'Coaching is AI-generated from your engine analysis.'
+                  : 'Coaching unavailable — regenerate to try again.'}
+              </Typography>
+              {canRegenerate ? (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  disabled={regenerating}
+                  onClick={handleRegenerateCoaching}
+                >
+                  {regenerating ? 'Regenerating…' : 'Regenerate coaching'}
+                </Button>
+              ) : null}
+            </Stack>
             <BatchReportHeader
               batch_summary={batchReport.batch_summary}
               games_count={batchReport.games_count}
