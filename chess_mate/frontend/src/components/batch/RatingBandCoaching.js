@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Box, Container, Paper, Typography } from '@mui/material';
+import { Container, Paper, Typography } from '@mui/material';
 
 const RatingBandCoaching = ({ batch_summary }) => {
   const band = batch_summary?.rating_band_coaching;
