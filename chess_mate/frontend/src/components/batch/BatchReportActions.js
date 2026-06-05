@@ -5,10 +5,9 @@
 import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Button, Stack, Typography } from '@mui/material';
-import {
-  enableBatchShare,
-  revokeBatchShare
-} from '../../services/apiRequests';
+import LinkIcon from '@mui/icons-material/Link';
+import { enableBatchShare } from '../../services/apiRequests';
+import { copyTextToClipboard } from '../../utils/clipboard';
 
 const BatchReportActions = ({
   batchId,
@@ -25,47 +24,38 @@ const BatchReportActions = ({
     window.print();
   };
 
-  const handleShare = async () => {
+  const handleCopyShareLink = async () => {
     if (!batchId || sharing) {
       return;
     }
+
     setSharing(true);
     try {
-      const data = await enableBatchShare(batchId);
-      onShareTokenChange?.(data.share_token);
-      const url = data.share_url || `${window.location.origin}/share/batch/${data.share_token}`;
-      await navigator.clipboard.writeText(url);
-      toast.success('Share link copied to clipboard.');
+      let token = shareToken;
+      let url;
+
+      if (!token) {
+        const data = await enableBatchShare(batchId);
+        token = data.share_token;
+        onShareTokenChange?.(token);
+        url = data.share_url || `${window.location.origin}/share/batch/${token}`;
+      } else {
+        url = `${window.location.origin}/share/batch/${token}`;
+      }
+
+      const copied = await copyTextToClipboard(url);
+      if (copied) {
+        toast.success('Share link copied — anyone with the link can view this report (read-only).', {
+          duration: 4500
+        });
+      } else {
+        toast.success(url, { duration: 8000 });
+      }
     } catch (error) {
       toast.error(error?.detail || error?.message || 'Could not create share link.');
     } finally {
       setSharing(false);
     }
-  };
-
-  const handleRevokeShare = async () => {
-    if (!batchId || sharing) {
-      return;
-    }
-    setSharing(true);
-    try {
-      await revokeBatchShare(batchId);
-      onShareTokenChange?.(null);
-      toast.success('Share link revoked.');
-    } catch (error) {
-      toast.error(error?.detail || error?.message || 'Could not revoke share link.');
-    } finally {
-      setSharing(false);
-    }
-  };
-
-  const handleCopyExisting = async () => {
-    if (!shareToken) {
-      return;
-    }
-    const url = `${window.location.origin}/share/batch/${shareToken}`;
-    await navigator.clipboard.writeText(url);
-    toast.success('Share link copied.');
   };
 
   return (
@@ -86,20 +76,15 @@ const BatchReportActions = ({
         <Button variant="outlined" size="small" onClick={handlePrint}>
           Print / PDF
         </Button>
-        {shareToken ? (
-          <>
-            <Button variant="outlined" size="small" disabled={sharing} onClick={handleCopyExisting}>
-              Copy share link
-            </Button>
-            <Button variant="text" size="small" color="error" disabled={sharing} onClick={handleRevokeShare}>
-              Revoke link
-            </Button>
-          </>
-        ) : (
-          <Button variant="outlined" size="small" disabled={sharing} onClick={handleShare}>
-            {sharing ? 'Sharing…' : 'Share report'}
-          </Button>
-        )}
+        <Button
+          variant="outlined"
+          size="small"
+          disabled={sharing}
+          onClick={handleCopyShareLink}
+          startIcon={<LinkIcon fontSize="small" />}
+        >
+          {sharing ? 'Copying…' : 'Copy share link'}
+        </Button>
         {canRegenerate ? (
           <Button
             variant="outlined"

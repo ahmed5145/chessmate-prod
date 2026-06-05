@@ -337,22 +337,31 @@ const BatchAnalysis = () => {
   };
 
   const selectRecentGames = (count) => {
-    const limit = Math.min(count, 30, sortedFilteredGames.length);
+    const batchSize = count === 10 ? 10 : 5;
+    const limit = Math.min(batchSize, sortedFilteredGames.length);
     const ids = sortedFilteredGames.slice(0, limit).map((game) => game.id);
     setSelectedGameIds(ids);
-    setNumGames(limit);
+    setNumGames(limit >= 10 ? 10 : 5);
   };
 
   const clearManualSelection = () => {
     setSelectedGameIds([]);
   };
 
-  // Update numGames if it's more than available games
+  // Keep batch size at 5 or 10 (contract default), never drop to 1 when filters change.
   useEffect(() => {
-    if (numGames > filteredGames.length) {
-      setNumGames(filteredGames.length || 1);
+    const available = sortedFilteredGames.length;
+    if (available < 5) {
+      return;
     }
-  }, [filteredGames.length, numGames]);
+    if (available >= 10) {
+      if (numGames !== 5 && numGames !== 10) {
+        setNumGames(10);
+      }
+    } else if (numGames === 10) {
+      setNumGames(5);
+    }
+  }, [sortedFilteredGames.length, numGames]);
 
   useEffect(() => {
     const availableIds = new Set(filteredGames.map((game) => game.id));
@@ -409,42 +418,33 @@ const BatchAnalysis = () => {
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Number of Games */}
+            {/* Batch size: 5 or 10 (manual multi-select still allows up to 30) */}
             <div>
               <label htmlFor="numGames" className={`block text-sm font-medium ${
                 isDarkMode ? 'text-gray-200' : 'text-gray-700'
               }`}>
-                Number of Games (max 30)
+                Batch size
               </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <input
-                  type="number"
-                  name="numGames"
-                  id="numGames"
-                  min="5"
-                  max="30"
-                  className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
-                    isDarkMode
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'border-gray-300 text-gray-900'
-                  }`}
-                  value={numGames}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value) || '';
-                    if (value > 30) {
-                      toast.error('Maximum number of games for batch analysis is 30');
-                      setNumGames(30);
-                    } else {
-                      setNumGames(value);
-                    }
-                  }}
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    / 30
-                  </span>
-                </div>
-              </div>
+              <select
+                id="numGames"
+                name="numGames"
+                disabled={sortedFilteredGames.length < 5}
+                className={`mt-1 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
+                  isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'border-gray-300 text-gray-900'
+                }`}
+                value={sortedFilteredGames.length >= 10 ? numGames : 5}
+                onChange={(e) => setNumGames(Number(e.target.value))}
+              >
+                <option value={5}>5 games (minimum)</option>
+                <option value={10} disabled={sortedFilteredGames.length < 10}>
+                  10 games (recommended)
+                </option>
+              </select>
+              <p className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Uses your most recent matching games, or pick specific games below (5–30).
+              </p>
             </div>
 
             {/* Time Control Filter */}
@@ -506,18 +506,19 @@ const BatchAnalysis = () => {
               <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                 Quick select recent:
               </span>
-              {[10, 20, 30].map((count) => (
+              {[5, 10].map((count) => (
                 <button
                   key={count}
                   type="button"
+                  disabled={sortedFilteredGames.length < count}
                   onClick={() => selectRecentGames(count)}
-                  className={`px-3 py-1.5 text-sm rounded-md border ${
+                  className={`px-3 py-1.5 text-sm rounded-md border disabled:opacity-40 ${
                     isDarkMode
                       ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
                       : 'border-gray-300 text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  Recent {count}
+                  Select {count} recent
                 </button>
               ))}
               <button

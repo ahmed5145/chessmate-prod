@@ -1,23 +1,62 @@
 @media print {
-  .batch-report-no-print {
+  @page {
+    margin: 12mm;
+    size: auto;
+  }
+
+  body {
+    background: #fff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Hide app chrome */
+  nav,
+  .batch-report-no-print,
+  .MuiAppBar-root {
     display: none !important;
   }
 
-  .batch-report-print-root .MuiAccordion-root {
-    break-inside: avoid;
+  main,
+  .MuiContainer-root {
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 
+  .batch-report-print-root {
+    gap: 12px !important;
+  }
+
+  .batch-report-print-root .MuiPaper-root,
+  .batch-report-print-root .MuiAccordion-root {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  .batch-report-print-root .MuiAccordion-root {
+    margin-bottom: 8px !important;
+  }
+
+  .batch-report-print-root .MuiAccordionSummary-root {
+    min-height: 40px !important;
+  }
+
+  .batch-report-print-root .MuiCollapse-root,
+  .batch-report-print-root .MuiCollapse-hidden,
   .batch-report-print-root .MuiAccordionDetails-root {
+    height: auto !important;
+    overflow: visible !important;
+    visibility: visible !important;
     display: block !important;
   }
 
-  .batch-report-print-root .MuiCollapse-root {
-    height: auto !important;
-    visibility: visible !important;
+  .batch-report-print-root img {
+    max-width: 180px !important;
   }
 
-  .batch-report-print-root .MuiCollapse-hidden {
-    height: auto !important;
-    visibility: visible !important;
+  a[href^='http']::after {
+    content: none;
   }
 }
