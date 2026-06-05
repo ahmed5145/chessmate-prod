@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from celery import current_app
-from core.models import BatchAnalysisReport
+from core.models import BatchAnalysisReport, Profile
 from core.tasks import analyze_batch_task
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
@@ -147,6 +147,7 @@ class TestBatchIntegration(TestCase):
     def setUp(self):
         """Create test user and API client."""
         self.user = User.objects.create_user(username="testuser", password="testpass")
+        Profile.objects.create(user=self.user, credits=100)
         self.client = APIClient()
 
         # Generate JWT token
