@@ -67,7 +67,7 @@ const PhaseBreakdown = ({ batch_summary }) => {
         Phase performance
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 3 }}>
-        Eval stability by phase (higher is better). Not Chess.com accuracy or ACPL.
+        Accuracy % uses the same engine curve as Chess.com/Lichess. Eval stability is a separate internal score.
       </Typography>
 
       <Grid container spacing={3}>
@@ -77,9 +77,22 @@ const PhaseBreakdown = ({ batch_summary }) => {
 
           const score = phaseData.score || 0;
           const trend = phaseData.trend || null;
-          const progressValue = Math.round(score * 100);
-          const progressColor = getProgressColor(score);
+          const accuracyPct = phaseData.accuracy_pct;
+          const progressValue =
+            accuracyPct != null ? Math.round(Number(accuracyPct)) : Math.round(score * 100);
+          const progressColor =
+            accuracyPct != null
+              ? progressValue >= 75
+                ? 'success'
+                : progressValue >= 50
+                  ? 'warning'
+                  : 'error'
+              : getProgressColor(score);
           const trendChip = getTrendChip(trend);
+          const metricLabel =
+            accuracyPct != null
+              ? `${Number(accuracyPct).toFixed(1)}% accuracy`
+              : `${Math.round(score * 100)}% stable`;
 
           return (
             <Grid item xs={12} key={phaseKey}>
@@ -97,7 +110,7 @@ const PhaseBreakdown = ({ batch_summary }) => {
                     {capitalize(phaseKey)}
                   </Typography>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                    {progressValue}% stable
+                    {metricLabel}
                   </Typography>
                 </Box>
 
@@ -105,7 +118,7 @@ const PhaseBreakdown = ({ batch_summary }) => {
                 <Box sx={{ mb: 1.5 }}>
                   <LinearProgress
                     variant="determinate"
-                    value={progressValue}
+                    value={Math.min(100, Math.max(0, progressValue))}
                     color={progressColor}
                     sx={{ height: 8, borderRadius: 1 }}
                   />

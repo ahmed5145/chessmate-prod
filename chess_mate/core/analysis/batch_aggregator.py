@@ -9,7 +9,7 @@ import statistics
 from collections import Counter
 from typing import Any, Dict, List, Optional
 
-from .batch_metrics import compute_batch_acpl
+from .batch_metrics import compute_batch_accuracy, compute_batch_acpl
 from .moment_insights import ENDGAME_STUDY_HINTS
 
 logger = logging.getLogger(__name__)
@@ -95,6 +95,7 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
     win_loss_draw = _count_results(per_game_results)
 
     overall_eval_stability = _compute_overall_eval_stability(per_game_results)
+    overall_accuracy_pct = compute_batch_accuracy(per_game_results)
     overall_acpl = compute_batch_acpl(per_game_results)
 
     # Phase performance: score, trend, primary_openings/worst_aspect
@@ -121,8 +122,9 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
         "player_rating": player_rating,
         "date_range": date_range,
         "overall_eval_stability": overall_eval_stability,
+        "overall_accuracy_pct": overall_accuracy_pct,
         "overall_acpl": overall_acpl,
-        "overall_accuracy": overall_eval_stability,  # deprecated alias
+        "overall_accuracy": overall_eval_stability,  # deprecated alias (eval stability 0–1)
         "win_loss_draw": win_loss_draw,
         "phase_performance": phase_performance,
         "recurring_weaknesses": recurring_weaknesses,
@@ -241,6 +243,7 @@ def _compute_phase_performance(
 
     for phase_name in ["opening", "middlegame", "endgame"]:
         phase_scores = []
+        phase_accuracy_scores = []
         phase_openings = []
         tactical_themes_for_phase = []
 
@@ -253,6 +256,9 @@ def _compute_phase_performance(
                 avg_eval_drop = phase_data.get("avg_eval_drop", 0.0)
                 phase_score = max(0.0, min(1.0, 1.0 - avg_eval_drop))
                 phase_scores.append(phase_score)
+                phase_acc = phase_data.get("accuracy")
+                if phase_acc is not None:
+                    phase_accuracy_scores.append(float(phase_acc))
 
             # Collect opening names for opening phase
             if phase_name == "opening":
@@ -295,6 +301,11 @@ def _compute_phase_performance(
             "score": round(avg_score, 2) if avg_score is not None else None,
             "trend": trend,
         }
+        if phase_accuracy_scores:
+            phase_info["accuracy_pct"] = round(
+                sum(phase_accuracy_scores) / len(phase_accuracy_scores),
+                1,
+            )
 
         # Opening always includes primary_openings key
         if phase_name == "opening":

@@ -84,8 +84,15 @@ const GameAccordion = ({ per_game_results }) => {
               ? game.white_elo
               : null;
 
+        const gameAccuracy = game.accuracy;
+
         return (
-          <Accordion key={game.game_id || index} defaultExpanded={index === 0} sx={{ mb: 2 }}>
+          <Accordion
+            id={game.game_id ? `batch-game-${game.game_id}` : undefined}
+            key={game.game_id || index}
+            defaultExpanded={index === 0}
+            sx={{ mb: 2 }}
+          >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box
                 sx={{
@@ -113,6 +120,14 @@ const GameAccordion = ({ per_game_results }) => {
                     {elo} elo
                   </Typography>
                 )}
+                {gameAccuracy != null && (
+                  <Chip
+                    label={`${Number(gameAccuracy).toFixed(1)}% accuracy`}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                  />
+                )}
                 <Typography variant="caption" color="text.secondary">
                   {game.total_moves || 0} moves · {moveQuality.blunder || 0} blunders
                 </Typography>
@@ -136,22 +151,22 @@ const GameAccordion = ({ per_game_results }) => {
 
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                    Phase eval stability
+                    Phase accuracy
                   </Typography>
-                  <Typography variant="body2">
-                    Opening: {formatPercent(getPhaseScore(phaseBreakdown.opening?.avg_eval_drop))}
-                    {phaseBreakdown.opening?.moves != null ? ` (${phaseBreakdown.opening.moves} moves)` : ''}
-                  </Typography>
-                  <Typography variant="body2">
-                    Middlegame: {formatPercent(getPhaseScore(phaseBreakdown.middlegame?.avg_eval_drop))}
-                    {phaseBreakdown.middlegame?.moves != null
-                      ? ` (${phaseBreakdown.middlegame.moves} moves)`
-                      : ''}
-                  </Typography>
-                  <Typography variant="body2">
-                    Endgame: {formatPercent(getPhaseScore(phaseBreakdown.endgame?.avg_eval_drop))}
-                    {phaseBreakdown.endgame?.moves != null ? ` (${phaseBreakdown.endgame.moves} moves)` : ''}
-                  </Typography>
+                  {['opening', 'middlegame', 'endgame'].map((phase) => {
+                    const phaseData = phaseBreakdown[phase] || {};
+                    const acc = phaseData.accuracy;
+                    const label =
+                      acc != null
+                        ? `${Number(acc).toFixed(1)}%`
+                        : formatPercent(getPhaseScore(phaseData.avg_eval_drop));
+                    return (
+                      <Typography key={phase} variant="body2">
+                        {phase.charAt(0).toUpperCase() + phase.slice(1)}: {label}
+                        {phaseData.moves != null ? ` (${phaseData.moves} half-moves)` : ''}
+                      </Typography>
+                    );
+                  })}
                 </Box>
 
                 {missedPatterns.length > 0 && (

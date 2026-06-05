@@ -94,6 +94,7 @@ def test_batch_aggregator_schema_structure():
     assert "games_analyzed" in batch_summary
     assert "date_range" in batch_summary
     assert "overall_eval_stability" in batch_summary
+    assert "overall_accuracy_pct" in batch_summary
     assert "overall_acpl" in batch_summary
     assert "overall_accuracy" in batch_summary  # deprecated alias
     assert "win_loss_draw" in batch_summary

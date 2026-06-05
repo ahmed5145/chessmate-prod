@@ -137,14 +137,11 @@ Expand AI **only where it synthesizes engine facts** — never to invent moves o
 | M2 | Unify batch classification with documented thresholds | `batch_move_classification.py` single source of truth | **Done** |
 | M3 | Player-relative W/L in `batch_summary` | `test_count_results_from_player_perspective` | **Done** — `_count_results` uses `_player_outcome` |
 | M4 | Rename UI labels away from “accuracy” where not ACPL | Batch report: “eval stability”, disclaimers on phase section | **Done** — batch UI components |
-| M5 | **Chess.com-style accuracy** in UI (replace ACPL for users) | Header + phases show “Accuracy %” users recognize; ACPL kept internal only; correlate ±10% with external tool on sample |
+| M5 | **Chess.com-style accuracy** in UI (replace ACPL for users) | Header + phases show “Accuracy %”; ACPL internal only | **Done** — `batch_metrics.py` + batch UI |
 | M6 | Phase boundary sanity (min moves per phase or merge) | No move 13 labeled “endgame” with 25 endgame moves; no 1-move middlegame unless game ≤ 12 moves |
 | M7 | Tactical theme dedup / threshold | Same theme on 5/5 games only when justified; cap recurring tactical themes at 2 |
-| M8 | Priority → game accordion links | Click priority scrolls/highlights `game_X` in breakdown |
-| M9 | Batch vs per-game metric tooltips | Header “eval stability” explains batch-wide average vs accordion per-game scores |
-| M7 | Tactical theme dedup / threshold | Not `missed_tactic` + `hanging_piece` on 5/5 games unless truly universal; cap repetitive chips |
-| M8 | Priority → game accordion links | Click priority scrolls/highlights `game_X` in breakdown |
-| M9 | Batch vs per-game metric tooltips | Explain batch header % is weighted across games; accordion is per-game |
+| M8 | Priority → game accordion links | Click priority scrolls/highlights `game_X` in breakdown | **Done** — `PriorityCard` View game_X buttons |
+| M9 | Batch vs per-game metric tooltips | Explain batch header % is weighted across games; accordion is per-game | **Done** — header tooltips |
 
 ---
 
@@ -269,7 +266,7 @@ See `core/analysis/coaching_schema.py`. No extra keys without schema version bum
 - [x] Email on batch complete
 - [ ] Dashboard “latest coach insight” from last batch
 - [ ] Export PDF / share read-only link
-- [ ] Chess.com-style accuracy metric (M5) — **not** raw ACPL in UI
+- [x] Chess.com-style accuracy metric (M5) — raw ACPL internal only
 
 ### P3 — Moat widening (10–16 weeks)
 

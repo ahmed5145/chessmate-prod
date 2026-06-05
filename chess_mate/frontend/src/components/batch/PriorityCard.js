@@ -23,8 +23,22 @@ import {
   CardContent,
   Box,
   Typography,
-  Chip
+  Chip,
+  Button
 } from '@mui/material';
+
+const extractGameIds = (...parts) => {
+  const text = parts.filter(Boolean).join(' ');
+  const matches = text.match(/game_\d+/gi) || [];
+  return [...new Set(matches.map((id) => id.toLowerCase()))];
+};
+
+const scrollToGame = (gameId) => {
+  const el = document.getElementById(`batch-game-${gameId}`);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+};
 
 const PriorityCard = ({ priority }) => {
   // Validate priority object
@@ -65,6 +79,7 @@ const PriorityCard = ({ priority }) => {
   };
 
   const rankColor = getRankColor(rank);
+  const linkedGames = extractGameIds(title, why_it_matters, specific_drill);
 
   return (
     <Card sx={{ mb: 3 }}>
@@ -126,6 +141,21 @@ const PriorityCard = ({ priority }) => {
             {specific_drill}
           </Typography>
         </Box>
+
+        {linkedGames.length > 0 && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+            {linkedGames.map((gameId) => (
+              <Button
+                key={gameId}
+                size="small"
+                variant="text"
+                onClick={() => scrollToGame(gameId)}
+              >
+                View {gameId}
+              </Button>
+            ))}
+          </Box>
+        )}
 
         {/* Study hours at bottom */}
         <Box sx={{ pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>

@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 import chess
 
 from ..eco_codes import get_opening_name
-from .batch_metrics import compute_game_acpl
+from .batch_metrics import compute_game_accuracy, compute_game_acpl, compute_phase_accuracy
 from .batch_move_classification import (
     CRITICAL_MOMENT_MIN_PAWNS,
     classify_deterioration,
@@ -437,5 +437,19 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
     # Add ELO ratings to result
     result["white_elo"] = white_elo
     result["black_elo"] = black_elo
+
+    player_color = result.get("player_color", "white")
+    result["accuracy"] = compute_game_accuracy(analyzed_moves, player_color)
+    result["player_moves"] = len(
+        [mv for mv in analyzed_moves if bool(mv.get("is_white", True)) == (player_color == "white")]
+    )
+    for phase_name, start, end in (
+        ("opening", 0, opening_end),
+        ("middlegame", opening_end, middlegame_end),
+        ("endgame", middlegame_end, len(analyzed_moves)),
+    ):
+        phase_acc = compute_phase_accuracy(analyzed_moves, start, end, player_color)
+        if phase_acc is not None:
+            result["phase_breakdown"][phase_name]["accuracy"] = phase_acc
 
     return result

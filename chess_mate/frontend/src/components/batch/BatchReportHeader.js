@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Box, Chip, Container, Grid, Paper, Typography } from '@mui/material';
+import { Box, Chip, Container, Grid, Paper, Tooltip, Typography } from '@mui/material';
 
 const BatchReportHeader = ({ batch_summary, games_count }) => {
   if (!batch_summary) {
@@ -14,6 +14,7 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
   const stabilityRaw =
     batch_summary.overall_eval_stability ?? batch_summary.overall_accuracy ?? 0;
   const stabilityPct = Math.round(Number(stabilityRaw) * 100);
+  const accuracyPct = batch_summary.overall_accuracy_pct;
   const analyzed = batch_summary.games_analyzed ?? games_count ?? 0;
   const rating = batch_summary.player_rating;
   const dateRange = batch_summary.date_range;
@@ -34,13 +35,31 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
               {wld.wins ?? 0}W · {wld.losses ?? 0}L · {wld.draws ?? 0}D
             </Typography>
           </Grid>
+          {accuracyPct != null && (
+            <Grid item xs={6} sm={3}>
+              <Tooltip title="Chess.com-style accuracy from engine centipawn loss per move (your moves only).">
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Accuracy
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    {Number(accuracyPct).toFixed(1)}%
+                  </Typography>
+                </Box>
+              </Tooltip>
+            </Grid>
+          )}
           <Grid item xs={6} sm={3}>
-            <Typography variant="caption" color="text.secondary">
-              Overall eval stability
-            </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              {stabilityPct}%
-            </Typography>
+            <Tooltip title="Internal eval stability score (batch-wide). Differs from per-game breakdown.">
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Eval stability
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  {stabilityPct}%
+                </Typography>
+              </Box>
+            </Tooltip>
           </Grid>
           {rating != null && (
             <Grid item xs={6} sm={3}>
