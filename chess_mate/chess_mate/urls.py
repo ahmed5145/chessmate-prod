@@ -11,7 +11,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.urls import include, path, re_path
 
 # Define type for views to prevent linter errors
@@ -38,6 +38,18 @@ def spa_index(request: HttpRequest) -> HttpResponse:
     return render(request, "index.html")
 
 
+def batch_legacy_report_redirect(request: HttpRequest, report_id: int) -> HttpResponse:
+    """Server-side redirect for old /batch-analysis/results/report/:id URLs."""
+    return redirect(f"/batch-report/{report_id}", permanent=False)
+
+
+def batch_legacy_task_redirect(request: HttpRequest, task_id: str) -> HttpResponse:
+    """Legacy task UUID links — send users to batch coach to pick from history."""
+    if str(task_id).isdigit():
+        return redirect(f"/batch-report/{task_id}", permanent=False)
+    return redirect("/batch-analysis", permanent=False)
+
+
 urlpatterns = [
     # Health check endpoints at root level for load balancers
     path("health/", health_check, name="health-check"),
@@ -49,6 +61,21 @@ urlpatterns = [
     # -- remove after all clients updated
     path("api/api/v1/", include("core.urls")),
     path("api/system/", include("core.urls_system")),  # Legacy API prefix
+    # Legacy batch report URLs (before SPA catch-all — works even on stale frontend bundles)
+    path(
+        "batch-analysis/results/report/<int:report_id>/",
+        batch_legacy_report_redirect,
+        name="batch-legacy-report-redirect",
+    ),
+    path(
+        "batch-analysis/results/report/<int:report_id>",
+        batch_legacy_report_redirect,
+    ),
+    path(
+        "batch-analysis/results/<str:task_id>/",
+        batch_legacy_task_redirect,
+        name="batch-legacy-task-redirect",
+    ),
     # React SPA (must be last; excludes api/admin/health/static/media)
     re_path(
         r"^(?!api/|admin/|health/|readiness/|static/|media/).*$",
