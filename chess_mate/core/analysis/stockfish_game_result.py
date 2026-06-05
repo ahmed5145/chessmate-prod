@@ -13,6 +13,11 @@ import chess
 
 from ..eco_codes import get_opening_name
 from .batch_metrics import compute_game_accuracy, compute_game_acpl, compute_phase_accuracy
+from .batch_phase_boundaries import (
+    endgame_start_from_metadata,
+    normalize_phase_boundaries,
+    phase_for_half_move_index,
+)
 from .batch_move_classification import (
     CRITICAL_MOMENT_MIN_PAWNS,
     classify_deterioration,
@@ -225,14 +230,14 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
         eval_afters.append(after)
         eval_drops.append(player_eval_deterioration(is_white, before, after))
 
-    # Determine phase boundaries (in move indices, not half-moves)
-    opening_end = int(metadata.get("opening_length", 0))
-    middlegame_end = int(metadata.get("middlegame_length", opening_end))
-
-    # Clamp boundaries to total moves to ensure no moves are double-counted
-    opening_end = min(opening_end, len(analyzed_moves))
-    middlegame_end = min(middlegame_end, len(analyzed_moves))
-
+    # Phase boundaries (half-move indices). middlegame_length in metadata is a COUNT, not end index.
+    raw_opening_end = int(metadata.get("opening_length", 0) or 0)
+    raw_endgame_start = endgame_start_from_metadata(metadata, len(analyzed_moves))
+    opening_end, endgame_start = normalize_phase_boundaries(
+        len(analyzed_moves),
+        raw_opening_end,
+        raw_endgame_start,
+    )
     def _avg_drop_for_slice(start: int, end: int) -> float:
         if end <= start:
             return 0.0
@@ -249,13 +254,13 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
         },
         "middlegame": {
             "moves": 0,
-            "avg_eval_drop": _avg_drop_for_slice(opening_end, middlegame_end),
+            "avg_eval_drop": _avg_drop_for_slice(opening_end, endgame_start),
             "blunders": 0,
             "mistakes": 0,
         },
         "endgame": {
             "moves": 0,
-            "avg_eval_drop": _avg_drop_for_slice(middlegame_end, len(analyzed_moves)),
+            "avg_eval_drop": _avg_drop_for_slice(endgame_start, len(analyzed_moves)),
             "blunders": 0,
             "mistakes": 0,
         },
@@ -300,13 +305,7 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
         classification = classify_deterioration(deterioration)
         move_classifications[i] = classification
 
-        # Determine which phase this move belongs to
-        if i < opening_end:
-            phase = "opening"
-        elif i < middlegame_end:
-            phase = "middlegame"
-        else:
-            phase = "endgame"
+        phase = phase_for_half_move_index(i, opening_end, endgame_start)
 
         # Increment both move_quality and phase_breakdown counters together
         move_quality_out[classification] += 1
@@ -331,13 +330,7 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
     for idx in selected_indices:
         mv = analyzed_moves[idx]
         move_number = mv.get("move_number")
-        # Determine phase for this move
-        if idx < opening_end:
-            phase = "opening"
-        elif idx < middlegame_end:
-            phase = "middlegame"
-        else:
-            phase = "endgame"
+        phase = phase_for_half_move_index(idx, opening_end, endgame_start)
 
         eval_before = float(eval_befores[idx])
         eval_after = float(eval_afters[idx])
@@ -445,8 +438,8 @@ def build_game_result(pgn: str, game_id: str = None, depth: int = None) -> Dict[
     )
     for phase_name, start, end in (
         ("opening", 0, opening_end),
-        ("middlegame", opening_end, middlegame_end),
-        ("endgame", middlegame_end, len(analyzed_moves)),
+        ("middlegame", opening_end, endgame_start),
+        ("endgame", endgame_start, len(analyzed_moves)),
     ):
         phase_acc = compute_phase_accuracy(analyzed_moves, start, end, player_color)
         if phase_acc is not None:

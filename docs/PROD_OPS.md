@@ -140,6 +140,19 @@ This hits **production data** — double-check emails and amounts.
 
 ---
 
+## AWS cost spike checklist (before more prod testing)
+
+If monthly cost jumped (e.g. batch testing on EB), check in **AWS Billing → Cost Explorer**:
+
+1. **EC2 / Elastic Beanstalk** — extra instances, larger instance types, or environments left running 24/7.
+2. **RDS** — storage autoscaling, multi-AZ, or idle prod DB always on.
+3. **Data transfer** — NAT gateway, cross-AZ traffic, or public egress.
+4. **Batch analysis** — each 10-game batch is heavy CPU; many parallel batches on a small EB fleet increases instance hours.
+
+**Defer prod batch smoke** until costs are understood; run new batches locally (Celery + Redis) or one controlled prod batch after right-sizing.
+
+---
+
 ## Why `psql` from your laptop times out
 
 RDS is almost always in a **private VPC**. The security group allows port **5432 only from the Elastic Beanstalk EC2 instances**, not from the public internet. That is correct for security.

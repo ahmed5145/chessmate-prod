@@ -357,19 +357,29 @@ def _find_recurring_weaknesses(
     theme_swings = {}  # theme -> list of eval_swings
     theme_games = {}  # theme -> list of game_ids
 
+    generic_themes = {"missed_tactic", "tactical_oversight"}
+    min_swing = 0.5
+
     for result in per_game_results:
         game_id = result.get("game_id", "unknown")
         critical_moments = result.get("critical_moments", [])
 
         themes_in_game = set()
         for moment in critical_moments:
+            if moment.get("type") not in ("blunder", "mistake"):
+                continue
+            swing = float(moment.get("eval_swing", 0.0) or 0.0)
+            if swing < min_swing:
+                continue
             theme = moment.get("tactical_theme")
             if theme:
                 themes_in_game.add(theme)
-                swing = moment.get("eval_swing", 0.0)
                 if theme not in theme_swings:
                     theme_swings[theme] = []
                 theme_swings[theme].append(swing)
+
+        if themes_in_game - generic_themes:
+            themes_in_game -= generic_themes
 
         for theme in themes_in_game:
             theme_game_counts[theme] = theme_game_counts.get(theme, 0) + 1

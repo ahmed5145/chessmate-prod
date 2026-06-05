@@ -138,8 +138,8 @@ Expand AI **only where it synthesizes engine facts** — never to invent moves o
 | M3 | Player-relative W/L in `batch_summary` | `test_count_results_from_player_perspective` | **Done** — `_count_results` uses `_player_outcome` |
 | M4 | Rename UI labels away from “accuracy” where not ACPL | Batch report: “eval stability”, disclaimers on phase section | **Done** — batch UI components |
 | M5 | **Chess.com-style accuracy** in UI (replace ACPL for users) | Header + phases show “Accuracy %”; ACPL internal only | **Done** — `batch_metrics.py` + batch UI |
-| M6 | Phase boundary sanity (min moves per phase or merge) | No move 13 labeled “endgame” with 25 endgame moves; no 1-move middlegame unless game ≤ 12 moves |
-| M7 | Tactical theme dedup / threshold | Same theme on 5/5 games only when justified; cap recurring tactical themes at 2 |
+| M6 | Phase boundary sanity (min moves per phase or merge) | No move 13 labeled “endgame” with 25 endgame moves; no 1-move middlegame unless game ≤ 12 moves | **Done** — `batch_phase_boundaries.py` + metadata fix |
+| M7 | Tactical theme dedup / threshold | Same theme on 5/5 games only when justified; cap recurring tactical themes at 2 | **Done** — blunder/mistake + swing ≥0.5; drop generic if specific exists |
 | M8 | Priority → game accordion links | Click priority scrolls/highlights `game_X` in breakdown | **Done** — `PriorityCard` View game_X buttons |
 | M9 | Batch vs per-game metric tooltips | Explain batch header % is weighted across games; accordion is per-game | **Done** — header tooltips |
 
