@@ -1,12 +1,11 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 import ResetPassword from "../ResetPassword";
 import { resetPassword } from "../../services/apiRequests";
 
-// Mock the modules
-jest.mock("react-toastify", () => ({
+jest.mock("react-hot-toast", () => ({
   toast: {
     success: jest.fn(),
     error: jest.fn(),
@@ -65,7 +64,7 @@ describe("ResetPassword Component", () => {
       expect(resetPassword).toHaveBeenCalledWith("test-uid", "test-token", "Newpassword123!");
     });
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith("Password reset successful!");
+      expect(toast.success).toHaveBeenCalledWith("Password reset successful!", { id: "reset-password-success" });
     });
 
     // Wait for navigation
@@ -95,7 +94,7 @@ describe("ResetPassword Component", () => {
       expect(resetPassword).toHaveBeenCalledWith("test-uid", "test-token", "Newpassword123!");
     });
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("Invalid token");
+      expect(toast.error).toHaveBeenCalledWith("Invalid token", { id: "reset-password-error" });
     });
 
     expect(mockNavigate).not.toHaveBeenCalled();

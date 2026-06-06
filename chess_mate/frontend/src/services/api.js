@@ -312,14 +312,7 @@ api.interceptors.response.use(
             console.error('API Endpoint not found (404):', error.config.url);
         }
 
-        if (error.response?.data?.detail) {
-            toast.error(error.response.data.detail);
-        } else if (error.response?.data?.message) {
-            toast.error(error.response.data.message);
-        } else if (error.message && !error.message.includes('Network Error')) {
-            toast.error(`Error: ${error.message}`);
-        }
-
+        // UI layers show contextual error toasts; avoid duplicate notifications here.
         return Promise.reject(error);
     }
 );

@@ -39,13 +39,13 @@ const Navbar = () => {
       const success = await logoutUser();
       if (success) {
         setCredits(0);
-        toast.success('Logged out successfully');
+        toast.success('Logged out successfully', { id: 'logout-success' });
       }
       // Always navigate to login page, even if server request fails
       navigate('/login', { replace: true });
     } catch (error) {
       console.error('Logout error:', error);
-      toast.error('Error during logout');
+      toast.error('Error during logout', { id: 'logout-error' });
       // Still navigate to login page
       navigate('/login', { replace: true });
     }

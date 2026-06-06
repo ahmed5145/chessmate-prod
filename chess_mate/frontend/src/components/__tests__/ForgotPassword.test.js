@@ -81,7 +81,7 @@ describe("ForgotPassword Component", () => {
       expect(requestPasswordReset).toHaveBeenCalledWith("invalid@example.com");
     });
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("Invalid email");
+      expect(toast.error).toHaveBeenCalledWith("Invalid email", { id: "forgot-password-error" });
     });
 
     expect(mockNavigate).not.toHaveBeenCalled();

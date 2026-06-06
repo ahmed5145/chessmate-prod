@@ -5,6 +5,7 @@ import { KeyRound, Mail } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useTheme } from "../context/ThemeContext";
 import { useUser } from '../contexts/UserContext';
+import { extractApiError } from '../utils/apiErrors';
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -16,6 +17,9 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) {
+      return;
+    }
     setLoading(true);
 
     try {
@@ -23,15 +27,16 @@ const Login = () => {
 
       if (result.success) {
         setUser(result.user);
-        toast.success("Login successful!");
+        toast.success("Login successful!", { id: "login-success" });
         navigate("/dashboard");
       } else {
-        // Error is already handled in loginUser with toast
         setLoading(false);
       }
     } catch (error) {
       console.error("Login error:", error);
-      toast.error(error.message || "An unexpected error occurred. Please try again.");
+      toast.error(extractApiError(error, "An unexpected error occurred. Please try again."), {
+        id: "login-error",
+      });
       setLoading(false);
     }
   };

@@ -5,6 +5,7 @@ import { UserContext } from '../contexts/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
 import { confirmPurchase } from '../services/apiRequests';
+import { extractApiError } from '../utils/apiErrors';
 
 const FALLBACK_PACKAGES = [
   {
@@ -48,17 +49,6 @@ const FALLBACK_PACKAGES = [
   }
 ];
 
-const extractApiError = (error) => {
-  const detail = error?.response?.data?.detail;
-  if (typeof detail === 'string' && detail.trim()) {
-    return detail;
-  }
-  if (error?.message) {
-    return error.message;
-  }
-  return 'Could not confirm payment. Contact support if you were charged.';
-};
-
 const Credits = () => {
   const [loading, setLoading] = useState(false);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
@@ -90,7 +80,9 @@ const Credits = () => {
         await fetchUserData();
       } catch (error) {
         console.error('Credit purchase confirm failed:', error);
-        toast.error(extractApiError(error), { duration: 8000 });
+        toast.error(extractApiError(error, 'Could not confirm payment. Contact support if you were charged.'), {
+          duration: 8000,
+        });
       } finally {
         setConfirmingPayment(false);
         params.delete('session_id');

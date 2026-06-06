@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 import { useTheme } from "../context/ThemeContext";
 import { resetPassword } from "../services/apiRequests";
+import { extractApiError } from "../utils/apiErrors";
 
 const ResetPassword = () => {
   const { uid: uidParam, token: tokenParam } = useParams();
@@ -75,6 +76,9 @@ const ResetPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLoading) {
+      return;
+    }
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -84,11 +88,11 @@ const ResetPassword = () => {
       }
 
       await resetPassword(resetUid, resetToken, formData.password);
-      toast.success('Password reset successful!');
+      toast.success('Password reset successful!', { id: 'reset-password-success' });
       navigate('/reset-password-success');
     } catch (error) {
       console.error('Reset password error:', error);
-      toast.error(error.response?.data?.message || 'Failed to reset password');
+      toast.error(extractApiError(error, 'Failed to reset password'), { id: 'reset-password-error' });
     } finally {
       setIsLoading(false);
     }

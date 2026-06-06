@@ -4,6 +4,7 @@ import { registerUser } from "../services/apiRequests";
 import { KeyRound, Mail, User } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useTheme } from "../context/ThemeContext";
+import { extractApiError } from "../utils/apiErrors";
 
 const validatePassword = (password) => {
   const errors = [];
@@ -58,6 +59,9 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) {
+      return;
+    }
 
     // Validate password
     const errors = validatePassword(password);
@@ -86,14 +90,16 @@ const Register = () => {
           }));
         }
 
-        toast.success("Registration successful!");
+        toast.success("Registration successful!", { id: "registration-success" });
         navigate("/dashboard");
       } else {
         throw new Error("Invalid response from server");
       }
     } catch (error) {
       console.error("Registration error:", error);
-      toast.error(error.message || "Failed to register. Please try again.");
+      toast.error(extractApiError(error, "Failed to register. Please try again."), {
+        id: "registration-error",
+      });
     } finally {
       setLoading(false);
     }

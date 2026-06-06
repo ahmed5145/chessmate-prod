@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { toast } from "react-hot-toast";
 import { requestPasswordReset } from "../services/apiRequests";
 import { useTheme } from '../context/ThemeContext';
+import { extractApiError } from '../utils/apiErrors';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -10,13 +11,18 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) {
+      return;
+    }
     setLoading(true);
     try {
       const result = await requestPasswordReset(email);
       toast.success(result?.message || "If an account exists, reset instructions were sent to your email");
       setEmail("");
     } catch (error) {
-      toast.error(error.message || "Failed to send reset instructions");
+      toast.error(extractApiError(error, "Failed to send reset instructions"), {
+        id: "forgot-password-error",
+      });
     } finally {
       setLoading(false);
     }
