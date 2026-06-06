@@ -523,6 +523,8 @@ STOCKFISH_THREADS = int(env("STOCKFISH_THREADS", default=4))
 STOCKFISH_HASH_SIZE = int(env("STOCKFISH_HASH_SIZE", default=128))  # MB
 
 # Security configuration
+# ALB terminates TLS and forwards HTTP to instances with X-Forwarded-Proto: https
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=False)
 CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=False)
@@ -541,6 +543,9 @@ CSRF_TRUSTED_ORIGINS = [
     "https://chessmate.com",
     "https://www.chessmate.com",
     "https://api.chessmate.com",
+    "https://chess-mate.online",
+    "https://www.chess-mate.online",
+    "https://chessmate-prod.us-east-2.elasticbeanstalk.com",
 ]
 _env_csrf = env("CSRF_TRUSTED_ORIGINS", default="")
 if _env_csrf:
