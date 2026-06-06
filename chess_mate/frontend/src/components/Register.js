@@ -98,7 +98,7 @@ const Register = () => {
           refresh: tokenPayload.refresh,
         }));
         toast.success('Registration successful!', { id: 'registration-success' });
-        navigate('/dashboard');
+        navigate('/dashboard', { state: { showWelcome: true } });
         return;
       }
 

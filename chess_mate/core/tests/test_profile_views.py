@@ -350,3 +350,15 @@ class TestProfileViews:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "preferences" in response.data
+
+    def test_update_preferences_welcome_guide_seen(self, authenticated_client, test_user):
+        url = reverse("update_preferences")
+        response = authenticated_client.patch(
+            url,
+            {"preferences": {"welcome_guide_seen": True}},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        test_user.profile.refresh_from_db()
+        assert test_user.profile.preferences.get("welcome_guide_seen") is True

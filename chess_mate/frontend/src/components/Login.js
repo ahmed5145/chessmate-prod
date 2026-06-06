@@ -61,7 +61,7 @@ const Login = () => {
       if (result.success) {
         setUser(result.user);
         toast.success("Login successful!", { id: "login-success" });
-        navigate("/dashboard");
+        navigate('/dashboard', { state: { showWelcome: true } });
       } else {
         setLoading(false);
       }

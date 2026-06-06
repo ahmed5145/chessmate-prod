@@ -21,6 +21,7 @@ import { useUser } from '../contexts/UserContext';
 import { formatDate } from '../utils/dateUtils';
 import { fetchDashboardData } from '../services/apiRequests';
 import LoadingSpinner from './LoadingSpinner';
+import WelcomeGuide from './WelcomeGuide';
 
 const StatCard = ({ title, value, icon: Icon, trend, color = 'indigo' }) => {
   const { isDarkMode } = useTheme();
@@ -339,6 +340,7 @@ const Dashboard = () => {
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'} py-8`}>
+      <WelcomeGuide />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
