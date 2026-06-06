@@ -332,11 +332,17 @@ Legacy URL `/api/v1/profile/webhook/stripe/` also works (same handler).
 
 ## CloudWatch alarms (EB CPU, ALB 5xx, RDS connections)
 
-### 1) IAM (one-time)
+### 1) IAM (one-time — required; script will fail until this is done)
 
-The `chessmate-deploy` user needs CloudWatch + SNS permissions. In AWS Console → IAM → Users → **chessmate-deploy** → Add permissions → Create inline policy → JSON:
+The `chessmate-deploy` user needs CloudWatch + SNS permissions:
 
-Use `scripts/aws/iam-cloudwatch-alarms-policy.json` from this repo (or attach the same actions via the console wizard).
+1. AWS Console → **IAM** → **Users** → **chessmate-deploy**
+2. **Add permissions** → **Create inline policy**
+3. **JSON** tab → paste contents of `scripts/aws/iam-cloudwatch-alarms-policy.json`
+4. Policy name: `ChessmateCloudWatchAlarms` → **Create policy**
+5. Re-run the setup script
+
+If you see `AccessDenied` or `AuthorizationError`, this step was skipped or the policy was not saved.
 
 ### 2) Run the setup script
 

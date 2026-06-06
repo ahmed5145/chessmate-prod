@@ -1,12 +1,8 @@
 # Create ChessMate production CloudWatch alarms (EB CPU, ALB 5xx, RDS connections).
-# Prerequisite: attach scripts/aws/iam-cloudwatch-alarms-policy.json to the IAM user (or run as admin).
+# Prerequisite: attach scripts/aws/iam-cloudwatch-alarms-policy.json to IAM user chessmate-deploy.
 #
-# PowerShell (NOT CMD "set"):
+# PowerShell:
 #   $env:AWS_PROFILE = "chessmate-deploy"
-#   $env:ALARM_EMAIL = "you@example.com"
-#   .\scripts\aws\setup_cloudwatch_alarms.ps1
-#
-# Or pass email directly:
 #   .\scripts\aws\setup_cloudwatch_alarms.ps1 -AlarmEmail "you@example.com"
 
 param(
@@ -28,13 +24,40 @@ if (-not $AlarmEmail) {
 if (-not $SkipSns -and -not $AlarmEmail) {
     Write-Host ""
     Write-Host "Missing alarm email."
-    Write-Host "In PowerShell use:"
-    Write-Host '  $env:ALARM_EMAIL = "ahmedmohamed200354@gmail.com"'
-    Write-Host "Or:"
     Write-Host '  .\scripts\aws\setup_cloudwatch_alarms.ps1 -AlarmEmail "ahmedmohamed200354@gmail.com"'
+    Write-Host 'Or:  $env:ALARM_EMAIL = "ahmedmohamed200354@gmail.com"'
     Write-Host ""
     Write-Host 'Note: CMD "set ALARM_EMAIL=..." does NOT set PowerShell environment variables.'
     Write-Error "Set ALARM_EMAIL or pass -AlarmEmail, or use -SkipSns."
+}
+
+function Show-IamHelp {
+    Write-Host ""
+    Write-Host "IAM permission denied for chessmate-deploy."
+    Write-Host "1. AWS Console -> IAM -> Users -> chessmate-deploy"
+    Write-Host "2. Add permissions -> Create inline policy -> JSON"
+    Write-Host "3. Paste scripts/aws/iam-cloudwatch-alarms-policy.json from this repo"
+    Write-Host "4. Name it ChessmateCloudWatchAlarms and save"
+    Write-Host "5. Re-run this script"
+    Write-Host ""
+}
+
+function Invoke-AwsCli {
+    param([string[]]$AwsArgs)
+
+    $output = & aws @AwsArgs 2>&1
+    $exit = $LASTEXITCODE
+    $text = ($output | Out-String).Trim()
+    if ($exit -ne 0) {
+        if ($text -match "AccessDenied|AuthorizationError|not authorized") {
+            Show-IamHelp
+        }
+        if ($text) {
+            Write-Host $text
+        }
+        throw "AWS CLI failed (exit $exit): aws $($AwsArgs -join ' ')"
+    }
+    return $output
 }
 
 Write-Host "Region: $Region"
@@ -42,16 +65,25 @@ if ($AlarmEmail) {
     Write-Host "Alarm email: $AlarmEmail"
 }
 
-$accountId = (aws sts get-caller-identity --query Account --output text).Trim()
+$accountId = (Invoke-AwsCli -AwsArgs @("sts", "get-caller-identity", "--query", "Account", "--output", "text")).Trim()
 $topicArn = "arn:aws:sns:${Region}:${accountId}:${SnsTopicName}"
 $actionArgs = @()
 
 if (-not $SkipSns) {
-    $existingTopic = aws sns list-topics --region $Region --query "Topics[?TopicArn=='$topicArn'].TopicArn" --output text
+    $existingTopic = (Invoke-AwsCli -AwsArgs @(
+        "sns", "list-topics", "--region", $Region,
+        "--query", "Topics[?TopicArn=='$topicArn'].TopicArn", "--output", "text"
+    )).Trim()
     if (-not $existingTopic) {
         Write-Host "Creating SNS topic $SnsTopicName ..."
-        aws sns create-topic --name $SnsTopicName --region $Region | Out-Null
-        aws sns subscribe --topic-arn $topicArn --protocol email --notification-endpoint $AlarmEmail --region $Region | Out-Null
+        Invoke-AwsCli -AwsArgs @("sns", "create-topic", "--name", $SnsTopicName, "--region", $Region) | Out-Null
+        Invoke-AwsCli -AwsArgs @(
+            "sns", "subscribe",
+            "--topic-arn", $topicArn,
+            "--protocol", "email",
+            "--notification-endpoint", $AlarmEmail,
+            "--region", $Region
+        ) | Out-Null
         Write-Host "SNS subscription pending. Confirm the email AWS sent to $AlarmEmail"
     } else {
         Write-Host "SNS topic already exists: $topicArn"
@@ -98,10 +130,7 @@ function Put-Alarm {
     }
 
     Write-Host "Putting alarm $Name ..."
-    & aws @awsCliArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to create alarm $Name (exit $LASTEXITCODE)"
-    }
+    Invoke-AwsCli -AwsArgs $awsCliArgs | Out-Null
 }
 
 Put-Alarm `

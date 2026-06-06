@@ -15,12 +15,20 @@
       "Resource": "arn:aws:cloudwatch:us-east-2:381492194867:alarm:Chessmate-*"
     },
     {
-      "Sid": "ChessmateSnsAlarmsTopic",
+      "Sid": "ChessmateSnsCreateTopic",
       "Effect": "Allow",
       "Action": [
         "sns:CreateTopic",
+        "sns:ListTopics"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ChessmateSnsAlarmsTopicManage",
+      "Effect": "Allow",
+      "Action": [
         "sns:Subscribe",
-        "sns:ListTopics",
+        "sns:ListSubscriptionsByTopic",
         "sns:GetTopicAttributes",
         "sns:SetTopicAttributes"
       ],
