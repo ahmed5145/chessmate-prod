@@ -99,7 +99,13 @@ def build_command(args):
     if args.standalone:
         cmd.extend(["-p", "no:django", "standalone_tests/"])
     elif args.django:
-        cmd.extend([f"--ds={django_settings}", "chess_mate/core/tests/"])
+        cmd.extend(
+            [
+                f"--ds={django_settings}",
+                "chess_mate/core/tests/",
+                "chess_mate/core/analysis/tests/",
+            ]
+        )
     elif args.path:
         # User specified a custom path
         if args.path.startswith("standalone_tests"):
@@ -109,7 +115,14 @@ def build_command(args):
             cmd.extend([f"--ds={django_settings}", args.path])
     else:
         # Run all tests by default
-        cmd.extend([f"--ds={django_settings}", "chess_mate/core/tests/", "standalone_tests/"])
+        cmd.extend(
+            [
+                f"--ds={django_settings}",
+                "chess_mate/core/tests/",
+                "chess_mate/core/analysis/tests/",
+                "standalone_tests/",
+            ]
+        )
 
     # CI diagnostics: dump thread stacks if a single test is silent for too long.
     if is_ci and any(arg.startswith("--ds=") for arg in cmd):
