@@ -37,6 +37,10 @@ class CustomUserAdmin(UserAdmin):
     ordering = ("-date_joined",)
 
 
+admin.site.site_header = "ChessMate Operations"
+admin.site.site_title = "ChessMate Admin"
+admin.site.index_title = "Site administration"
+
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
 
