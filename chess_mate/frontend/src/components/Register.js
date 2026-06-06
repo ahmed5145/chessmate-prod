@@ -79,26 +79,33 @@ const Register = () => {
     setLoading(true);
     try {
       const response = await registerUser({ username, email, password });
-      // Check if registration was successful by looking for the access token
-      if (response && (response.access || (response.data && response.data.access))) {
-        // Store tokens if they're not already stored by the registerUser function
-        const tokens = response.access ? response : response.data;
-        if (tokens && tokens.access && tokens.refresh) {
-          localStorage.setItem('tokens', JSON.stringify({
-            access: tokens.access,
-            refresh: tokens.refresh
-          }));
-        }
 
-        toast.success("Registration successful!", { id: "registration-success" });
-        navigate("/dashboard");
-      } else {
-        throw new Error("Invalid response from server");
+      if (response.status === 'success' && response.requires_email_verification) {
+        toast.success(
+          response.message || 'Account created. Check your inbox to verify your email.',
+          { id: 'registration-verify' }
+        );
+        navigate('/verify-email-sent', {
+          state: { email: response.email || email, emailSent: response.email_sent !== false },
+        });
+        return;
       }
+
+      const tokenPayload = response.data || response;
+      if (response.status === 'success' && tokenPayload?.access && tokenPayload?.refresh) {
+        localStorage.setItem('tokens', JSON.stringify({
+          access: tokenPayload.access,
+          refresh: tokenPayload.refresh,
+        }));
+        toast.success('Registration successful!', { id: 'registration-success' });
+        navigate('/dashboard');
+        return;
+      }
+
+      throw new Error('Invalid response from server');
     } catch (error) {
-      console.error("Registration error:", error);
-      toast.error(extractApiError(error, "Failed to register. Please try again."), {
-        id: "registration-error",
+      toast.error(extractApiError(error, 'Failed to register. Please try again.'), {
+        id: 'registration-error',
       });
     } finally {
       setLoading(false);

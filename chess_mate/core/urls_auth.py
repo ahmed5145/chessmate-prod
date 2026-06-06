@@ -17,6 +17,11 @@ urlpatterns = [
         name="request_password_reset",
     ),
     path("reset-password/confirm/", auth_views.reset_password, name="reset_password"),
+    path(
+        "resend-verification/",
+        auth_views.resend_verification_email,
+        name="resend_verification_email",
+    ),
     re_path(
         r"^verify-email/(?:(?P<uidb64>[^/]+)/)?(?P<token>[^/]+)/$",
         auth_views.verify_email,

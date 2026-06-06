@@ -51,3 +51,25 @@ def get_frontend_base_url(request=None) -> str:
 def build_password_reset_url(uid: str, token: str, request=None) -> str:
     base = get_frontend_base_url(request)
     return f"{base}/reset-password/{uid}/{token}"
+
+
+def get_api_base_url(request=None) -> str:
+    """Origin for API links in emails (verify-email hits Django, not the SPA)."""
+    explicit = (getattr(settings, "API_BASE_URL", None) or os.environ.get("API_BASE_URL") or "").strip()
+    if explicit:
+        return explicit.rstrip("/")
+
+    if request is not None:
+        scheme = "https" if request.is_secure() else "http"
+        return f"{scheme}://{request.get_host()}"
+
+    return get_frontend_base_url(request)
+
+
+def build_verification_url(uidb64: str, token: str, request=None) -> str:
+    base = get_api_base_url(request)
+    return f"{base}/api/v1/auth/verify-email/{uidb64}/{token}/"
+
+
+def verification_email_unavailable_message() -> str:
+    return "Verification email is temporarily unavailable. " "Please try again later or contact support."

@@ -26,7 +26,10 @@ def api_client():
 @pytest.fixture
 def test_user():
     user = User.objects.create_user(username="testuser", email="test@example.com", password="testpassword123")
-    Profile.objects.create(user=user, email_verified=True, credits=10)
+    profile = Profile.objects.get(user=user)
+    profile.email_verified = True
+    profile.credits = 10
+    profile.save(update_fields=["email_verified", "credits", "legacy_rating"])
     return user
 
 
@@ -37,12 +40,11 @@ def unverified_user():
         email="unverified@example.com",
         password="testpassword123",
     )
-    Profile.objects.create(
-        user=user,
-        email_verified=False,
-        email_verification_token="test-token-123",
-        credits=10,
-    )
+    profile = Profile.objects.get(user=user)
+    profile.email_verified = False
+    profile.email_verification_token = "test-token-123"
+    profile.credits = 10
+    profile.save(update_fields=["email_verified", "email_verification_token", "credits", "legacy_rating"])
     return user
 
 
@@ -69,12 +71,12 @@ class TestAuthViews:
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
         assert "Invalid email or password" in response.data["error"]
 
-    def test_login_unverified_email(self, api_client, unverified_user):
+    def test_login_unverified_email(self, api_client, unverified_user, settings):
+        settings.REQUIRE_EMAIL_VERIFICATION = True
         url = reverse("login")
         data = {"email": "unverified@example.com", "password": "testpassword123"}
 
-        with patch("django.core.mail.send_mail", return_value=1):
-            response = api_client.post(url, data, format="json")
+        response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
         assert "Email not verified" in response.data["error"]
@@ -87,7 +89,6 @@ class TestAuthViews:
             "password": "Strong.Password.123",
         }
 
-        # Mock email sending
         with patch("django.core.mail.send_mail", return_value=1):
             response = api_client.post(url, data, format="json")
 
@@ -95,15 +96,42 @@ class TestAuthViews:
         assert "user_id" in response.data
         assert response.data["email"] == data["email"]
 
-        # Verify user was created
         user = User.objects.get(email=data["email"])
         assert user.username == data["username"]
 
-        # Verify profile was created
         profile = Profile.objects.get(user=user)
         assert profile.email_verified is False
         assert profile.email_verification_token is not None
         assert profile.legacy_rating == 1200
+
+    def test_register_requires_verification_in_production(self, api_client, settings):
+        settings.REQUIRE_EMAIL_VERIFICATION = True
+        url = reverse("register")
+        data = {
+            "username": "produser",
+            "email": "prod@example.com",
+            "password": "Strong.Password.123",
+        }
+
+        with patch("core.email_utils.is_email_configured", return_value=True):
+            with patch("django.core.mail.send_mail", return_value=1):
+                response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data["requires_email_verification"] is True
+        assert response.data["email_sent"] is True
+        assert "access" not in response.data
+        assert "refresh" not in response.data
+
+    def test_resend_verification_email(self, api_client, unverified_user):
+        url = reverse("resend_verification_email")
+        with patch("core.email_utils.is_email_configured", return_value=True):
+            with patch("django.core.mail.send_mail", return_value=1):
+                response = api_client.post(url, {"email": unverified_user.email}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["status"] == "success"
+        assert "verification link" in response.data["message"].lower()
 
     def test_register_duplicate_email(self, api_client, test_user):
         url = reverse("register")

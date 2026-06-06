@@ -50,6 +50,7 @@ const isAuthEndpoint = (url) => {
         '/api/v1/auth/reset-password/',
         '/api/v1/auth/reset-password/confirm/',
         '/api/v1/auth/verify-email/',
+        '/api/v1/auth/resend-verification/',
         '/api/v1/auth/csrf/',
         '/api/v1/auth/logout/'
     ];

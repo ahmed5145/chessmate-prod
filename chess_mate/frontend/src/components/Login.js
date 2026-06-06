@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { loginUser } from "../services/apiRequests";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
+import { loginUser, resendVerificationEmail } from "../services/apiRequests";
 import { KeyRound, Mail } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useTheme } from "../context/ThemeContext";
@@ -8,12 +8,42 @@ import { useUser } from '../contexts/UserContext';
 import { extractApiError } from '../utils/apiErrors';
 
 const Login = () => {
-  const [email, setEmail] = useState("");
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const [email, setEmail] = useState(location.state?.email || "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [showUnverifiedHelp, setShowUnverifiedHelp] = useState(false);
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
   const { setUser } = useUser();
+
+  useEffect(() => {
+    if (searchParams.get('verified') === 'success') {
+      toast.success('Email verified! You can sign in now.', { id: 'email-verified' });
+    }
+  }, [searchParams]);
+
+  const handleResendVerification = async () => {
+    if (!email || resending) {
+      return;
+    }
+    setResending(true);
+    try {
+      const result = await resendVerificationEmail(email);
+      toast.success(
+        result.message || 'If an unverified account exists, a new verification link has been sent.',
+        { id: 'login-resend-verification' }
+      );
+    } catch (error) {
+      toast.error(extractApiError(error, 'Could not resend verification email.'), {
+        id: 'login-resend-verification-error',
+      });
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,10 +63,10 @@ const Login = () => {
         setLoading(false);
       }
     } catch (error) {
-      console.error("Login error:", error);
-      toast.error(extractApiError(error, "An unexpected error occurred. Please try again."), {
-        id: "login-error",
-      });
+      const message = extractApiError(error, 'An unexpected error occurred. Please try again.');
+      const isUnverified = /not verified/i.test(message);
+      setShowUnverifiedHelp(isUnverified);
+      toast.error(message, { id: 'login-error' });
       setLoading(false);
     }
   };
@@ -125,6 +155,20 @@ const Login = () => {
                 </Link>
               </div>
             </div>
+
+            {showUnverifiedHelp && (
+              <div className={`rounded-md p-4 text-sm ${isDarkMode ? 'bg-amber-900/30 text-amber-200' : 'bg-amber-50 text-amber-800'}`}>
+                <p>Your email is not verified yet. Check your inbox for the verification link, or resend it below.</p>
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resending || !email}
+                  className={`mt-2 font-medium underline ${resending ? 'opacity-60 cursor-not-allowed' : ''}`}
+                >
+                  {resending ? 'Sending...' : 'Resend verification email'}
+                </button>
+              </div>
+            )}
 
             <div>
               <button

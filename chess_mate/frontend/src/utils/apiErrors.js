@@ -39,6 +39,16 @@ const formatErrorPayload = (payload) => {
     return payload.detail;
   }
 
+  if (Array.isArray(payload.errors) && payload.errors.length > 0) {
+    const first = payload.errors[0];
+    if (typeof first === 'string' && first.trim()) {
+      return first;
+    }
+    if (first && typeof first.message === 'string' && first.message.trim()) {
+      return first.message;
+    }
+  }
+
   if (typeof payload.message === 'string' && payload.message.trim()) {
     return payload.message;
   }

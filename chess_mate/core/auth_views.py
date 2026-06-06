@@ -133,6 +133,61 @@ class EmailVerificationToken:
             return False, "Error validating token"
 
 
+def _requires_email_verification() -> bool:
+    return bool(getattr(settings, "REQUIRE_EMAIL_VERIFICATION", not settings.DEBUG))
+
+
+def send_verification_email(user: User, profile: Profile, request) -> bool:
+    """Send (or resend) the HTML verification email with a signed link."""
+    from .email_utils import build_verification_url, is_email_configured
+
+    if not profile.email_verification_token:
+        profile.email_verification_token = EmailVerificationToken.generate_token()
+
+    profile.email_verification_sent_at = timezone.now()
+    profile.save(update_fields=["email_verification_token", "email_verification_sent_at", "legacy_rating"])
+
+    if not is_email_configured():
+        logger.error(
+            "Verification email not sent for %s: SMTP not configured "
+            "(set EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL on EB)",
+            user.email,
+        )
+        return False
+
+    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+    verification_url = build_verification_url(uidb64, profile.email_verification_token, request)
+    mail_subject = "Verify your ChessMate account"
+
+    try:
+        message = render_to_string(
+            "email/verify_email.html",
+            {
+                "user": user,
+                "verification_url": verification_url,
+                "current_year": timezone.now().year,
+            },
+        )
+    except Exception as template_error:
+        logger.warning("Verification template render failed: %s", template_error)
+        message = (
+            f"Welcome to ChessMate, {user.username}!\n\n"
+            f"Please verify your email by opening this link (expires in 7 days):\n"
+            f"{verification_url}\n"
+        )
+
+    html_body = str(message)
+    mail.send_mail(
+        subject=mail_subject,
+        message=strip_tags(html_body),
+        from_email=None,
+        recipient_list=[user.email],
+        html_message=html_body,
+    )
+    logger.info("Verification email sent to %s", user.email)
+    return True
+
+
 @ensure_csrf_cookie
 @api_view(["GET"])
 def csrf(request):
@@ -259,9 +314,7 @@ def register_view(request):
             if not profile.email_verification_token:
                 profile.email_verification_token = EmailVerificationToken.generate_token()
                 profile.email_verification_sent_at = timezone.now()
-                profile.save(
-                    update_fields=["email_verification_token", "email_verification_sent_at", "legacy_rating"]
-                )
+                profile.save(update_fields=["email_verification_token", "email_verification_sent_at", "legacy_rating"])
             elif not profile_created:
                 logger.info("Profile already exists for user %s", username)
 
@@ -270,10 +323,32 @@ def register_view(request):
 
         record_signup_attempt(request)
 
-        # Create refresh token
+        email_sent = send_verification_email(user, profile, request)
+
+        if _requires_email_verification():
+            message = (
+                "Account created. Check your inbox for a verification link, " "then sign in to start using ChessMate."
+            )
+            if not email_sent:
+                message = (
+                    "Account created, but we could not send the verification email. "
+                    "Use “Resend verification email” on the login page or contact support."
+                )
+            return Response(
+                {
+                    "status": "success",
+                    "message": message,
+                    "requires_email_verification": True,
+                    "email_sent": email_sent,
+                    "user_id": user.pk,
+                    "email": user.email,
+                    "username": user.username,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
-
         payload = {
             "user_id": user.pk,
             "email": user.email,
@@ -284,6 +359,8 @@ def register_view(request):
         return Response(
             {
                 "status": "success",
+                "message": "Registration successful.",
+                "requires_email_verification": False,
                 "data": payload,
                 **payload,
             },
@@ -298,8 +375,7 @@ def register_view(request):
             error_details["message"] = "A user with this username or email already exists"
         elif "NOT NULL" in str(e):
             error_details["message"] = (
-                "Account setup failed due to a database configuration issue. "
-                "Please try again or contact support."
+                "Account setup failed due to a database configuration issue. " "Please try again or contact support."
             )
         else:
             error_details["message"] = str(e)
@@ -361,19 +437,10 @@ def login_view(request):
 
         # Check if email is verified (except in development mode where we skip this)
         profile = getattr(user, "profile", None)
-        if not settings.DEBUG and profile is not None and not profile.email_verified:
+        if _requires_email_verification() and profile is not None and not profile.email_verified:
             logger.warning(f"Login attempt with unverified email: {email}")
-            try:
-                mail.send_mail(
-                    subject="Verify your ChessMate account",
-                    message="Please verify your email address to continue.",
-                    from_email=None,
-                    recipient_list=[email],
-                )
-            except Exception:
-                pass
             raise AuthenticationFailed(
-                "Email not verified. Please check your inbox or request a new verification email."
+                "Email not verified. Please check your inbox or use " "“Resend verification email” on the login page."
             )
 
         # Generate tokens
@@ -771,6 +838,61 @@ def verify_email(request, uidb64=None, token=None):
             "email/verification_failed.html",
             {"message": "An unexpected error occurred during verification."},
         )
+
+
+@rate_limit(endpoint_type="AUTH")
+@api_view(["POST", "OPTIONS"])
+@auth_csrf_exempt
+@api_error_handler
+def resend_verification_email(request):
+    """Resend signup verification email (does not reveal whether the email exists)."""
+    if request.method == "OPTIONS":
+        return Response()
+
+    from .email_utils import is_email_configured, verification_email_unavailable_message
+
+    email = (request.data.get("email") or "").strip().lower()
+    if not email:
+        raise APIValidationError([{"field": "email", "message": "Email is required"}])
+
+    success_message = "If an unverified account exists for this email, a new verification link has been sent."
+
+    if not is_email_configured():
+        return Response(
+            {
+                "status": "error",
+                "message": verification_email_unavailable_message(),
+                "email_available": False,
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    user = User.objects.filter(email__iexact=email).first()
+    if user is None:
+        return Response({"status": "success", "message": success_message, "email_available": True})
+
+    try:
+        profile = Profile.objects.get(user=user)
+    except Profile.DoesNotExist:
+        return Response({"status": "success", "message": success_message, "email_available": True})
+
+    if profile.email_verified:
+        return Response({"status": "success", "message": success_message, "email_available": True})
+
+    try:
+        send_verification_email(user, profile, request)
+    except Exception as exc:
+        logger.error("Failed to resend verification email to %s: %s", email, exc, exc_info=True)
+        return Response(
+            {
+                "status": "error",
+                "message": verification_email_unavailable_message(),
+                "email_available": False,
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    return Response({"status": "success", "message": success_message, "email_available": True})
 
 
 @api_view(["GET"])

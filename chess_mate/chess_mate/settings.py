@@ -700,6 +700,7 @@ PAYMENT_CANCEL_URL = env("PAYMENT_CANCEL_URL", default="")
 
 # Beta launch — free credits on signup (1 credit = 1 imported game; batch coach included)
 SIGNUP_BONUS_CREDITS = env.int("SIGNUP_BONUS_CREDITS", default=15)
+REQUIRE_EMAIL_VERIFICATION = env.bool("REQUIRE_EMAIL_VERIFICATION", default=not DEBUG)
 SUPPORT_EMAIL = env("SUPPORT_EMAIL", default="support@chess-mate.online")
 
 # Stripe Checkout success redirect must survive EB restarts; use DB sessions when Redis is off.

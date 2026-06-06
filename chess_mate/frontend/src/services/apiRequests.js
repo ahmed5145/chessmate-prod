@@ -1,5 +1,6 @@
 import api from './api';
 import { setTokens, clearTokens } from './authService';
+import { extractApiError } from '../utils/apiErrors';
 import {
     analyzeSpecificGame as analyzeSpecificGameService,
     checkAnalysisStatus as checkAnalysisStatusService,
@@ -59,7 +60,11 @@ export const loginUser = async (email, password) => {
         console.error('Login error details:', error);
         // Provide specific error messages based on status codes
         if (error.response?.status === 401) {
-            throw new Error("Invalid credentials");
+            const authMessage = extractApiError(
+                error,
+                'Invalid email or password'
+            );
+            throw new Error(authMessage);
         } else if (error.response?.status === 403) {
             throw new Error("Account is locked or requires verification");
         } else if (error.response?.status === 429) {
@@ -105,22 +110,18 @@ export const logoutUser = async () => {
 export const registerUser = async (userData) => {
     try {
         const response = await api.post("/api/v1/auth/register/", userData);
-        console.log('Registration response:', response.data);
-
-        // Check for standard success structure
-        if (response.data && response.data.status === 'success') {
-            // Return the data object that contains the tokens
-            return response.data.data;
-        }
-
-        // If it's not in standard format, return the full response data
-        return response.data;
+        return response.data || {};
     } catch (error) {
-        console.error('Registration error details:', error.response?.data || error);
-        if (error.response?.status === 400) {
-            throw error.response.data;
-        }
-        throw new Error(error.response?.data?.message || "Registration failed");
+        throw new Error(extractApiError(error, 'Registration failed. Please try again.'));
+    }
+};
+
+export const resendVerificationEmail = async (email) => {
+    try {
+        const response = await api.post('/api/v1/auth/resend-verification/', { email });
+        return response.data || {};
+    } catch (error) {
+        throw new Error(extractApiError(error, 'Could not resend verification email. Please try again.'));
     }
 };
 

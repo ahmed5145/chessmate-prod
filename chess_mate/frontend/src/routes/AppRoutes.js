@@ -4,6 +4,7 @@ import Dashboard from '../components/Dashboard';
 import Profile from '../components/Profile';
 import Login from '../components/Login';
 import Register from '../components/Register';
+import VerifyEmailSent from '../components/VerifyEmailSent';
 import ForgotPassword from '../components/ForgotPassword';
 import ResetPassword from '../components/ResetPassword';
 import ResetPasswordSuccess from '../components/ResetPasswordSuccess';
@@ -42,6 +43,7 @@ const AppRoutes = () => {
         path="/register"
         element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />}
       />
+      <Route path="/verify-email-sent" element={<VerifyEmailSent />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:uid/:token/" element={<ResetPassword />} />
       <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
