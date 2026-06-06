@@ -5,6 +5,7 @@ URL configuration for profile-related endpoints.
 from django.urls import path
 
 from . import profile_views
+from .views_credits import stripe_webhook_view
 
 urlpatterns = [
     path("", profile_views.profile_view, name="get_user_profile"),
@@ -47,5 +48,5 @@ urlpatterns = [
         profile_views.confirm_credit_purchase,
         name="confirm_credit_purchase",
     ),
-    path("webhook/stripe/", profile_views.webhook_handler, name="stripe_webhook"),
+    path("webhook/stripe/", stripe_webhook_view, name="stripe_webhook"),
 ]

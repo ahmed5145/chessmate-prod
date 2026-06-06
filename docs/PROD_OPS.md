@@ -300,6 +300,23 @@ EB env vars for checkout redirects:
 
 After changing EB env: **Restart app server(s)** (not Rebuild environment).
 
+### Stripe webhook (free — backup if user closes tab after pay)
+
+1. Stripe Dashboard → **Developers** → **Webhooks** → **Add endpoint**
+2. URL: `https://www.chess-mate.online/api/v1/webhooks/stripe/`
+3. Events: **`checkout.session.completed`** only
+4. Copy **Signing secret** (`whsec_...`) → EB env `STRIPE_WEBHOOK_SECRET`
+5. **Restart app server(s)**
+
+Legacy URL `/api/v1/profile/webhook/stripe/` also works (same handler).
+
+### Beta launch defaults (code)
+
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `SIGNUP_BONUS_CREDITS` | 15 | Free imports for new signups |
+| `SUPPORT_EMAIL` | support@chess-mate.online | Footer + legal pages |
+
 ---
 
 ## Django admin without remembering the old password

@@ -1,19 +1,23 @@
 """
-Credit balance and Stripe checkout (batch-coach aligned packages).
+Credit balance, Stripe checkout, and webhooks.
 """
 
 import logging
 
+import stripe
 from django.conf import settings
-from django.db import transaction
-from django.db.models import F
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from .credit_fulfillment import (
+    CreditFulfillmentError,
+    fulfill_checkout_from_webhook_event,
+    fulfill_checkout_session,
+)
 from .credit_packages import get_package, list_packages_for_api
-from .models import Profile, Transaction
 from .payment import PaymentProcessor
 
 logger = logging.getLogger(__name__)
@@ -23,6 +27,8 @@ logger = logging.getLogger(__name__)
 @permission_classes([IsAuthenticated])
 def credits_balance_view(request):
     """GET /api/v1/credits/ — current credit balance."""
+    from .models import Profile
+
     profile, _ = Profile.objects.get_or_create(user=request.user)
     return Response({"credits": profile.credits or 0}, status=status.HTTP_200_OK)
 
@@ -97,60 +103,57 @@ def confirm_purchase_view(request):
         )
 
     try:
-        payment_data = PaymentProcessor.verify_payment(session_id)
+        result = fulfill_checkout_session(session_id=session_id, user=request.user)
+    except CreditFulfillmentError as exc:
+        logger.warning("Confirm purchase failed for user %s: %s", request.user.id, exc)
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as exc:
         logger.warning("Stripe verify failed for user %s session %s: %s", request.user.id, session_id, exc)
         return Response({"detail": "Could not verify payment."}, status=status.HTTP_400_BAD_REQUEST)
 
-    if not payment_data:
-        return Response(
-            {"detail": "Payment not completed yet. Wait a few seconds and refresh, or contact support."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    return Response(result, status=status.HTTP_200_OK)
 
-    metadata_user_id = payment_data.get("user_id")
-    if metadata_user_id is not None and str(metadata_user_id) != str(request.user.id):
-        logger.warning(
-            "Stripe session %s user_id=%s does not match request user %s",
-            session_id,
-            metadata_user_id,
-            request.user.id,
-        )
-        return Response({"detail": "This payment belongs to a different account."}, status=status.HTTP_403_FORBIDDEN)
 
-    credits_to_add = int(payment_data.get("credits") or 0)
-    if credits_to_add <= 0:
-        return Response({"detail": "Invalid credit amount on payment."}, status=status.HTTP_400_BAD_REQUEST)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def stripe_webhook_view(request):
+    """
+    POST /api/v1/webhooks/stripe/
 
-    with transaction.atomic():
-        existing = Transaction.objects.filter(
-            user=request.user,
-            stripe_payment_id=session_id,
-            status="completed",
-        ).first()
-        if existing:
-            profile = Profile.objects.get(user=request.user)
-            return Response(
-                {"credits": profile.credits, "credits_added": 0, "already_confirmed": True},
-                status=status.HTTP_200_OK,
+    Stripe Dashboard → Webhooks → checkout.session.completed
+    Signing secret → STRIPE_WEBHOOK_SECRET on EB.
+    """
+    webhook_secret = getattr(settings, "STRIPE_WEBHOOK_SECRET", "").strip()
+    if not webhook_secret:
+        logger.warning("Stripe webhook received but STRIPE_WEBHOOK_SECRET is not configured")
+        return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    payload = request.body
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE", "")
+    try:
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except ValueError as exc:
+        logger.error("Stripe webhook invalid payload: %s", exc)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+    except stripe.error.SignatureVerificationError as exc:
+        logger.error("Stripe webhook invalid signature: %s", exc)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        result = fulfill_checkout_from_webhook_event(event)
+        if result:
+            logger.info(
+                "Webhook fulfilled session for user credits_added=%s",
+                result.get("credits_added"),
             )
+    except CreditFulfillmentError as exc:
+        logger.warning("Webhook fulfillment skipped: %s", exc)
+    except Exception as exc:
+        logger.exception("Webhook fulfillment error: %s", exc)
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        profile, _ = Profile.objects.select_for_update().get_or_create(user=request.user)
-        profile.credits = F("credits") + credits_to_add
-        profile.save(update_fields=["credits"])
-        profile.refresh_from_db(fields=["credits"])
+    return Response(status=status.HTTP_200_OK)
 
-        amount_dollars = float(payment_data.get("amount") or 0) / 100.0
-        Transaction.objects.create(
-            user=request.user,
-            transaction_type="purchase",
-            amount=amount_dollars,
-            credits=credits_to_add,
-            status="completed",
-            stripe_payment_id=session_id,
-        )
 
-    return Response(
-        {"credits": profile.credits, "credits_added": credits_to_add},
-        status=status.HTTP_200_OK,
-    )
+stripe_webhook_view = csrf_exempt(stripe_webhook_view)

@@ -65,4 +65,5 @@ class TestCreditsViews:
         monkeypatch.setattr("core.views_credits.PaymentProcessor.verify_payment", fake_verify)
 
         response = self.client.post("/api/v1/confirm-purchase/", {"payment_id": "cs_test_wrong"})
-        assert response.status_code == 403
+        assert response.status_code == 400
+        assert "different account" in response.data["detail"].lower()
