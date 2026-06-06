@@ -127,6 +127,7 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "core.admin_security.AdminSecurityMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.RequestValidationMiddleware",  # New validation middleware
@@ -655,3 +656,21 @@ SUPPORT_EMAIL = env("SUPPORT_EMAIL", default="support@chess-mate.online")
 # Stripe Checkout success redirect must survive EB restarts; use DB sessions when Redis is off.
 if IS_PRODUCTION and REDIS_DISABLED:
     SESSION_ENGINE = "django.contrib.sessions.backends.db"
+
+# Django admin hardening (public production)
+from core.admin_security import resolve_admin_path
+
+try:
+    DJANGO_ADMIN_PATH = resolve_admin_path(
+        is_production=IS_PRODUCTION,
+        testing=TESTING,
+        configured=env("DJANGO_ADMIN_PATH", default="admin" if (not IS_PRODUCTION or TESTING) else ""),
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(str(exc)) from exc
+
+ADMIN_URL_PREFIX = f"/{DJANGO_ADMIN_PATH}/"
+ADMIN_HIDE_LEGACY_PATH = env.bool("ADMIN_HIDE_LEGACY_PATH", default=IS_PRODUCTION and not TESTING)
+ADMIN_ALLOWED_IPS = env.list("ADMIN_ALLOWED_IPS", default=[])
+ADMIN_LOGIN_MAX_ATTEMPTS = env.int("ADMIN_LOGIN_MAX_ATTEMPTS", default=5)
+ADMIN_LOGIN_WINDOW_SECONDS = env.int("ADMIN_LOGIN_WINDOW_SECONDS", default=900)

@@ -5,12 +5,13 @@ The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/4.2/topics/http/urls/
 """
 
+import re
 from typing import Any, Callable
 
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseNotFound, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
@@ -30,13 +31,18 @@ except ImportError:
     def detailed_health_check(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"status": "ok", "details": {}})
 
-    def readiness_check(request: HttpRequest) -> JsonResponse:
+    def readiness_check(request: HttpRequest) -> HttpResponse:
         return JsonResponse({"status": "ready"})
 
 
 def spa_index(request: HttpRequest) -> HttpResponse:
     """Serve the React SPA (client-side routes like /login, /dashboard)."""
     return render(request, "index.html")
+
+
+def admin_legacy_decoy(_request: HttpRequest) -> HttpResponse:
+    """Return 404 for the default /admin path when hidden in production."""
+    return HttpResponseNotFound()
 
 
 def batch_legacy_report_redirect(request: HttpRequest, report_id: int) -> HttpResponse:
@@ -51,13 +57,44 @@ def batch_legacy_task_redirect(request: HttpRequest, task_id: str) -> HttpRespon
     return redirect("/batch-analysis", permanent=False)
 
 
+ADMIN_PATH = getattr(settings, "DJANGO_ADMIN_PATH", "admin").strip("/")
+ADMIN_PREFIX = f"{ADMIN_PATH}/"
+
+admin_urlpatterns = [
+    path(ADMIN_PREFIX, admin.site.urls),
+    path(ADMIN_PATH, RedirectView.as_view(url=f"/{ADMIN_PREFIX}", permanent=True)),
+]
+
+if getattr(settings, "ADMIN_HIDE_LEGACY_PATH", False):
+    admin_urlpatterns = [
+        path("admin/", admin_legacy_decoy),
+        path("admin", admin_legacy_decoy),
+    ] + admin_urlpatterns
+else:
+    admin_urlpatterns = [
+        path("admin/", admin.site.urls),
+        path("admin", RedirectView.as_view(url="/admin/", permanent=True)),
+    ]
+
+spa_excluded_prefixes = [
+    "api/",
+    f"{ADMIN_PREFIX}",
+    "health/",
+    "readiness/",
+    "static/",
+    "media/",
+]
+if not getattr(settings, "ADMIN_HIDE_LEGACY_PATH", False):
+    spa_excluded_prefixes.append("admin/")
+
+spa_exclude_pattern = "|".join(re.escape(prefix) for prefix in spa_excluded_prefixes)
+
 urlpatterns = [
     # Health check endpoints at root level for load balancers
     path("health/", health_check, name="health-check"),
     path("readiness/", readiness_check, name="readiness-check"),
-    # Admin and API endpoints
-    path("admin", RedirectView.as_view(url="/admin/", permanent=True)),
-    path("admin/", admin.site.urls),
+    # Admin (custom path in production; legacy /admin hidden when configured)
+    *admin_urlpatterns,
     path("api/v1/", include("core.urls")),  # Include core.urls for API v1
     # Legacy frontend builds used baseURL /api + paths /api/v1/...
     # -- remove after all clients updated
@@ -80,7 +117,7 @@ urlpatterns = [
     ),
     # React SPA (must be last; excludes api/admin/health/static/media)
     re_path(
-        r"^(?!api/|admin/|health/|readiness/|static/|media/).*$",
+        rf"^(?!{spa_exclude_pattern}).*$",
         spa_index,
         name="spa-index",
     ),
