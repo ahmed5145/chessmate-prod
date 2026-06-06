@@ -242,8 +242,10 @@ def register_view(request):
             except Profile.DoesNotExist:
                 # Create profile manually if not already created by signal
                 logger.warning(f"Profile not created by signal for user {username}, creating manually")
+                signup_credits = int(getattr(settings, "SIGNUP_BONUS_CREDITS", 15))
                 profile = Profile.objects.create(
                     user=user,
+                    credits=signup_credits,
                     email_verified=False,
                     email_verification_token=EmailVerificationToken.generate_token(),
                     email_verification_sent_at=timezone.now(),
