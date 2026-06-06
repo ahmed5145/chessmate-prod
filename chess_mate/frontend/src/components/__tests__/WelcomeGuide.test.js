@@ -1,15 +1,13 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-
-jest.mock('../../services/apiRequests');
-
 import WelcomeGuide, { shouldShowWelcomeGuide } from '../WelcomeGuide';
 import { updateUserProfile } from '../../services/apiRequests';
 import api from '../../services/api';
 
 const mockRefreshUserData = jest.fn();
 
+jest.mock('../../services/apiRequests');
 jest.mock('../../contexts/UserContext', () => ({
   useUser: () => ({
     user: {
@@ -20,7 +18,6 @@ jest.mock('../../contexts/UserContext', () => ({
     refreshUserData: mockRefreshUserData,
   }),
 }));
-
 jest.mock('../../context/ThemeContext', () => ({
   useTheme: () => ({ isDarkMode: false }),
 }));

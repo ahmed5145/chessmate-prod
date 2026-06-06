@@ -22,11 +22,24 @@ const Login = () => {
   const verifiedToastShown = useRef(false);
 
   useEffect(() => {
-    if (searchParams.get('verified') === 'success' && !verifiedToastShown.current) {
+    const verified = searchParams.get('verified');
+    if (!verified || verifiedToastShown.current) {
+      return;
+    }
+
+    if (verified === 'success') {
       verifiedToastShown.current = true;
       toast.success('Email verified! You can sign in now.', { id: 'email-verified' });
+    } else if (verified === 'already') {
+      verifiedToastShown.current = true;
+      toast.success('Your email is already verified. You can sign in.', { id: 'email-verified' });
     }
-  }, [searchParams]);
+
+    if (verified === 'success' || verified === 'already') {
+      // Cosmetic query param only — strip it so the URL cannot be mistaken for proof of verification.
+      navigate('/login', { replace: true, state: location.state });
+    }
+  }, [searchParams, navigate, location.state]);
 
   const handleResendVerification = async () => {
     if (!email || resending) {
