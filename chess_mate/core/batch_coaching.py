@@ -7,7 +7,10 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-from .analysis.coaching_generator import CoachingGeneratorError, generate_coaching_report
+from .analysis.coaching_generator import (
+    CoachingGeneratorError,
+    generate_coaching_report,
+)
 from .analysis.per_game_coach_generator import (
     attach_coach_notes_to_results,
     generate_per_game_coach_notes,

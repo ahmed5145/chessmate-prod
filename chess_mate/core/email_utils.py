@@ -26,10 +26,7 @@ def is_email_configured() -> bool:
 
 
 def password_reset_unavailable_message() -> str:
-    return (
-        "Password reset email is temporarily unavailable. "
-        "Please try again later or contact support."
-    )
+    return "Password reset email is temporarily unavailable. " "Please try again later or contact support."
 
 
 def password_reset_expiry_hours() -> int:

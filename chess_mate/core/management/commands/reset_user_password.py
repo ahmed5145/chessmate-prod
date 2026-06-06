@@ -65,8 +65,7 @@ class Command(BaseCommand):
             except User.MultipleObjectsReturned as exc:
                 matches = User.objects.filter(email__iexact=email).order_by("id")
                 lines = [
-                    f"  id={u.id} username={u.username!r} staff={u.is_staff} super={u.is_superuser}"
-                    for u in matches
+                    f"  id={u.id} username={u.username!r} staff={u.is_staff} super={u.is_superuser}" for u in matches
                 ]
                 raise CommandError(
                     f"Multiple users have email {email}. Pick one with --user-id:\n"

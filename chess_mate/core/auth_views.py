@@ -518,10 +518,7 @@ def request_password_reset(request):
         )
     except Exception as template_error:
         logger.warning("Password reset template render failed: %s", template_error)
-        message = (
-            f"Use this link to reset your password (expires in {expiry_hours} hours): "
-            f"{reset_url}"
-        )
+        message = f"Use this link to reset your password (expires in {expiry_hours} hours): " f"{reset_url}"
 
     try:
         # Send email

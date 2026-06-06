@@ -4,13 +4,12 @@ Apply credits for a completed Stripe Checkout session (ops recovery).
 Use when the user paid but /confirm-purchase/ did not run (expired JWT, old redirect URL, etc.).
 """
 
+from core.models import Profile, Transaction
+from core.payment import PaymentProcessor
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import F
-
-from core.models import Profile, Transaction
-from core.payment import PaymentProcessor
 
 
 class Command(BaseCommand):
@@ -54,8 +53,7 @@ class Command(BaseCommand):
         meta_uid = payment_data.get("user_id")
         if meta_uid is not None and str(meta_uid) != str(user.id) and not options["force"]:
             raise CommandError(
-                f"Session metadata user_id={meta_uid} does not match --user-id={user.id}. "
-                "Use --force to override."
+                f"Session metadata user_id={meta_uid} does not match --user-id={user.id}. " "Use --force to override."
             )
 
         credits_to_add = int(payment_data.get("credits") or 0)
@@ -100,7 +98,6 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Added {credits_to_add} credits to id={user.id} {user.username}. "
-                f"New balance={profile.credits}"
+                f"Added {credits_to_add} credits to id={user.id} {user.username}. " f"New balance={profile.credits}"
             )
         )

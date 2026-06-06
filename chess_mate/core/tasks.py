@@ -23,17 +23,21 @@ from openai import OpenAI, OpenAIError
 
 from .ai_feedback import AIFeedbackGenerator
 from .analysis.batch_aggregator import BatchAggregationError, aggregate_batch
-from .batch_observability import log_batch_completed, log_batch_game_failed, log_batch_started
 from .analysis.coaching_generator import (
     CoachingGeneratorError,
     generate_coaching_report,
 )
+from .analysis.metrics_calculator import MetricsError
 from .analysis.per_game_coach_generator import (
     attach_coach_notes_to_results,
     generate_per_game_coach_notes,
 )
-from .analysis.metrics_calculator import MetricsError
 from .analysis.stockfish_game_result import build_game_result
+from .batch_observability import (
+    log_batch_completed,
+    log_batch_game_failed,
+    log_batch_started,
+)
 from .cache import cache_delete, cache_get, cache_set, cacheable
 from .error_handling import (
     ExternalServiceError,
@@ -1529,9 +1533,7 @@ def analyze_batch_task(
             logger.info(f"Batch {batch_id}: starting game {i + 1}/{len(game_pgn_list)}")
             saved_id = resolved_ids[i] if i < len(resolved_ids) else None
             try:
-                results.append(
-                    analyze_single_game_subtask(pgn, f"game_{i}", batch_id, user_id, saved_id)
-                )
+                results.append(analyze_single_game_subtask(pgn, f"game_{i}", batch_id, user_id, saved_id))
             except Exception as exc:
                 logger.exception(f"Batch {batch_id} game {i} failed: {exc}")
                 results.append({"game_id": f"game_{i}", "status": "failed", "error": str(exc)})

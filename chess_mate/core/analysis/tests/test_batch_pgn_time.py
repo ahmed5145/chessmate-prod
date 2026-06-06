@@ -1,5 +1,4 @@
 import pytest
-
 from core.analysis.batch_pgn_time import compute_time_management_from_pgn
 
 PGN_WITH_CLOCKS = """

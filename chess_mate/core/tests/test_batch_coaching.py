@@ -1,10 +1,9 @@
 from unittest.mock import patch
 
 import pytest
-from django.contrib.auth import get_user_model
-
 from core.batch_coaching import regenerate_batch_coaching
 from core.models import BatchAnalysisReport, Profile
+from django.contrib.auth import get_user_model
 
 
 @pytest.mark.django_db

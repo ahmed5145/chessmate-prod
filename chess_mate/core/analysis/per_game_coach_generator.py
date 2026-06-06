@@ -98,7 +98,7 @@ def generate_per_game_coach_notes(
         system_prompt = (
             "You are a chess coach. For each game, write exactly one coach_note (2–3 sentences, max 320 chars) "
             "about the listed worst_moment only. Use facts from the JSON; cite move_number and game_id. "
-            "No markdown. Return JSON: {\"notes\":[{\"game_id\":\"game_0\",\"coach_note\":\"...\"}, ...]} "
+            'No markdown. Return JSON: {"notes":[{"game_id":"game_0","coach_note":"..."}, ...]} '
             "Include every game_id from the input."
         )
         user_message = json.dumps(

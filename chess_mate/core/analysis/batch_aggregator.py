@@ -9,8 +9,8 @@ import statistics
 from collections import Counter
 from typing import Any, Dict, List, Optional
 
-from .batch_metrics import compute_batch_accuracy, compute_batch_acpl
 from ..rating_band_coaching import rating_band_coaching
+from .batch_metrics import compute_batch_accuracy, compute_batch_acpl
 from .moment_insights import ENDGAME_LICHESS_URLS, ENDGAME_STUDY_HINTS
 
 logger = logging.getLogger(__name__)
@@ -159,8 +159,7 @@ def _compute_time_management_summary(
     timed_games = [
         result
         for result in per_game_results
-        if isinstance(result.get("time_management"), dict)
-        and result["time_management"].get("has_clock_data")
+        if isinstance(result.get("time_management"), dict) and result["time_management"].get("has_clock_data")
     ]
     if len(timed_games) < max(2, int(len(per_game_results) * 0.3)):
         return None

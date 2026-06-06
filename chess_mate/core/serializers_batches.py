@@ -109,14 +109,10 @@ class BatchCreateSerializer(serializers.Serializer):
         max_games = int(getattr(settings, "BATCH_MAX_GAMES", 30))
 
         if batch_size < min_games:
-            raise serializers.ValidationError(
-                f"Batch analysis requires at least {min_games} games to detect patterns."
-            )
+            raise serializers.ValidationError(f"Batch analysis requires at least {min_games} games to detect patterns.")
 
         if batch_size > max_games:
-            raise serializers.ValidationError(
-                f"Batch analysis supports a maximum of {max_games} games."
-            )
+            raise serializers.ValidationError(f"Batch analysis supports a maximum of {max_games} games.")
 
         # Validate each PGN is parseable
         validated_pgns = []

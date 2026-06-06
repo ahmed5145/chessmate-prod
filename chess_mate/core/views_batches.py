@@ -63,10 +63,7 @@ def _batch_list_response(request):
         limit = 20
     limit = max(1, min(limit, 50))
 
-    queryset = (
-        BatchAnalysisReport.objects.filter(user=request.user)
-        .order_by("-created_at")[:limit]
-    )
+    queryset = BatchAnalysisReport.objects.filter(user=request.user).order_by("-created_at")[:limit]
     serializer = BatchListItemSerializer(queryset, many=True)
     return Response({"results": serializer.data, "count": len(serializer.data)}, status=status.HTTP_200_OK)
 
@@ -347,9 +344,7 @@ def batch_compare_view(request, batch_id):
 
     metrics = {
         "overall_accuracy_pct_delta": metric_delta(current_summary, other_summary, "overall_accuracy_pct"),
-        "overall_eval_stability_delta": metric_delta(
-            current_summary, other_summary, "overall_eval_stability"
-        ),
+        "overall_eval_stability_delta": metric_delta(current_summary, other_summary, "overall_eval_stability"),
     }
     weaknesses = {
         "persisting": sorted(current_themes & other_themes),

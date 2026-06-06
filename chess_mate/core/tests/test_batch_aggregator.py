@@ -117,9 +117,7 @@ def test_batch_aggregator_schema_structure():
     assert isinstance(batch_summary["top_critical_moments"], list)
     assert len(batch_summary["top_critical_moments"]) <= 3
     assert "time_management_summary" in batch_summary
-    assert batch_summary.get("rating_band_coaching") is None or isinstance(
-        batch_summary["rating_band_coaching"], dict
-    )
+    assert batch_summary.get("rating_band_coaching") is None or isinstance(batch_summary["rating_band_coaching"], dict)
 
     # Verify field types
     assert isinstance(batch_summary["games_analyzed"], int)

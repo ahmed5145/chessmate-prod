@@ -1,8 +1,10 @@
 """Tests for moment_insights classification helpers."""
 
 import chess
-
-from core.analysis.moment_insights import classify_endgame_material, classify_tactical_theme
+from core.analysis.moment_insights import (
+    classify_endgame_material,
+    classify_tactical_theme,
+)
 
 
 def test_classify_endgame_material_rook_and_pawn():

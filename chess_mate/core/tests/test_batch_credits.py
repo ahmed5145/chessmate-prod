@@ -1,11 +1,12 @@
 """Tests for batch credit refunds on hard failure."""
 
+from unittest.mock import patch
+
 from core.batch_credits import refund_batch_credits_on_hard_fail
 from core.models import BatchAnalysisReport, Profile
 from core.tasks import aggregate_and_report_task
 from django.contrib.auth.models import User
 from django.test import TestCase
-from unittest.mock import patch
 
 
 class TestBatchCreditRefund(TestCase):
@@ -29,18 +30,12 @@ class TestBatchCreditRefund(TestCase):
         )
 
         task_results = [
-            {"game_id": f"game_{i}", "status": "success", "result": {"game_id": f"game_{i}"}}
-            for i in range(4)
-        ] + [
-            {"game_id": f"game_{i}", "status": "failed", "error": "err"}
-            for i in range(4, games)
-        ]
+            {"game_id": f"game_{i}", "status": "success", "result": {"game_id": f"game_{i}"}} for i in range(4)
+        ] + [{"game_id": f"game_{i}", "status": "failed", "error": "err"} for i in range(4, games)]
 
         with patch("core.tasks.aggregate_batch") as mock_agg:
             with patch("core.tasks.generate_coaching_report") as mock_coach:
-                result = aggregate_and_report_task(
-                    task_results, batch_id, ["pgn"] * games, self.user.id
-                )
+                result = aggregate_and_report_task(task_results, batch_id, ["pgn"] * games, self.user.id)
 
         assert result["status"] == "failed"
         mock_agg.assert_not_called()

@@ -12,23 +12,27 @@ from typing import Any, Dict, List
 import chess
 
 from ..eco_codes import get_opening_name
-from .batch_metrics import compute_game_accuracy, compute_game_acpl, compute_phase_accuracy
-from .batch_phase_boundaries import (
-    endgame_start_from_metadata,
-    normalize_phase_boundaries,
-    phase_for_half_move_index,
+from .batch_metrics import (
+    compute_game_accuracy,
+    compute_game_acpl,
+    compute_phase_accuracy,
 )
 from .batch_move_classification import (
     CRITICAL_MOMENT_MIN_PAWNS,
     classify_deterioration,
     is_delivered_checkmate,
-    player_has_winning_mate,
     player_eval_deterioration,
+    player_has_winning_mate,
 )
 from .batch_pgn_time import compute_time_management_from_pgn
-from .moment_insights import classify_endgame_material, classify_tactical_theme
+from .batch_phase_boundaries import (
+    endgame_start_from_metadata,
+    normalize_phase_boundaries,
+    phase_for_half_move_index,
+)
 from .explanation_templates import get_explanation
 from .metrics_calculator import MetricsCalculator
+from .moment_insights import classify_endgame_material, classify_tactical_theme
 from .stockfish_analyzer import StockfishAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -273,6 +277,7 @@ def build_game_result(
         raw_opening_end,
         raw_endgame_start,
     )
+
     def _avg_drop_for_slice(start: int, end: int) -> float:
         if end <= start:
             return 0.0
@@ -403,9 +408,7 @@ def build_game_result(
         if best_uci and hasattr(best_move, "uci"):
             best_uci = best_move.uci()
 
-        if is_delivered_checkmate(played_move) or player_has_winning_mate(
-            bool(mv.get("is_white", True)), eval_after
-        ):
+        if is_delivered_checkmate(played_move) or player_has_winning_mate(bool(mv.get("is_white", True)), eval_after):
             continue
 
         tactical_theme = classify_tactical_theme(fen, played_uci, best_uci)
@@ -515,11 +518,7 @@ def build_game_result(
     if saved_game_id is not None:
         result["saved_game_id"] = saved_game_id
 
-    critical_move_numbers = [
-        int(m.get("move_number"))
-        for m in critical_moments
-        if m.get("move_number") is not None
-    ]
+    critical_move_numbers = [int(m.get("move_number")) for m in critical_moments if m.get("move_number") is not None]
     time_management = compute_time_management_from_pgn(
         pgn,
         player_color,
