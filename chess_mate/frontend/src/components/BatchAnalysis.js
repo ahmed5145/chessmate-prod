@@ -16,6 +16,11 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 import { getTimeControlCategory } from '../utils/timeControlCategory';
+import {
+  estimateBatchDurationSeconds,
+  formatBatchDurationRange,
+} from '../utils/batchTimeEstimate';
+import api from '../services/api';
 
 const BATCH_SIZE_OPTIONS = [5, 10, 15, 20, 25, 30];
 const clampBatchSize = (value, maxAvailable) => {
@@ -42,7 +47,31 @@ const BatchAnalysis = () => {
   const credits = userContext?.credits ?? 0;
   const navigate = useNavigate();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [batchSendsEmail, setBatchSendsEmail] = useState(true);
+  const [batchEtaOptions, setBatchEtaOptions] = useState({});
   const pollingErrorCountRef = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/api/v1/public/site-config/')
+      .then((response) => {
+        if (!cancelled && response?.data) {
+          const data = response.data;
+          setBatchSendsEmail(data.batch_sends_completion_email !== false);
+          setBatchEtaOptions({
+            minutesPerGameLow: data.batch_eta_minutes_per_game_low,
+            minutesPerGameHigh: data.batch_eta_minutes_per_game_high,
+            coachingBufferMinutes: data.batch_eta_coaching_buffer_minutes,
+          });
+        }
+      })
+      .catch(() => {
+        /* keep defaults */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const navigateReliably = useCallback((targetPath, options = {}) => {
     navigate(targetPath, options);
@@ -244,8 +273,14 @@ const BatchAnalysis = () => {
         setBatchId(response.batch_id);
         const totalRequested = gamesToAnalyze.length;
         setTotalGames(response.games_count || totalRequested);
-        setEstimatedTime(totalRequested * 2);
-        toast.success('Analysis started! This may take a few minutes.');
+        setEstimatedTime(estimateBatchDurationSeconds(totalRequested, batchEtaOptions));
+        const etaLabel = formatBatchDurationRange(totalRequested, batchEtaOptions);
+        toast.success(
+          batchSendsEmail
+            ? `Analysis started (${etaLabel}). You can close this page — we'll email you when it's ready.`
+            : `Analysis started (${etaLabel}). You can leave this page and check Saved Batch Reports later.`,
+          { duration: 6000 }
+        );
       } else {
         throw new Error('No batch ID received');
       }
@@ -301,6 +336,15 @@ const BatchAnalysis = () => {
     selectedGameIds.length > 0
       ? selectedGameIds.length
       : Math.min(Math.max(Number(numGames) || 10, 0), sortedFilteredGames.length);
+
+  const gamesForEstimate =
+    selectedGameIds.length > 0
+      ? selectedGameIds.length
+      : clampBatchSize(numGames, sortedFilteredGames.length);
+
+  const batchEtaLabel = gamesForEstimate >= 5
+    ? formatBatchDurationRange(gamesForEstimate, batchEtaOptions)
+    : null;
 
   const toggleSelectedGame = (gameId) => {
     setSelectedGameIds((prev) => {
@@ -364,8 +408,13 @@ const BatchAnalysis = () => {
           </h2>
           <ul className={`text-sm space-y-1 list-disc pl-5 ${isDarkMode ? 'text-gray-300' : 'text-indigo-900'}`}>
             <li>Batch coach analysis is included for games already on your account (credits are used when you import games).</li>
-            <li>Engine depth is fixed internally for consistent metrics — not configurable.</li>
-            <li>Typical runtime: about 1–3 minutes per game; you can leave the page and open the report from history.</li>
+            <li>Engine depth is fixed internally (depth 14) for consistent metrics — not configurable.</li>
+            <li>Typical runtime: about 3–5 minutes per game, analyzed one at a time; larger batches can take 30+ minutes.</li>
+            <li>
+              {batchSendsEmail
+                ? 'After you start, you can close this tab — we\'ll email you when your report is ready.'
+                : 'After you start, you can leave this page and open the report from Saved Batch Reports.'}
+            </li>
             <li>At least 5 games must analyze successfully or the batch fails.</li>
           </ul>
         </div>
@@ -633,6 +682,35 @@ const BatchAnalysis = () => {
           </div>
         </div>
 
+        {!isAnalyzing && batchEtaLabel && requiredCredits >= 5 ? (
+          <div
+            className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+              isDarkMode
+                ? 'border-indigo-800 bg-indigo-950/40 text-indigo-100'
+                : 'border-indigo-200 bg-indigo-50 text-indigo-900'
+            }`}
+          >
+            <p className="font-medium">Estimated time</p>
+            <p className={`mt-1 ${isDarkMode ? 'text-indigo-200/90' : 'text-indigo-800'}`}>
+              A batch of <strong>{gamesForEstimate}</strong> games typically takes{' '}
+              <strong>{batchEtaLabel}</strong> (Stockfish depth 14, analyzed one game at a time).
+            </p>
+            <p className={`mt-2 ${isDarkMode ? 'text-indigo-200/80' : 'text-indigo-700'}`}>
+              {batchSendsEmail ? (
+                <>
+                  After you start, you can <strong>close this tab</strong>. We&apos;ll email you when your
+                  coach report is ready, and it will appear under <strong>Saved Batch Reports</strong>.
+                </>
+              ) : (
+                <>
+                  You can leave this page after starting and open your report later from{' '}
+                  <strong>Saved Batch Reports</strong>.
+                </>
+              )}
+            </p>
+          </div>
+        ) : null}
+
         {/* Progress Section */}
         {isAnalyzing ? (
           <div className={`p-6 rounded-lg ${
@@ -699,6 +777,26 @@ const BatchAnalysis = () => {
                     </span>
                   </div>
                 </div>
+              </div>
+
+              <div
+                className={`rounded-lg border px-4 py-3 text-sm ${
+                  isDarkMode
+                    ? 'border-blue-800/60 bg-blue-950/30 text-blue-100'
+                    : 'border-blue-200 bg-blue-50 text-blue-900'
+                }`}
+              >
+                {batchSendsEmail ? (
+                  <>
+                    <strong>Safe to close this tab.</strong> We&apos;ll email you when the report is ready.
+                    Progress may sit on one game for several minutes while Stockfish finishes that game.
+                  </>
+                ) : (
+                  <>
+                    <strong>You can leave this page.</strong> Check <strong>Saved Batch Reports</strong> for
+                    status. Each game may take several minutes to analyze.
+                  </>
+                )}
               </div>
             </div>
           </div>

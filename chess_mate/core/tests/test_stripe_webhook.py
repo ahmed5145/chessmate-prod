@@ -121,3 +121,5 @@ def test_public_site_config():
     assert response.status_code == 200
     assert "support_email" in response.data
     assert response.data["signup_bonus_credits"] >= 10
+    assert response.data["batch_sends_completion_email"] is True
+    assert response.data["batch_eta_minutes_per_game_low"] >= 2

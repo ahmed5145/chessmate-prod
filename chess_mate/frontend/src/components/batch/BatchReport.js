@@ -10,6 +10,7 @@ import BatchLoadingScreen from './BatchLoadingScreen';
 import BatchReportActions from './BatchReportActions';
 import BatchReportSections from './BatchReportSections';
 import { getBatchStatus, getBatchReport, regenerateBatchCoaching } from '../../services/apiRequests';
+import api from '../../services/api';
 
 const BatchReport = () => {
   const { batchId } = useParams();
@@ -22,10 +23,25 @@ const BatchReport = () => {
   const [error, setError] = useState(null);
   const [failedReport, setFailedReport] = useState(null);
   const [regenerating, setRegenerating] = useState(false);
+  const [batchSendsEmail, setBatchSendsEmail] = useState(true);
   const intervalRef = useRef(null);
   const loadingReportRef = useRef(false);
   const finishedRef = useRef(false);
   const pollingErrorCountRef = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/api/v1/public/site-config/')
+      .then((response) => {
+        if (!cancelled && response?.data) {
+          setBatchSendsEmail(response.data.batch_sends_completion_email !== false);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -163,6 +179,7 @@ const BatchReport = () => {
           progress={progress}
           completed_games={completedGames}
           total_games={totalGames}
+          sendsCompletionEmail={batchSendsEmail}
         />
       </Box>
 
