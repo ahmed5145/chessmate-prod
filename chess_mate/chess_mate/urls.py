@@ -13,6 +13,7 @@ from django.contrib import admin
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import include, path, re_path
+from django.views.generic import RedirectView
 
 # Define type for views to prevent linter errors
 ViewType = Callable[[HttpRequest], Any]
@@ -55,6 +56,7 @@ urlpatterns = [
     path("health/", health_check, name="health-check"),
     path("readiness/", readiness_check, name="readiness-check"),
     # Admin and API endpoints
+    path("admin", RedirectView.as_view(url="/admin/", permanent=True)),
     path("admin/", admin.site.urls),
     path("api/v1/", include("core.urls")),  # Include core.urls for API v1
     # Legacy frontend builds used baseURL /api + paths /api/v1/...
