@@ -21,7 +21,7 @@ from core.health_checks import (
     run_all_checks,
 )
 from django.conf import settings
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 
@@ -46,6 +46,13 @@ class HealthEndpointsTestCase(TestCase):
         response = self.client.get("/health/")
 
         # Verify response
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode("utf-8"), "ok")
+
+    @override_settings(SECURE_SSL_REDIRECT=True, SECURE_REDIRECT_EXEMPT=[r"^health/?$", r"^readiness/?$"])
+    def test_health_check_not_redirected_when_ssl_redirect_enabled(self):
+        """Load balancer probes must get 200 on HTTP /health/, not 301."""
+        response = self.client.get("/health/", secure=False)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode("utf-8"), "ok")
 

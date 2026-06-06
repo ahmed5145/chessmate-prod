@@ -527,6 +527,8 @@ STOCKFISH_HASH_SIZE = int(env("STOCKFISH_HASH_SIZE", default=128))  # MB
 # ALB terminates TLS and forwards HTTP to instances with X-Forwarded-Proto: https
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)
+# ELB/Beanstalk health checks hit HTTP /health/ — must not 301 or instances go unhealthy (502s).
+SECURE_REDIRECT_EXEMPT = [r"^health/?$", r"^readiness/?$"]
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=False)
 CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=False)
 SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", default="31536000" if IS_PRODUCTION else "0"))
