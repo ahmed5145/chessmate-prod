@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Box, Chip, Container, Grid, Paper, Tooltip, Typography } from '@mui/material';
+import { toTitleCase } from '../../utils/formatLabel';
 
 const BatchReportHeader = ({ batch_summary, games_count }) => {
   if (!batch_summary) {
@@ -79,7 +80,7 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: { xs: 1, sm: 2 } }}>
                 <Chip
                   size="small"
-                  label={`Top issue: ${String(batch_summary.most_common_blunder_type).replace(/_/g, ' ')}`}
+                  label={`Top issue: ${toTitleCase(batch_summary.most_common_blunder_type)}`}
                   color="warning"
                   variant="outlined"
                 />

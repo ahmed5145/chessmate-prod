@@ -11,6 +11,7 @@ import {
   Typography
 } from '@mui/material';
 import { fetchBatchCompare } from '../../services/apiRequests';
+import { toTitleCase } from '../../utils/formatLabel';
 
 const formatDelta = (value, suffix = '') => {
   if (value == null || Number.isNaN(Number(value))) {
@@ -86,7 +87,7 @@ const BatchCompareCard = ({ batchId }) => {
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
               {weaknesses.persisting.map((item) => (
-                <Chip key={item} size="small" label={String(item).replace(/_/g, ' ')} />
+                <Chip key={item} size="small" label={toTitleCase(item)} />
               ))}
             </Box>
           </Alert>
@@ -98,7 +99,7 @@ const BatchCompareCard = ({ batchId }) => {
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
               {weaknesses.resolved.map((item) => (
-                <Chip key={item} size="small" label={String(item).replace(/_/g, ' ')} color="success" />
+                <Chip key={item} size="small" label={toTitleCase(item)} color="success" />
               ))}
             </Box>
           </Alert>
@@ -110,7 +111,7 @@ const BatchCompareCard = ({ batchId }) => {
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
               {weaknesses.new.map((item) => (
-                <Chip key={item} size="small" label={String(item).replace(/_/g, ' ')} color="info" />
+                <Chip key={item} size="small" label={toTitleCase(item)} color="info" />
               ))}
             </Box>
           </Alert>
