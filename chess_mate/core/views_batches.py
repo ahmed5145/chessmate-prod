@@ -19,13 +19,13 @@ from .abuse_limits import (
     coaching_regenerate_limit_response,
     record_coaching_regenerate,
 )
-from .decorators import rate_limit
 from .batch_coaching import regenerate_batch_coaching
 from .batch_compare import (
     build_compare_narrative,
     metric_delta,
     weakness_themes,
 )
+from .decorators import rate_limit
 from .models import BatchAnalysisReport, Profile
 from .serializers_batches import (
     BatchAnalysisReportSerializer,

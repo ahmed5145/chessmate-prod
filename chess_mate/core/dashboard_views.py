@@ -23,7 +23,11 @@ from .cache import cache_delete, cache_get, cache_set, generate_cache_key
 # Local application imports
 from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 from .serializers_batches import _coaching_summary_snippet
-from .stats_helpers import ANALYZED_GAME_Q, compute_user_average_accuracy, format_dashboard_insights
+from .stats_helpers import (
+    ANALYZED_GAME_Q,
+    compute_user_average_accuracy,
+    format_dashboard_insights,
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)

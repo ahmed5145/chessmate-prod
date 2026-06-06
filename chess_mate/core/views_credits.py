@@ -9,18 +9,21 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-
-from .decorators import rate_limit
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .abuse_limits import check_checkout_allowed, checkout_limit_response, record_checkout_session
+from .abuse_limits import (
+    check_checkout_allowed,
+    checkout_limit_response,
+    record_checkout_session,
+)
 from .credit_fulfillment import (
     CreditFulfillmentError,
     fulfill_checkout_from_webhook_event,
     fulfill_checkout_session,
 )
 from .credit_packages import get_package, list_packages_for_api
+from .decorators import rate_limit
 from .payment import PaymentProcessor
 
 logger = logging.getLogger(__name__)

@@ -4,7 +4,11 @@ from datetime import timedelta
 
 import pytest
 from core.models import BatchAnalysisReport, Game, GameAnalysis, Profile
-from core.stats_helpers import compute_user_achievements, compute_user_average_accuracy, get_game_counts
+from core.stats_helpers import (
+    compute_user_achievements,
+    compute_user_average_accuracy,
+    get_game_counts,
+)
 from django.contrib.auth.models import User
 from django.utils import timezone
 
@@ -30,7 +34,7 @@ class TestAverageAccuracy:
             white="statsuser",
             black="opponent",
             result="win",
-            pgn="[Event \"Test\"]\n1. e4 e5",
+            pgn='[Event "Test"]\n1. e4 e5',
             analysis_status="analyzed",
             date_played=timezone.now(),
         )
@@ -72,7 +76,7 @@ class TestAverageAccuracy:
             white="statsuser",
             black="opponent",
             result="win",
-            pgn="[Event \"Test\"]\n1. e4 e5",
+            pgn='[Event "Test"]\n1. e4 e5',
             status="pending",
             analysis_status="completed",
             analysis={

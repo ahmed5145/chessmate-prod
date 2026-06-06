@@ -51,9 +51,8 @@ HIGH_AUTH_RATE_LIMIT = {
 
 
 def _clear_cache():
-    from django.core.cache import caches
-
     from core.cache import cache_delete
+    from django.core.cache import caches
 
     for alias in ("default", "local"):
         try:
@@ -71,9 +70,7 @@ def _clear_cache():
             cache_delete(f"{prefix}:{ip}:ts")
 
 
-MIDDLEWARE_NO_RATE_LIMIT = [
-    m for m in django_settings.MIDDLEWARE if m != "core.middleware.RateLimitMiddleware"
-]
+MIDDLEWARE_NO_RATE_LIMIT = [m for m in django_settings.MIDDLEWARE if m != "core.middleware.RateLimitMiddleware"]
 
 
 def _auth_client(user):

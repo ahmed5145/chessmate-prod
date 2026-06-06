@@ -294,8 +294,7 @@ def game_import_limit_response(info: Dict[str, Any]) -> Response:
     return abuse_limit_response(
         code="IMPORT_001",
         message=(
-            f"Daily game import limit reached ({info.get('limit')} per day). "
-            "Try again tomorrow or contact support."
+            f"Daily game import limit reached ({info.get('limit')} per day). " "Try again tomorrow or contact support."
         ),
         error="Daily game import limit exceeded",
         detail=info,
