@@ -70,6 +70,7 @@ class GameSerializer(serializers.ModelSerializer):
             "date_played",
             "time_control",
             "time_control_type",
+            "time_control_category",
             "eco_code",
             "white_elo",
             "black_elo",
