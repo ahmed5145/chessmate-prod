@@ -2,6 +2,8 @@
  * Map batch weakness themes to Lichess study URLs (puzzles, openings, endgames).
  */
 
+import { toTitleCase } from './formatLabel';
+
 const PUZZLE_THEME_SLUGS = {
   fork: 'fork',
   pin: 'pin',
@@ -39,8 +41,6 @@ const ENDGAME_PRACTICE_URLS = {
   queen_endgame: 'https://lichess.org/learn#queen',
   general_endgame: 'https://lichess.org/learn'
 };
-
-import { toTitleCase } from './formatLabel';
 
 const normalizeThemeKey = (theme) =>
   String(theme || '')

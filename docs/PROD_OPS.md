@@ -275,6 +275,33 @@ EB → **Configuration** → **Security** → EC2 instance profile → attach po
 
 ---
 
+## Stripe payment recovery (local `manage.py`)
+
+`confirm_stripe_payment` talks to **Stripe’s API** — it needs `STRIPE_SECRET_KEY` in **your local shell**, not only on EB.
+
+```powershell
+cd chess_mate
+$env:STRIPE_SECRET_KEY = "sk_test_..."   # same value as EB
+$env:ENVIRONMENT = "production"          # if you use .env.production for RDS
+python manage.py confirm_stripe_payment cs_test_... --user-id=28 --dry-run
+python manage.py confirm_stripe_payment cs_test_... --user-id=28
+```
+
+Or add `STRIPE_SECRET_KEY=sk_test_...` to `.env.production` (gitignored) when running against prod RDS from your PC.
+
+EB env vars for checkout redirects:
+
+| Variable | Example (no TLS yet) |
+|----------|----------------------|
+| `FRONTEND_URL` | `http://chessmate-prod.us-east-2.elasticbeanstalk.com` |
+| `PAYMENT_SUCCESS_URL` | `http://chessmate-prod.us-east-2.elasticbeanstalk.com/payment/success` (optional override) |
+| `STRIPE_SECRET_KEY` | `sk_test_...` |
+| `STRIPE_PUBLISHABLE_KEY` | `pk_test_...` |
+
+After changing EB env: **Restart app server(s)** (not Rebuild environment).
+
+---
+
 ## Django admin without remembering the old password
 
 1. On the **production container**, run `reset_user_password` (above) for **your** email with `--superuser`.

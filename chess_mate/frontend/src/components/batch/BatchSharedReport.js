@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
-import { Alert, Box, Button, Container, Link, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, Container, Paper, Typography } from '@mui/material';
 import BatchReportSections from './BatchReportSections';
 import { getPublicBatchReport } from '../../services/apiRequests';
 

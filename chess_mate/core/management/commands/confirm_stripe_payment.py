@@ -6,6 +6,7 @@ Use when the user paid but /confirm-purchase/ did not run (expired JWT, old redi
 
 from core.models import Profile, Transaction
 from core.payment import PaymentProcessor
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -32,6 +33,15 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true", help="Verify session only; do not write DB")
 
     def handle(self, *args, **options):
+        if not getattr(settings, "STRIPE_SECRET_KEY", ""):
+            raise CommandError(
+                "STRIPE_SECRET_KEY is not set in this environment.\n"
+                "Add it to your local .env / .env.production, or run one-off:\n"
+                "  set STRIPE_SECRET_KEY=sk_test_...   (cmd)\n"
+                "  $env:STRIPE_SECRET_KEY='sk_test_...' (PowerShell)\n"
+                "Use the same test secret key configured on Elastic Beanstalk."
+            )
+
         session_id = (options["session_id"] or "").strip()
         if not session_id:
             raise CommandError("session_id is required")
