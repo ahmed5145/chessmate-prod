@@ -226,3 +226,34 @@ class TestRateLimitMiddleware:
                 # Reset time should be less than or equal to the window
                 reset_time = middleware._get_reset_time(key, "DEFAULT")
                 assert 0 <= reset_time <= 60
+
+    def test_endpoint_type_auth_v1_register(self, middleware):
+        assert middleware._get_endpoint_type("/api/v1/auth/register/") == "AUTH"
+
+    def test_endpoint_type_fetch_external_import(self, middleware):
+        assert middleware._get_endpoint_type("/api/v1/games/fetch/") == "FETCH"
+        assert middleware._get_endpoint_type("/api/v1/games/import/external/") == "FETCH"
+
+    def test_endpoint_type_batch_regenerate(self, middleware):
+        assert middleware._get_endpoint_type("/api/v1/batches/42/regenerate-coaching/") == "BATCH_OPS"
+
+    def test_endpoint_type_public_site_config(self, middleware):
+        assert middleware._get_endpoint_type("/api/v1/public/site-config/") == "PUBLIC"
+
+    def test_webhook_path_excluded_from_rate_limiting(self, middleware):
+        factory = RequestFactory()
+        request = factory.post("/api/v1/webhooks/stripe/")
+        request.user = AnonymousUser()
+        with patch.object(settings, "RATE_LIMIT_EXCLUDED_PATHS", [r"^/api(?:/v1)?/webhooks/"]):
+            assert middleware._should_rate_limit(request.path) is False
+
+    def test_decorator_endpoint_type_overrides_path(self, middleware, anon_request):
+        anon_request.rate_limit_endpoint_type = "ANALYSIS"
+        with patch.object(middleware, "_is_rate_limited", return_value=False):
+            with patch.object(
+                middleware,
+                "_get_rate_limit_config",
+                return_value={"MAX_REQUESTS": 8, "TIME_WINDOW": 60},
+            ) as mock_config:
+                middleware(anon_request)
+                mock_config.assert_called_with("ANALYSIS")
