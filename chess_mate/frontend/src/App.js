@@ -5,6 +5,7 @@ import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/st
 import { UserProvider } from './contexts/UserContext';
 import AppRoutes from './routes/AppRoutes';
 import Navbar from './components/Navbar';
+import SiteFooter from './components/SiteFooter';
 import './App.css';
 
 // Inner component that uses Tailwind theme context and provides MUI theme
@@ -26,6 +27,7 @@ function AppContent() {
           <main className="flex-1 pt-16">
             <AppRoutes />
           </main>
+          <SiteFooter />
           <Toaster
             position="top-right"
             toastOptions={{

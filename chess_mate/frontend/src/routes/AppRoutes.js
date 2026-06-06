@@ -20,6 +20,8 @@ import FetchGames from '../components/FetchGames';
 import PaymentSuccess from '../components/PaymentSuccess';
 import PaymentCancel from '../components/PaymentCancel';
 import LandingPage from '../components/LandingPage';
+import TermsPage from '../components/TermsPage';
+import PrivacyPage from '../components/PrivacyPage';
 import ProtectedRoute from './ProtectedRoute';
 
 const AppRoutes = () => {
@@ -47,6 +49,8 @@ const AppRoutes = () => {
       <Route path="/reset-password-success" element={<ResetPasswordSuccess />} />
       <Route path="/reset-password-failed" element={<ResetPasswordFailed />} />
       <Route path="/share/batch/:shareToken" element={<BatchSharedReport />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
 
       {/* Protected routes */}
       <Route
