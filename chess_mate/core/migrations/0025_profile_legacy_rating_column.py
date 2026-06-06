@@ -13,21 +13,17 @@ def fix_legacy_rating_column(apps, schema_editor):
 
     with schema_editor.connection.cursor() as cursor:
         cursor.execute("ALTER TABLE core_profile ADD COLUMN IF NOT EXISTS rating integer")
-        cursor.execute(
-            """
+        cursor.execute("""
             UPDATE core_profile
             SET rating = COALESCE(rating, elo_rating, 1200)
             WHERE rating IS NULL
-            """
-        )
+            """)
         cursor.execute("ALTER TABLE core_profile ALTER COLUMN rating SET DEFAULT 1200")
-        cursor.execute(
-            """
+        cursor.execute("""
             UPDATE core_profile
             SET rating = 1200
             WHERE rating IS NULL
-            """
-        )
+            """)
 
 
 class Migration(migrations.Migration):
