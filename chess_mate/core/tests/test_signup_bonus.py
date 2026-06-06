@@ -1,8 +1,7 @@
 import pytest
+from core.models import Profile
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
-
-from core.models import Profile
 
 
 @pytest.mark.django_db

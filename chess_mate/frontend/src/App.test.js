@@ -12,6 +12,7 @@ jest.mock('./contexts/UserContext', () => ({
 }));
 
 jest.mock('./components/Navbar', () => () => <div>Navbar</div>);
+jest.mock('./components/SiteFooter', () => () => <div>SiteFooter</div>);
 jest.mock('./routes/AppRoutes', () => () => <div>AppRoutes</div>);
 jest.mock('react-hot-toast', () => ({
   Toaster: () => <div>Toaster</div>,
@@ -38,6 +39,7 @@ describe('App', () => {
     render(<App />);
     expect(screen.getByText('Navbar')).toBeInTheDocument();
     expect(screen.getByText('AppRoutes')).toBeInTheDocument();
+    expect(screen.getByText('SiteFooter')).toBeInTheDocument();
     expect(screen.getByText('Toaster')).toBeInTheDocument();
   });
 });
