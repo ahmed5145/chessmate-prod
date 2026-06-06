@@ -37,7 +37,6 @@ class Command(BaseCommand):
         recorder.record_applied(*target)
         self.stdout.write(
             self.style.SUCCESS(
-                "Recorded core.0013a_state_inject_payment as applied. "
-                "You can now run `python manage.py migrate`."
+                "Recorded core.0013a_state_inject_payment as applied. " "You can now run `python manage.py migrate`."
             )
         )

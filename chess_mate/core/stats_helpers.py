@@ -11,11 +11,7 @@ from django.db.models import Case, Count, IntegerField, Q, When
 from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 
 # Celery sets analysis_status="completed"; legacy paths used "analyzed".
-ANALYZED_GAME_Q = (
-    Q(status="analyzed")
-    | Q(analysis_status="analyzed")
-    | Q(analysis_status="completed")
-)
+ANALYZED_GAME_Q = Q(status="analyzed") | Q(analysis_status="analyzed") | Q(analysis_status="completed")
 
 
 def get_game_counts(user) -> Dict[str, int]:
@@ -156,9 +152,7 @@ def _extract_accuracy_from_game(game, profile: Optional[Profile] = None) -> Opti
             return _normalize_accuracy_value(game_analysis.accuracy_black)
 
         if game_analysis.accuracy_white is not None and game_analysis.accuracy_black is not None:
-            return _normalize_accuracy_value(
-                max(game_analysis.accuracy_white, game_analysis.accuracy_black)
-            )
+            return _normalize_accuracy_value(max(game_analysis.accuracy_white, game_analysis.accuracy_black))
 
     return None
 
