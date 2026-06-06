@@ -1,5 +1,7 @@
 """Tests for hardened Django admin access."""
 
+from unittest.mock import patch
+
 import pytest
 from core.admin_security import (
     AdminSecurityMiddleware,
@@ -83,7 +85,20 @@ class TestAdminSecurityMiddleware:
         ADMIN_LOGIN_MAX_ATTEMPTS=2,
         ADMIN_LOGIN_WINDOW_SECONDS=900,
     )
-    def test_admin_login_rate_limit(self):
+    @patch("core.admin_security.cache_set")
+    @patch("core.admin_security.cache_get")
+    def test_admin_login_rate_limit(self, mock_cache_get, mock_cache_set):
+        attempt_state = {"count": 0}
+
+        def _cache_get(_key, default=0):
+            return attempt_state["count"]
+
+        def _cache_set(_key, value, timeout=None):
+            attempt_state["count"] = value
+
+        mock_cache_get.side_effect = _cache_get
+        mock_cache_set.side_effect = _cache_set
+
         for _ in range(2):
             request = self.factory.post("/cm-ops-secret/login/", {"username": "x", "password": "y"})
             request.META["REMOTE_ADDR"] = "203.0.113.55"

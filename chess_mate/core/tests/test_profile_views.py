@@ -93,8 +93,8 @@ class TestProfileViews:
             white="opponent2",
             black="testuser_lichess",
             result="loss",
-            pgn='[Event "Test 2"]\n1. d4 d5',
-            time_control_category="rapid",
+            pgn='[Event "Test 2"]\n[TimeControl "600+0"]\n1. d4 d5',
+            time_control="rapid",
             date_played=timezone.now() - timedelta(days=2),
             analysis_status="analyzed",
         )
