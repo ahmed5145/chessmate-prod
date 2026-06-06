@@ -131,10 +131,14 @@ def test_game(db, test_user):
 
 @pytest.fixture
 def test_profile(db, test_user):
-    """Create a test profile."""
+    """Return the auto-created profile for test_user with usernames set."""
     try:
-        from core.models import Profile
+        from core.tests.profile_helpers import ensure_profile
     except (ImportError, ModuleNotFoundError):
-        pytest.skip("core.models unavailable in this test context")
+        pytest.skip("core.tests.profile_helpers unavailable in this test context")
 
-    return Profile.objects.create(user=test_user, chess_com_username="testuser", lichess_username="testuser")
+    return ensure_profile(
+        test_user,
+        chess_com_username="testuser",
+        lichess_username="testuser",
+    )

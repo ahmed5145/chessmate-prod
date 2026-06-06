@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
 import { loginUser, resendVerificationEmail } from "../services/apiRequests";
 import { KeyRound, Mail } from "lucide-react";
@@ -19,8 +19,11 @@ const Login = () => {
   const { isDarkMode } = useTheme();
   const { setUser } = useUser();
 
+  const verifiedToastShown = useRef(false);
+
   useEffect(() => {
-    if (searchParams.get('verified') === 'success') {
+    if (searchParams.get('verified') === 'success' && !verifiedToastShown.current) {
+      verifiedToastShown.current = true;
       toast.success('Email verified! You can sign in now.', { id: 'email-verified' });
     }
   }, [searchParams]);

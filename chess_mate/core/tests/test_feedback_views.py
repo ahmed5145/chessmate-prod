@@ -7,6 +7,7 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
@@ -25,8 +26,8 @@ def api_client():
 @pytest.fixture
 def test_user():
     user = User.objects.create_user(username="testuser", email="test@example.com", password="testpassword123")
-    Profile.objects.create(
-        user=user,
+    ensure_profile(
+        user,
         email_verified=True,
         credits=100,
         chess_com_username="testuser",
@@ -300,7 +301,7 @@ class TestFeedbackViews:
         other_user = User.objects.create_user(
             username="otheruser", email="other@example.com", password="otherpassword123"
         )
-        Profile.objects.create(user=other_user, email_verified=True)
+        ensure_profile(other_user, email_verified=True)
 
         other_game = Game.objects.create(
             user=other_user,

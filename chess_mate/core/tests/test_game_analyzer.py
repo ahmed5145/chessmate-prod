@@ -6,14 +6,15 @@ from unittest.mock import MagicMock, patch
 import pytest
 from core.game_analyzer import GameAnalyzer
 from core.models import Game, GameAnalysis, Profile, User
+from core.tests.profile_helpers import ensure_profile
 
 
 @pytest.fixture
 def test_user(db):
     """Create a test user with profile."""
     user = User.objects.create(username="testuser", email="test@example.com")
-    profile = Profile.objects.create(
-        user=user,
+    ensure_profile(
+        user,
         chess_com_username="testuser",
         lichess_username="testuser",
         credits=100,

@@ -1,7 +1,8 @@
 import json
 
 import pytest
-from core.models import Profile, Transaction
+from core.models import Profile
+from core.tests.profile_helpers import Transaction, ensure_profile
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
@@ -15,7 +16,7 @@ class TestStripeWebhook:
             email="webhook@example.com",
             password="testpass123",
         )
-        Profile.objects.create(user=self.user, credits=5)
+        ensure_profile(self.user, credits=5)
 
     def test_webhook_without_secret_returns_503(self, settings):
         settings.STRIPE_WEBHOOK_SECRET = ""

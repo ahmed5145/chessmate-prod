@@ -6,6 +6,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework import status
@@ -23,7 +24,7 @@ def api_client():
 @pytest.fixture
 def test_user():
     user = User.objects.create_user(username="testuser", email="test@example.com", password="testpassword123")
-    Profile.objects.create(user=user, email_verified=True, credits=10)
+    ensure_profile(user, email_verified=True, credits=10)
     return user
 
 

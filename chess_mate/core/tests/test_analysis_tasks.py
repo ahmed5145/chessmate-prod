@@ -7,6 +7,7 @@ import pytest
 from core.models import Game, GameAnalysis, Player, Profile
 from core.task_manager import TaskManager
 from core.tasks import analyze_game, batch_analyze_games
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.utils import timezone
 
@@ -15,8 +16,8 @@ from django.utils import timezone
 def test_user(db):
     """Create test user with profile."""
     user = User.objects.create(username="testuser", email="test@example.com")
-    profile = Profile.objects.create(
-        user=user,
+    ensure_profile(
+        user,
         chess_com_username="testuser",
         lichess_username="testuser",
         credits=100,

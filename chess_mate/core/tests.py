@@ -11,6 +11,7 @@ from chess_mate.core.chess_services import ChessComService
 
 from .game_analyzer import GameAnalyzer
 from .models import Game, Profile
+from .tests.profile_helpers import ensure_profile
 
 
 class FeedbackTestCase(TestCase):
@@ -21,10 +22,7 @@ class FeedbackTestCase(TestCase):
             password="test_pass",
             email="test@example.com",
         )
-        # Delete any existing profile for this user
-        Profile.objects.filter(user=self.user).delete()
-        # Create a profile for the user
-        Profile.objects.create(user=self.user, credits=10)
+        ensure_profile(self.user, credits=10)
         # Create a game using the user
         self.game = Game.objects.create(
             user=self.user,
@@ -67,7 +65,7 @@ class ChessComServiceTestCase(TestCase):
             password="test_pass",
             email="test@example.com",
         )
-        self.profile = Profile.objects.create(user=self.user, credits=10)
+        self.profile = ensure_profile(self.user, credits=10)
         self.service = ChessComService()
 
     def test_fetch_games_respects_limit(self):

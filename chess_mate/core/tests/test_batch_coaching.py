@@ -3,13 +3,14 @@ from unittest.mock import patch
 import pytest
 from core.batch_coaching import regenerate_batch_coaching
 from core.models import BatchAnalysisReport, Profile
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth import get_user_model
 
 
 @pytest.mark.django_db
 def test_regenerate_batch_coaching_rejects_pending():
     user = get_user_model().objects.create_user(username="coach_user", password="x")
-    Profile.objects.create(user=user, credits=10)
+    ensure_profile(user, credits=10)
     batch = BatchAnalysisReport.objects.create(
         user=user,
         task_id="pending-task",
@@ -26,7 +27,7 @@ def test_regenerate_batch_coaching_rejects_pending():
 @patch("core.batch_coaching.generate_per_game_coach_notes")
 def test_regenerate_batch_coaching_success(mock_notes, mock_generate):
     user = get_user_model().objects.create_user(username="coach_ok", password="x")
-    Profile.objects.create(user=user, credits=10)
+    ensure_profile(user, credits=10)
     per_game = [
         {
             "game_id": f"game_{i}",

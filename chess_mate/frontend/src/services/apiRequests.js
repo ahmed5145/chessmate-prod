@@ -11,9 +11,7 @@ import {
 // Authentication functions
 export const loginUser = async (email, password) => {
     try {
-        console.log('Logging in user with email:', email);
         const response = await api.post("/api/v1/auth/login/", { email, password });
-        console.log('Login response:', response.data);
 
         // Check the response structure
         if (!response.data) {
@@ -50,14 +48,11 @@ export const loginUser = async (email, password) => {
         // Set default Authorization header
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
 
-        console.log('Login successful, user data:', userData);
-
         return {
             success: true,
             user: userData || {}
         };
     } catch (error) {
-        console.error('Login error details:', error);
         // Provide specific error messages based on status codes
         if (error.response?.status === 401) {
             const authMessage = extractApiError(

@@ -365,7 +365,12 @@ def update_profile(request):
         try:
             profile = Profile.objects.get(user=user)
         except Profile.DoesNotExist:
-            profile = Profile.objects.create(user=user)
+            from .models import profile_creation_defaults
+
+            profile, _ = Profile.objects.get_or_create(
+                user=user,
+                defaults=profile_creation_defaults(),
+            )
 
         # Update user info
         if "username" in request.data:

@@ -9,6 +9,7 @@ from core.stats_helpers import (
     compute_user_average_accuracy,
     get_game_counts,
 )
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.utils import timezone
 
@@ -16,8 +17,8 @@ from django.utils import timezone
 @pytest.fixture
 def stats_user():
     user = User.objects.create_user(username="statsuser", email="stats@example.com", password="pass12345")
-    profile = Profile.objects.create(
-        user=user,
+    profile = ensure_profile(
+        user,
         credits=10,
         chess_com_username="statsuser",
     )

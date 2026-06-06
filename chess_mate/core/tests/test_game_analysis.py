@@ -7,6 +7,7 @@ import chess.engine
 import pytest
 from core.game_analyzer import GameAnalyzer
 from core.models import Game, Profile
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.urls import reverse
@@ -25,10 +26,7 @@ def user():
     with transaction.atomic():
         username = f"testuser_{uuid.uuid4().hex[:8]}"
         user = User.objects.create_user(username=username, password="testpass123", email=f"{username}@test.com")
-        # Delete any existing profile for this user
-        Profile.objects.filter(user=user).delete()
-        # Create new profile
-        Profile.objects.create(user=user, credits=10)
+        ensure_profile(user, credits=10)
         return user
 
 

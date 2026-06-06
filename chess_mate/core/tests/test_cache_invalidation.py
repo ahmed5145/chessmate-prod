@@ -15,6 +15,7 @@ from core.cache_invalidation import (
     with_cache_tags,
 )
 from core.models import Game, GameAnalysis, Profile
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.db.models.signals import post_delete, post_save
 from django.http import JsonResponse
@@ -25,8 +26,8 @@ from django.test import RequestFactory
 def test_user(db):
     """Create a test user with profile."""
     user = User.objects.create(username="testuser", email="test@example.com")
-    profile = Profile.objects.create(
-        user=user,
+    ensure_profile(
+        user,
         chess_com_username="testuser",
         lichess_username="testuser",
         credits=100,

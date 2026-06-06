@@ -5,6 +5,7 @@ from unittest.mock import patch
 from core.batch_credits import refund_batch_credits_on_hard_fail
 from core.models import BatchAnalysisReport, Profile
 from core.tasks import aggregate_and_report_task
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.test import TestCase
 
@@ -12,7 +13,7 @@ from django.test import TestCase
 class TestBatchCreditRefund(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="refunduser", password="testpass")
-        self.profile = Profile.objects.create(user=self.user, credits=50)
+        self.profile = ensure_profile(self.user, credits=50)
 
     def test_refund_on_insufficient_successful_games(self):
         batch_id = "batch_refund_001"

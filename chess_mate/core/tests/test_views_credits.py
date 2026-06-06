@@ -1,5 +1,6 @@
 import pytest
 from core.models import Profile
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
@@ -13,7 +14,7 @@ class TestCreditsViews:
             email="credits@example.com",
             password="testpass123",
         )
-        Profile.objects.create(user=self.user, credits=12)
+        ensure_profile(self.user, credits=12)
         self.client.force_authenticate(user=self.user)
 
     def test_get_credits_balance(self):

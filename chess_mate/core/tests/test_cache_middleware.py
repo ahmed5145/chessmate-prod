@@ -13,6 +13,7 @@ from core.cache_middleware import (
     setup_cache_invalidation,
 )
 from core.models import Game, GameAnalysis, Player, Profile
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.db.models.signals import post_delete, post_save
 from django.test import TestCase
@@ -106,8 +107,8 @@ class TestCacheInvalidation:
             pgn='[Event "Test"]\n1. e4 e5',
             result="win",
         )
-        profile = Profile.objects.create(
-            user=user,
+        profile = ensure_profile(
+            user,
             chess_com_username="testuser_chesscom",
             lichess_username="testuser_lichess",
             credits=100,
@@ -132,8 +133,8 @@ class TestCacheInvalidation:
         user1 = User.objects.create(username="user1")
         user2 = User.objects.create(username="user2")
 
-        profile1 = Profile.objects.create(user=user1, chess_com_username="user1_chess", credits=100)
-        profile2 = Profile.objects.create(user=user2, chess_com_username="user2_chess", credits=200)
+        profile1 = ensure_profile(user1, chess_com_username="user1_chess", credits=100)
+        profile2 = ensure_profile(user2, chess_com_username="user2_chess", credits=200)
 
         game1 = Game.objects.create(
             user=user1,
@@ -262,8 +263,8 @@ class TestCacheInvalidation:
         """Test cache invalidation when a Profile model is saved."""
         # Create user and profile
         user = User.objects.create(username="testuser")
-        profile = Profile.objects.create(
-            user=user,
+        profile = ensure_profile(
+            user,
             chess_com_username="testuser_chesscom",
             lichess_username="testuser_lichess",
             credits=100,

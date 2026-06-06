@@ -25,6 +25,7 @@ from core.abuse_limits import (
     record_single_analysis,
 )
 from core.models import BatchAnalysisReport, Game, Profile
+from core.tests.profile_helpers import ensure_profile
 from django.conf import settings as django_settings
 from django.contrib.auth.models import User
 from django.test import RequestFactory, TestCase, override_settings
@@ -127,7 +128,7 @@ class TestLoginRateLimit(TestCase):
             email="login@example.com",
             password="CorrectPass123!",
         )
-        Profile.objects.create(user=self.user, credits=10, email_verified=True)
+        ensure_profile(self.user, credits=10, email_verified=True)
 
     @override_settings(
         LOGIN_FAILED_MAX_PER_IP=2,
@@ -184,7 +185,7 @@ class TestPasswordResetRateLimit(TestCase):
             email="reset@example.com",
             password="Password123!",
         )
-        Profile.objects.create(user=self.user, credits=5)
+        ensure_profile(self.user, credits=5)
 
     @override_settings(
         PASSWORD_RESET_MAX_PER_IP=2,
@@ -245,7 +246,7 @@ class TestPasswordResetRateLimit(TestCase):
 class TestDailyBatchLimit(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="batchuser", password="pass")
-        Profile.objects.create(user=self.user, credits=100)
+        ensure_profile(self.user, credits=100)
         self.client = _auth_client(self.user)
 
     @override_settings(MAX_BATCHES_PER_USER_PER_DAY=2, ALLOW_CONCURRENT_BATCHES=True, CACHES=LOCMEM_CACHES)
@@ -303,7 +304,7 @@ class TestDailyBatchLimit(TestCase):
 class TestCoachingRegenerateLimit(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="coachuser", password="pass")
-        Profile.objects.create(user=self.user, credits=50)
+        ensure_profile(self.user, credits=50)
         self.client = _auth_client(self.user)
         self.batch = BatchAnalysisReport.objects.create(
             user=self.user,
@@ -343,7 +344,7 @@ class TestCheckoutRateLimit(TestCase):
     def setUp(self):
         _clear_cache()
         self.user = User.objects.create_user(username="payuser", email="pay@example.com", password="pass")
-        Profile.objects.create(user=self.user, credits=5)
+        ensure_profile(self.user, credits=5)
         self.client = _auth_client(self.user)
 
     @override_settings(
@@ -369,7 +370,7 @@ class TestAbuseLimitUnitHelpers(TestCase):
     def setUp(self):
         _clear_cache()
         self.user = User.objects.create_user(username="unituser", password="pass")
-        Profile.objects.create(user=self.user, credits=200)
+        ensure_profile(self.user, credits=200)
         self.request = _request()
 
     @override_settings(CACHES=LOCMEM_CACHES)
