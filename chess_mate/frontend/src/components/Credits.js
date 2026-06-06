@@ -48,8 +48,20 @@ const FALLBACK_PACKAGES = [
   }
 ];
 
+const extractApiError = (error) => {
+  const detail = error?.response?.data?.detail;
+  if (typeof detail === 'string' && detail.trim()) {
+    return detail;
+  }
+  if (error?.message) {
+    return error.message;
+  }
+  return 'Could not confirm payment. Contact support if you were charged.';
+};
+
 const Credits = () => {
   const [loading, setLoading] = useState(false);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [packages, setPackages] = useState(FALLBACK_PACKAGES);
   const { credits, fetchUserData } = useContext(UserContext);
   const { isDarkMode } = useTheme();
@@ -66,14 +78,21 @@ const Credits = () => {
     }
 
     const finalize = async () => {
+      setConfirmingPayment(true);
       try {
         const result = await confirmPurchase(sessionId);
-        toast.success(`Added ${result.credits_added || 0} credits to your account.`);
+        const added = result.credits_added ?? result.credits ?? 0;
+        if (result.already_confirmed) {
+          toast.success('Payment was already applied to your account.');
+        } else {
+          toast.success(`Added ${added} credits to your account.`);
+        }
         await fetchUserData();
       } catch (error) {
         console.error('Credit purchase confirm failed:', error);
-        toast.error('Could not confirm payment. Contact support if you were charged.');
+        toast.error(extractApiError(error), { duration: 8000 });
       } finally {
+        setConfirmingPayment(false);
         params.delete('session_id');
         const next = `${window.location.pathname}${params.toString() ? `?${params}` : ''}`;
         window.history.replaceState({}, '', next);
@@ -133,6 +152,14 @@ const Credits = () => {
 
   return (
     <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
+      {confirmingPayment && (
+        <div className={`mb-6 rounded-md px-4 py-3 text-sm ${
+          isDarkMode ? 'bg-indigo-900 text-indigo-100' : 'bg-indigo-50 text-indigo-800'
+        }`}>
+          Confirming your payment with Stripe…
+        </div>
+      )}
+
       <div className="sm:flex sm:flex-col sm:align-center">
         <h2 className={`text-3xl font-extrabold ${isDarkMode ? 'text-white' : 'text-gray-900'} sm:text-center`}>
           Batch Coach Credits

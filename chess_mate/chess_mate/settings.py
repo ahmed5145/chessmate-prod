@@ -542,9 +542,20 @@ CSRF_TRUSTED_ORIGINS = [
     "https://www.chessmate.com",
     "https://api.chessmate.com",
 ]
+_env_csrf = env("CSRF_TRUSTED_ORIGINS", default="")
+if _env_csrf:
+    CSRF_TRUSTED_ORIGINS.extend([u.strip() for u in _env_csrf.split(",") if u.strip()])
+else:
+    for _host in ALLOWED_HOSTS:
+        if _host in ("*", "localhost", "127.0.0.1") or _host.startswith("127."):
+            continue
+        for _scheme in ("http", "https"):
+            _origin = f"{_scheme}://{_host}"
+            if _origin not in CSRF_TRUSTED_ORIGINS:
+                CSRF_TRUSTED_ORIGINS.append(_origin)
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = CSRF_TRUSTED_ORIGINS
+CORS_ALLOWED_ORIGINS = list(CSRF_TRUSTED_ORIGINS)
 CORS_ALLOW_CREDENTIALS = True
 CORS_EXPOSE_HEADERS = [
     "Content-Type",
@@ -629,3 +640,9 @@ else:
 # Password reset links in email (must match template copy)
 PASSWORD_RESET_TIMEOUT = env.int("PASSWORD_RESET_TIMEOUT", default=60 * 60 * 24)  # 24 hours
 FRONTEND_URL = env("FRONTEND_URL", default="")
+PAYMENT_SUCCESS_URL = env("PAYMENT_SUCCESS_URL", default="")
+PAYMENT_CANCEL_URL = env("PAYMENT_CANCEL_URL", default="")
+
+# Stripe Checkout success redirect must survive EB restarts; use DB sessions when Redis is off.
+if IS_PRODUCTION and REDIS_DISABLED:
+    SESSION_ENGINE = "django.contrib.sessions.backends.db"

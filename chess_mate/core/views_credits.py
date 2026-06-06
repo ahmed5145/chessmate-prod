@@ -99,11 +99,24 @@ def confirm_purchase_view(request):
     try:
         payment_data = PaymentProcessor.verify_payment(session_id)
     except Exception as exc:
-        logger.warning("Stripe verify failed for user %s: %s", request.user.id, exc)
+        logger.warning("Stripe verify failed for user %s session %s: %s", request.user.id, session_id, exc)
         return Response({"detail": "Could not verify payment."}, status=status.HTTP_400_BAD_REQUEST)
 
     if not payment_data:
-        return Response({"detail": "Payment not completed."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "Payment not completed yet. Wait a few seconds and refresh, or contact support."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    metadata_user_id = payment_data.get("user_id")
+    if metadata_user_id is not None and str(metadata_user_id) != str(request.user.id):
+        logger.warning(
+            "Stripe session %s user_id=%s does not match request user %s",
+            session_id,
+            metadata_user_id,
+            request.user.id,
+        )
+        return Response({"detail": "This payment belongs to a different account."}, status=status.HTTP_403_FORBIDDEN)
 
     credits_to_add = int(payment_data.get("credits") or 0)
     if credits_to_add <= 0:

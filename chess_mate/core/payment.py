@@ -72,9 +72,9 @@ class PaymentProcessor:
                 success_url=_payment_success_url(),
                 cancel_url=_payment_cancel_url(),
                 metadata={
-                    "user_id": user_id,
-                    "package_id": package_id,
-                    "credits": credits,
+                    "user_id": str(user_id),
+                    "package_id": str(package_id),
+                    "credits": str(credits),
                 },
             )
             return checkout_session
@@ -93,9 +93,12 @@ class PaymentProcessor:
             stripe.api_key = settings.STRIPE_SECRET_KEY
             session = stripe.checkout.Session.retrieve(session_id)
             if session.payment_status == "paid":
+                metadata = session.metadata or {}
                 return {
                     "amount": session.amount_total,
-                    "credits": int(session.metadata.get("credits", 0)),
+                    "credits": int(metadata.get("credits") or 0),
+                    "user_id": metadata.get("user_id"),
+                    "package_id": metadata.get("package_id"),
                 }
             return None
         except stripe.error.StripeError as e:
