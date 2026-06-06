@@ -10,6 +10,13 @@ from django.db.models import Case, Count, IntegerField, Q, When
 
 from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 
+# Celery sets analysis_status="completed"; legacy paths used "analyzed".
+ANALYZED_GAME_Q = (
+    Q(status="analyzed")
+    | Q(analysis_status="analyzed")
+    | Q(analysis_status="completed")
+)
+
 
 def get_game_counts(user) -> Dict[str, int]:
     """Aggregate win/loss/draw/total counts for a user."""
@@ -18,12 +25,7 @@ def get_game_counts(user) -> Dict[str, int]:
         wins=Count(Case(When(result="win", then=1), output_field=IntegerField())),
         losses=Count(Case(When(result="loss", then=1), output_field=IntegerField())),
         draws=Count(Case(When(result="draw", then=1), output_field=IntegerField())),
-        analyzed=Count(
-            Case(
-                When(Q(status="analyzed") | Q(analysis_status="analyzed"), then=1),
-                output_field=IntegerField(),
-            )
-        ),
+        analyzed=Count("id", filter=ANALYZED_GAME_Q),
     )
     return {
         "total": stats["total"] or 0,
@@ -110,6 +112,12 @@ def _extract_accuracy_from_analysis_data(
 
     summary = analysis_data.get("summary", {})
     if isinstance(summary, dict):
+        overall = summary.get("overall", {})
+        if isinstance(overall, dict):
+            for key in ("accuracy", "user_accuracy", "player_accuracy"):
+                normalized = _normalize_accuracy_value(overall.get(key))
+                if normalized is not None:
+                    return normalized
         for key in ("user_accuracy", "accuracy", "player_accuracy"):
             normalized = _normalize_accuracy_value(summary.get(key))
             if normalized is not None:
@@ -152,6 +160,23 @@ def _extract_accuracy_from_game(game, profile: Optional[Profile] = None) -> Opti
                 max(game_analysis.accuracy_white, game_analysis.accuracy_black)
             )
 
+    return None
+
+
+def _accuracy_from_per_game_result(result: Any) -> Optional[float]:
+    if not isinstance(result, dict):
+        return None
+    for key in ("accuracy", "accuracy_pct", "player_accuracy"):
+        normalized = _normalize_accuracy_value(result.get(key))
+        if normalized is not None:
+            return normalized
+    metrics = result.get("metrics", {})
+    if isinstance(metrics, dict):
+        overall = metrics.get("overall", {})
+        if isinstance(overall, dict):
+            normalized = _normalize_accuracy_value(overall.get("accuracy"))
+            if normalized is not None:
+                return normalized
     return None
 
 
@@ -202,13 +227,18 @@ def compute_user_average_accuracy(
         for report in (
             BatchAnalysisReport.objects.filter(user=user, status__in=["completed", "partial"])
             .order_by("-created_at")
-            .only("batch_summary")[:5]
+            .only("batch_summary", "per_game_results")[:5]
         ):
             accuracy = _batch_accuracy_from_summary(
                 report.batch_summary if isinstance(report.batch_summary, dict) else None
             )
             if accuracy is not None:
                 accuracies.append(accuracy)
+                continue
+            for game_result in report.per_game_results or []:
+                game_accuracy = _accuracy_from_per_game_result(game_result)
+                if game_accuracy is not None:
+                    accuracies.append(game_accuracy)
 
     if profile is None:
         try:
@@ -218,7 +248,7 @@ def compute_user_average_accuracy(
 
     analyzed_games = (
         Game.objects.filter(user=user)  # type: ignore[attr-defined]
-        .filter(Q(status="analyzed") | Q(analysis_status="analyzed"))
+        .filter(ANALYZED_GAME_Q)
         .select_related("gameanalysis")
         .order_by("-date_played")[:50]
     )
@@ -227,20 +257,27 @@ def compute_user_average_accuracy(
         if accuracy is not None:
             accuracies.append(accuracy)
 
-    if len(accuracies) < 3:
-        recent_analyses = (
-            GameAnalysis.objects.filter(game__user=user)  # type: ignore[attr-defined]
-            .select_related("game")
-            .order_by("-created_at")[:30]
+    recent_analyses = (
+        GameAnalysis.objects.filter(game__user=user)  # type: ignore[attr-defined]
+        .select_related("game")
+        .order_by("-created_at")[:30]
+    )
+    for analysis in recent_analyses:
+        accuracy = _extract_accuracy_from_analysis_data(
+            analysis.analysis_data,
+            profile,
+            analysis.game,
         )
-        for analysis in recent_analyses:
-            accuracy = _extract_accuracy_from_analysis_data(
-                analysis.analysis_data,
-                profile,
-                analysis.game,
-            )
-            if accuracy is not None:
-                accuracies.append(accuracy)
+        if accuracy is not None:
+            accuracies.append(accuracy)
+        elif analysis.accuracy_white is not None or analysis.accuracy_black is not None:
+            is_white = _is_user_white(analysis.game, profile)
+            if is_white is True and analysis.accuracy_white is not None:
+                accuracies.append(_normalize_accuracy_value(analysis.accuracy_white))
+            elif is_white is False and analysis.accuracy_black is not None:
+                accuracies.append(_normalize_accuracy_value(analysis.accuracy_black))
+            elif analysis.accuracy_white is not None:
+                accuracies.append(_normalize_accuracy_value(analysis.accuracy_white))
 
     if not accuracies:
         return 0.0
@@ -456,6 +493,14 @@ def enrich_profile_payload(user, profile: Profile) -> Dict[str, Any]:
             for tc in ("bullet", "blitz", "rapid", "classical")
         }
 
+    latest_batch_summary = (
+        BatchAnalysisReport.objects.filter(user=user, status__in=["completed", "partial"])
+        .order_by("-created_at")
+        .values_list("batch_summary", flat=True)
+        .first()
+    )
+    batch_summary = latest_batch_summary if isinstance(latest_batch_summary, dict) else None
+
     return {
         "total_games": counts["total"],
         "win_rate": get_win_rate(counts["total"], counts["wins"]),
@@ -463,6 +508,7 @@ def enrich_profile_payload(user, profile: Profile) -> Dict[str, Any]:
         "time_control_distribution": get_time_control_distribution(user),
         "achievements": compute_user_achievements(profile, counts),
         "analyzed_games": counts["analyzed"],
+        "average_accuracy": compute_user_average_accuracy(user, profile, batch_summary),
         "wins": counts["wins"],
         "losses": counts["losses"],
         "draws": counts["draws"],

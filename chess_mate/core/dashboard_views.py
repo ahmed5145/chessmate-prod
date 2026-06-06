@@ -23,7 +23,7 @@ from .cache import cache_delete, cache_get, cache_set, generate_cache_key
 # Local application imports
 from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 from .serializers_batches import _coaching_summary_snippet
-from .stats_helpers import compute_user_average_accuracy, format_dashboard_insights
+from .stats_helpers import ANALYZED_GAME_Q, compute_user_average_accuracy, format_dashboard_insights
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -92,12 +92,7 @@ def dashboard_view(request):
         # Use database aggregation instead of Python counting
         game_stats = Game.objects.filter(user=user).aggregate(  # type: ignore[attr-defined]
             total_games=Count("id"),
-            analyzed_games=Count(
-                Case(
-                    When(Q(status="analyzed") | Q(analysis_status="analyzed"), then=1),
-                    output_field=IntegerField(),
-                )
-            ),
+            analyzed_games=Count("id", filter=ANALYZED_GAME_Q),
             wins=Count(Case(When(result="win", then=1), output_field=IntegerField())),
             losses=Count(Case(When(result="loss", then=1), output_field=IntegerField())),
             draws=Count(Case(When(result="draw", then=1), output_field=IntegerField())),
@@ -112,7 +107,7 @@ def dashboard_view(request):
 
         analyzed_game_stats = (
             Game.objects.filter(user=user)
-            .filter(Q(status="analyzed") | Q(analysis_status="analyzed"))  # type: ignore[attr-defined]
+            .filter(ANALYZED_GAME_Q)  # type: ignore[attr-defined]
             .aggregate(
                 wins=Count(Case(When(result="win", then=1), output_field=IntegerField())),
                 losses=Count(Case(When(result="loss", then=1), output_field=IntegerField())),
@@ -349,7 +344,7 @@ def get_performance_trend(request):
 
         analyzed_games = (
             Game.objects.filter(user=user, date_played__gte=start_date)  # type: ignore[attr-defined]
-            .filter(Q(status="analyzed") | Q(analysis_status="analyzed"))
+            .filter(ANALYZED_GAME_Q)
             .order_by("date_played")
         )
 
@@ -419,7 +414,7 @@ def get_mistake_analysis(request):
             return Response(cached_data, status=status.HTTP_200_OK)
 
         # Get all analyzed games
-        analyzed_games = Game.objects.filter(user=user).filter(Q(status="analyzed") | Q(analysis_status="analyzed"))  # type: ignore[attr-defined]
+        analyzed_games = Game.objects.filter(user=user).filter(ANALYZED_GAME_Q)  # type: ignore[attr-defined]
 
         if analyzed_games.count() == 0:
             return Response({"message": "No analyzed games found"}, status=status.HTTP_200_OK)

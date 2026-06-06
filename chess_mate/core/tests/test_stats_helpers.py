@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import pytest
 from core.models import BatchAnalysisReport, Game, GameAnalysis, Profile
-from core.stats_helpers import compute_user_achievements, compute_user_average_accuracy
+from core.stats_helpers import compute_user_achievements, compute_user_average_accuracy, get_game_counts
 from django.contrib.auth.models import User
 from django.utils import timezone
 
@@ -63,6 +63,42 @@ class TestAverageAccuracy:
         )
 
         assert compute_user_average_accuracy(user, profile, {"overall_accuracy_pct": 76.3}) == 76.3
+
+    def test_completed_analysis_status_counts_toward_accuracy(self, stats_user):
+        user, profile = stats_user
+        game = Game.objects.create(
+            user=user,
+            platform="chess.com",
+            white="statsuser",
+            black="opponent",
+            result="win",
+            pgn="[Event \"Test\"]\n1. e4 e5",
+            status="pending",
+            analysis_status="completed",
+            analysis={
+                "summary": {
+                    "overall": {"accuracy": 71.2, "mistakes": 1, "blunders": 0},
+                }
+            },
+            date_played=timezone.now(),
+        )
+
+        assert compute_user_average_accuracy(user, profile) == 71.2
+        assert get_game_counts(user)["analyzed"] == 1
+
+    def test_reads_per_game_batch_results_when_summary_missing(self, stats_user):
+        user, profile = stats_user
+        BatchAnalysisReport.objects.create(
+            user=user,
+            task_id="batch-task-3",
+            status="completed",
+            games_count=2,
+            batch_summary={},
+            per_game_results=[{"accuracy": 88.5}, {"accuracy": 79.0}],
+            coaching_report={},
+        )
+
+        assert compute_user_average_accuracy(user, profile) == 83.8
 
 
 @pytest.mark.django_db
