@@ -25,6 +25,25 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>Chess Mate</title>
+    <!-- Cloudflare Web Analytics: one token per hostname -->
+    <script>
+      (function () {
+        var tokens = {
+          "www.chess-mate.online": "ea991f9b9a44484a8de20d7603e8aa65",
+          "chess-mate.online": "dc1ce49e26b346f29358bfb8b9c875eb",
+        };
+        var token = tokens[window.location.hostname];
+        if (!token) {
+          return;
+        }
+        var script = document.createElement("script");
+        script.defer = true;
+        script.src = "https://static.cloudflareinsights.com/beacon.min.js";
+        script.setAttribute("data-cf-beacon", JSON.stringify({ token: token }));
+        document.head.appendChild(script);
+      })();
+    </script>
+    <!-- End Cloudflare Web Analytics -->
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
