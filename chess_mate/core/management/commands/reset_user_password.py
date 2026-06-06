@@ -13,7 +13,20 @@ class Command(BaseCommand):
             type=str,
             help="User email (case-insensitive). Omit when using --user-id.",
         )
-        parser.add_argument("password", type=str, help="New password")
+        parser.add_argument(
+            "password",
+            nargs="?",
+            default=None,
+            type=str,
+            help="New password (prefer --password on PowerShell)",
+        )
+        parser.add_argument(
+            "--password",
+            dest="password_flag",
+            default=None,
+            type=str,
+            help="New password (recommended on Windows/PowerShell)",
+        )
         parser.add_argument(
             "--user-id",
             type=int,
@@ -27,7 +40,12 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        password = options["password"]
+        password = (options.get("password_flag") or options.get("password") or "").strip()
+        if not password:
+            raise CommandError(
+                "Password cannot be empty. Example (PowerShell):\n"
+                "  python manage.py reset_user_password --user-id=28 --password 'YourPass' --superuser"
+            )
         User = get_user_model()
 
         if options.get("user_id"):

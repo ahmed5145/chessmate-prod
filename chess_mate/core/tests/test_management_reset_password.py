@@ -27,3 +27,25 @@ def test_reset_user_password_by_user_id():
     user.refresh_from_db()
     assert user.is_superuser is True
     assert user.check_password("newpass123")
+
+
+@pytest.mark.django_db
+def test_reset_user_password_rejects_empty_password():
+    User = get_user_model()
+    user = User.objects.create_user(username="admin1", email="a@b.com", password="old")
+
+    with pytest.raises(CommandError) as exc:
+        call_command("reset_user_password", user_id=user.id, password_flag="")
+
+    assert "cannot be empty" in str(exc.value).lower()
+
+
+@pytest.mark.django_db
+def test_reset_user_password_via_password_flag():
+    User = get_user_model()
+    user = User.objects.create_user(username="admin1", email="a@b.com", password="old")
+
+    call_command("reset_user_password", user_id=user.id, password_flag="flagpass99")
+
+    user.refresh_from_db()
+    assert user.check_password("flagpass99")
