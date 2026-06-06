@@ -192,6 +192,8 @@ def profile_view(request):
             if subscription_data:
                 combined_data["subscription"] = subscription_data
 
+            from .stats_helpers import enrich_profile_payload
+
             response_payload = {
                 "status": "success",
                 "data": combined_data,
@@ -208,6 +210,16 @@ def profile_view(request):
                 "analysis_count": getattr(profile, "analysis_count", 0),
                 "preferences": getattr(profile, "preferences", {}),
             }
+            response_payload.update(enrich_profile_payload(request.user, profile))
+            combined_data.update(
+                {
+                    "total_games": response_payload["total_games"],
+                    "win_rate": response_payload["win_rate"],
+                    "performance_stats": response_payload["performance_stats"],
+                    "time_control_distribution": response_payload["time_control_distribution"],
+                    "achievements": response_payload["achievements"],
+                }
+            )
 
             return Response(response_payload, status=status.HTTP_200_OK)
 

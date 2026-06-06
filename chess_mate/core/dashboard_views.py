@@ -23,6 +23,7 @@ from .cache import cache_delete, cache_get, cache_set, generate_cache_key
 # Local application imports
 from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 from .serializers_batches import _coaching_summary_snippet
+from .stats_helpers import compute_user_average_accuracy, format_dashboard_insights
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -274,6 +275,13 @@ def dashboard_view(request):
                 "classical": profile.classical_rating,
             },
         }
+
+        average_accuracy = compute_user_average_accuracy(user, latest_batch_coach)
+        dashboard_data["total_games"] = total_games
+        dashboard_data["win_rate"] = round(win_rate, 1)
+        dashboard_data["credits"] = profile.credits
+        dashboard_data["average_accuracy"] = average_accuracy
+        dashboard_data["insights"] = format_dashboard_insights(analysis_insights)
 
         # Cache the dashboard data
         cache_manager.set(cache_key, dashboard_data, timeout=300)  # Cache for 5 minutes

@@ -469,7 +469,14 @@ const Dashboard = () => {
             <InsightCard
               title="Performance Insights"
               icon={PieChart}
-              insights={dashboardData?.insights || []}
+              insights={
+                dashboardData?.insights?.length
+                  ? dashboardData.insights
+                  : [{
+                      type: 'success',
+                      text: 'Import and analyze games to unlock personalized performance insights.',
+                    }]
+              }
             />
           </div>
         </div>

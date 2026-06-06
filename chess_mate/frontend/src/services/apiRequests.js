@@ -213,10 +213,55 @@ export const fetchUserGames = async () => {
     }
 };
 
+const normalizeDashboardInsights = (insights) => {
+    if (!Array.isArray(insights) || insights.length === 0) {
+        return [{
+            type: 'success',
+            text: 'Import and analyze games to unlock personalized performance insights.',
+        }];
+    }
+
+    if (insights[0]?.text) {
+        return insights;
+    }
+
+    return insights.map((item) => {
+        const mistakeCount = Number(item.mistake_count) || 0;
+        const opponent = item.opponent || 'opponent';
+        const summary = (item.summary || '').trim();
+        let type = 'success';
+        if (mistakeCount >= 5) {
+            type = 'error';
+        } else if (mistakeCount >= 2) {
+            type = 'warning';
+        }
+
+        const text = summary
+            ? `vs ${opponent}: ${summary}`
+            : `vs ${opponent}: ${mistakeCount} mistake${mistakeCount === 1 ? '' : 's'} in recent analysis`;
+
+        return { type, text: text.slice(0, 240) };
+    });
+};
+
+const normalizeDashboardData = (raw) => {
+    const gameStats = raw?.game_stats || {};
+    const user = raw?.user || {};
+
+    return {
+        ...raw,
+        total_games: raw?.total_games ?? gameStats.total ?? gameStats.total_games ?? 0,
+        win_rate: raw?.win_rate ?? gameStats.win_rate ?? 0,
+        average_accuracy: raw?.average_accuracy ?? 0,
+        credits: raw?.credits ?? user.credits ?? 0,
+        insights: normalizeDashboardInsights(raw?.insights || raw?.analysis_insights || []),
+    };
+};
+
 export const fetchDashboardData = async () => {
     try {
         const response = await api.get("/api/v1/dashboard/");
-        return response.data;
+        return normalizeDashboardData(response.data);
     } catch (error) {
         if (error.response?.status === 401) {
             throw new Error("Please log in to view your dashboard");
@@ -955,10 +1000,46 @@ export const confirmPurchase = async (paymentId) => {
     }
 };
 
+const defaultPerformanceStats = () => ({
+    bullet: { games: 0, winRate: 0, drawRate: 0, lossRate: 0 },
+    blitz: { games: 0, winRate: 0, drawRate: 0, lossRate: 0 },
+    rapid: { games: 0, winRate: 0, drawRate: 0, lossRate: 0 },
+    classical: { games: 0, winRate: 0, drawRate: 0, lossRate: 0 },
+});
+
+const normalizeProfileData = (raw) => {
+    const nestedProfile = raw?.data?.profile || raw?.profile || {};
+    const nestedUser = raw?.data?.user || {};
+
+    return {
+        ...raw,
+        username: raw?.username ?? nestedUser.username,
+        email: raw?.email ?? nestedUser.email,
+        credits: raw?.credits ?? nestedProfile.credits ?? 0,
+        chess_com_username: raw?.chess_com_username ?? nestedProfile.chess_com_username ?? '',
+        chesscom_username:
+            raw?.chesscom_username ??
+            raw?.chess_com_username ??
+            nestedProfile.chess_com_username ??
+            '',
+        lichess_username: raw?.lichess_username ?? nestedProfile.lichess_username ?? '',
+        total_games: raw?.total_games ?? 0,
+        win_rate: raw?.win_rate ?? 0,
+        performance_stats: raw?.performance_stats ?? defaultPerformanceStats(),
+        time_control_distribution: raw?.time_control_distribution ?? {
+            bullet: 0,
+            blitz: 0,
+            rapid: 0,
+            classical: 0,
+        },
+        achievements: Array.isArray(raw?.achievements) ? raw.achievements : [],
+    };
+};
+
 export const fetchProfileData = async () => {
     try {
         const response = await api.get('/api/v1/profile/');
-        return response.data;
+        return normalizeProfileData(response.data);
     } catch (error) {
         console.error('Error fetching profile data:', error);
         throw error;

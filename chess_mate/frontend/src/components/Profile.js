@@ -49,7 +49,7 @@ const StatCard = ({ title, value, icon: Icon, trend, color = 'indigo' }) => {
 
 const ProgressChart = ({ data, title }) => {
   const { isDarkMode } = useTheme();
-  const maxValue = Math.max(...data.map(d => d.value));
+  const maxValue = Math.max(...data.map(d => d.value), 1);
 
   return (
     <div className={`p-6 rounded-xl ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'} shadow-lg`}>
@@ -84,6 +84,14 @@ const AchievementsSection = ({ achievements }) => {
   const { isDarkMode } = useTheme();
   const [showModal, setShowModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
+
+  if (!achievements?.length) {
+    return (
+      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+        Play and analyze games to start earning achievements.
+      </p>
+    );
+  }
 
   // Group achievements by category
   const categories = {
@@ -424,10 +432,12 @@ const Profile = () => {
         return;
       }
 
-      await api.post('/api/profile/link-account/', {
-        platform,
-        username
-      });
+      const payload =
+        platform === 'chess.com'
+          ? { chess_com_username: username.trim() }
+          : { lichess_username: username.trim() };
+
+      await api.patch('/api/v1/profile/update/', payload);
 
       // Clear the input and refresh profile data
       setNewUsernames(prev => ({ ...prev, [platform === 'chess.com' ? 'chesscom' : 'lichess']: '' }));
@@ -441,9 +451,12 @@ const Profile = () => {
 
   const handleUnlinkAccount = async (platform) => {
     try {
-      await api.post('/api/profile/unlink-account/', {
-        platform
-      });
+      const payload =
+        platform === 'chess.com'
+          ? { chess_com_username: '' }
+          : { lichess_username: '' };
+
+      await api.patch('/api/v1/profile/update/', payload);
 
       await loadProfileData();
       toast.success(`Successfully unlinked ${platform} account`);
