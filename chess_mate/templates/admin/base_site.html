@@ -1,0 +1,64 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | ChessMate Admin{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}">ChessMate Admin</a></div>
+{% if user.is_anonymous %}
+  {% else %}
+  <div class="cm-admin-tagline">Operations console</div>
+{% endif %}
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  :root {
+    --cm-admin-primary: #312e81;
+    --cm-admin-accent: #4f46e5;
+    --cm-admin-surface: #eef2ff;
+  }
+  #header {
+    background: var(--cm-admin-primary);
+    color: #fff;
+  }
+  #branding h1,
+  #site-name a {
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .cm-admin-tagline {
+    color: #c7d2fe;
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  div.breadcrumbs {
+    background: var(--cm-admin-surface);
+    border-bottom: 1px solid #c7d2fe;
+  }
+  .module h2,
+  .module caption,
+  .inline-group h2 {
+    background: var(--cm-admin-accent);
+  }
+  .button,
+  input[type=submit],
+  input[type=button],
+  .submit-row input,
+  a.button {
+    background: var(--cm-admin-accent);
+  }
+  .button:hover,
+  input[type=submit]:hover,
+  input[type=button]:hover,
+  .submit-row input:hover,
+  a.button:hover {
+    background: #4338ca;
+  }
+  #content-main .module {
+    border-radius: 8px;
+    overflow: hidden;
+  }
+</style>
+{% endblock %}

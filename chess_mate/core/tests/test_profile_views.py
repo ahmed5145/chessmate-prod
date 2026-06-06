@@ -113,7 +113,9 @@ class TestProfileViews:
 
         achievements = response.data["achievements"]
         assert isinstance(achievements, list)
-        assert len(achievements) >= 10
+        assert len(achievements) >= 15
+        batch_names = {item["name"] for item in achievements if "Batch" in item["name"]}
+        assert "Batch Starter" in batch_names
         first = achievements[0]
         assert {"name", "description", "target", "progress", "completed"} <= set(first.keys())
 

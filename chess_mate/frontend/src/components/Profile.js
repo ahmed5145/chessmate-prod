@@ -115,6 +115,11 @@ const AchievementsSection = ({ achievements }) => {
       icon: Brain,
       items: achievements.filter(a => a.name.includes('Analyst') || a.name.includes('Thinker') || a.name.includes('Student'))
     },
+    batch: {
+      title: 'Batch Coach',
+      icon: Brain,
+      items: achievements.filter(a => a.name.includes('Batch') || a.name.includes('Roster') || a.name.includes('Sharp') || a.name.includes('Elite'))
+    },
     platform: {
       title: 'Platform Integration',
       icon: Target,

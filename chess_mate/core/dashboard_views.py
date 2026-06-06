@@ -207,15 +207,17 @@ def dashboard_view(request):
                     )
 
         latest_batch_coach = None
+        latest_batch_summary = None
         latest_batch = (
             BatchAnalysisReport.objects.filter(user=user, status__in=["completed", "partial"])
             .order_by("-created_at")
             .first()
         )
         if latest_batch:
+            batch_summary = latest_batch.batch_summary if isinstance(latest_batch.batch_summary, dict) else {}
+            latest_batch_summary = batch_summary
             summary_text = _coaching_summary_snippet(latest_batch.coaching_report)
             if summary_text:
-                batch_summary = latest_batch.batch_summary if isinstance(latest_batch.batch_summary, dict) else {}
                 latest_batch_coach = {
                     "batch_id": latest_batch.id,
                     "created_at": latest_batch.created_at,
@@ -276,7 +278,7 @@ def dashboard_view(request):
             },
         }
 
-        average_accuracy = compute_user_average_accuracy(user, latest_batch_coach)
+        average_accuracy = compute_user_average_accuracy(user, profile, latest_batch_summary)
         dashboard_data["total_games"] = total_games
         dashboard_data["win_rate"] = round(win_rate, 1)
         dashboard_data["credits"] = profile.credits

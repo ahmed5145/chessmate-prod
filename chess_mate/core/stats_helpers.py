@@ -57,64 +57,190 @@ def get_time_control_distribution(user) -> Dict[str, float]:
     return {key: round((value / total) * 100, 1) for key, value in counts.items()}
 
 
-def _extract_accuracy_from_game(game) -> Optional[float]:
-    analysis_payload = getattr(game, "analysis", None) or {}
-    if isinstance(analysis_payload, dict):
-        analysis_results = analysis_payload.get("analysis_results", analysis_payload)
-        if isinstance(analysis_results, dict):
-            summary = analysis_results.get("summary", {})
-            if isinstance(summary, dict):
-                raw = summary.get("user_accuracy", summary.get("accuracy"))
-                if raw is not None:
-                    return float(raw)
+def _is_user_white(game, profile: Optional[Profile]) -> Optional[bool]:
+    """Return True if the account owner played white, False if black, else None."""
+    names: List[str] = []
+    if profile:
+        platform_user = profile.get_platform_username(game.platform)
+        if platform_user:
+            names.append(platform_user)
+    username = getattr(getattr(game, "user", None), "username", None)
+    if username:
+        names.append(username)
 
-    game_analysis = getattr(game, "gameanalysis", None)
-    if game_analysis and getattr(game_analysis, "analysis_data", None):
-        summary = game_analysis.analysis_data.get("summary", {})
-        if isinstance(summary, dict):
-            raw = summary.get("user_accuracy", summary.get("accuracy"))
-            if raw is not None:
-                return float(raw)
+    for name in names:
+        if game.white and name.lower() == game.white.lower():
+            return True
+        if game.black and name.lower() == game.black.lower():
+            return False
     return None
 
 
-def compute_user_average_accuracy(user, latest_batch_coach: Optional[Dict[str, Any]] = None) -> float:
-    """Average move accuracy across analyzed games, with batch coach fallback."""
-    if latest_batch_coach and latest_batch_coach.get("overall_accuracy_pct") is not None:
-        return round(float(latest_batch_coach["overall_accuracy_pct"]), 1)
+def _normalize_accuracy_value(raw: Any) -> Optional[float]:
+    if raw is None:
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if value <= 0:
+        return None
+    # Legacy 0–1 stability scores stored as overall_accuracy (not percent).
+    if 0 < value <= 1:
+        return round(value * 100, 1)
+    return round(value, 1)
 
+
+def _extract_accuracy_from_analysis_data(
+    analysis_data: Optional[Dict[str, Any]],
+    profile: Optional[Profile],
+    game,
+) -> Optional[float]:
+    if not isinstance(analysis_data, dict):
+        return None
+
+    metrics = analysis_data.get("metrics", {})
+    if isinstance(metrics, dict):
+        overall = metrics.get("overall", {})
+        if isinstance(overall, dict):
+            for key in ("accuracy", "user_accuracy", "player_accuracy"):
+                normalized = _normalize_accuracy_value(overall.get(key))
+                if normalized is not None:
+                    return normalized
+
+    summary = analysis_data.get("summary", {})
+    if isinstance(summary, dict):
+        for key in ("user_accuracy", "accuracy", "player_accuracy"):
+            normalized = _normalize_accuracy_value(summary.get(key))
+            if normalized is not None:
+                return normalized
+
+    analysis_results = analysis_data.get("analysis_results", {})
+    if isinstance(analysis_results, dict):
+        nested_summary = analysis_results.get("summary", {})
+        if isinstance(nested_summary, dict):
+            for key in ("user_accuracy", "accuracy", "player_accuracy"):
+                normalized = _normalize_accuracy_value(nested_summary.get(key))
+                if normalized is not None:
+                    return normalized
+
+    return None
+
+
+def _extract_accuracy_from_game(game, profile: Optional[Profile] = None) -> Optional[float]:
+    analysis_payload = getattr(game, "analysis", None) or {}
+    if isinstance(analysis_payload, dict):
+        accuracy = _extract_accuracy_from_analysis_data(analysis_payload, profile, game)
+        if accuracy is not None:
+            return accuracy
+
+    game_analysis = getattr(game, "gameanalysis", None)
+    if game_analysis:
+        if getattr(game_analysis, "analysis_data", None):
+            accuracy = _extract_accuracy_from_analysis_data(game_analysis.analysis_data, profile, game)
+            if accuracy is not None:
+                return accuracy
+
+        is_white = _is_user_white(game, profile)
+        if is_white is True and game_analysis.accuracy_white is not None:
+            return _normalize_accuracy_value(game_analysis.accuracy_white)
+        if is_white is False and game_analysis.accuracy_black is not None:
+            return _normalize_accuracy_value(game_analysis.accuracy_black)
+
+        if game_analysis.accuracy_white is not None and game_analysis.accuracy_black is not None:
+            return _normalize_accuracy_value(
+                max(game_analysis.accuracy_white, game_analysis.accuracy_black)
+            )
+
+    return None
+
+
+def _batch_accuracy_from_summary(batch_summary: Optional[Dict[str, Any]]) -> Optional[float]:
+    if not isinstance(batch_summary, dict):
+        return None
+    pct = _normalize_accuracy_value(batch_summary.get("overall_accuracy_pct"))
+    if pct is not None:
+        return pct
+    return _normalize_accuracy_value(batch_summary.get("overall_accuracy"))
+
+
+def _batch_stats(user) -> Dict[str, Any]:
+    completed = BatchAnalysisReport.objects.filter(user=user, status__in=["completed", "partial"])
+    batch_count = completed.count()
+    max_games = 0
+    best_accuracy = 0.0
+
+    for report in completed.only("batch_summary", "games_count").iterator():
+        games_count = report.games_count or 0
+        max_games = max(max_games, games_count)
+        accuracy = _batch_accuracy_from_summary(
+            report.batch_summary if isinstance(report.batch_summary, dict) else None
+        )
+        if accuracy is not None:
+            best_accuracy = max(best_accuracy, accuracy)
+
+    return {
+        "batch_count": batch_count,
+        "max_games_in_batch": max_games,
+        "best_batch_accuracy": best_accuracy,
+    }
+
+
+def compute_user_average_accuracy(
+    user,
+    profile: Optional[Profile] = None,
+    latest_batch_summary: Optional[Dict[str, Any]] = None,
+) -> float:
+    """Average move accuracy across analyzed games and batch reports."""
     accuracies: List[float] = []
+
+    batch_accuracy = _batch_accuracy_from_summary(latest_batch_summary)
+    if batch_accuracy is not None:
+        accuracies.append(batch_accuracy)
+
+    if not accuracies:
+        for report in (
+            BatchAnalysisReport.objects.filter(user=user, status__in=["completed", "partial"])
+            .order_by("-created_at")
+            .only("batch_summary")[:5]
+        ):
+            accuracy = _batch_accuracy_from_summary(
+                report.batch_summary if isinstance(report.batch_summary, dict) else None
+            )
+            if accuracy is not None:
+                accuracies.append(accuracy)
+
+    if profile is None:
+        try:
+            profile = Profile.objects.get(user=user)
+        except Profile.DoesNotExist:
+            profile = None
+
     analyzed_games = (
         Game.objects.filter(user=user)  # type: ignore[attr-defined]
         .filter(Q(status="analyzed") | Q(analysis_status="analyzed"))
+        .select_related("gameanalysis")
         .order_by("-date_played")[:50]
     )
     for game in analyzed_games:
-        accuracy = _extract_accuracy_from_game(game)
+        accuracy = _extract_accuracy_from_game(game, profile)
         if accuracy is not None:
             accuracies.append(accuracy)
 
-    if not accuracies:
-        latest_batch = (
-            BatchAnalysisReport.objects.filter(user=user, status__in=["completed", "partial"])
-            .order_by("-created_at")
-            .first()
+    if len(accuracies) < 3:
+        recent_analyses = (
+            GameAnalysis.objects.filter(game__user=user)  # type: ignore[attr-defined]
+            .select_related("game")
+            .order_by("-created_at")[:30]
         )
-        if latest_batch and isinstance(latest_batch.batch_summary, dict):
-            batch_accuracy = latest_batch.batch_summary.get("overall_accuracy_pct")
-            if batch_accuracy is not None:
-                return round(float(batch_accuracy), 1)
-
-    if not accuracies:
-        recent_analyses = GameAnalysis.objects.filter(game__user=user).order_by("-created_at")[:20]  # type: ignore[attr-defined]
         for analysis in recent_analyses:
-            if not analysis.analysis_data:
-                continue
-            summary = analysis.analysis_data.get("summary", {})
-            if isinstance(summary, dict):
-                raw = summary.get("user_accuracy", summary.get("accuracy"))
-                if raw is not None:
-                    accuracies.append(float(raw))
+            accuracy = _extract_accuracy_from_analysis_data(
+                analysis.analysis_data,
+                profile,
+                analysis.game,
+            )
+            if accuracy is not None:
+                accuracies.append(accuracy)
 
     if not accuracies:
         return 0.0
@@ -157,6 +283,10 @@ def compute_user_achievements(profile: Profile, game_counts: Optional[Dict[str, 
     counts = game_counts or get_game_counts(profile.user)
     total_games = counts["total"]
     analyzed_games = counts["analyzed"]
+    batch_stats = _batch_stats(profile.user)
+    batch_count = batch_stats["batch_count"]
+    max_games_in_batch = batch_stats["max_games_in_batch"]
+    best_batch_accuracy = batch_stats["best_batch_accuracy"]
 
     max_rating = max(
         profile.bullet_rating,
@@ -228,6 +358,48 @@ def compute_user_achievements(profile: Profile, game_counts: Optional[Dict[str, 
             "description": "Analyze 50 games",
             "target": 50,
             "progress": min(analyzed_games, 50),
+        },
+        {
+            "name": "Batch Starter",
+            "description": "Complete your first batch coach report",
+            "target": 1,
+            "progress": min(batch_count, 1),
+        },
+        {
+            "name": "Batch Regular",
+            "description": "Complete 5 batch coach reports",
+            "target": 5,
+            "progress": min(batch_count, 5),
+        },
+        {
+            "name": "Batch Veteran",
+            "description": "Complete 10 batch coach reports",
+            "target": 10,
+            "progress": min(batch_count, 10),
+        },
+        {
+            "name": "Deep Batch",
+            "description": "Run a batch coach report on 20+ games",
+            "target": 20,
+            "progress": min(max_games_in_batch, 20),
+        },
+        {
+            "name": "Full Roster Batch",
+            "description": "Run a 30-game batch coach report",
+            "target": 30,
+            "progress": min(max_games_in_batch, 30),
+        },
+        {
+            "name": "Sharp Batch",
+            "description": "Reach 80% accuracy in a batch report",
+            "target": 80,
+            "progress": min(int(best_batch_accuracy), 80),
+        },
+        {
+            "name": "Elite Batch",
+            "description": "Reach 90% accuracy in a batch report",
+            "target": 90,
+            "progress": min(int(best_batch_accuracy), 90),
         },
         {
             "name": "Chess.com Connected",
