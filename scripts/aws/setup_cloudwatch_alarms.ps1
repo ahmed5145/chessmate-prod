@@ -57,7 +57,17 @@ function Invoke-AwsCli {
         }
         throw "AWS CLI failed (exit $exit): aws $($AwsArgs -join ' ')"
     }
-    return $output
+    return $text
+}
+
+function Get-AwsText {
+    param([string[]]$AwsArgs)
+
+    $result = Invoke-AwsCli -AwsArgs $AwsArgs
+    if ($null -eq $result) {
+        return ""
+    }
+    return "$result".Trim()
 }
 
 Write-Host "Region: $Region"
@@ -65,15 +75,18 @@ if ($AlarmEmail) {
     Write-Host "Alarm email: $AlarmEmail"
 }
 
-$accountId = (Invoke-AwsCli -AwsArgs @("sts", "get-caller-identity", "--query", "Account", "--output", "text")).Trim()
+$accountId = Get-AwsText -AwsArgs @("sts", "get-caller-identity", "--query", "Account", "--output", "text")
+if (-not $accountId) {
+    Write-Error "Could not resolve AWS account id (check AWS_PROFILE and credentials)."
+}
 $topicArn = "arn:aws:sns:${Region}:${accountId}:${SnsTopicName}"
 $actionArgs = @()
 
 if (-not $SkipSns) {
-    $existingTopic = (Invoke-AwsCli -AwsArgs @(
+    $existingTopic = Get-AwsText -AwsArgs @(
         "sns", "list-topics", "--region", $Region,
         "--query", "Topics[?TopicArn=='$topicArn'].TopicArn", "--output", "text"
-    )).Trim()
+    )
     if (-not $existingTopic) {
         Write-Host "Creating SNS topic $SnsTopicName ..."
         Invoke-AwsCli -AwsArgs @("sns", "create-topic", "--name", $SnsTopicName, "--region", $Region) | Out-Null
