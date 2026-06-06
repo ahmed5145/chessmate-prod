@@ -31,6 +31,7 @@ def fix_legacy_rating_column(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+
     dependencies = [
         ("core", "0024_batchanalysisreport_share_token"),
     ]

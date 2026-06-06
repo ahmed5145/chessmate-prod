@@ -1,8 +1,8 @@
 import json
 
 import pytest
-from core.models import Profile
-from core.tests.profile_helpers import Transaction, ensure_profile
+from core.models import Profile, Transaction
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
