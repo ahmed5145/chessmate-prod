@@ -569,14 +569,15 @@ class RateLimitMiddleware:
     def _cache_get_safe(self, key, default=None):
         try:
             return cache.get(key, default)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Rate limit cache get failed for %s: %s", key, exc)
             return default
 
     def _cache_set_safe(self, key, value, timeout=None):
         try:
             cache.set(key, value, timeout=timeout)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Rate limit cache set failed for %s: %s", key, exc)
 
     def _is_rate_limited(self, key, endpoint_type):
         """Return True when request count exceeds endpoint limits."""
