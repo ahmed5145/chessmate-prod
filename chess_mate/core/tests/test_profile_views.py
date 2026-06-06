@@ -3,16 +3,18 @@ Tests for profile views.
 """
 
 import json
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from .. import profile_views
-from ..models import Payment, Profile, Subscription
+from ..models import Game, Payment, Profile, Subscription
 
 
 @pytest.fixture
@@ -72,6 +74,53 @@ class TestProfileViews:
         assert response.data["preferences"]["theme"] == "light"
         assert response.data["preferences"]["notifications_enabled"] is True
         assert response.data["preferences"]["analysis_depth"] == "balanced"
+
+    def test_profile_view_enriched_stats_and_achievements(self, authenticated_client, test_user):
+        Game.objects.create(
+            user=test_user,
+            platform="chess.com",
+            white="testuser",
+            black="opponent1",
+            result="win",
+            pgn='[Event "Test"]\n1. e4 e5',
+            time_control_category="blitz",
+            date_played=timezone.now() - timedelta(days=1),
+            analysis_status="analyzed",
+        )
+        Game.objects.create(
+            user=test_user,
+            platform="lichess",
+            white="opponent2",
+            black="testuser_lichess",
+            result="loss",
+            pgn='[Event "Test 2"]\n1. d4 d5',
+            time_control_category="rapid",
+            date_played=timezone.now() - timedelta(days=2),
+            analysis_status="analyzed",
+        )
+
+        url = reverse("user_profile")
+        response = authenticated_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["total_games"] == 2
+        assert response.data["win_rate"] == 50.0
+        assert "performance_stats" in response.data
+        assert "blitz" in response.data["performance_stats"]
+        assert "rapid" in response.data["performance_stats"]
+        assert response.data["time_control_distribution"]["blitz"] > 0
+        assert response.data["time_control_distribution"]["rapid"] > 0
+
+        achievements = response.data["achievements"]
+        assert isinstance(achievements, list)
+        assert len(achievements) >= 10
+        first = achievements[0]
+        assert {"name", "description", "target", "progress", "completed"} <= set(first.keys())
+
+        linked = next(item for item in achievements if item["name"] == "Chess.com Connected")
+        assert linked["completed"] is True
+        assert response.data["data"]["total_games"] == 2
+        assert "achievements" in response.data["data"]
 
     def test_profile_view_unauthorized(self, api_client):
         url = reverse("user_profile")

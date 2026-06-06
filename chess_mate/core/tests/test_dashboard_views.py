@@ -197,6 +197,13 @@ class TestDashboardViews:
 
                 # Check insights data exists
                 assert "insights" in response.data
+                assert response.data["total_games"] == 5
+                assert response.data["win_rate"] > 0
+                assert response.data["credits"] == 10
+                assert "average_accuracy" in response.data
+                assert isinstance(response.data["insights"], list)
+                assert "type" in response.data["insights"][0]
+                assert "text" in response.data["insights"][0]
 
                 # Verify cache was set
                 assert mock_set.called
