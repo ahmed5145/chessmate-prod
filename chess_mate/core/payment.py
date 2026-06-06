@@ -30,7 +30,7 @@ def _payment_success_url() -> str:
     explicit = getattr(settings, "PAYMENT_SUCCESS_URL", "").strip()
     if explicit:
         return explicit if "{CHECKOUT_SESSION_ID}" in explicit else f"{explicit}?session_id={{CHECKOUT_SESSION_ID}}"
-    return f"{_frontend_base_url()}/credits?session_id={{CHECKOUT_SESSION_ID}}"
+    return f"{_frontend_base_url()}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
 
 
 def _payment_cancel_url() -> str:

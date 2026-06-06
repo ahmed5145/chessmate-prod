@@ -26,8 +26,8 @@ const PaymentSuccess = () => {
           throw new Error('No access token found');
         }
 
-        const response = await api.post('/api/confirm-purchase/',
-          { session_id: sessionId },
+        const response = await api.post('/api/v1/confirm-purchase/',
+          { payment_id: sessionId },
           {
             headers: {
               'Authorization': `Bearer ${accessToken}`

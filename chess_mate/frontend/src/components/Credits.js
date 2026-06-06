@@ -4,6 +4,7 @@ import { CreditCard } from 'lucide-react';
 import { UserContext } from '../contexts/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
+import { confirmPurchase } from '../services/apiRequests';
 
 const FALLBACK_PACKAGES = [
   {
@@ -55,6 +56,31 @@ const Credits = () => {
 
   useEffect(() => {
     fetchUserData();
+  }, [fetchUserData]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+    if (!sessionId) {
+      return;
+    }
+
+    const finalize = async () => {
+      try {
+        const result = await confirmPurchase(sessionId);
+        toast.success(`Added ${result.credits_added || 0} credits to your account.`);
+        await fetchUserData();
+      } catch (error) {
+        console.error('Credit purchase confirm failed:', error);
+        toast.error('Could not confirm payment. Contact support if you were charged.');
+      } finally {
+        params.delete('session_id');
+        const next = `${window.location.pathname}${params.toString() ? `?${params}` : ''}`;
+        window.history.replaceState({}, '', next);
+      }
+    };
+
+    finalize();
   }, [fetchUserData]);
 
   useEffect(() => {
