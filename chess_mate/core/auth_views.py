@@ -36,6 +36,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .abuse_limits import check_signup_allowed, record_signup_attempt, signup_rate_limit_response
 from .decorators import auth_csrf_exempt, rate_limit
 from .error_handling import InvalidOperationError
 from .error_handling import ValidationError as APIValidationError
@@ -142,6 +143,10 @@ def register_view(request):
     if request.method == "OPTIONS":
         response = Response()
         return response
+
+    allowed, retry_after = check_signup_allowed(request)
+    if not allowed:
+        return signup_rate_limit_response(retry_after)
 
     data = request.data
     username = data.get("username")
@@ -253,6 +258,8 @@ def register_view(request):
 
         # For development, log the verification token
         logger.info(f"User {username} registered. Verification token: {profile.email_verification_token}")
+
+        record_signup_attempt(request)
 
         # Create refresh token
         refresh = RefreshToken.for_user(user)

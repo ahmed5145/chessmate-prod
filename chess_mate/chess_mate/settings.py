@@ -415,6 +415,21 @@ RATE_LIMIT = {
 
 RATE_LIMIT_BACKEND = "default"  # Use Redis cache for rate limiting
 
+RATE_LIMIT_ENDPOINT_PATTERNS = {
+    "AUTH": [
+        r"^/api(?:/v1)?/auth/(?:register|login|logout|refresh)/?$",
+        r"^/api(?:/v1)?/(?:register|login)/?$",
+    ],
+    "ANALYSIS": [
+        r"^/api(?:/v1)?/games/\d+/analyze/?$",
+        r"^/api(?:/v1)?/analysis/.*/?$",
+        r"^/api(?:/v1)?/batches/?$",
+        r"^/api(?:/v1)?/games/batch-analyze/?$",
+    ],
+    "GAMES": [r"^/api(?:/v1)?/games/?$", r"^/api(?:/v1)?/games/.*/?$"],
+    "DEFAULT": [r"^/api/"],
+}
+
 # Logging Configuration
 LOGS_DIR = BASE_DIR / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
@@ -515,6 +530,11 @@ BATCH_SEND_COMPLETE_EMAIL = env.bool("BATCH_SEND_COMPLETE_EMAIL", default=True)
 BATCH_ETA_MINUTES_PER_GAME_LOW = env.int("BATCH_ETA_MINUTES_PER_GAME_LOW", default=3)
 BATCH_ETA_MINUTES_PER_GAME_HIGH = env.int("BATCH_ETA_MINUTES_PER_GAME_HIGH", default=5)
 BATCH_ETA_COACHING_BUFFER_MINUTES = env.int("BATCH_ETA_COACHING_BUFFER_MINUTES", default=2)
+
+# Abuse caps (signup + batch coach)
+SIGNUP_RATE_LIMIT_MAX_PER_IP = env.int("SIGNUP_RATE_LIMIT_MAX_PER_IP", default=5)
+SIGNUP_RATE_LIMIT_WINDOW_SECONDS = env.int("SIGNUP_RATE_LIMIT_WINDOW_SECONDS", default=3600)
+MAX_BATCHES_PER_USER_PER_DAY = env.int("MAX_BATCHES_PER_USER_PER_DAY", default=3)
 
 # Use our custom Redis client
 REDIS_CLIENT_CLASS = "chess_mate.core.redis_config.get_redis_client"

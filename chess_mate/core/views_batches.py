@@ -12,6 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from .abuse_limits import batch_daily_limit_response, check_batch_creation_allowed
 from .batch_coaching import regenerate_batch_coaching
 from .batch_compare import (
     build_compare_narrative,
@@ -116,6 +117,10 @@ def _batch_create_response(request):
             },
             status=status.HTTP_402_PAYMENT_REQUIRED,
         )
+
+    batch_allowed, batch_limit_info = check_batch_creation_allowed(request.user)
+    if not batch_allowed:
+        return batch_daily_limit_response(batch_limit_info)
 
     # Generate batch_id as UUID string
     batch_id = str(uuid.uuid4())

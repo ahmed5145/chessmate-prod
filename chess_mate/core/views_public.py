@@ -26,6 +26,7 @@ def public_site_config_view(request):
             "batch_eta_coaching_buffer_minutes": int(
                 getattr(settings, "BATCH_ETA_COACHING_BUFFER_MINUTES", 2)
             ),
+            "max_batches_per_user_per_day": int(getattr(settings, "MAX_BATCHES_PER_USER_PER_DAY", 3)),
             "site_name": "ChessMate",
             "beta": True,
         }

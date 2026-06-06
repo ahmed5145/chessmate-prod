@@ -498,7 +498,7 @@ class RateLimitMiddleware:
             return self.get_response(request)
 
         # Get endpoint type and rate limit keys
-        endpoint_type = self._get_endpoint_type(request.path)
+        endpoint_type = getattr(request, "rate_limit_endpoint_type", None) or self._get_endpoint_type(request.path)
         keys = self._get_rate_limit_keys(request, endpoint_type)
 
         # Check rate limits for each key
@@ -542,7 +542,9 @@ class RateLimitMiddleware:
         keys = {}
 
         # Always add IP-based rate limiting
-        keys["ip"] = request.META.get("REMOTE_ADDR", "127.0.0.1")
+        from .admin_security import get_client_ip
+
+        keys["ip"] = get_client_ip(request)
 
         # Add user-based rate limiting if authenticated
         if hasattr(request, "user") and request.user.is_authenticated:
@@ -555,7 +557,9 @@ class RateLimitMiddleware:
         if hasattr(request, "user") and request.user.is_authenticated:
             identity = f"user:{request.user.id}"
         else:
-            identity = f"ip:{request.META.get('REMOTE_ADDR', '127.0.0.1')}"
+            from .admin_security import get_client_ip
+
+            identity = f"ip:{get_client_ip(request)}"
         return f"rate_limit:{endpoint_type}:{identity}"
 
     def _get_rate_limit_config(self, endpoint_type):

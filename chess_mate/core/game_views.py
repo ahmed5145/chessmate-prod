@@ -33,6 +33,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from .abuse_limits import batch_daily_limit_response, check_batch_creation_allowed
 from .analysis.feedback_generator import FeedbackGenerator as CoachingFeedbackGenerator
 from .cache import cache_get, cache_set
 from .cache_invalidation import invalidate_cache, invalidates_cache
@@ -1868,6 +1869,10 @@ def batch_analyze_games(request):
             )
 
         # NOTE: Credit check removed - batch analysis is now free
+
+        batch_allowed, batch_limit_info = check_batch_creation_allowed(request.user)
+        if not batch_allowed:
+            return batch_daily_limit_response(batch_limit_info)
 
         # Verify each game exists and belongs to the user
         games = []
