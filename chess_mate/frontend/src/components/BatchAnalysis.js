@@ -15,6 +15,13 @@ import {
   Coins
 } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
+import { getTimeControlCategory } from '../utils/timeControlCategory';
+
+const BATCH_SIZE_OPTIONS = [5, 10, 15, 20, 25, 30];
+const clampBatchSize = (value, maxAvailable) => {
+  const numeric = Number(value) || 10;
+  return Math.min(Math.max(numeric, 5), Math.min(30, maxAvailable || 30));
+};
 
 const BatchAnalysis = () => {
   const [numGames, setNumGames] = useState(10);
@@ -259,36 +266,8 @@ const BatchAnalysis = () => {
   const normalizedAvailableGames = Array.isArray(availableGames) ? availableGames : [];
 
   const filteredGames = normalizedAvailableGames.filter(game => {
-    // Get time control category from the game's time control
-    const getTimeControlCategory = (timeControl) => {
-      if (!timeControl) return null;
-      try {
-        // Parse time control format (e.g., "180" or "180+2" or "180+2+45")
-        const parts = timeControl.split('+');
-        const baseTime = parseInt(parts[0]);
-        const increment = parts.length > 1 ? parseInt(parts[1]) : 0;
+    const gameTimeControl = getTimeControlCategory(game);
 
-        // Calculate total time for first 40 moves
-        const totalTime = baseTime + (increment * 40);
-
-        // Categorize based on total time
-        if (totalTime < 180) return 'bullet';  // 3 minutes
-        if (totalTime < 600) return 'blitz';   // 10 minutes
-        if (totalTime < 1800) return 'rapid';  // 30 minutes
-        return 'classical';
-      } catch (error) {
-        // Try to categorize based on platform-specific formats
-        if (timeControl.toLowerCase().includes('bullet')) return 'bullet';
-        if (timeControl.toLowerCase().includes('blitz')) return 'blitz';
-        if (timeControl.toLowerCase().includes('rapid')) return 'rapid';
-        if (timeControl.toLowerCase().includes('classical')) return 'classical';
-        return null;
-      }
-    };
-
-    const gameTimeControl = getTimeControlCategory(game.time_control);
-
-    // Filter by time control if not 'all'
     if (selectedTimeControl !== 'all' && gameTimeControl !== selectedTimeControl) {
       return false;
     }
@@ -337,29 +316,25 @@ const BatchAnalysis = () => {
   };
 
   const selectRecentGames = (count) => {
-    const batchSize = count === 10 ? 10 : 5;
-    const limit = Math.min(batchSize, sortedFilteredGames.length);
-    const ids = sortedFilteredGames.slice(0, limit).map((game) => game.id);
+    const batchSize = clampBatchSize(count, sortedFilteredGames.length);
+    const ids = sortedFilteredGames.slice(0, batchSize).map((game) => game.id);
     setSelectedGameIds(ids);
-    setNumGames(limit >= 10 ? 10 : 5);
+    setNumGames(batchSize);
   };
 
   const clearManualSelection = () => {
     setSelectedGameIds([]);
   };
 
-  // Keep batch size at 5 or 10 (contract default), never drop to 1 when filters change.
+  // Keep batch size in 5–30 when filters change; never drop to 1.
   useEffect(() => {
     const available = sortedFilteredGames.length;
     if (available < 5) {
       return;
     }
-    if (available >= 10) {
-      if (numGames !== 5 && numGames !== 10) {
-        setNumGames(10);
-      }
-    } else if (numGames === 10) {
-      setNumGames(5);
+    const clamped = clampBatchSize(numGames, available);
+    if (clamped !== numGames) {
+      setNumGames(clamped);
     }
   }, [sortedFilteredGames.length, numGames]);
 
@@ -418,32 +393,35 @@ const BatchAnalysis = () => {
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Batch size: 5 or 10 (manual multi-select still allows up to 30) */}
+            {/* Batch size: 5–30 when auto-selecting recent games */}
             <div>
               <label htmlFor="numGames" className={`block text-sm font-medium ${
                 isDarkMode ? 'text-gray-200' : 'text-gray-700'
               }`}>
-                Batch size
+                Games per batch
               </label>
               <select
                 id="numGames"
                 name="numGames"
-                disabled={sortedFilteredGames.length < 5}
+                disabled={sortedFilteredGames.length < 5 || selectedGameIds.length > 0}
                 className={`mt-1 block w-full rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
                   isDarkMode
                     ? 'bg-gray-700 border-gray-600 text-white'
                     : 'border-gray-300 text-gray-900'
                 }`}
-                value={sortedFilteredGames.length >= 10 ? numGames : 5}
-                onChange={(e) => setNumGames(Number(e.target.value))}
+                value={clampBatchSize(numGames, sortedFilteredGames.length)}
+                onChange={(e) => setNumGames(clampBatchSize(Number(e.target.value), sortedFilteredGames.length))}
               >
-                <option value={5}>5 games (minimum)</option>
-                <option value={10} disabled={sortedFilteredGames.length < 10}>
-                  10 games (recommended)
-                </option>
+                {BATCH_SIZE_OPTIONS.filter((size) => size <= sortedFilteredGames.length || size === 5).map((size) => (
+                  <option key={size} value={size} disabled={sortedFilteredGames.length < size}>
+                    {size} games{size === 10 ? ' (recommended)' : size === 5 ? ' (minimum)' : ''}
+                  </option>
+                ))}
               </select>
               <p className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Uses your most recent matching games, or pick specific games below (5–30).
+                {selectedGameIds.length > 0
+                  ? `Using ${selectedGameIds.length} checked games below (5–30). Clear selection to auto-pick recent.`
+                  : 'Uses your most recent matching games, or check specific games below (5–30).'}
               </p>
             </div>
 
@@ -506,7 +484,7 @@ const BatchAnalysis = () => {
               <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                 Quick select recent:
               </span>
-              {[5, 10].map((count) => (
+              {[5, 10, 15, 20].map((count) => (
                 <button
                   key={count}
                   type="button"
@@ -571,7 +549,10 @@ const BatchAnalysis = () => {
                           {game.white || 'White'} vs {game.black || 'Black'}
                         </div>
                         <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {game.opening_name || 'Unknown Opening'} • {new Date(game.date_played).toLocaleDateString()}
+                          {game.opening_name || 'Unknown Opening'}
+                          {getTimeControlCategory(game) ? ` • ${getTimeControlCategory(game)}` : ''}
+                          {' • '}
+                          {new Date(game.date_played).toLocaleDateString()}
                         </div>
                       </div>
                     </label>

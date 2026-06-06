@@ -16,6 +16,26 @@ BLUNDER_PAWNS = 1.5
 CRITICAL_MOMENT_MIN_PAWNS = 0.2
 
 
+def is_delivered_checkmate(san: str | None) -> bool:
+    """True when SAN ends with # (checkmate delivered on this move)."""
+    if not san:
+        return False
+    return str(san).rstrip().endswith("#")
+
+
+def player_has_winning_mate(is_white: bool, eval_after: float) -> bool:
+    """True when eval_after is a forced mate score in the moving player's favor."""
+    try:
+        after = float(eval_after)
+    except (TypeError, ValueError):
+        return False
+    if after >= 9.5:
+        return is_white
+    if after <= -9.5:
+        return not is_white
+    return False
+
+
 def player_eval_deterioration(is_white: bool, eval_before: float, eval_after: float) -> float:
     """
     How much the moving side worsened their position (non-negative pawns).
@@ -26,6 +46,9 @@ def player_eval_deterioration(is_white: bool, eval_before: float, eval_after: fl
         before = float(eval_before)
         after = float(eval_after)
     except (TypeError, ValueError):
+        return 0.0
+
+    if player_has_winning_mate(is_white, after):
         return 0.0
 
     if is_white:

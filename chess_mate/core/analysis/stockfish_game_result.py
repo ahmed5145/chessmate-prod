@@ -21,6 +21,8 @@ from .batch_phase_boundaries import (
 from .batch_move_classification import (
     CRITICAL_MOMENT_MIN_PAWNS,
     classify_deterioration,
+    is_delivered_checkmate,
+    player_has_winning_mate,
     player_eval_deterioration,
 )
 from .batch_pgn_time import compute_time_management_from_pgn
@@ -323,19 +325,28 @@ def build_game_result(
         mv = analyzed_moves[i]
         is_white = bool(mv.get("is_white", True))
 
-        is_mate_before = eval_before >= 10.0
-        is_mate_after = eval_after >= 10.0
-        if is_mate_before:
+        is_mate_before = eval_before >= 10.0 or eval_before <= -10.0
+        is_mate_after = eval_after >= 10.0 or eval_after <= -10.0
+        if eval_before >= 10.0:
             eval_before = 10.0
-        if is_mate_after:
+        elif eval_before <= -10.0:
+            eval_before = -10.0
+        if eval_after >= 10.0:
             eval_after = 10.0
+        elif eval_after <= -10.0:
+            eval_after = -10.0
         eval_befores[i] = eval_before
         eval_afters[i] = eval_after
         has_mate[i] = is_mate_before or is_mate_after
 
-        deterioration = player_eval_deterioration(is_white, eval_before, eval_after)
+        played_san = mv.get("san") or ""
+        if is_delivered_checkmate(played_san) or player_has_winning_mate(is_white, eval_after):
+            deterioration = 0.0
+            classification = "best"
+        else:
+            deterioration = player_eval_deterioration(is_white, eval_before, eval_after)
+            classification = classify_deterioration(deterioration)
         move_deteriorations[i] = deterioration
-        classification = classify_deterioration(deterioration)
         move_classifications[i] = classification
 
         phase = phase_for_half_move_index(i, opening_end, endgame_start)
@@ -349,10 +360,21 @@ def build_game_result(
             phase_breakdown[phase]["mistakes"] += 1
 
     # Critical moments: top 3 worst moves by deterioration (only >= 0.2 threshold)
+    def _skip_critical_moment(idx: int) -> bool:
+        mv = analyzed_moves[idx]
+        san = mv.get("san") or mv.get("played_move") or ""
+        is_white = bool(mv.get("is_white", True))
+        eval_after = float(eval_afters[idx])
+        if is_delivered_checkmate(san):
+            return True
+        if player_has_winning_mate(is_white, eval_after):
+            return True
+        return False
+
     critical_moves_candidates = [
         (idx, move_deteriorations[idx])
         for idx in range(len(analyzed_moves))
-        if move_deteriorations[idx] >= CRITICAL_MOMENT_MIN_PAWNS
+        if move_deteriorations[idx] >= CRITICAL_MOMENT_MIN_PAWNS and not _skip_critical_moment(idx)
     ]
     # Sort by deterioration (descending)
     critical_moves_candidates.sort(key=lambda x: x[1], reverse=True)
@@ -380,6 +402,11 @@ def build_game_result(
         best_uci = best_move if isinstance(best_move, str) else None
         if best_uci and hasattr(best_move, "uci"):
             best_uci = best_move.uci()
+
+        if is_delivered_checkmate(played_move) or player_has_winning_mate(
+            bool(mv.get("is_white", True)), eval_after
+        ):
+            continue
 
         tactical_theme = classify_tactical_theme(fen, played_uci, best_uci)
 

@@ -40,6 +40,8 @@ const ENDGAME_PRACTICE_URLS = {
   general_endgame: 'https://lichess.org/learn'
 };
 
+import { toTitleCase } from './formatLabel';
+
 const normalizeThemeKey = (theme) =>
   String(theme || '')
     .trim()
@@ -86,7 +88,7 @@ export const collectStudyLinksFromBatchSummary = (batchSummary) => {
       return;
     }
     addLink(
-      `${String(pattern).replace(/_/g, ' ')} puzzles`,
+      `${toTitleCase(pattern)} Puzzles`,
       lichessPuzzleUrlForTheme(pattern),
       'puzzle'
     );
@@ -115,7 +117,7 @@ export const collectStudyLinksFromBatchSummary = (batchSummary) => {
     }
     const url = item.study_url || lichessEndgamePracticeUrl(type);
     addLink(
-      `${String(item.label || type).replace(/_/g, ' ')} practice`,
+      `${toTitleCase(item.label || type)} Practice`,
       url,
       'endgame'
     );
