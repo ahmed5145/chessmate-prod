@@ -103,6 +103,7 @@ class TestAuthViews:
         profile = Profile.objects.get(user=user)
         assert profile.email_verified is False
         assert profile.email_verification_token is not None
+        assert profile.legacy_rating == 1200
 
     def test_register_duplicate_email(self, api_client, test_user):
         url = reverse("register")

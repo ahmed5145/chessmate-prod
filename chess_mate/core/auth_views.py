@@ -53,7 +53,7 @@ from .error_handling import ValidationError as APIValidationError
 from .error_handling import api_error_handler, create_error_response
 
 # Import models directly for actual usage
-from .models import Profile
+from .models import Profile, profile_creation_defaults
 from .serializers import UserSerializer
 from .validators import validate_password_complexity
 
@@ -249,22 +249,21 @@ def register_view(request):
                 is_active=True,  # User is active but email not verified
             )
 
-            # Create profile - only necessary if signal isn't working
-            try:
-                # Check if profile was already created by the signal
-                profile = Profile.objects.get(user=user)
-                logger.info(f"Profile already exists for user {username}, created by signal")
-            except Profile.DoesNotExist:
-                # Create profile manually if not already created by signal
-                logger.warning(f"Profile not created by signal for user {username}, creating manually")
-                signup_credits = int(getattr(settings, "SIGNUP_BONUS_CREDITS", 15))
-                profile = Profile.objects.create(
-                    user=user,
-                    credits=signup_credits,
-                    email_verified=False,
+            profile, profile_created = Profile.objects.get_or_create(
+                user=user,
+                defaults=profile_creation_defaults(
                     email_verification_token=EmailVerificationToken.generate_token(),
                     email_verification_sent_at=timezone.now(),
+                ),
+            )
+            if not profile.email_verification_token:
+                profile.email_verification_token = EmailVerificationToken.generate_token()
+                profile.email_verification_sent_at = timezone.now()
+                profile.save(
+                    update_fields=["email_verification_token", "email_verification_sent_at", "legacy_rating"]
                 )
+            elif not profile_created:
+                logger.info("Profile already exists for user %s", username)
 
         # For development, log the verification token
         logger.info(f"User {username} registered. Verification token: {profile.email_verification_token}")
@@ -298,7 +297,10 @@ def register_view(request):
         if "duplicate key" in str(e):
             error_details["message"] = "A user with this username or email already exists"
         elif "NOT NULL" in str(e):
-            error_details["message"] = "Required field missing: " + str(e)
+            error_details["message"] = (
+                "Account setup failed due to a database configuration issue. "
+                "Please try again or contact support."
+            )
         else:
             error_details["message"] = str(e)
 

@@ -51,6 +51,8 @@ class Profile(models.Model):
     bio = models.TextField(blank=True, default="")
     credits = models.IntegerField(default=10)
     elo_rating = models.IntegerField(default=1200)
+    # Legacy production DBs have a NOT NULL core_profile.rating column not used by app logic.
+    legacy_rating = models.IntegerField(default=1200, db_column="rating")
     analysis_count = models.IntegerField(default=0)
     bullet_rating = models.IntegerField(default=1200)
     blitz_rating = models.IntegerField(default=1200)
@@ -79,6 +81,11 @@ class Profile(models.Model):
             self.rapid_rating,
             self.classical_rating,
         )
+
+    def save(self, *args, **kwargs):
+        """Keep legacy_rating in sync for older database schemas."""
+        self.legacy_rating = self.rating
+        super().save(*args, **kwargs)
 
     def total_games(self) -> int:
         """Return total number of games played."""
@@ -484,17 +491,35 @@ class Profile(models.Model):
             return {}
 
 
+def profile_creation_defaults(**overrides: Any) -> Dict[str, Any]:
+    """Default Profile field values for new users (signup + legacy DB columns)."""
+    from django.conf import settings
+
+    defaults: Dict[str, Any] = {
+        "credits": int(getattr(settings, "SIGNUP_BONUS_CREDITS", 15)),
+        "elo_rating": 1200,
+        "legacy_rating": 1200,
+        "bullet_rating": 1200,
+        "blitz_rating": 1200,
+        "rapid_rating": 1200,
+        "classical_rating": 1200,
+        "email_verified": False,
+    }
+    defaults.update(overrides)
+    return defaults
+
+
 @receiver(post_save, sender=User)
 def create_or_save_user_profile(sender: Any, instance: User, created: bool, **kwargs: Any) -> None:
-    """Create or save a Profile instance when a User is created or saved."""
+    """Create a Profile when a User is created."""
+    if kwargs.get("raw"):
+        return
+    if not created:
+        return
     try:
-        profile = Profile.objects.filter(user=instance).first()
-        if profile:
-            profile.save()
-    except Exception:
-        pass
-
-    # No need to disconnect nonexistent signals
+        Profile.objects.get_or_create(user=instance, defaults=profile_creation_defaults())
+    except Exception as exc:
+        logger.error("Failed to create profile for user %s: %s", instance.username, exc, exc_info=True)
 
 
 def get_default_user():

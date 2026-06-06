@@ -21,3 +21,5 @@ def test_register_grants_signup_bonus_credits(settings):
     user = get_user_model().objects.get(username="newbeta1")
     profile = Profile.objects.get(user=user)
     assert profile.credits == 15
+    assert profile.legacy_rating == 1200
+    assert profile.email_verification_token is not None
