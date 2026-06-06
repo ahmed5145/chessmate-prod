@@ -36,7 +36,17 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .abuse_limits import check_signup_allowed, record_signup_attempt, signup_rate_limit_response
+from .abuse_limits import (
+    check_login_allowed,
+    check_password_reset_allowed,
+    check_signup_allowed,
+    login_rate_limit_response,
+    password_reset_rate_limit_response,
+    record_failed_login,
+    record_password_reset_request,
+    record_signup_attempt,
+    signup_rate_limit_response,
+)
 from .decorators import auth_csrf_exempt, rate_limit
 from .error_handling import InvalidOperationError
 from .error_handling import ValidationError as APIValidationError
@@ -312,6 +322,10 @@ def login_view(request):
         response = Response()
         return response
 
+    allowed, retry_after = check_login_allowed(request)
+    if not allowed:
+        return login_rate_limit_response(retry_after)
+
     try:
         email = request.data.get("email")
         password = request.data.get("password")
@@ -333,12 +347,14 @@ def login_view(request):
         user = User.objects.filter(email=email).first()
         if not user:
             logger.warning(f"Login attempt for non-existent user: {email}")
+            record_failed_login(request)
             raise AuthenticationFailed("Invalid email or password")
 
         # Authenticate the user
         auth_user = authenticate(username=user.username, password=password)
         if not auth_user:
             logger.warning(f"Authentication failed for user: {email}")
+            record_failed_login(request)
             raise AuthenticationFailed("Invalid email or password")
 
         # Check if email is verified (except in development mode where we skip this)
@@ -475,6 +491,10 @@ def request_password_reset(request):
     if not email:
         raise APIValidationError([{"field": "email", "message": "Email is required"}])
 
+    reset_allowed, retry_after = check_password_reset_allowed(request, email)
+    if not reset_allowed:
+        return password_reset_rate_limit_response(retry_after)
+
     if not is_email_configured():
         logger.error(
             "Password reset: email not configured (set EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, "
@@ -493,6 +513,7 @@ def request_password_reset(request):
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
+        record_password_reset_request(request, email)
         # We still return success to prevent email enumeration
         # This is a security measure - don't let attackers know if an email exists
         return Response(
@@ -541,6 +562,7 @@ def request_password_reset(request):
         )
 
         logger.info(f"Password reset email sent to {email}")
+        record_password_reset_request(request, email)
 
         return Response(
             {

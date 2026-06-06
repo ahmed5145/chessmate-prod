@@ -384,41 +384,36 @@ ANALYSIS_CACHE_TTL = 86400
 # Cache time to live is 15 minutes
 CACHE_TTL = 60 * 15
 
-# Rate Limiting Settings
+# Rate Limiting Settings (middleware — per IP + per user when authenticated)
 RATE_LIMIT = {
-    "DEFAULT": {
-        "MAX_REQUESTS": 100,
-        "TIME_WINDOW": 60,
-        "BACKEND": "default",  # Use Redis cache for rate limiting
-    },
-    "AUTH": {
-        "MAX_REQUESTS": 5,
-        "TIME_WINDOW": 60,
-        "BACKEND": "default",  # Use Redis cache for rate limiting
-    },
-    "ANALYSIS": {
-        "MAX_REQUESTS": 3,
-        "TIME_WINDOW": 60,
-        "BACKEND": "default",  # Use Redis cache for rate limiting
-    },
-    "CREDITS": {
-        "MAX_REQUESTS": 5,
-        "TIME_WINDOW": 60,
-        "BACKEND": "default",  # Use Redis cache for rate limiting
-    },
-    "GAMES": {
-        "MAX_REQUESTS": 10,
-        "TIME_WINDOW": 60,
-        "BACKEND": "default",  # Use Redis cache for rate limiting
-    },
+    "DEFAULT": {"MAX_REQUESTS": 120, "TIME_WINDOW": 60, "BACKEND": "default"},
+    "AUTH": {"MAX_REQUESTS": 15, "TIME_WINDOW": 60, "BACKEND": "default"},
+    "ANALYSIS": {"MAX_REQUESTS": 8, "TIME_WINDOW": 60, "BACKEND": "default"},
+    "FETCH": {"MAX_REQUESTS": 6, "TIME_WINDOW": 60, "BACKEND": "default"},
+    "CREDITS": {"MAX_REQUESTS": 5, "TIME_WINDOW": 300, "BACKEND": "default"},
+    "BATCH_OPS": {"MAX_REQUESTS": 3, "TIME_WINDOW": 300, "BACKEND": "default"},
+    "PUBLIC": {"MAX_REQUESTS": 60, "TIME_WINDOW": 60, "BACKEND": "default"},
+    "GAMES": {"MAX_REQUESTS": 40, "TIME_WINDOW": 60, "BACKEND": "default"},
 }
 
 RATE_LIMIT_BACKEND = "default"  # Use Redis cache for rate limiting
 
+RATE_LIMIT_EXCLUDED_PATHS = [
+    r"^/api/health/?$",
+    r"^/api(?:/v1)?/health/",
+    r"^/api(?:/v1)?/webhooks/",
+    r"^/api(?:/v1)?/profile/webhook/",
+]
+
 RATE_LIMIT_ENDPOINT_PATTERNS = {
     "AUTH": [
-        r"^/api(?:/v1)?/auth/(?:register|login|logout|refresh)/?$",
-        r"^/api(?:/v1)?/(?:register|login)/?$",
+        r"^/api(?:/v1)?/auth/(?:register|login|logout|token/refresh|reset-password|csrf)/?$",
+        r"^/api(?:/v1)?/auth/reset-password/",
+        r"^/api(?:/v1)?/(?:register|login|token/refresh)/?$",
+    ],
+    "FETCH": [
+        r"^/api(?:/v1)?/games/(?:fetch|import|import/external)/?$",
+        r"^/api(?:/v1)?/games/search/?$",
     ],
     "ANALYSIS": [
         r"^/api(?:/v1)?/games/\d+/analyze/?$",
@@ -426,9 +421,42 @@ RATE_LIMIT_ENDPOINT_PATTERNS = {
         r"^/api(?:/v1)?/batches/?$",
         r"^/api(?:/v1)?/games/batch-analyze/?$",
     ],
-    "GAMES": [r"^/api(?:/v1)?/games/?$", r"^/api(?:/v1)?/games/.*/?$"],
+    "BATCH_OPS": [
+        r"^/api(?:/v1)?/batches/\d+/regenerate-coaching/?$",
+    ],
+    "CREDITS": [
+        r"^/api(?:/v1)?/(?:purchase-credits|credits/purchase|confirm-purchase|credits/confirm)/?$",
+        r"^/api(?:/v1)?/profile/credits/purchase/?$",
+    ],
+    "PUBLIC": [
+        r"^/api(?:/v1)?/public/",
+        r"^/api(?:/v1)?/batches/public/",
+    ],
+    "GAMES": [
+        r"^/api(?:/v1)?/games/user/?$",
+        r"^/api(?:/v1)?/games/\d+/(?:analysis|analysis/status)/?$",
+        r"^/api(?:/v1)?/games/batch-(?:status|reports)/",
+    ],
     "DEFAULT": [r"^/api/"],
 }
+
+# Abuse caps (business logic — see core/abuse_limits.py)
+SIGNUP_RATE_LIMIT_MAX_PER_IP = env.int("SIGNUP_RATE_LIMIT_MAX_PER_IP", default=5)
+SIGNUP_RATE_LIMIT_WINDOW_SECONDS = env.int("SIGNUP_RATE_LIMIT_WINDOW_SECONDS", default=3600)
+LOGIN_FAILED_MAX_PER_IP = env.int("LOGIN_FAILED_MAX_PER_IP", default=20)
+LOGIN_FAILED_WINDOW_SECONDS = env.int("LOGIN_FAILED_WINDOW_SECONDS", default=3600)
+PASSWORD_RESET_MAX_PER_IP = env.int("PASSWORD_RESET_MAX_PER_IP", default=5)
+PASSWORD_RESET_WINDOW_SECONDS = env.int("PASSWORD_RESET_WINDOW_SECONDS", default=3600)
+PASSWORD_RESET_MAX_PER_EMAIL = env.int("PASSWORD_RESET_MAX_PER_EMAIL", default=3)
+PASSWORD_RESET_EMAIL_WINDOW_SECONDS = env.int("PASSWORD_RESET_EMAIL_WINDOW_SECONDS", default=86400)
+MAX_BATCHES_PER_USER_PER_DAY = env.int("MAX_BATCHES_PER_USER_PER_DAY", default=3)
+ALLOW_CONCURRENT_BATCHES = env.bool("ALLOW_CONCURRENT_BATCHES", default=False)
+MAX_GAME_IMPORTS_PER_USER_PER_DAY = env.int("MAX_GAME_IMPORTS_PER_USER_PER_DAY", default=100)
+MAX_EXTERNAL_FETCH_REQUESTS_PER_USER_PER_DAY = env.int("MAX_EXTERNAL_FETCH_REQUESTS_PER_USER_PER_DAY", default=30)
+MAX_SINGLE_ANALYSES_PER_USER_PER_DAY = env.int("MAX_SINGLE_ANALYSES_PER_USER_PER_DAY", default=50)
+MAX_COACHING_REGENERATIONS_PER_USER_PER_DAY = env.int("MAX_COACHING_REGENERATIONS_PER_USER_PER_DAY", default=10)
+MAX_COACHING_REGENERATIONS_PER_BATCH_PER_DAY = env.int("MAX_COACHING_REGENERATIONS_PER_BATCH_PER_DAY", default=3)
+MAX_CHECKOUT_SESSIONS_PER_USER_PER_HOUR = env.int("MAX_CHECKOUT_SESSIONS_PER_USER_PER_HOUR", default=10)
 
 # Logging Configuration
 LOGS_DIR = BASE_DIR / "logs"
@@ -530,11 +558,6 @@ BATCH_SEND_COMPLETE_EMAIL = env.bool("BATCH_SEND_COMPLETE_EMAIL", default=True)
 BATCH_ETA_MINUTES_PER_GAME_LOW = env.int("BATCH_ETA_MINUTES_PER_GAME_LOW", default=3)
 BATCH_ETA_MINUTES_PER_GAME_HIGH = env.int("BATCH_ETA_MINUTES_PER_GAME_HIGH", default=5)
 BATCH_ETA_COACHING_BUFFER_MINUTES = env.int("BATCH_ETA_COACHING_BUFFER_MINUTES", default=2)
-
-# Abuse caps (signup + batch coach)
-SIGNUP_RATE_LIMIT_MAX_PER_IP = env.int("SIGNUP_RATE_LIMIT_MAX_PER_IP", default=5)
-SIGNUP_RATE_LIMIT_WINDOW_SECONDS = env.int("SIGNUP_RATE_LIMIT_WINDOW_SECONDS", default=3600)
-MAX_BATCHES_PER_USER_PER_DAY = env.int("MAX_BATCHES_PER_USER_PER_DAY", default=3)
 
 # Use our custom Redis client
 REDIS_CLIENT_CLASS = "chess_mate.core.redis_config.get_redis_client"

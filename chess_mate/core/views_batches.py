@@ -12,7 +12,14 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .abuse_limits import batch_daily_limit_response, check_batch_creation_allowed
+from .abuse_limits import (
+    batch_daily_limit_response,
+    check_batch_creation_allowed,
+    check_coaching_regenerate_allowed,
+    coaching_regenerate_limit_response,
+    record_coaching_regenerate,
+)
+from .decorators import rate_limit
 from .batch_coaching import regenerate_batch_coaching
 from .batch_compare import (
     build_compare_narrative,
@@ -45,6 +52,7 @@ def _build_share_url(request, share_token) -> str:
 
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
+@rate_limit(endpoint_type="ANALYSIS")
 def batch_collection_view(request):
     """GET /api/v1/batches/ — list history. POST — create a new batch job."""
     if request.method == "GET":
@@ -263,6 +271,7 @@ def batch_report_view(request, batch_id):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@rate_limit(endpoint_type="BATCH_OPS")
 def batch_regenerate_coaching_view(request, batch_id):
     """
     POST /api/v1/batches/{batch_id}/regenerate-coaching/
@@ -280,6 +289,10 @@ def batch_regenerate_coaching_view(request, batch_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    regen_allowed, regen_info = check_coaching_regenerate_allowed(request.user, batch_report.id)
+    if not regen_allowed:
+        return coaching_regenerate_limit_response(regen_info)
+
     ok, message = regenerate_batch_coaching(batch_report)
     if not ok:
         status_code = (
@@ -288,6 +301,8 @@ def batch_regenerate_coaching_view(request, batch_id):
             else status.HTTP_503_SERVICE_UNAVAILABLE
         )
         return Response({"detail": message}, status=status_code)
+
+    record_coaching_regenerate(request.user, batch_report.id)
 
     serializer = BatchAnalysisReportSerializer(batch_report)
     return Response(serializer.data, status=status.HTTP_200_OK)

@@ -316,6 +316,64 @@ Legacy URL `/api/v1/profile/webhook/stripe/` also works (same handler).
 |---------|---------|---------|
 | `SIGNUP_BONUS_CREDITS` | 15 | Free imports for new signups |
 | `SUPPORT_EMAIL` | support@chess-mate.online | Footer + legal pages |
+| `SIGNUP_RATE_LIMIT_MAX_PER_IP` | 5 | Max signups per IP per window |
+| `SIGNUP_RATE_LIMIT_WINDOW_SECONDS` | 3600 | Signup window (1 hour) |
+| `MAX_BATCHES_PER_USER_PER_DAY` | 3 | Batch coach jobs per user per day |
+| `ALLOW_CONCURRENT_BATCHES` | false | Block new batch while one is pending/in_progress |
+| `LOGIN_FAILED_MAX_PER_IP` | 20 | Failed logins per IP per hour |
+| `PASSWORD_RESET_MAX_PER_IP` | 5 | Reset requests per IP per hour |
+| `MAX_GAME_IMPORTS_PER_USER_PER_DAY` | 100 | Games imported per user per day |
+| `MAX_EXTERNAL_FETCH_REQUESTS_PER_USER_PER_DAY` | 30 | Lichess/Chess.com fetch calls per day |
+| `MAX_SINGLE_ANALYSES_PER_USER_PER_DAY` | 50 | Single-game Stockfish jobs per day |
+| `MAX_COACHING_REGENERATIONS_PER_USER_PER_DAY` | 10 | OpenAI coaching regen per user per day |
+| `MAX_CHECKOUT_SESSIONS_PER_USER_PER_HOUR` | 10 | Stripe checkout sessions per hour |
+
+---
+
+## CloudWatch alarms (EB CPU, ALB 5xx, RDS connections)
+
+### 1) IAM (one-time)
+
+The `chessmate-deploy` user needs CloudWatch + SNS permissions. In AWS Console → IAM → Users → **chessmate-deploy** → Add permissions → Create inline policy → JSON:
+
+Use `scripts/aws/iam-cloudwatch-alarms-policy.json` from this repo (or attach the same actions via the console wizard).
+
+### 2) Run the setup script
+
+From repo root in **PowerShell** (confirm SNS email in inbox on first run):
+
+```powershell
+$env:AWS_PROFILE = "chessmate-deploy"
+$env:ALARM_EMAIL = "ahmedmohamed200354@gmail.com"
+.\scripts\aws\setup_cloudwatch_alarms.ps1
+```
+
+Or pass the email as a parameter:
+
+```powershell
+.\scripts\aws\setup_cloudwatch_alarms.ps1 -AlarmEmail "ahmedmohamed200354@gmail.com"
+```
+
+**Note:** CMD `set ALARM_EMAIL=...` does not work in PowerShell. Use `$env:ALARM_EMAIL = "..."` instead.
+
+Creates SNS topic `chessmate-prod-alarms` and alarms:
+
+| Alarm | Threshold |
+|-------|-----------|
+| `Chessmate-EB-CPU-High` | CPU > 80% for 15 min |
+| `Chessmate-ALB-Target-5xx` | ≥ 10 target 5xx in 5 min |
+| `Chessmate-RDS-Connections-High` | DB connections > 75 |
+
+Verify: AWS Console → CloudWatch → Alarms.
+
+### 3) Manual console fallback (no CLI permissions)
+
+1. **SNS** → Create topic `chessmate-prod-alarms` → Subscribe email → confirm inbox.
+2. **CloudWatch** → Alarms → Create alarm:
+   - **EB CPU:** `AWS/ElasticBeanstalk` / `CPUUtilization` / `EnvironmentName=Chessmate-env-2` / Average > 80 / 3×5 min
+   - **ALB 5xx:** `AWS/ApplicationELB` / `HTTPCode_Target_5XX_Count` / `LoadBalancer=app/awseb--AWSEB-88ETMTsRQAaW/ecbbdfc2fbd65953` / Sum ≥ 10 / 5 min
+   - **RDS connections:** `AWS/RDS` / `DatabaseConnections` / `DBInstanceIdentifier=chessmate-db` / Average > 75 / 2×5 min
+3. Set alarm action → SNS topic from step 1.
 
 ---
 

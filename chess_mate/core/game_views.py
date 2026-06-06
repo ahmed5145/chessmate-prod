@@ -33,7 +33,18 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .abuse_limits import batch_daily_limit_response, check_batch_creation_allowed
+from .abuse_limits import (
+    batch_daily_limit_response,
+    check_batch_creation_allowed,
+    check_external_fetch_allowed,
+    check_game_import_allowed,
+    check_single_analysis_allowed,
+    external_fetch_limit_response,
+    game_import_limit_response,
+    record_external_fetch,
+    record_single_analysis,
+    single_analysis_limit_response,
+)
 from .analysis.feedback_generator import FeedbackGenerator as CoachingFeedbackGenerator
 from .cache import cache_get, cache_set
 from .cache_invalidation import invalidate_cache, invalidates_cache
@@ -1041,6 +1052,11 @@ def import_game(request):
         if not validate_pgn(pgn):
             raise ValidationError([{"field": "pgn", "message": "Invalid PGN format"}])
 
+        import_allowed, import_info = check_game_import_allowed(request.user, 1)
+        if not import_allowed:
+            payload = game_import_limit_response(import_info).data
+            return JsonResponse(payload, status=429)
+
         # Extract metadata
         metadata = extract_metadata_from_pgn(pgn)
 
@@ -1236,6 +1252,10 @@ def analyze_game(request, game_id=None):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        analysis_allowed, analysis_info = check_single_analysis_allowed(request.user)
+        if not analysis_allowed:
+            return single_analysis_limit_response(analysis_info)
+
         # Resolve through legacy module path when tests patch core.* symbols.
         compat_task = _resolve_compat_attr("core.tasks", "analyze_game_task", analyze_game_task)
         compat_task_managers = _get_compat_task_managers()
@@ -1261,6 +1281,8 @@ def analyze_game(request, game_id=None):
                 },
                 status=status.HTTP_200_OK,
             )
+
+        record_single_analysis(request.user)
 
         # Deduct one credit for analysis when possible.
         try:
@@ -1300,7 +1322,7 @@ def analyze_game(request, game_id=None):
 @auth_csrf_exempt
 @track_request_time
 @validate_request(required_fields=["platform", "username"])
-@rate_limit(endpoint_type="GAMES")
+@rate_limit(endpoint_type="FETCH")
 def import_external_games(request):
     """Import games from external sources like chess.com or lichess."""
     try:
@@ -1360,6 +1382,14 @@ def import_external_games(request):
                     }
                 ]
             )
+
+        fetch_allowed, fetch_info = check_external_fetch_allowed(request.user)
+        if not fetch_allowed:
+            return Response(external_fetch_limit_response(fetch_info).data, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+        import_allowed, import_info = check_game_import_allowed(request.user, int(num_games or 0))
+        if not import_allowed:
+            return Response(game_import_limit_response(import_info).data, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
         # Check if user has enough credits
         try:
@@ -1450,6 +1480,8 @@ def import_external_games(request):
             invalidate_user_games_cache(int(user_id))
         except Exception as cache_exc:
             logger.warning("Could not invalidate Redis games cache for user %s: %s", user_id, cache_exc)
+
+        record_external_fetch(request.user)
 
         return Response(
             {
@@ -2040,7 +2072,7 @@ def batch_get_analysis_status(request):
 @login_required
 @track_request_time
 @validate_request(required_get_params=["source", "username"])
-@rate_limit(endpoint_type="GAMES")
+@rate_limit(endpoint_type="FETCH")
 def search_external_player(request):
     """Search for player on external platforms."""
     try:

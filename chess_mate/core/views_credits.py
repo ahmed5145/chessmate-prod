@@ -9,9 +9,12 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+
+from .decorators import rate_limit
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from .abuse_limits import check_checkout_allowed, checkout_limit_response, record_checkout_session
 from .credit_fulfillment import (
     CreditFulfillmentError,
     fulfill_checkout_from_webhook_event,
@@ -49,6 +52,7 @@ def credits_packages_view(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@rate_limit(endpoint_type="CREDITS")
 def purchase_credits_checkout_view(request):
     """
     POST /api/v1/purchase-credits/
@@ -67,6 +71,10 @@ def purchase_credits_checkout_view(request):
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
+    checkout_allowed, retry_after = check_checkout_allowed(request.user)
+    if not checkout_allowed:
+        return checkout_limit_response(retry_after)
+
     try:
         session = PaymentProcessor.create_checkout_session(
             user_id=request.user.id,
@@ -81,6 +89,7 @@ def purchase_credits_checkout_view(request):
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
+    record_checkout_session(request.user)
     return Response({"checkout_url": session.url, "session_id": session.id}, status=status.HTTP_200_OK)
 
 

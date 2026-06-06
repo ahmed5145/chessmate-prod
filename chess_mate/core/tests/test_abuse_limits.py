@@ -65,7 +65,7 @@ class TestDailyBatchLimit(TestCase):
         refresh = RefreshToken.for_user(self.user)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
 
-    @override_settings(MAX_BATCHES_PER_USER_PER_DAY=2)
+    @override_settings(MAX_BATCHES_PER_USER_PER_DAY=2, ALLOW_CONCURRENT_BATCHES=True)
     @patch("core.views_batches.analyze_batch_task.delay")
     @patch("core.serializers_batches.chess.pgn.read_game")
     def test_batch_create_blocks_after_daily_limit(self, mock_parse, mock_task):
