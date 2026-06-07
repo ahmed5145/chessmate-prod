@@ -1106,7 +1106,9 @@ def analyze_single_game_subtask(
                         game_result["platform_game_url"] = saved_row["game_url"]
                     saved_opening = (saved_row.get("opening_name") or "").strip()
                     if saved_opening and saved_opening.lower() not in ("unknown", "unknown opening", "?"):
-                        game_result["opening_name"] = saved_opening
+                        from .opening_name_utils import compact_opening_name
+
+                        game_result["opening_name"] = compact_opening_name(saved_opening) or saved_opening
                     saved_eco = (saved_row.get("eco_code") or "").strip().upper()
                     if saved_eco:
                         game_result["eco_code"] = saved_eco[:3]

@@ -11,6 +11,17 @@ describe('lichessOpeningSearchUrl', () => {
     expect(url).toContain('lichess.org/study/search');
     expect(url).toContain('order=hot');
   });
+
+  it('strips move-tree suffixes from verbose opening headers', () => {
+    const url = lichessOpeningSearchUrl(
+      'Sicilian Defense Open Dragon Classical Attack...8.O O O O 9.f4 Qb6'
+    );
+    expect(url).toContain(
+      'q=Sicilian+Defense+Open+Dragon+Classical+Attack'
+    );
+    expect(url).not.toContain('9.f4');
+    expect(url).not.toContain('Qb6');
+  });
 });
 
 describe('resolvePriorityLichessLink', () => {

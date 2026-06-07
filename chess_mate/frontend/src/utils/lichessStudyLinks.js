@@ -3,6 +3,7 @@
  */
 
 import { toTitleCase } from './formatLabel';
+import { compactOpeningName } from './openingNameCompact';
 
 const PUZZLE_THEME_SLUGS = {
   fork: 'fork',
@@ -60,7 +61,7 @@ export const lichessPuzzleUrlForTheme = (theme) => {
 };
 
 export const lichessOpeningSearchUrl = (openingName) => {
-  const query = String(openingName || 'opening').trim();
+  const query = compactOpeningName(openingName) || 'opening';
   const params = new URLSearchParams({ order: 'hot', q: query });
   return `https://lichess.org/study/search?${params.toString()}`;
 };
@@ -84,6 +85,11 @@ const inferPriorityThemeKey = (priority = {}) => {
   return 'missed_tactic';
 };
 
+const cleanExtractedOpeningName = (name) => {
+  const compacted = compactOpeningName(name);
+  return compacted || String(name || '').trim() || null;
+};
+
 const extractOpeningNameFromPriority = (priority = {}) => {
   const sources = [priority.title, priority.how_to_fix, priority.specific_drill].filter(Boolean);
 
@@ -92,22 +98,22 @@ const extractOpeningNameFromPriority = (priority = {}) => {
 
     const fromTheory = text.match(/opening theory on\s+(.+?)(?:\s+to\b|[.;]|$)/i);
     if (fromTheory?.[1]) {
-      return fromTheory[1].trim();
+      return cleanExtractedOpeningName(fromTheory[1]);
     }
 
     const fromIdeas = text.match(/ideas from (?:the\s+)?(.+?)(?:\s+to\b|[.;]|$)/i);
     if (fromIdeas?.[1]) {
-      return fromIdeas[1].trim();
+      return cleanExtractedOpeningName(fromIdeas[1]);
     }
 
     const fromMasters = text.match(/masters in (?:the\s+)?(.+?)(?:\s*[.;]|$)/i);
     if (fromMasters?.[1]) {
-      return fromMasters[1].trim();
+      return cleanExtractedOpeningName(fromMasters[1]);
     }
 
     const quotedOpening = text.match(/(?:Queen's|King's|London|Sicilian|Caro|French|Slav|Indian)[^.;]*/i);
     if (quotedOpening?.[0]) {
-      return quotedOpening[0].trim();
+      return cleanExtractedOpeningName(quotedOpening[0]);
     }
   }
 

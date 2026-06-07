@@ -6,14 +6,18 @@
 import { isUnknownOpening } from './batchGameLinks';
 import { getEcoOpeningName } from './ecoOpeningNames';
 import { formatGameLabel } from './formatGameLabel';
+import { compactOpeningName } from './openingNameCompact';
 
 export const resolveGameOpeningName = (game) => {
+  let name = null;
   if (!isUnknownOpening(game?.opening_name)) {
-    return game.opening_name;
+    name = game.opening_name;
+  } else {
+    name = getEcoOpeningName(game?.eco_code);
   }
-  const fromEco = getEcoOpeningName(game?.eco_code);
-  if (fromEco) {
-    return fromEco;
+  const compacted = compactOpeningName(name);
+  if (compacted) {
+    return compacted;
   }
   return game?.opening_name || 'Unknown';
 };

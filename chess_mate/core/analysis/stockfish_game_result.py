@@ -261,7 +261,9 @@ def build_game_result(
                 opening_name = get_opening_name(eco_code) or "Unknown"
             opening_header = (pgn_game.headers.get("Opening") or "").strip()
             if opening_header and opening_header not in ("?", "Unknown"):
-                opening_name = opening_header
+                from ..opening_name_utils import compact_opening_name
+
+                opening_name = compact_opening_name(opening_header) or opening_header
     except Exception:
         pass
 
