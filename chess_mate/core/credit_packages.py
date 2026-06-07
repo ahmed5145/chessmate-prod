@@ -67,6 +67,36 @@ def get_package(package_id: str) -> Optional[Dict[str, Any]]:
     return CREDIT_PACKAGES.get(str(package_id or "").strip())
 
 
+def credit_model_for_api() -> Dict[str, Any]:
+    """
+    User-facing credit economics (aligned with docs/PRICING_UNIT_ECONOMICS.md).
+    """
+    from django.conf import settings
+
+    batch_per_game = int(getattr(settings, "BATCH_CREDITS_PER_GAME", 0))
+    signup_bonus = int(getattr(settings, "SIGNUP_BONUS_CREDITS", 15))
+    single_game = int(getattr(settings, "SINGLE_GAME_ANALYSIS_CREDITS", 1))
+
+    return {
+        "credits_per_imported_game": 1,
+        "batch_credits_per_game": batch_per_game,
+        "signup_bonus_credits": signup_bonus,
+        "single_game_analysis_credits": single_game,
+        "batch_games_recommended": BATCH_GAMES_RECOMMENDED,
+        "batch_included": batch_per_game == 0,
+        "summary_points": [
+            "1 credit per game import from Chess.com or Lichess",
+            "Batch Coach analysis is included once games are on your account"
+            if batch_per_game == 0
+            else f"Batch Coach costs {batch_per_game} credit(s) per game in the batch",
+            f"New accounts receive {signup_bonus} free credits",
+            f"Optional single-game deep analysis costs {single_game} credit per game",
+            "Credits are sold as one-time packs — not a subscription",
+            "Purchased credits do not expire while your account stays active",
+        ],
+    }
+
+
 def list_packages_for_api() -> List[Dict[str, Any]]:
     """Public package list for GET /api/v1/credits/packages/."""
     out: List[Dict[str, Any]] = []

@@ -41,6 +41,31 @@ describe('Credits Component', () => {
     api.get.mockResolvedValue({ data: { packages: [] } });
   });
 
+  test('renders how credits work summary', async () => {
+    api.get.mockResolvedValueOnce({
+      data: {
+        packages: [],
+        summary_points: [
+          '1 credit per game import from Chess.com or Lichess',
+          'Batch Coach analysis is included once games are on your account',
+        ],
+        batch_included: true,
+        batch_games_recommended: 10,
+      },
+    });
+
+    render(
+      <BrowserRouter>
+        <UserContext.Provider value={defaultProps}>
+          <Credits />
+        </UserContext.Provider>
+      </BrowserRouter>
+    );
+
+    expect(await screen.findByRole('heading', { name: /How credits work/i })).toBeInTheDocument();
+    expect(screen.getByText(/1 credit per game import from Chess.com or Lichess/i)).toBeInTheDocument();
+  });
+
   test('renders credit packages', () => {
     render(
       <BrowserRouter>

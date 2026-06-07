@@ -30,6 +30,10 @@ class TestCreditsViews:
         assert ids == {"basic", "pro", "premium"}
         starter = next(p for p in response.data["packages"] if p["id"] == "basic")
         assert starter["batch_reports_approx"] == 5
+        assert response.data["credits_per_imported_game"] == 1
+        assert response.data["batch_included"] is True
+        assert isinstance(response.data["summary_points"], list)
+        assert len(response.data["summary_points"]) >= 4
 
     def test_purchase_without_stripe_returns_503(self, settings):
         settings.STRIPE_SECRET_KEY = ""

@@ -15,6 +15,7 @@ def public_site_config_view(request):
         or getattr(settings, "DEFAULT_FROM_EMAIL", "")
         or "support@chess-mate.online"
     ).strip()
+    legal_entity = getattr(settings, "LEGAL_ENTITY_NAME", "").strip()
     return Response(
         {
             "support_email": support,
@@ -27,5 +28,13 @@ def public_site_config_view(request):
             "max_batches_per_user_per_day": int(getattr(settings, "MAX_BATCHES_PER_USER_PER_DAY", 3)),
             "site_name": "ChessMate",
             "beta": True,
+            "legal_entity_name": legal_entity,
+            "legal_entity_incorporated": bool(legal_entity),
+            "legal_governing_law": getattr(
+                settings,
+                "LEGAL_ENTITY_JURISDICTION",
+                "the State of Delaware, United States",
+            ).strip(),
+            "legal_entity_address": getattr(settings, "LEGAL_ENTITY_ADDRESS", "").strip(),
         }
     )

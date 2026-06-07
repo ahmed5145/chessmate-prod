@@ -52,10 +52,28 @@ const FALLBACK_PACKAGES = [
   }
 ];
 
+const DEFAULT_CREDIT_MODEL = {
+  credits_per_imported_game: 1,
+  batch_credits_per_game: 0,
+  signup_bonus_credits: 15,
+  single_game_analysis_credits: 1,
+  batch_games_recommended: 10,
+  batch_included: true,
+  summary_points: [
+    '1 credit per game import from Chess.com or Lichess',
+    'Batch Coach analysis is included once games are on your account',
+    'New accounts receive 15 free credits',
+    'Optional single-game deep analysis costs 1 credit per game',
+    'Credits are sold as one-time packs — not a subscription',
+    'Purchased credits do not expire while your account stays active',
+  ],
+};
+
 const Credits = () => {
   const [loading, setLoading] = useState(false);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [packages, setPackages] = useState(FALLBACK_PACKAGES);
+  const [creditModel, setCreditModel] = useState(DEFAULT_CREDIT_MODEL);
   const { credits, fetchUserData } = useContext(UserContext);
   const { isDarkMode } = useTheme();
 
@@ -101,8 +119,20 @@ const Credits = () => {
     const loadPackages = async () => {
       try {
         const response = await api.get('/api/v1/credits/packages/');
-        if (Array.isArray(response.data?.packages) && response.data.packages.length > 0) {
-          setPackages(response.data.packages);
+        const data = response.data || {};
+        if (Array.isArray(data.packages) && data.packages.length > 0) {
+          setPackages(data.packages);
+        }
+        if (Array.isArray(data.summary_points) && data.summary_points.length > 0) {
+          setCreditModel({
+            credits_per_imported_game: data.credits_per_imported_game ?? 1,
+            batch_credits_per_game: data.batch_credits_per_game ?? 0,
+            signup_bonus_credits: data.signup_bonus_credits ?? 15,
+            single_game_analysis_credits: data.single_game_analysis_credits ?? 1,
+            batch_games_recommended: data.batch_games_recommended ?? 10,
+            batch_included: data.batch_included ?? data.batch_credits_per_game === 0,
+            summary_points: data.summary_points,
+          });
         }
       } catch (error) {
         console.warn('Using fallback credit packages:', error);
@@ -173,6 +203,27 @@ const Credits = () => {
             You currently have {credits} credits available
           </span>
         </div>
+      </div>
+
+      <div className={`mt-10 rounded-xl border p-6 ${
+        isDarkMode ? 'border-gray-700 bg-gray-800/60' : 'border-gray-200 bg-gray-50'
+      }`}>
+        <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          How credits work
+        </h3>
+        <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+          Credits pay for game imports. Batch Coach cross-game analysis is bundled once games are stored
+          {creditModel.batch_included ? ' at no extra charge' : ''}.
+          Typical workflow: import {creditModel.batch_games_recommended} games, run one batch report, repeat.
+        </p>
+        <ul className={`mt-4 space-y-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+          {(creditModel.summary_points || []).map((point) => (
+            <li key={point} className="flex gap-2">
+              <span className={isDarkMode ? 'text-indigo-300' : 'text-indigo-600'} aria-hidden>•</span>
+              <span>{point}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div className="mt-12 space-y-4 sm:mt-16 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-6 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:mx-0 xl:grid-cols-3">

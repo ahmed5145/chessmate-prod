@@ -22,7 +22,7 @@ from .credit_fulfillment import (
     fulfill_checkout_from_webhook_event,
     fulfill_checkout_session,
 )
-from .credit_packages import get_package, list_packages_for_api
+from .credit_packages import credit_model_for_api, get_package, list_packages_for_api
 from .decorators import rate_limit
 from .payment import PaymentProcessor
 
@@ -43,11 +43,11 @@ def credits_balance_view(request):
 @permission_classes([IsAuthenticated])
 def credits_packages_view(request):
     """GET /api/v1/credits/packages/ — purchasable packages with batch framing."""
+    credit_model = credit_model_for_api()
     return Response(
         {
             "packages": list_packages_for_api(),
-            "credits_per_imported_game": 1,
-            "batch_credits_per_game": int(getattr(settings, "BATCH_CREDITS_PER_GAME", 0)),
+            **credit_model,
         },
         status=status.HTTP_200_OK,
     )

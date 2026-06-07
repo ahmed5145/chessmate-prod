@@ -700,6 +700,15 @@ PAYMENT_CANCEL_URL = env("PAYMENT_CANCEL_URL", default="")
 
 # Beta launch — free credits on signup (1 credit = 1 imported game; batch coach included)
 SIGNUP_BONUS_CREDITS = env.int("SIGNUP_BONUS_CREDITS", default=15)
+SINGLE_GAME_ANALYSIS_CREDITS = env.int("SINGLE_GAME_ANALYSIS_CREDITS", default=1)
+
+# Legal pages — set LEGAL_ENTITY_NAME when incorporated (e.g. "ChessMate Inc.")
+LEGAL_ENTITY_NAME = env("LEGAL_ENTITY_NAME", default="").strip()
+LEGAL_ENTITY_JURISDICTION = env(
+    "LEGAL_ENTITY_JURISDICTION",
+    default="",
+).strip()
+LEGAL_ENTITY_ADDRESS = env("LEGAL_ENTITY_ADDRESS", default="").strip()
 REQUIRE_EMAIL_VERIFICATION = env.bool("REQUIRE_EMAIL_VERIFICATION", default=not DEBUG)
 SUPPORT_EMAIL = env("SUPPORT_EMAIL", default="support@chess-mate.online")
 
