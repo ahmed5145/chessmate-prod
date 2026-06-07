@@ -1,5 +1,5 @@
 /**
- * FenBoardImage — static board diagram from FEN (third-party renderer; Lichess /export/fen is unreliable).
+ * FenBoardImage — static board diagram from FEN with optional orientation and move arrows.
  */
 
 import React, { useMemo, useState } from 'react';
@@ -27,9 +27,68 @@ export const buildBoardImageUrl = (fen, size = 280) => {
   return `https://backscattering.de/web-boardimage/board.png?${params.toString()}`;
 };
 
-const FenBoardImage = ({ fen, alt = 'Position diagram', size = 280 }) => {
+const FILE_LABELS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+const RANK_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8'];
+
+const squareCenterPercent = (square, orientation) => {
+  const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
+  const rank = Number(square[1]) - 1;
+  const orientedFile = orientation === 'black' ? 7 - file : file;
+  const orientedRank = orientation === 'black' ? rank : 7 - rank;
+  return {
+    left: ((orientedFile + 0.5) / 8) * 100,
+    top: ((orientedRank + 0.5) / 8) * 100,
+  };
+};
+
+const parseUciSquares = (uci) => {
+  if (!uci || typeof uci !== 'string' || uci.length < 4) {
+    return null;
+  }
+  return { from: uci.slice(0, 2), to: uci.slice(2, 4) };
+};
+
+const MoveArrow = ({ from, to, orientation, color }) => {
+  const start = squareCenterPercent(from, orientation);
+  const end = squareCenterPercent(to, orientation);
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+    >
+      <defs>
+        <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+          <polygon points="0 0, 6 3, 0 6" fill={color} />
+        </marker>
+      </defs>
+      <line
+        x1={start.left}
+        y1={start.top}
+        x2={end.left}
+        y2={end.top}
+        stroke={color}
+        strokeWidth="1.8"
+        strokeOpacity="0.75"
+        markerEnd="url(#arrowhead)"
+      />
+    </svg>
+  );
+};
+
+const FenBoardImage = ({
+  fen,
+  alt = 'Position diagram',
+  size = 280,
+  orientation = 'white',
+  playedMoveUci = null,
+  bestMoveUci = null,
+}) => {
+  const boardOrientation = orientation === 'black' ? 'black' : 'white';
   const src = useMemo(() => buildBoardImageUrl(fen, size), [fen, size]);
   const [failed, setFailed] = useState(false);
+  const playedArrow = parseUciSquares(playedMoveUci);
+  const bestArrow = parseUciSquares(bestMoveUci);
 
   if (!src || failed) {
     const board = boardFenFromFullFen(fen);
@@ -56,23 +115,87 @@ const FenBoardImage = ({ fen, alt = 'Position diagram', size = 280 }) => {
     );
   }
 
+  const files = boardOrientation === 'black' ? [...FILE_LABELS].reverse() : FILE_LABELS;
+  const ranks = boardOrientation === 'black' ? RANK_LABELS : [...RANK_LABELS].reverse();
+
   return (
-    <Box
-      component="img"
-      src={src}
-      alt={alt}
-      loading="lazy"
-      onError={() => setFailed(true)}
-      sx={{
-        width: '100%',
-        maxWidth: size,
-        height: 'auto',
-        borderRadius: 1,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper'
-      }}
-    />
+    <Box sx={{ position: 'relative', width: '100%', maxWidth: size }}>
+      <Box
+        sx={{
+          position: 'relative',
+          borderRadius: 1,
+          border: '1px solid',
+          borderColor: 'divider',
+          overflow: 'hidden',
+          bgcolor: 'background.paper',
+        }}
+      >
+        <Box
+          component="img"
+          src={src}
+          alt={alt}
+          loading="lazy"
+          onError={() => setFailed(true)}
+          sx={{
+            width: '100%',
+            height: 'auto',
+            display: 'block',
+            transform: boardOrientation === 'black' ? 'rotate(180deg)' : 'none',
+          }}
+        />
+        {bestArrow ? (
+          <MoveArrow {...bestArrow} orientation={boardOrientation} color="#22c55e" />
+        ) : null}
+        {playedArrow ? (
+          <MoveArrow {...playedArrow} orientation={boardOrientation} color="#ef4444" />
+        ) : null}
+      </Box>
+      <Box
+        sx={{
+          position: 'absolute',
+          bottom: 2,
+          left: 0,
+          right: 0,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(8, 1fr)',
+          px: 0.5,
+          pointerEvents: 'none',
+        }}
+      >
+        {files.map((file) => (
+          <Typography
+            key={file}
+            variant="caption"
+            sx={{ textAlign: 'center', fontSize: '0.65rem', color: 'text.secondary', fontWeight: 600 }}
+          >
+            {file}
+          </Typography>
+        ))}
+      </Box>
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: 2,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          py: 0.5,
+          pointerEvents: 'none',
+        }}
+      >
+        {ranks.map((rank) => (
+          <Typography
+            key={rank}
+            variant="caption"
+            sx={{ fontSize: '0.65rem', color: 'text.secondary', fontWeight: 600, lineHeight: 1 }}
+          >
+            {rank}
+          </Typography>
+        ))}
+      </Box>
+    </Box>
   );
 };
 

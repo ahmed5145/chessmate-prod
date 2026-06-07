@@ -604,95 +604,102 @@ const Profile = () => {
         <div className={`p-6 rounded-xl ${
           isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
         } shadow-lg mb-8`}>
-          <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          <h3 className={`text-lg font-semibold mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Linked Accounts
           </h3>
-          <div className="space-y-4">
-            {/* Chess.com Account */}
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Chess.com</p>
-                {profileData.chesscom_username ? (
-                  <div className="flex items-center mt-1">
-                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {profileData.chesscom_username}
+          <p className={`text-sm mb-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            Connect Chess.com and Lichess so imports use the right usernames.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              {
+                key: 'chess.com',
+                label: 'Chess.com',
+                connected: Boolean(profileData.chesscom_username),
+                username: profileData.chesscom_username,
+                inputKey: 'chesscom',
+                placeholder: 'Chess.com username',
+              },
+              {
+                key: 'lichess',
+                label: 'Lichess',
+                connected: Boolean(profileData.lichess_username),
+                username: profileData.lichess_username,
+                inputKey: 'lichess',
+                placeholder: 'Lichess username',
+              },
+            ].map((platform) => (
+              <div
+                key={platform.key}
+                className={`rounded-xl border p-4 flex flex-col gap-3 ${
+                  platform.connected
+                    ? isDarkMode
+                      ? 'border-green-800/60 bg-green-950/20'
+                      : 'border-green-200 bg-green-50/60'
+                    : isDarkMode
+                      ? 'border-gray-700 bg-gray-900/40'
+                      : 'border-gray-200 bg-gray-50/80'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {platform.label}
                     </p>
-                    <button
-                      onClick={() => handleUnlinkAccount('chess.com')}
-                      className="ml-2 text-red-500 hover:text-red-600 text-sm"
-                    >
-                      Unlink
-                    </button>
+                    <p className={`text-xs mt-0.5 ${
+                      platform.connected
+                        ? isDarkMode ? 'text-green-300' : 'text-green-700'
+                        : isDarkMode ? 'text-gray-500' : 'text-gray-500'
+                    }`}>
+                      {platform.connected ? 'Connected' : 'Not connected'}
+                    </p>
                   </div>
-                ) : (
-                  <div className="mt-1">
-                    <input
-                      type="text"
-                      placeholder="Enter Chess.com username"
-                      value={newUsernames.chesscom || ''}
-                      onChange={(e) => setNewUsernames(prev => ({ ...prev, chesscom: e.target.value }))}
-                      className={`block w-full sm:w-64 px-3 py-2 text-sm rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
-                        isDarkMode
-                          ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                          : 'border-gray-300 text-gray-900 placeholder-gray-500'
-                      }`}
-                    />
-                    <button
-                      onClick={() => handleLinkAccount('chess.com')}
-                      className="mt-2 inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      Link Account
-                    </button>
-                  </div>
-                )}
-              </div>
-              {profileData.chesscom_username && (
-                <CheckCircle className="h-5 w-5 text-green-500" />
-              )}
-            </div>
+                  {platform.connected ? (
+                    <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />
+                  ) : (
+                    <XCircle className={`h-5 w-5 shrink-0 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'}`} />
+                  )}
+                </div>
 
-            {/* Lichess Account */}
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Lichess</p>
-                {profileData.lichess_username ? (
-                  <div className="flex items-center mt-1">
-                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {profileData.lichess_username}
+                {platform.connected ? (
+                  <>
+                    <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                      @{platform.username}
                     </p>
                     <button
-                      onClick={() => handleUnlinkAccount('lichess')}
-                      className="ml-2 text-red-500 hover:text-red-600 text-sm"
+                      type="button"
+                      onClick={() => handleUnlinkAccount(platform.key)}
+                      className={`self-start text-sm font-medium ${
+                        isDarkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700'
+                      }`}
                     >
-                      Unlink
+                      Unlink account
                     </button>
-                  </div>
+                  </>
                 ) : (
-                  <div className="mt-1">
+                  <>
                     <input
                       type="text"
-                      placeholder="Enter Lichess username"
-                      value={newUsernames.lichess || ''}
-                      onChange={(e) => setNewUsernames(prev => ({ ...prev, lichess: e.target.value }))}
-                      className={`block w-full sm:w-64 px-3 py-2 text-sm rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                      placeholder={platform.placeholder}
+                      value={newUsernames[platform.inputKey] || ''}
+                      onChange={(e) => setNewUsernames((prev) => ({ ...prev, [platform.inputKey]: e.target.value }))}
+                      className={`block w-full px-3 py-2 text-sm rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                         isDarkMode
                           ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                           : 'border-gray-300 text-gray-900 placeholder-gray-500'
                       }`}
                     />
                     <button
-                      onClick={() => handleLinkAccount('lichess')}
-                      className="mt-2 inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      type="button"
+                      onClick={() => handleLinkAccount(platform.key)}
+                      className="self-start inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                     >
-                      Link Account
+                      Link account
                     </button>
-                  </div>
+                  </>
                 )}
               </div>
-              {profileData.lichess_username && (
-                <CheckCircle className="h-5 w-5 text-green-500" />
-              )}
-            </div>
+            ))}
           </div>
         </div>
       </div>

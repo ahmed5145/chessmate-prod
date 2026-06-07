@@ -14,6 +14,7 @@ import {
   Typography
 } from '@mui/material';
 import FenBoardImage from './FenBoardImage';
+import { formatGameLabelById } from '../../utils/formatGameLabel';
 
 const momentSeverityColor = (type) => {
   if (type === 'blunder') return 'error';
@@ -53,10 +54,10 @@ const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false 
   return (
     <Container maxWidth="lg" sx={{ py: 2 }}>
       <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
-        Top critical moments
+        Biggest turning points in your games
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Worst eval swings in this batch — positions before your move (engine depth 14).
+        Your largest eval swings in this batch — positions before your move (engine depth 14).
       </Typography>
       <Grid container spacing={2}>
         {moments.map((moment, index) => (
@@ -70,12 +71,25 @@ const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false 
                 />
                 <Chip size="small" label={`Move ${moment.move_number}`} variant="outlined" />
                 {moment.game_id && (
-                  <Chip size="small" label={moment.game_id} variant="outlined" />
+                  <Chip
+                    size="small"
+                    label={formatGameLabelById(per_game_results, moment.game_id)}
+                    variant="outlined"
+                  />
+                )}
+                {moment.player_color && (
+                  <Chip size="small" label={`You: ${moment.player_color}`} variant="outlined" />
                 )}
               </Box>
               {moment.fen ? (
                 <Box sx={{ mb: 1.5 }}>
-                  <FenBoardImage fen={moment.fen} size={240} />
+                  <FenBoardImage
+                    fen={moment.fen}
+                    size={240}
+                    orientation={moment.player_color || 'white'}
+                    playedMoveUci={moment.played_move_uci}
+                    bestMoveUci={moment.best_move_uci}
+                  />
                 </Box>
               ) : null}
               <Typography variant="body2" sx={{ fontWeight: 600 }}>

@@ -13,12 +13,13 @@ const FALLBACK_PACKAGES = [
     name: 'Coach Starter',
     credits: 50,
     price_display: '$9.99',
-    description: 'Import games for your first batch coach reports',
+    description: 'Buy credits once — import your first batch of games',
     popular: false,
     features: [
+      'One-time purchase (not a subscription)',
       '50 game imports (1 credit per game)',
+      'Credits never expire',
       '~5 batch coach reports (10 games each)',
-      'Full Stockfish + AI coaching per batch'
     ]
   },
   {
@@ -26,12 +27,13 @@ const FALLBACK_PACKAGES = [
     name: 'Coach Plus',
     credits: 100,
     price_display: '$17.99',
-    description: 'Regular batch coach analysis across a month of play',
+    description: 'Buy credits once for regular batch coach analysis',
     popular: true,
     features: [
+      'One-time purchase (not a subscription)',
       '100 game imports',
+      'Credits never expire',
       '~10 batch coach reports (10 games each)',
-      'Compare batches over time'
     ]
   },
   {
@@ -39,12 +41,13 @@ const FALLBACK_PACKAGES = [
     name: 'Coach Pro',
     credits: 250,
     price_display: '$39.99',
-    description: 'Serious improvement loop — many batches and imports',
+    description: 'Buy credits once for a serious improvement loop',
     popular: false,
     features: [
+      'One-time purchase (not a subscription)',
       '250 game imports',
+      'Credits never expire',
       '~25 batch coach reports (10 games each)',
-      'Best value per batch report'
     ]
   }
 ];
@@ -154,9 +157,12 @@ const Credits = () => {
 
       <div className="sm:flex sm:flex-col sm:align-center">
         <h2 className={`text-3xl font-extrabold ${isDarkMode ? 'text-white' : 'text-gray-900'} sm:text-center`}>
-          Batch Coach Credits
+          Buy credits once
         </h2>
-        <p className={`mt-5 text-xl ${isDarkMode ? 'text-gray-300' : 'text-gray-500'} sm:text-center`}>
+        <p className={`mt-2 text-base font-medium ${isDarkMode ? 'text-indigo-300' : 'text-indigo-700'} sm:text-center`}>
+          Not a subscription — credits never expire
+        </p>
+        <p className={`mt-3 text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-500'} sm:text-center`}>
           Credits import games from Chess.com or Lichess. Batch coach analysis is included once games are on your account.
         </p>
         <div className="mt-4 text-center">

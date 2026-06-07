@@ -147,7 +147,7 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     expect(callArg.gameIds.length).toBeGreaterThanOrEqual(5);
   });
 
-  test('Regenerate coaching calls retryFailedGames with successful game ids when partial', async () => {
+  test('partial batch without coaching does not expose regenerate UI', async () => {
     const fakePartialNoCoach = completedBatchReport({
       status: 'partial',
       per_game_results: [
@@ -162,8 +162,6 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     });
 
     getBatchReport.mockResolvedValue(fakePartialNoCoach);
-    const { retryFailedGames } = require('../../services/apiRequests');
-    retryFailedGames.mockResolvedValueOnce({ batch_id: 'REGEN', task_id: 'REGEN1' });
 
     render(
       <MemoryRouter initialEntries={["/batch-analysis/results/report/PARTIAL_NO_COACH"]}>
@@ -174,14 +172,7 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     );
 
     await screen.findByText('Batch Analysis Results');
-    const regenButton = await screen.findByRole('button', { name: /Regenerate Coaching Report/i });
-    await userEvent.click(regenButton);
-    await clickConfirmDialog();
-
-    await waitFor(() => expect(retryFailedGames).toHaveBeenCalled());
-    const arg = retryFailedGames.mock.calls[0][0];
-    expect(Array.isArray(arg.gameIds)).toBe(true);
-    expect(arg.gameIds.length).toBeGreaterThanOrEqual(5);
+    expect(screen.queryByRole('button', { name: /Regenerate Coaching Report/i })).not.toBeInTheDocument();
   });
 
   test('polls status then loads report and renders coaching section', async () => {

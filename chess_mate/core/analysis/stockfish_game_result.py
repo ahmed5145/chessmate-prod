@@ -428,6 +428,7 @@ def build_game_result(
             },
         )
 
+        mover = "white" if bool(mv.get("is_white", True)) else "black"
         moment = {
             "move_number": move_number,
             "phase": phase,
@@ -440,6 +441,9 @@ def build_game_result(
             "best_move": best_move,
             "tactical_theme": tactical_theme,
             "explanation": explanation,
+            "mover": mover,
+            "played_move_uci": played_uci if isinstance(played_uci, str) else None,
+            "best_move_uci": best_uci if isinstance(best_uci, str) else None,
         }
         if phase == "endgame" and fen:
             moment["endgame_material"] = classify_endgame_material(fen)
@@ -502,6 +506,13 @@ def build_game_result(
     result["black_elo"] = black_elo
 
     player_color = result.get("player_color", "white")
+    player_moments = [
+        moment for moment in critical_moments if moment.get("mover") == player_color
+    ]
+    result["critical_moments"] = player_moments
+    result["tactical_patterns_missed"] = list(
+        {cm.get("tactical_theme", "missed_tactic") for cm in player_moments}
+    )
     result["accuracy"] = compute_game_accuracy(analyzed_moves, player_color)
     result["player_moves"] = len(
         [mv for mv in analyzed_moves if bool(mv.get("is_white", True)) == (player_color == "white")]

@@ -210,14 +210,18 @@ def _top_critical_moments(per_game_results: List[Dict[str, Any]], limit: int = 3
     for game_result in per_game_results:
         game_id = game_result.get("game_id")
         saved_game_id = game_result.get("saved_game_id")
+        player_color = game_result.get("player_color")
         for moment in game_result.get("critical_moments") or []:
             if not isinstance(moment, dict):
+                continue
+            if player_color and moment.get("mover") and moment.get("mover") != player_color:
                 continue
             ranked.append(
                 {
                     **moment,
                     "game_id": game_id,
                     "saved_game_id": saved_game_id,
+                    "player_color": player_color,
                 }
             )
     ranked.sort(key=lambda item: float(item.get("eval_swing") or 0), reverse=True)
@@ -655,6 +659,9 @@ def _compute_repertoire_gaps(opening_insights: List[Dict[str, Any]]) -> List[Dic
     gaps = []
     for item in opening_insights:
         if item.get("status") not in ("struggling", "needs_work"):
+            continue
+        opening_name = (item.get("opening_name") or "").strip()
+        if not opening_name or opening_name.lower() in ("unknown", "unknown opening"):
             continue
         color = item.get("player_color", "white")
         gaps.append(

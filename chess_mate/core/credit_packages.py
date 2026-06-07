@@ -22,8 +22,9 @@ CREDIT_PACKAGES: Dict[str, Dict[str, Any]] = {
         "name": "Coach Starter",
         "credits": 50,
         "price_cents": 999,
-        "description": "Import games for your first batch coach reports",
+        "description": "Buy credits once — import your first batch of games",
         "features": [
+            "One-time purchase (not a subscription)",
             "50 game imports (1 credit per game)",
             "~5 batch coach reports (10 games each)",
             "Full Stockfish + AI coaching per batch",
@@ -36,8 +37,9 @@ CREDIT_PACKAGES: Dict[str, Dict[str, Any]] = {
         "credits": 100,
         "price_cents": 1799,
         "popular": True,
-        "description": "Regular batch coach analysis across a month of play",
+        "description": "Buy credits once for regular batch coach analysis",
         "features": [
+            "One-time purchase (not a subscription)",
             "100 game imports",
             "~10 batch coach reports (10 games each)",
             "Compare batches over time",
@@ -49,8 +51,9 @@ CREDIT_PACKAGES: Dict[str, Dict[str, Any]] = {
         "name": "Coach Pro",
         "credits": 250,
         "price_cents": 3999,
-        "description": "Serious improvement loop — many batches and imports",
+        "description": "Buy credits once for a serious improvement loop",
         "features": [
+            "One-time purchase (not a subscription)",
             "250 game imports",
             "~25 batch coach reports (10 games each)",
             "Best value per batch report",

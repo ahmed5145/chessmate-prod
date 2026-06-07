@@ -71,6 +71,23 @@ ENDGAME_STUDY_HINTS = {
 }
 
 
+def _left_piece_en_prise(board: chess.Board, victim_color: chess.Color) -> bool:
+    """True if victim has a valuable piece attacked and undefended after the played move."""
+    for sq in chess.SQUARES:
+        piece = board.piece_at(sq)
+        if not piece or piece.color != victim_color:
+            continue
+        if piece.piece_type < chess.KNIGHT and piece.piece_type != chess.KING:
+            continue
+        attackers = board.attackers(not victim_color, sq)
+        if not attackers:
+            continue
+        defenders = board.attackers(victim_color, sq)
+        if not defenders:
+            return True
+    return False
+
+
 def _is_fork_by_square(board: chess.Board, from_sq: int, to_sq: int) -> bool:
     """True if the piece on to_sq attacks two+ valuable enemy pieces."""
     piece = board.piece_at(to_sq)
@@ -107,14 +124,6 @@ def classify_tactical_theme(
         return "missed_tactic"
 
     try:
-        if best_move_uci:
-            best = chess.Move.from_uci(best_move_uci)
-            if best in board_before.legal_moves:
-                after_best = board_before.copy()
-                after_best.push(best)
-                if _is_fork_by_square(after_best, best.from_square, best.to_square):
-                    return "fork"
-
         if played_move_uci:
             played = chess.Move.from_uci(played_move_uci)
             if played in board_before.legal_moves:
@@ -125,6 +134,16 @@ def classify_tactical_theme(
                     not after_played.turn, to_sq
                 ):
                     return "hanging_piece"
+                if _left_piece_en_prise(after_played, not after_played.turn):
+                    return "hanging_piece"
+
+        if best_move_uci:
+            best = chess.Move.from_uci(best_move_uci)
+            if best in board_before.legal_moves:
+                after_best = board_before.copy()
+                after_best.push(best)
+                if _is_fork_by_square(after_best, best.from_square, best.to_square):
+                    return "fork"
     except Exception:
         return "missed_tactic"
 

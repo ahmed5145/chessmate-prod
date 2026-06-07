@@ -17,6 +17,15 @@ def test_classify_endgame_material_rook_and_pawn():
     assert classify_endgame_material(board.fen()) == "rook_and_pawn"
 
 
+def test_classify_tactical_theme_hanging_piece_before_fork():
+    # White queen on d1 can be left en prise after a careless king move in a simplified position.
+    board = chess.Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    played = "e2e4"
+    best = "d2d4"
+    theme = classify_tactical_theme(board.fen(), played, best)
+    assert theme in ("hanging_piece", "missed_tactic", "fork")
+
+
 def test_classify_tactical_theme_prefers_missed_fork_on_best_move():
     board = chess.Board("r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 4 4")
     legal = list(board.legal_moves)

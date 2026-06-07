@@ -52,19 +52,9 @@ const PriorityCard = ({ priority }) => {
     why_it_matters,
     how_to_fix,
     specific_drill,
-    estimated_study_hours
   } = priority;
 
-  // Check required fields
-  if (
-    !rank ||
-    !title ||
-    !why_it_matters ||
-    !how_to_fix ||
-    !specific_drill ||
-    estimated_study_hours === undefined ||
-    estimated_study_hours === null
-  ) {
+  if (!rank || !title || !why_it_matters || !how_to_fix || !specific_drill) {
     return null;
   }
 
@@ -157,12 +147,6 @@ const PriorityCard = ({ priority }) => {
           </Box>
         )}
 
-        {/* Study hours at bottom */}
-        <Box sx={{ pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-            ~{estimated_study_hours} {estimated_study_hours === 1 ? 'hour' : 'hours'}
-          </Typography>
-        </Box>
       </CardContent>
     </Card>
   );

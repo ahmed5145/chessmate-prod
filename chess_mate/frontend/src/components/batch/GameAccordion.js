@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FenBoardImage from './FenBoardImage';
+import { formatGameLabel } from '../../utils/formatGameLabel';
 
 const GameAccordion = ({ per_game_results, readOnly = false }) => {
   if (!per_game_results || !Array.isArray(per_game_results) || per_game_results.length === 0) {
@@ -110,14 +111,28 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
                 }}
               >
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  {game.game_id || `Game ${index + 1}`}
+                  {formatGameLabel(game)}
                 </Typography>
+                {game.platform_game_url && (
+                  <Link
+                    href={game.platform_game_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="caption"
+                    sx={{ ml: 0.5 }}
+                  >
+                    View on {game.platform || 'platform'}
+                  </Link>
+                )}
                 <Chip
                   label={getResultLabel(game.result, game.player_color)}
                   color={getResultChipColor(game.result, game.player_color)}
                   size="small"
                 />
-                <Typography variant="subtitle2">{game.opening_name || 'Unknown opening'}</Typography>
+                {game.opening_name &&
+                  !['unknown', 'unknown opening'].includes(String(game.opening_name).toLowerCase()) && (
+                  <Typography variant="subtitle2">{game.opening_name}</Typography>
+                )}
                 {game.player_color && (
                   <Chip label={game.player_color} size="small" variant="outlined" />
                 )}

@@ -63,15 +63,15 @@ const BatchSharedReport = () => {
         <Paper
           className="batch-report-no-print"
           elevation={0}
-          sx={{
+          sx={(theme) => ({
             p: 2.5,
             mb: 3,
             border: '1px solid',
-            borderColor: 'primary.main',
-            bgcolor: 'primary.main',
-            color: 'primary.contrastText',
-            borderRadius: 2
-          }}
+            borderColor: theme.palette.mode === 'dark' ? 'grey.700' : 'divider',
+            bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'background.paper',
+            color: 'text.primary',
+            borderRadius: 2,
+          })}
         >
           <Typography variant="overline" sx={{ opacity: 0.9 }}>
             ChessMate Batch Coach

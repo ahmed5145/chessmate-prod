@@ -4,7 +4,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
 import { Alert, Box, Container } from '@mui/material';
 import BatchLoadingScreen from './BatchLoadingScreen';
 import BatchReportActions from './BatchReportActions';

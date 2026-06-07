@@ -1086,6 +1086,27 @@ def analyze_single_game_subtask(
                 "error": "Failed to build game result (empty output)",
             }
 
+        if saved_game_id:
+            try:
+                from .models import Game
+
+                saved_row = (
+                    Game.objects.filter(id=saved_game_id, user_id=user_id)
+                    .values("opponent", "date_played", "platform", "game_url")
+                    .first()
+                )
+                if saved_row:
+                    if saved_row.get("opponent"):
+                        game_result["opponent"] = saved_row["opponent"]
+                    if saved_row.get("date_played"):
+                        game_result["date_played"] = saved_row["date_played"].isoformat()
+                    if saved_row.get("platform"):
+                        game_result["platform"] = saved_row["platform"]
+                    if saved_row.get("game_url"):
+                        game_result["platform_game_url"] = saved_row["game_url"]
+            except Exception:
+                _log_ignored_exception(f"Ignoring saved game metadata lookup for {saved_game_id}")
+
         _record_batch_game_progress(batch_id, user_id, game_id, succeeded=True)
         return {
             "game_id": game_id,

@@ -71,7 +71,7 @@ const BatchReportActions = ({
       </Typography>
       <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="flex-end">
         <Button variant="outlined" size="small" onClick={handlePrint}>
-          Print / PDF
+          Download PDF
         </Button>
         <Button
           variant="outlined"

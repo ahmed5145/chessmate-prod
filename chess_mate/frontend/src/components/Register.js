@@ -273,6 +273,17 @@ const Register = () => {
                   <li className={/[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'text-green-500' : ''}>
                     At least one special character
                   </li>
+                  <li
+                    className={
+                      !confirmPassword
+                        ? ''
+                        : passwordsMatch
+                          ? 'text-green-500'
+                          : 'text-yellow-500'
+                    }
+                  >
+                    Passwords match
+                  </li>
                 </ul>
               </div>
             </div>
@@ -287,16 +298,22 @@ const Register = () => {
                 </div>
                 <input
                   id="confirmPassword"
+                  name="confirmPassword"
                   type="password"
+                  autoComplete="new-password"
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className={`appearance-none block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
+                    isDarkMode
+                      ? 'bg-gray-700 text-white placeholder-gray-400'
+                      : 'placeholder-gray-400'
+                  } ${
                     !passwordsMatch && confirmPassword
                       ? 'border-red-500'
                       : isDarkMode
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                        : 'border-gray-300 placeholder-gray-400'
+                        ? 'border-gray-600'
+                        : 'border-gray-300'
                   }`}
                   placeholder="••••••••"
                 />

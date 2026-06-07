@@ -15,8 +15,9 @@ import {
   Typography
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import { formatGameLabelById } from '../../utils/formatGameLabel';
 
-const RecurringPatterns = ({ batch_summary }) => {
+const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
   if (!batch_summary) {
     return null;
   }
@@ -134,7 +135,7 @@ const RecurringPatterns = ({ batch_summary }) => {
                     {item.example_moments
                       .map(
                         (ex) =>
-                          `${ex.game_id} move ${ex.move_number} (played ${ex.played_move}, best ${ex.best_move})`
+                          `${formatGameLabelById(per_game_results, ex.game_id)} · move ${ex.move_number} (played ${ex.played_move}, best ${ex.best_move})`
                       )
                       .join(' · ')}
                   </Typography>
@@ -176,7 +177,9 @@ const RecurringPatterns = ({ batch_summary }) => {
                   primary={item.detail || `Avg eval swing: ${Number(item.avg_eval_swing || 0).toFixed(1)}`}
                   secondary={
                     Array.isArray(item.example_game_ids) && item.example_game_ids.length > 0
-                      ? `Seen in: ${item.example_game_ids.join(', ')}`
+                      ? `Seen in: ${item.example_game_ids
+                        .map((gameId) => formatGameLabelById(per_game_results, gameId))
+                        .join(', ')}`
                       : null
                   }
                   primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}

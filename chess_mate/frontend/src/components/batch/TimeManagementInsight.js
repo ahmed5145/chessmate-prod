@@ -19,7 +19,7 @@ const TimeManagementInsight = ({ batch_summary }) => {
         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
           Time management
           {summary.games_with_clock_data
-            ? ` · ${summary.games_with_clock_data}/${summary.games_analyzed} games with clock data`
+            ? ` · Clock data available for ${summary.games_with_clock_data} of ${summary.games_analyzed} games`
             : ''}
         </Typography>
         <Typography variant="body2" sx={{ mt: 0.5 }}>
