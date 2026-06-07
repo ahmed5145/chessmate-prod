@@ -325,6 +325,18 @@ const Register = () => {
               )}
             </div>
 
+            <p className={`text-xs text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              By creating an account, you agree to our{' '}
+              <Link to="/terms" className={isDarkMode ? 'text-indigo-300 hover:underline' : 'text-indigo-600 hover:underline'}>
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link to="/privacy" className={isDarkMode ? 'text-indigo-300 hover:underline' : 'text-indigo-600 hover:underline'}>
+                Privacy Policy
+              </Link>
+              .
+            </p>
+
             <div>
               <button
                 type="submit"
