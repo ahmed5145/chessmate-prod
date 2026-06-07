@@ -1,6 +1,6 @@
 /**
  * FenBoardImage — inline SVG board from FEN with move arrows.
- * Board stays upright (white at bottom); `orientation` / `perspective` only flips a–h on the bottom edge.
+ * Flips to the player's perspective (Chess.com style) when orientation is black.
  */
 
 import React, { useId, useMemo } from 'react';
@@ -38,9 +38,16 @@ export const buildBoardImageUrl = (fen, size = 280) => {
 const FILE_LABELS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const RANK_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
-const squareCenterPercent = (square) => {
-  const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
-  const rank = Number(square[1]) - 1;
+const mapCoords = (file, rank, isBlackView) =>
+  isBlackView ? { file: 7 - file, rank: 7 - rank } : { file, rank };
+
+const squareCenterPercent = (square, isBlackView) => {
+  let file = square.charCodeAt(0) - 'a'.charCodeAt(0);
+  let rank = Number(square[1]) - 1;
+  if (isBlackView) {
+    file = 7 - file;
+    rank = 7 - rank;
+  }
   return {
     left: ((file + 0.5) / 8) * 100,
     top: ((7 - rank + 0.5) / 8) * 100,
@@ -54,9 +61,9 @@ const parseUciSquares = (uci) => {
   return { from: uci.slice(0, 2), to: uci.slice(2, 4) };
 };
 
-const MoveArrow = ({ from, to, color, markerId }) => {
-  const start = squareCenterPercent(from);
-  const end = squareCenterPercent(to);
+const MoveArrow = ({ from, to, color, markerId, isBlackView }) => {
+  const start = squareCenterPercent(from, isBlackView);
+  const end = squareCenterPercent(to, isBlackView);
   return (
     <svg
       viewBox="0 0 100 100"
@@ -82,7 +89,7 @@ const MoveArrow = ({ from, to, color, markerId }) => {
   );
 };
 
-const BoardSvg = ({ boardFen }) => {
+const BoardSvg = ({ boardFen, isBlackView }) => {
   const pieces = useMemo(() => iterateFenPieces(boardFen), [boardFen]);
 
   return (
@@ -95,19 +102,23 @@ const BoardSvg = ({ boardFen }) => {
       style={{ display: 'block' }}
     >
       {Array.from({ length: 8 }, (_, rank) =>
-        Array.from({ length: 8 }, (_, file) => (
-          <rect
-            key={`sq-${file}-${rank}`}
-            x={file}
-            y={rank}
-            width={1}
-            height={1}
-            fill={squareFill(file, rank)}
-          />
-        ))
+        Array.from({ length: 8 }, (_, file) => {
+          const display = mapCoords(file, rank, isBlackView);
+          return (
+            <rect
+              key={`sq-${file}-${rank}`}
+              x={display.file}
+              y={display.rank}
+              width={1}
+              height={1}
+              fill={squareFill(file, rank)}
+            />
+          );
+        })
       )}
       {pieces.map((piece) => {
         const style = pieceStyle(piece.char);
+        const display = mapCoords(piece.file, piece.rank, isBlackView);
         const glyph = piece.char === piece.char.toUpperCase()
           ? piece.char.toUpperCase()
           : piece.char.toLowerCase();
@@ -118,8 +129,8 @@ const BoardSvg = ({ boardFen }) => {
         return (
           <text
             key={`${piece.file}-${piece.rank}-${piece.char}`}
-            x={piece.file + 0.5}
-            y={piece.rank + 0.78}
+            x={display.file + 0.5}
+            y={display.rank + 0.78}
             textAnchor="middle"
             fontSize="0.82"
             fontFamily="'Segoe UI Symbol', 'Noto Sans Symbols2', serif"
@@ -145,7 +156,7 @@ const FenBoardImage = ({
   playedMoveUci = null,
   bestMoveUci = null,
 }) => {
-  const labelPerspective = (perspective || orientation) === 'black' ? 'black' : 'white';
+  const isBlackView = (perspective || orientation) === 'black';
   const boardFen = useMemo(() => boardFenFromFullFen(fen), [fen]);
   const reactId = useId();
   const playedArrow = parseUciSquares(playedMoveUci);
@@ -175,9 +186,8 @@ const FenBoardImage = ({
     );
   }
 
-  // Upright diagram: rank 8 at top; only bottom file labels flip for black's perspective.
-  const files = labelPerspective === 'black' ? [...FILE_LABELS].reverse() : FILE_LABELS;
-  const ranks = [...RANK_LABELS].reverse();
+  const files = isBlackView ? [...FILE_LABELS].reverse() : FILE_LABELS;
+  const ranks = isBlackView ? RANK_LABELS : [...RANK_LABELS].reverse();
 
   const bestMarkerId = `best-arrow-${reactId.replace(/:/g, '')}`;
   const playedMarkerId = `played-arrow-${reactId.replace(/:/g, '')}`;
@@ -200,12 +210,12 @@ const FenBoardImage = ({
           width: '100%',
         }}
       >
-        <BoardSvg boardFen={boardFen} />
+        <BoardSvg boardFen={boardFen} isBlackView={isBlackView} />
         {bestArrow ? (
-          <MoveArrow {...bestArrow} color="#16a34a" markerId={bestMarkerId} />
+          <MoveArrow {...bestArrow} color="#16a34a" markerId={bestMarkerId} isBlackView={isBlackView} />
         ) : null}
         {playedArrow ? (
-          <MoveArrow {...playedArrow} color="#dc2626" markerId={playedMarkerId} />
+          <MoveArrow {...playedArrow} color="#dc2626" markerId={playedMarkerId} isBlackView={isBlackView} />
         ) : null}
       </Box>
       <Box

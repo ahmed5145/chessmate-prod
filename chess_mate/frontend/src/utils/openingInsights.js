@@ -45,11 +45,11 @@ const openingDisplayName = (games) => {
   if (names.length === 0) {
     return 'Unknown';
   }
-  const withoutSuffix = names.filter((name) => !String(name).includes(':'));
-  if (withoutSuffix.length > 0) {
-    return withoutSuffix[0];
+  const withVariation = names.filter((name) => String(name).includes(':'));
+  if (withVariation.length > 0) {
+    return withVariation.reduce((best, name) => (String(name).length > String(best).length ? name : best));
   }
-  return String(names[0]).split(':', 1)[0].trim();
+  return names.reduce((best, name) => (String(name).length > String(best).length ? name : best));
 };
 
 const buildRecommendation = (openingName, games, wins, losses, draws, avgOpeningScore) => {
@@ -72,13 +72,19 @@ const buildRecommendation = (openingName, games, wins, losses, draws, avgOpening
     };
   }
 
+  const ecoCodes = [...new Set(games.map((game) => game.eco_code).filter(Boolean))];
+  const ecoLabel = ecoCodes.length === 1 ? ` (${ecoCodes[0]})` : '';
+  const colors = games.map((game) => game.player_color || 'white');
+  const playerColor = colors.filter((color) => color === 'black').length > colors.length / 2
+    ? 'black'
+    : 'white';
   const scoreText =
     avgOpeningScore != null
-      ? ` Opening phase averaged ${Math.round(avgOpeningScore * 100)}%.`
+      ? ` Opening phase: ${Math.round(avgOpeningScore * 100)}%.`
       : '';
   return {
     status: 'neutral',
-    recommendation: `Played ${games.length} time(s) in this batch (${wins}W-${losses}L-${draws}D).${scoreText}`,
+    recommendation: `As ${playerColor} in ${openingName}${ecoLabel}: ${wins}W-${losses}L-${draws}D across ${games.length} game(s).${scoreText}`,
   };
 };
 

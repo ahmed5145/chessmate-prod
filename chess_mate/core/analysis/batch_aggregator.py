@@ -594,13 +594,23 @@ def _opening_group_key(result: Dict[str, Any]) -> str:
 
 
 def _opening_display_name(games: List[Dict[str, Any]]) -> str:
+    from ..eco_codes import get_opening_name
+
+    eco_codes = sorted({g.get("eco_code") for g in games if g.get("eco_code")})
+    if len(eco_codes) == 1:
+        specific = get_opening_name(eco_codes[0])
+        if specific and specific != "Unknown Opening":
+            return specific
+
     names = [g.get("opening_name") for g in games if g.get("opening_name")]
     if not names:
         return "Unknown"
-    without_suffix = [n for n in names if ":" not in n]
-    if without_suffix:
-        return without_suffix[0]
-    return min(names, key=len).split(":", 1)[0].strip()
+
+    with_variation = [n for n in names if ":" in n]
+    if with_variation:
+        return max(with_variation, key=len)
+
+    return max(names, key=len)
 
 
 def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -628,6 +638,9 @@ def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
             if int(g.get("phase_breakdown", {}).get("opening", {}).get("moves", 0) or 0) > 0
         ]
         avg_opening_score = round(sum(opening_scores) / len(opening_scores), 2) if opening_scores else None
+        colors = [g.get("player_color", "white") for g in games]
+        player_color = "black" if colors.count("black") > colors.count("white") else "white"
+        eco_codes = sorted({g.get("eco_code") for g in games if g.get("eco_code")})
 
         status = "neutral"
         recommendation = None
@@ -651,16 +664,14 @@ def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
                 f"Study model games and common middlegame plans from this opening."
             )
         else:
+            eco_label = f" ({eco_codes[0]})" if len(eco_codes) == 1 and eco_codes else ""
             score_text = ""
             if avg_opening_score is not None:
-                score_text = f" Opening phase averaged {int(avg_opening_score * 100)}%."
+                score_text = f" Opening phase: {int(avg_opening_score * 100)}%."
             recommendation = (
-                f"Played {len(games)} time(s) in this batch ({wins}W-{losses}L-{draws}D).{score_text}"
+                f"As {player_color} in {opening_name}{eco_label}: {wins}W-{losses}L-{draws}D "
+                f"across {len(games)} game(s).{score_text}"
             )
-
-        colors = [g.get("player_color", "white") for g in games]
-        player_color = "black" if colors.count("black") > colors.count("white") else "white"
-        eco_codes = sorted({g.get("eco_code") for g in games if g.get("eco_code")})
 
         insights.append(
             {

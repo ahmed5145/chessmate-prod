@@ -22,6 +22,7 @@ import FenBoardImage from './FenBoardImage';
 import { formatGameLabel, humanizeGameIdInText } from '../../utils/formatGameLabel';
 import { getGamePlatformLabel } from '../../utils/batchGameLinks';
 import { formatNumber } from '../../utils/formatNumber';
+import { sanitizeReportFloats } from '../../utils/sanitizeReportText';
 
 const GameAccordion = ({ per_game_results, readOnly = false }) => {
   if (!per_game_results || !Array.isArray(per_game_results) || per_game_results.length === 0) {
@@ -172,8 +173,8 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
 
             <AccordionDetails>
               <Box sx={{ display: 'grid', gap: 2 }}>
-                {game.platform_game_url ? (
-                  <Box>
+                <Box>
+                  {game.platform_game_url ? (
                     <Button
                       size="small"
                       variant="outlined"
@@ -184,8 +185,13 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
                     >
                       Open on {getGamePlatformLabel(per_game_results, game.game_id)}
                     </Button>
-                  </Box>
-                ) : null}
+                  ) : (
+                    <Typography variant="caption" color="text.secondary">
+                      Original game link unavailable for this entry. Re-run the batch from
+                      Chess.com/Lichess imports to attach platform URLs.
+                    </Typography>
+                  )}
+                </Box>
                 {game.coach_note ? (
                   <Box
                     sx={{
@@ -320,7 +326,7 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
                         </Typography>
                         {moment.explanation && (
                           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                            {moment.explanation}
+                            {sanitizeReportFloats(moment.explanation)}
                           </Typography>
                         )}
                       </Box>

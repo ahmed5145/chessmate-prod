@@ -232,7 +232,7 @@ def generate_coaching_report(
         "MANDATORY SPECIFICITY:\n"
         "- If batch_summary contains opening_insights, you MUST name at least one opening by name in executive_summary or opening narrative and reference its record/recommendation.\n"
         "- If batch_summary contains endgame_insights, you MUST name the endgame type (e.g. rook and pawn) in endgame narrative and cite study_focus wording.\n"
-        "- top_3_priorities titles and specific_drill must cite real game_id (internal id like game_0) and move_number from per_game_summaries.critical_moments when available (e.g. 'In game_0 move 22...'); the UI will replace game_id with human labels.\n"
+        "- top_3_priorities specific_drill must include TWO parts: (1) a general practice drill (puzzles, themed training, or study — not only one game), and (2) a review step citing game_id and move_number from critical_moments (e.g. 'Practice: 15 hanging-piece puzzles on Lichess. Review: game_0 move 22 — replay the tactic from your game.').\n"
         "- training_plan weeks must differ from each other and reference concrete weaknesses from opening_insights/endgame_insights/recurring_weaknesses — not generic 'do puzzles daily' every week.\n"
         "- Do not only say fork or missed_tactic; tie tactics to the listed moments and openings."
     )

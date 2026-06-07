@@ -1,20 +1,5 @@
 /**
- * PriorityCard.js
- *
- * Displays a single priority (one of top 3) with rank, title, and detailed guidance.
- *
- * Props:
- *   - priority: object | null
- *       {
- *         rank: 1|2|3,
- *         title: string,
- *         why_it_matters: string,
- *         how_to_fix: string,
- *         specific_drill: string,
- *         estimated_study_hours: number
- *       }
- *
- * Pure display component — no state, no API calls.
+ * PriorityCard.js — single top-3 priority with practice + game review drills.
  */
 
 import React from 'react';
@@ -26,10 +11,17 @@ import {
   Chip,
   Button
 } from '@mui/material';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   formatGameLabelById,
   humanizeGameIdInText,
 } from '../../utils/formatGameLabel';
+import { buildPriorityDrillDisplay } from '../../utils/priorityDrillDisplay';
+import {
+  getGamePlatformLabel,
+  getGamePlatformUrl,
+  scrollToBatchGame,
+} from '../../utils/batchGameLinks';
 
 const extractGameIds = (...parts) => {
   const text = parts.filter(Boolean).join(' ');
@@ -37,15 +29,7 @@ const extractGameIds = (...parts) => {
   return [...new Set(matches.map((id) => id.toLowerCase()))];
 };
 
-const scrollToGame = (gameId) => {
-  const el = document.getElementById(`batch-game-${gameId}`);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-};
-
 const PriorityCard = ({ priority, per_game_results = [] }) => {
-  // Validate priority object
   if (!priority || typeof priority !== 'object') {
     return null;
   }
@@ -62,9 +46,6 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
     return null;
   }
 
-  /**
-   * Map rank to MUI Chip color
-   */
   const getRankColor = (rankNum) => {
     if (rankNum === 1) return 'error';
     if (rankNum === 2) return 'warning';
@@ -75,11 +56,11 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
   const rankColor = getRankColor(rank);
   const linkedGames = extractGameIds(title, why_it_matters, how_to_fix, specific_drill);
   const humanize = (text) => humanizeGameIdInText(text, per_game_results);
+  const drillDisplay = buildPriorityDrillDisplay(priority, per_game_results);
 
   return (
     <Card sx={{ mb: 3 }}>
       <CardContent>
-        {/* Rank badge at top-left */}
         <Box sx={{ mb: 2 }}>
           <Chip
             label={rank}
@@ -90,12 +71,10 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
           />
         </Box>
 
-        {/* Title */}
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 2.5 }}>
           {humanize(title)}
         </Typography>
 
-        {/* Why it matters section */}
         <Box sx={{ mb: 2 }}>
           <Typography
             variant="caption"
@@ -109,7 +88,6 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
           </Typography>
         </Box>
 
-        {/* How to fix section */}
         <Box sx={{ mb: 2 }}>
           <Typography
             variant="caption"
@@ -123,7 +101,6 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
           </Typography>
         </Box>
 
-        {/* Drill section */}
         <Box sx={{ mb: 3 }}>
           <Typography
             variant="caption"
@@ -132,26 +109,54 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
           >
             Drill
           </Typography>
-          <Typography variant="body2">
-            {humanize(specific_drill)}
-          </Typography>
+          {drillDisplay.practice ? (
+            <Box sx={{ mb: 1.5 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.25 }}>
+                Practice
+              </Typography>
+              <Typography variant="body2">{drillDisplay.practice}</Typography>
+            </Box>
+          ) : null}
+          {drillDisplay.review ? (
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.25 }}>
+                Review in your games
+              </Typography>
+              <Typography variant="body2">{drillDisplay.review}</Typography>
+            </Box>
+          ) : null}
         </Box>
 
         {linkedGames.length > 0 && (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-            {linkedGames.map((gameId) => (
-              <Button
-                key={gameId}
-                size="small"
-                variant="text"
-                onClick={() => scrollToGame(gameId)}
-              >
-                View {formatGameLabelById(per_game_results, gameId)}
-              </Button>
-            ))}
+            {linkedGames.map((gameId) => {
+              const platformUrl = getGamePlatformUrl(per_game_results, gameId);
+              return (
+                <Box key={gameId} sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={() => scrollToBatchGame(gameId)}
+                  >
+                    View {formatGameLabelById(per_game_results, gameId)}
+                  </Button>
+                  {platformUrl ? (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      href={platformUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      endIcon={<OpenInNewIcon fontSize="small" />}
+                    >
+                      Open on {getGamePlatformLabel(per_game_results, gameId)}
+                    </Button>
+                  ) : null}
+                </Box>
+              );
+            })}
           </Box>
         )}
-
       </CardContent>
     </Card>
   );

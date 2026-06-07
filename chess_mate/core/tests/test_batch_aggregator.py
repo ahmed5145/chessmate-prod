@@ -74,12 +74,12 @@ def test_opening_insights_include_neutral_and_group_eco_variants():
     insights = _compute_opening_insights([queens_base, queens_london, sicilian])
     assert len(insights) >= 2
 
-    queens = next(i for i in insights if "Queen" in i["opening_name"])
+    queens = next(i for i in insights if i.get("eco_code") == "D00")
     assert queens["games"] == 2
-    assert queens["status"] in ("neutral", "struggling", "needs_work")
+    assert "London" in queens["opening_name"] or "Queen" in queens["opening_name"]
     assert queens.get("recommendation")
 
-    sicilian_insight = next(i for i in insights if i["opening_name"] == "Sicilian Defense")
+    sicilian_insight = next(i for i in insights if i.get("eco_code") == "B90")
     assert sicilian_insight["games"] == 1
     assert sicilian_insight.get("recommendation")
 

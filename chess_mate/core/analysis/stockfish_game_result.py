@@ -24,6 +24,7 @@ from .batch_move_classification import (
     player_eval_deterioration,
     player_has_winning_mate,
 )
+from .batch_pgn_metadata import extract_platform_metadata_from_pgn
 from .batch_pgn_time import compute_time_management_from_pgn
 from .batch_phase_boundaries import (
     endgame_start_from_metadata,
@@ -258,6 +259,9 @@ def build_game_result(
             if raw_eco:
                 eco_code = raw_eco[:3]
                 opening_name = get_opening_name(eco_code) or "Unknown"
+            opening_header = (pgn_game.headers.get("Opening") or "").strip()
+            if opening_header and opening_header not in ("?", "Unknown"):
+                opening_name = opening_header
     except Exception:
         pass
 
@@ -584,5 +588,16 @@ def build_game_result(
     )
     if time_management.get("has_clock_data"):
         result["time_management"] = time_management
+
+    pgn_meta = extract_platform_metadata_from_pgn(pgn)
+    for key in ("platform_game_url", "platform", "date_played"):
+        if pgn_meta.get(key) and not result.get(key):
+            result[key] = pgn_meta[key]
+    if not result.get("opponent") and pgn_meta.get("white") and pgn_meta.get("black"):
+        player_color = result.get("player_color", "white")
+        if player_color == "white":
+            result["opponent"] = pgn_meta["black"]
+        elif player_color == "black":
+            result["opponent"] = pgn_meta["white"]
 
     return result

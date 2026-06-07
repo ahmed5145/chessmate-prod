@@ -84,7 +84,7 @@ const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
             Opening matchups
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Your head-to-head record by opening in this batch — wins, losses, and opening-phase scores.
+            Record by specific ECO line in this batch — each variation is listed separately with its score.
           </Typography>
           <List dense disablePadding>
             {openingInsights.map((item) => (
@@ -120,10 +120,7 @@ const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
                   )}
                 </Box>
                 {item.recommendation && (
-                  <Typography variant="body2">
-                    As <strong>{item.player_color || 'you'}</strong> in{' '}
-                    <strong>{item.opening_name}</strong>: {item.recommendation}
-                  </Typography>
+                  <Typography variant="body2">{item.recommendation}</Typography>
                 )}
               </ListItem>
             ))}

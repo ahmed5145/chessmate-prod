@@ -59,14 +59,15 @@ const RepertoireGaps = ({ batch_summary, per_game_results = [] }) => {
         Repertoire gaps
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Openings you struggle in during this batch — simplify or review these lines first.
+        Lines where you lost multiple games or scored below 65% in the opening phase — review these
+        before your next batch.
       </Typography>
 
       {gaps.length === 0 ? (
-        <Alert severity="success" variant="outlined" sx={{ mb: 2 }}>
+        <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
           <Typography variant="body2">
-            No major repertoire gaps flagged in this batch. Your opening records are in{' '}
-            <strong>Opening matchups</strong> below.
+            No line hit the gap threshold (2+ losses or sub-65% opening accuracy). Check{' '}
+            <strong>Opening matchups</strong> for each specific ECO line you played.
           </Typography>
         </Alert>
       ) : (
@@ -143,28 +144,10 @@ const RepertoireGaps = ({ batch_summary, per_game_results = [] }) => {
         </List>
       )}
 
-      {gaps.length === 0 && openingInsights.length > 0 ? (
-        <Box sx={{ mt: 1 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-            Openings in this batch
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {openingInsights.map((item) => (
-              <Chip
-                key={`${item.opening_name}-${item.player_color || 'x'}`}
-                size="small"
-                label={`${item.opening_name} (${item.record || `${item.games} game(s)`})`}
-                variant="outlined"
-              />
-            ))}
-          </Box>
-        </Box>
-      ) : null}
-
       <Alert severity="info" variant="outlined" sx={{ mt: 2 }}>
         <Typography variant="caption">
-          <strong>Repertoire gaps</strong> = openings you underperform in. See <strong>Opening matchups</strong> in
-          patterns for head-to-head records by opening.
+          Each row in <strong>Opening matchups</strong> is a specific ECO line (e.g. Sicilian B51 vs B21),
+          not the parent opening family.
         </Typography>
       </Alert>
     </Container>

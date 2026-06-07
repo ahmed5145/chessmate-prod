@@ -13,15 +13,6 @@ import {
 import { fetchBatchCompare } from '../../services/apiRequests';
 import { toTitleCase } from '../../utils/formatLabel';
 
-const formatDelta = (value, suffix = '') => {
-  if (value == null || Number.isNaN(Number(value))) {
-    return '—';
-  }
-  const num = Number(value);
-  const sign = num > 0 ? '+' : '';
-  return `${sign}${num.toFixed(1)}${suffix}`;
-};
-
 const BatchCompareCard = ({ batchId }) => {
   const [compare, setCompare] = useState(null);
   const [missing, setMissing] = useState(false);
@@ -59,34 +50,31 @@ const BatchCompareCard = ({ batchId }) => {
     return null;
   }
 
-  const { metrics = {}, weaknesses = {} } = compare;
-  const accDelta = metrics.overall_accuracy_pct_delta;
-  const stabDelta =
-    metrics.overall_eval_stability_delta != null
-      ? Number(metrics.overall_eval_stability_delta) * 100
-      : null;
+  const { weaknesses = {} } = compare;
+  const narrative = compare.narrative || '';
+  const narrativeLower = narrative.toLowerCase();
+  const persisting = (weaknesses.persisting || []).filter(
+    (item) => !narrativeLower.includes(String(item).replace(/_/g, ' ').toLowerCase())
+  );
 
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
       <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
         vs previous batch (#{compare.other_batch_id})
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-        Accuracy {formatDelta(accDelta, '%')} · eval stability {formatDelta(stabDelta, '%')}
-      </Typography>
-      {compare.narrative && (
+      {narrative ? (
         <Typography variant="body2" sx={{ mb: 1.5 }}>
-          {compare.narrative}
+          {narrative}
         </Typography>
-      )}
+      ) : null}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {Array.isArray(weaknesses.persisting) && weaknesses.persisting.length > 0 && (
+        {persisting.length > 0 && (
           <Alert severity="warning" icon={false} sx={{ py: 0.5 }}>
             <Typography variant="caption" sx={{ fontWeight: 600 }}>
               Still recurring
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-              {weaknesses.persisting.map((item) => (
+              {persisting.map((item) => (
                 <Chip key={item} size="small" label={toTitleCase(item)} />
               ))}
             </Box>

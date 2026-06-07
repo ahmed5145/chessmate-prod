@@ -71,9 +71,17 @@ def _explain_skewer(played_move: str, best_move: str, context: dict) -> str:
     )
 
 
+def _format_eval_difference(value) -> str:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return "a stronger evaluation"
+    return f"a {numeric:.2f}-pawn advantage"
+
+
 def _explain_missed_tactic(played_move: str, best_move: str, context: dict) -> str:
     """Fallback explanation for unclassified tactical themes."""
-    position_evaluation = context.get("eval_difference", "significant material")
+    position_evaluation = _format_eval_difference(context.get("eval_difference"))
 
     return (
         f"After {played_move}, the position deteriorated. "
