@@ -7,5 +7,6 @@ This folder contains the product definition for ChessMate's coaching-focused MVP
 - [Phased Roadmap](ROADMAP.md)
 - [Differentiation Matrix](DIFFERENTIATION_MATRIX.md)
 - [Batch Analysis User Flow](BATCH_ANALYSIS_FLOW.md)
+- [Batch Report UX Plan](BATCH_REPORT_UX_PLAN.md)
 
 The central product idea is batch analysis that turns many games into one combined coaching report with clear priorities, recurring weakness detection, and an action plan.
