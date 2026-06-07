@@ -1,13 +1,30 @@
 /**
  * Client-side PDF download for batch coach reports.
+ * Captures an off-screen clone so the live page never flashes light mode.
  */
 
 const PDF_EXPORT_CLASS = 'batch-report-pdf-export';
+const PDF_HOST_ID = 'chessmate-pdf-capture-host';
 
 const expandReportAccordions = (root) => {
-  const summaries = root.querySelectorAll('.MuiAccordionSummary-root[aria-expanded="false"]');
-  summaries.forEach((summary) => {
-    summary.click();
+  root.querySelectorAll('.MuiAccordion-root').forEach((accordion) => {
+    accordion.classList.add('Mui-expanded');
+    const summary = accordion.querySelector('.MuiAccordionSummary-root');
+    const details = accordion.querySelector('.MuiAccordionDetails-root');
+    const collapse = accordion.querySelector('.MuiCollapse-root');
+    if (summary) {
+      summary.setAttribute('aria-expanded', 'true');
+    }
+    if (details) {
+      details.style.display = 'block';
+      details.style.height = 'auto';
+      details.style.visibility = 'visible';
+    }
+    if (collapse) {
+      collapse.style.height = 'auto';
+      collapse.style.visibility = 'visible';
+      collapse.classList.remove('MuiCollapse-hidden');
+    }
   });
 };
 
@@ -58,6 +75,38 @@ const sliceCanvasToPdf = (canvas, pdf, margin, pageWidth, pageHeight) => {
   }
 };
 
+const removePdfHost = () => {
+  const existing = document.getElementById(PDF_HOST_ID);
+  if (existing) {
+    existing.remove();
+  }
+};
+
+const buildCaptureClone = (root) => {
+  removePdfHost();
+
+  const host = document.createElement('div');
+  host.id = PDF_HOST_ID;
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText = [
+    'position:fixed',
+    'left:-20000px',
+    'top:0',
+    `width:${Math.max(root.scrollWidth, root.offsetWidth)}px`,
+    'overflow:visible',
+    'pointer-events:none',
+    'z-index:-1',
+  ].join(';');
+
+  const clone = root.cloneNode(true);
+  clone.classList.add(PDF_EXPORT_CLASS);
+  expandReportAccordions(clone);
+  host.appendChild(clone);
+  document.body.appendChild(host);
+
+  return { host, clone };
+};
+
 export const downloadReportPdf = async (filename = 'chessmate-batch-report.pdf') => {
   const root = document.querySelector('.batch-report-print-root');
   if (!root) {
@@ -69,29 +118,32 @@ export const downloadReportPdf = async (filename = 'chessmate-batch-report.pdf')
     import('jspdf'),
   ]);
 
-  root.classList.add(PDF_EXPORT_CLASS);
-  expandReportAccordions(root);
-  window.scrollTo(0, 0);
+  const { host, clone } = buildCaptureClone(root);
 
   await new Promise((resolve) => {
-    window.setTimeout(resolve, 450);
+    window.setTimeout(resolve, 400);
   });
 
   try {
-    const canvas = await html2canvas(root, {
+    const canvas = await html2canvas(clone, {
       scale: 1.5,
       useCORS: true,
+      allowTaint: false,
       logging: false,
       backgroundColor: '#ffffff',
       scrollX: 0,
-      scrollY: -window.scrollY,
-      windowWidth: root.scrollWidth,
-      ignoreElements: (element) => element.classList?.contains('batch-report-no-print'),
+      scrollY: 0,
+      width: clone.scrollWidth,
+      height: clone.scrollHeight,
+      windowWidth: clone.scrollWidth,
+      windowHeight: clone.scrollHeight,
       onclone: (doc) => {
-        const clonedRoot = doc.querySelector('.batch-report-print-root');
+        const clonedRoot = doc.querySelector(`.${PDF_EXPORT_CLASS}`);
         if (clonedRoot) {
           clonedRoot.classList.add(PDF_EXPORT_CLASS);
         }
+        doc.documentElement.style.background = '#ffffff';
+        doc.body.style.background = '#ffffff';
       },
     });
 
@@ -101,6 +153,6 @@ export const downloadReportPdf = async (filename = 'chessmate-batch-report.pdf')
     sliceCanvasToPdf(canvas, pdf, 10, pageWidth, pageHeight);
     pdf.save(filename);
   } finally {
-    root.classList.remove(PDF_EXPORT_CLASS);
+    removePdfHost();
   }
 };

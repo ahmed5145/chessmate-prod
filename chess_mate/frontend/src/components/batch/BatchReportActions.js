@@ -24,12 +24,13 @@ const BatchReportActions = ({
       return;
     }
     setDownloading(true);
+    const toastId = toast.loading('Building PDF…');
     try {
       await downloadReportPdf(`chessmate-batch-report-${batchId || 'export'}.pdf`);
-      toast.success('PDF downloaded.');
+      toast.success('PDF downloaded.', { id: toastId });
     } catch (error) {
       console.error('PDF download failed:', error);
-      toast.error('Could not generate PDF. Try again or use your browser print dialog.');
+      toast.error('Could not generate PDF. Try again or use your browser print dialog.', { id: toastId });
     } finally {
       setDownloading(false);
     }
