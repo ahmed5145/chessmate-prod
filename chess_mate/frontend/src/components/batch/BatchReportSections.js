@@ -19,7 +19,8 @@ import TimeManagementInsight from './TimeManagementInsight';
 import RepertoireGaps from './RepertoireGaps';
 import StudyDrillLinks from './StudyDrillLinks';
 import RatingBandCoaching from './RatingBandCoaching';
-import BatchReportToc from './BatchReportToc';
+import BatchReportToc, { BATCH_REPORT_SECTIONS } from './BatchReportToc';
+import { shouldShowTimeManagementInsight } from './TimeManagementInsight';
 import BatchReportLegend from './BatchReportLegend';
 import './batchReportPrint.css';
 import './batchReportScreen.css';
@@ -40,6 +41,11 @@ const BatchReportSections = ({
     return null;
   }
 
+  const showTimeManagement = shouldShowTimeManagementInsight(batchReport.batch_summary);
+  const tocSections = showTimeManagement
+    ? BATCH_REPORT_SECTIONS
+    : BATCH_REPORT_SECTIONS.filter((section) => section.id !== 'batch-section-time-management');
+
   return (
     <Box className="batch-report-print-root">
       <BatchReportLegend />
@@ -52,7 +58,7 @@ const BatchReportSections = ({
           alignItems: 'start',
         }}
       >
-        <BatchReportToc />
+        <BatchReportToc sections={tocSections} />
         <Box sx={{ display: 'grid', gap: 2, minWidth: 0 }}>
           {status === 'partial' ? (
             <FailedGamesList failures={batchReport.errors || batchReport.failed_games || []} />
@@ -69,9 +75,11 @@ const BatchReportSections = ({
               readOnly={readOnly}
             />
           </SectionWrap>
-          <SectionWrap id="batch-section-time-management">
-            <TimeManagementInsight batch_summary={batchReport.batch_summary} />
-          </SectionWrap>
+          {showTimeManagement ? (
+            <SectionWrap id="batch-section-time-management">
+              <TimeManagementInsight batch_summary={batchReport.batch_summary} />
+            </SectionWrap>
+          ) : null}
           <SectionWrap id="batch-section-summary">
             <ExecutiveSummary coaching_report={batchReport.coaching_report} />
           </SectionWrap>
