@@ -1,5 +1,6 @@
 import {
   buildOpeningInsightsFromGames,
+  buildPerGameOpeningInsights,
   resolveOpeningInsights,
   resolveRepertoireGaps,
 } from '../openingInsights';
@@ -41,13 +42,24 @@ describe('openingInsights', () => {
     expect(insights.some((item) => item.opening_name === 'Sicilian Defense')).toBe(true);
   });
 
-  it('falls back when batch_summary has no opening_insights', () => {
-    const insights = resolveOpeningInsights({}, games);
-    expect(insights.length).toBeGreaterThan(0);
+  it('returns one row per game with opening data', () => {
+    const insights = buildPerGameOpeningInsights(games);
+    expect(insights).toHaveLength(3);
+    expect(insights.every((row) => row.games === 1)).toBe(true);
   });
 
-  it('resolves repertoire gaps from struggling openings', () => {
-    const gaps = resolveRepertoireGaps({}, games);
+  it('prefers per-game rows when per_game_results are available', () => {
+    const insights = resolveOpeningInsights({}, games);
+    expect(insights).toHaveLength(3);
+  });
+
+  it('resolves repertoire gaps from batch summary', () => {
+    const gaps = resolveRepertoireGaps(
+      {
+        repertoire_gaps: [{ opening_name: "Queen's Pawn Game", status: 'struggling', record: '0W-2L-0D' }],
+      },
+      games
+    );
     expect(gaps.some((gap) => gap.opening_name.includes('Queen'))).toBe(true);
   });
 });

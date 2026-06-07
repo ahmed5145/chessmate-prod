@@ -143,7 +143,14 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
         "all_phases_solid": all_phases_solid,
         "top_critical_moments": top_critical_moments,
         "time_management_summary": time_management_summary,
-        "rating_band_coaching": rating_band_coaching(player_rating),
+        "rating_band_coaching": rating_band_coaching(
+            player_rating,
+            worst_phase=worst_phase,
+            best_phase=best_phase,
+            recurring_weaknesses=recurring_weaknesses,
+            repertoire_gaps=repertoire_gaps,
+            endgame_insights=endgame_insights,
+        ),
     }
 
     return result
@@ -547,10 +554,7 @@ def _find_strength_patterns(
             avg_opening_score = sum(opening_scores) / len(opening_scores)
             avg_opening_pct = round(avg_opening_score * 100)
             games_phrase = opening_games_with_data if opening_games_with_data > 0 else len(per_game_results)
-            detail = (
-                f"Opening phase averaged {avg_opening_pct}% accuracy across {games_phrase} games "
-                f"({opening_move_total} opening moves analyzed)."
-            )
+            detail = f"Opening phase averaged {avg_opening_pct}% accuracy across {games_phrase} games."
         else:
             detail = "Opening phase performance was consistently strong across the analyzed games."
 
@@ -565,21 +569,35 @@ def _find_strength_patterns(
     return patterns
 
 
-def _find_most_common_blunder_type(per_game_results: List[Dict[str, Any]]) -> str:
-    """Find most common blunder classification."""
-    blunder_types = []
-
+def _find_most_common_blunder_type(per_game_results: List[Dict[str, Any]]) -> Optional[str]:
+    """Most frequent tactical theme in critical blunders/mistakes, or None if no signal."""
+    theme_counts: Counter = Counter()
     for result in per_game_results:
-        move_quality = result.get("move_quality", {})
-        blunders_count = move_quality.get("blunder", 0)
-        if blunders_count > 0:
-            blunder_types.append("tactical_oversight")
+        for moment in result.get("critical_moments", []):
+            if moment.get("type") not in ("blunder", "mistake"):
+                continue
+            theme = (moment.get("tactical_theme") or "").strip()
+            if not theme or theme == "missed_tactic":
+                theme_counts["tactical errors"] += 1
+            else:
+                theme_counts[theme.replace("_", " ")] += 1
 
-    if blunder_types:
-        # All blunders mapped to tactical_oversight for now
-        return "tactical_oversight"
+    if theme_counts:
+        return theme_counts.most_common(1)[0][0]
 
-    return "Unknown"
+    blunder_games = sum(
+        1 for result in per_game_results if int(result.get("move_quality", {}).get("blunder", 0) or 0) > 0
+    )
+    if blunder_games:
+        return "tactical errors"
+
+    mistake_games = sum(
+        1 for result in per_game_results if int(result.get("move_quality", {}).get("mistake", 0) or 0) > 0
+    )
+    if mistake_games:
+        return "inaccurate play"
+
+    return None
 
 
 def _opening_group_key(result: Dict[str, Any]) -> str:
@@ -620,7 +638,8 @@ def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
     by_opening: Dict[str, List[Dict[str, Any]]] = {}
     for result in per_game_results:
         name = (result.get("opening_name") or "").strip()
-        if not name or name.lower() in ("unknown", "unknown opening"):
+        eco = (result.get("eco_code") or "").strip()
+        if (not name or name.lower() in ("unknown", "unknown opening")) and not eco:
             continue
         group_key = _opening_group_key(result)
         by_opening.setdefault(group_key, []).append(result)
@@ -694,7 +713,7 @@ def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
             -x["games"],
         )
     )
-    return insights[:8]
+    return insights
 
 
 def _compute_repertoire_gaps(opening_insights: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

@@ -23,6 +23,8 @@ import {
   scrollToBatchGame,
 } from '../../utils/batchGameLinks';
 import { resolveOpeningInsights } from '../../utils/openingInsights';
+import { getOpeningRecordChipProps } from '../../utils/openingRecordChip';
+import { toTitleCase } from '../../utils/formatLabel';
 
 const GameExampleActions = ({ perGameResults, gameId, moveNumber }) => {
   const platformUrl = getGamePlatformUrl(perGameResults, gameId);
@@ -84,12 +86,12 @@ const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
             Opening matchups
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Record by specific ECO line in this batch — each variation is listed separately with its score.
+            How you performed in each opening line this batch — one row per game when ECO data is available.
           </Typography>
           <List dense disablePadding>
             {openingInsights.map((item) => (
               <ListItem
-                key={`${item.opening_name}-${item.player_color || 'x'}`}
+                key={item.game_id || `${item.opening_name}-${item.eco_code || 'x'}-${item.player_color || 'x'}`}
                 sx={{
                   flexDirection: 'column',
                   alignItems: 'flex-start',
@@ -110,7 +112,11 @@ const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
                   {item.eco_code && (
                     <Chip size="small" label={`ECO ${item.eco_code}`} variant="outlined" />
                   )}
-                  <Chip size="small" label={item.record || ''} variant="outlined" />
+                  <Chip
+                    size="small"
+                    label={item.record || ''}
+                    {...getOpeningRecordChipProps(item.record)}
+                  />
                   {item.avg_opening_score != null && (
                     <Chip
                       size="small"
@@ -119,6 +125,11 @@ const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
                     />
                   )}
                 </Box>
+                {item.game_label ? (
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+                    {item.game_label}
+                  </Typography>
+                ) : null}
                 {item.recommendation && (
                   <Typography variant="body2">{item.recommendation}</Typography>
                 )}
@@ -252,7 +263,7 @@ const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
             {strengths.map((item, index) => (
               <Paper key={`strong-${item.pattern || index}`} variant="outlined" sx={{ p: 2 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                  {item.pattern ? String(item.pattern).replace(/_/g, ' ') : 'Strength'}
+                  {item.pattern ? toTitleCase(item.pattern) : 'Strength'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {item.detail || item.pattern}

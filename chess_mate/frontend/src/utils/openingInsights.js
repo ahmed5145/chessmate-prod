@@ -4,6 +4,10 @@
  */
 
 import { isUnknownOpening } from './batchGameLinks';
+import { formatGameLabel } from './formatGameLabel';
+
+const hasOpeningData = (game) =>
+  Boolean(game?.eco_code) || !isUnknownOpening(game?.opening_name);
 
 const phaseScore = (phaseData = {}) => {
   const avgEvalDrop = Number(phaseData.avg_eval_drop);
@@ -88,6 +92,45 @@ const buildRecommendation = (openingName, games, wins, losses, draws, avgOpening
   };
 };
 
+export const buildPerGameOpeningInsights = (perGameResults = []) => {
+  if (!Array.isArray(perGameResults)) {
+    return [];
+  }
+
+  return perGameResults.filter(hasOpeningData).map((game) => {
+    const outcome = playerOutcome(game);
+    const wins = outcome === 'win' ? 1 : 0;
+    const losses = outcome === 'loss' ? 1 : 0;
+    const draws = outcome === 'draw' ? 1 : 0;
+    const openingPhase = game.phase_breakdown?.opening;
+    const avgOpeningScore =
+      openingPhase && Number(openingPhase.moves) > 0 ? phaseScore(openingPhase) : null;
+
+    const { status, recommendation } = buildRecommendation(
+      game.opening_name,
+      [game],
+      wins,
+      losses,
+      draws,
+      avgOpeningScore
+    );
+
+    return {
+      opening_name: game.opening_name,
+      eco_code: game.eco_code || null,
+      games: 1,
+      record: `${wins}W-${losses}L-${draws}D`,
+      avg_opening_score: avgOpeningScore != null ? Math.round(avgOpeningScore * 100) / 100 : null,
+      status,
+      player_color: game.player_color || 'white',
+      recommendation,
+      game_id: game.game_id,
+      game_label: formatGameLabel(game),
+      example_game_ids: game.game_id ? [game.game_id] : [],
+    };
+  });
+};
+
 export const buildOpeningInsightsFromGames = (perGameResults = []) => {
   if (!Array.isArray(perGameResults) || perGameResults.length === 0) {
     return [];
@@ -95,7 +138,7 @@ export const buildOpeningInsightsFromGames = (perGameResults = []) => {
 
   const byOpening = {};
   perGameResults.forEach((game) => {
-    if (isUnknownOpening(game.opening_name)) {
+    if (!hasOpeningData(game)) {
       return;
     }
     const key = openingGroupKey(game);
@@ -162,12 +205,17 @@ export const buildOpeningInsightsFromGames = (perGameResults = []) => {
     return right.games - left.games;
   });
 
-  return insights.slice(0, 8);
+  return insights;
 };
 
 export const resolveOpeningInsights = (batchSummary, perGameResults = []) => {
+  const perGame = buildPerGameOpeningInsights(perGameResults);
+  if (perGame.length > 0) {
+    return perGame;
+  }
+
   const fromSummary = Array.isArray(batchSummary?.opening_insights)
-    ? batchSummary.opening_insights.filter((item) => !isUnknownOpening(item?.opening_name))
+    ? batchSummary.opening_insights.filter((item) => hasOpeningData({ opening_name: item?.opening_name, eco_code: item?.eco_code }))
     : [];
   if (fromSummary.length > 0) {
     return fromSummary;

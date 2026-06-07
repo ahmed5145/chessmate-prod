@@ -59,15 +59,14 @@ const RepertoireGaps = ({ batch_summary, per_game_results = [] }) => {
         Repertoire gaps
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Lines where you lost multiple games or scored below 65% in the opening phase — review these
-        before your next batch.
+        Opening lines that cost you multiple games or scored poorly in the opening phase.
       </Typography>
 
       {gaps.length === 0 ? (
         <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
           <Typography variant="body2">
-            No line hit the gap threshold (2+ losses or sub-65% opening accuracy). Check{' '}
-            <strong>Opening matchups</strong> for each specific ECO line you played.
+            Nothing flagged as a major gap this batch — see <strong>Opening matchups</strong> for
+            how each line went.
           </Typography>
         </Alert>
       ) : (
@@ -144,12 +143,6 @@ const RepertoireGaps = ({ batch_summary, per_game_results = [] }) => {
         </List>
       )}
 
-      <Alert severity="info" variant="outlined" sx={{ mt: 2 }}>
-        <Typography variant="caption">
-          Each row in <strong>Opening matchups</strong> is a specific ECO line (e.g. Sicilian B51 vs B21),
-          not the parent opening family.
-        </Typography>
-      </Alert>
     </Container>
   );
 };

@@ -75,7 +75,8 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
               </Typography>
             </Grid>
           )}
-          {batch_summary.most_common_blunder_type && (
+          {batch_summary.most_common_blunder_type &&
+            String(batch_summary.most_common_blunder_type).toLowerCase() !== 'unknown' && (
             <Grid item xs={12} sm={3}>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: { xs: 1, sm: 2 } }}>
                 <Chip

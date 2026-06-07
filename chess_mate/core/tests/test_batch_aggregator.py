@@ -220,7 +220,9 @@ def test_batch_aggregator_schema_structure():
         assert isinstance(pattern["frequency"], str)
 
     # Verify simple fields
-    assert isinstance(batch_summary["most_common_blunder_type"], str)
+    assert batch_summary["most_common_blunder_type"] is None or isinstance(
+        batch_summary["most_common_blunder_type"], str
+    )
     assert isinstance(batch_summary["worst_phase"], str)
     assert isinstance(batch_summary["best_phase"], str)
     assert isinstance(batch_summary["all_phases_solid"], bool)

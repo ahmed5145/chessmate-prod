@@ -1,6 +1,7 @@
 /**
  * FenBoardImage — inline SVG board from FEN with move arrows.
  * Flips to the player's perspective (Chess.com style) when orientation is black.
+ * Rank/file labels sit in a margin outside the board (not on squares).
  */
 
 import React, { useId, useMemo } from 'react';
@@ -37,6 +38,8 @@ export const buildBoardImageUrl = (fen, size = 280) => {
 
 const FILE_LABELS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const RANK_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8'];
+
+const LABEL_GUTTER = 18;
 
 const mapCoords = (file, rank, isBlackView) =>
   isBlackView ? { file: 7 - file, rank: 7 - rank } : { file, rank };
@@ -195,85 +198,96 @@ const FenBoardImage = ({
   return (
     <Box
       className="fen-board-diagram"
-      sx={{ position: 'relative', width: '100%', maxWidth: size }}
+      sx={{ width: '100%', maxWidth: size + LABEL_GUTTER * 2 }}
       aria-label={alt}
     >
       <Box
         sx={{
-          position: 'relative',
+          display: 'grid',
+          gridTemplateColumns: `${LABEL_GUTTER}px 1fr`,
+          gridTemplateRows: `1fr ${LABEL_GUTTER}px`,
+          gap: '2px',
+          p: 0.5,
           borderRadius: 1,
           border: '1px solid',
           borderColor: 'divider',
-          overflow: 'hidden',
-          bgcolor: LIGHT_SQUARE,
-          aspectRatio: '1 / 1',
-          width: '100%',
+          bgcolor: 'background.paper',
         }}
       >
-        <BoardSvg boardFen={boardFen} isBlackView={isBlackView} />
-        {bestArrow ? (
-          <MoveArrow {...bestArrow} color="#16a34a" markerId={bestMarkerId} isBlackView={isBlackView} />
-        ) : null}
-        {playedArrow ? (
-          <MoveArrow {...playedArrow} color="#dc2626" markerId={playedMarkerId} isBlackView={isBlackView} />
-        ) : null}
-      </Box>
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: 2,
-          left: 0,
-          right: 0,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(8, 1fr)',
-          px: 0.5,
-          pointerEvents: 'none',
-        }}
-      >
-        {files.map((file) => (
-          <Typography
-            key={file}
-            variant="caption"
-            sx={{
-              textAlign: 'center',
-              fontSize: '0.65rem',
-              color: 'text.secondary',
-              fontWeight: 600,
-              textShadow: '0 0 2px rgba(255,255,255,0.9)',
-            }}
-          >
-            {file}
-          </Typography>
-        ))}
-      </Box>
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 0,
-          bottom: 0,
-          left: 2,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          py: 0.5,
-          pointerEvents: 'none',
-        }}
-      >
-        {ranks.map((rank) => (
-          <Typography
-            key={rank}
-            variant="caption"
-            sx={{
-              fontSize: '0.65rem',
-              color: 'text.secondary',
-              fontWeight: 600,
-              lineHeight: 1,
-              textShadow: '0 0 2px rgba(255,255,255,0.9)',
-            }}
-          >
-            {rank}
-          </Typography>
-        ))}
+        <Box
+          sx={{
+            gridColumn: 1,
+            gridRow: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            py: 0.25,
+          }}
+        >
+          {ranks.map((rank) => (
+            <Typography
+              key={`rank-${rank}`}
+              variant="caption"
+              sx={{
+                fontSize: '0.7rem',
+                color: 'text.secondary',
+                fontWeight: 600,
+                lineHeight: 1,
+              }}
+            >
+              {rank}
+            </Typography>
+          ))}
+        </Box>
+
+        <Box
+          sx={{
+            gridColumn: 2,
+            gridRow: 1,
+            position: 'relative',
+            borderRadius: 0.5,
+            overflow: 'hidden',
+            bgcolor: LIGHT_SQUARE,
+            aspectRatio: '1 / 1',
+            width: '100%',
+          }}
+        >
+          <BoardSvg boardFen={boardFen} isBlackView={isBlackView} />
+          {bestArrow ? (
+            <MoveArrow {...bestArrow} color="#16a34a" markerId={bestMarkerId} isBlackView={isBlackView} />
+          ) : null}
+          {playedArrow ? (
+            <MoveArrow {...playedArrow} color="#dc2626" markerId={playedMarkerId} isBlackView={isBlackView} />
+          ) : null}
+        </Box>
+
+        <Box sx={{ gridColumn: 1, gridRow: 2 }} />
+
+        <Box
+          sx={{
+            gridColumn: 2,
+            gridRow: 2,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(8, 1fr)',
+            alignItems: 'center',
+          }}
+        >
+          {files.map((file) => (
+            <Typography
+              key={`file-${file}`}
+              variant="caption"
+              sx={{
+                textAlign: 'center',
+                fontSize: '0.7rem',
+                color: 'text.secondary',
+                fontWeight: 600,
+              }}
+            >
+              {file}
+            </Typography>
+          ))}
+        </Box>
       </Box>
     </Box>
   );
