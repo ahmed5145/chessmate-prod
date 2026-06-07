@@ -1,35 +1,32 @@
 /**
- * One-time legend for batch report status colors (W/L/D and insight severity).
+ * Compact color key for batch report chips (replaces noisy chip row).
  */
 
 import React from 'react';
-import { Box, Chip, Container, Typography } from '@mui/material';
+import { Container, Typography } from '@mui/material';
 
 const BatchReportLegend = () => (
-  <Container maxWidth="lg" sx={{ py: 1 }}>
-    <Box
-      sx={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: 1,
-        alignItems: 'center',
-        p: 1.5,
-        borderRadius: 1,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
-      }}
+  <Container maxWidth="lg" sx={{ py: 0, pb: 1.5 }}>
+    <Typography
+      variant="caption"
+      color="text.secondary"
+      component="p"
+      sx={{ lineHeight: 1.5, m: 0 }}
     >
-      <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-        Legend:
+      Color key:{' '}
+      <Typography component="span" variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>
+        green
       </Typography>
-      <Chip size="small" label="Win" color="success" />
-      <Chip size="small" label="Loss" color="error" />
-      <Chip size="small" label="Draw" variant="outlined" />
-      <Chip size="small" label="Needs work" color="warning" variant="outlined" />
-      <Chip size="small" label="Strength" color="success" variant="outlined" />
-      <Chip size="small" label="Critical issue" color="error" variant="outlined" />
-    </Box>
+      {' '}= win or strength ·{' '}
+      <Typography component="span" variant="caption" sx={{ color: 'error.main', fontWeight: 600 }}>
+        red
+      </Typography>
+      {' '}= loss or critical mistake ·{' '}
+      <Typography component="span" variant="caption" sx={{ color: 'warning.main', fontWeight: 600 }}>
+        amber
+      </Typography>
+      {' '}= needs work
+    </Typography>
   </Container>
 );
 

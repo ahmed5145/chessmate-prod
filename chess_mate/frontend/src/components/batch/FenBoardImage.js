@@ -81,10 +81,12 @@ const FenBoardImage = ({
   alt = 'Position diagram',
   size = 280,
   orientation = 'white',
+  perspective,
   playedMoveUci = null,
   bestMoveUci = null,
 }) => {
-  const boardOrientation = orientation === 'black' ? 'black' : 'white';
+  // Board stays standard (white at bottom); perspective only affects a–h / 1–8 labels.
+  const labelPerspective = (perspective || orientation) === 'black' ? 'black' : 'white';
   const src = useMemo(() => buildBoardImageUrl(fen, size), [fen, size]);
   const [failed, setFailed] = useState(false);
   const playedArrow = parseUciSquares(playedMoveUci);
@@ -115,8 +117,8 @@ const FenBoardImage = ({
     );
   }
 
-  const files = boardOrientation === 'black' ? [...FILE_LABELS].reverse() : FILE_LABELS;
-  const ranks = boardOrientation === 'black' ? RANK_LABELS : [...RANK_LABELS].reverse();
+  const files = labelPerspective === 'black' ? [...FILE_LABELS].reverse() : FILE_LABELS;
+  const ranks = labelPerspective === 'black' ? RANK_LABELS : [...RANK_LABELS].reverse();
 
   return (
     <Box sx={{ position: 'relative', width: '100%', maxWidth: size }}>
@@ -140,14 +142,13 @@ const FenBoardImage = ({
             width: '100%',
             height: 'auto',
             display: 'block',
-            transform: boardOrientation === 'black' ? 'rotate(180deg)' : 'none',
           }}
         />
         {bestArrow ? (
-          <MoveArrow {...bestArrow} orientation={boardOrientation} color="#22c55e" />
+          <MoveArrow {...bestArrow} orientation="white" color="#22c55e" />
         ) : null}
         {playedArrow ? (
-          <MoveArrow {...playedArrow} orientation={boardOrientation} color="#ef4444" />
+          <MoveArrow {...playedArrow} orientation="white" color="#ef4444" />
         ) : null}
       </Box>
       <Box

@@ -1,3 +1,51 @@
+/* Force readable light layout for client-side PDF capture (html2canvas) */
+.batch-report-pdf-export {
+  background: #ffffff !important;
+  color: #111827 !important;
+  padding: 12px !important;
+}
+
+.batch-report-pdf-export .batch-report-sections-layout {
+  display: block !important;
+}
+
+.batch-report-pdf-export .MuiPaper-root,
+.batch-report-pdf-export .MuiAccordion-root,
+.batch-report-pdf-export .MuiAlert-root {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: none !important;
+}
+
+.batch-report-pdf-export .MuiTypography-root {
+  color: #111827 !important;
+}
+
+.batch-report-pdf-export .MuiTypography-colorTextSecondary,
+.batch-report-pdf-export .MuiTypography-caption {
+  color: #4b5563 !important;
+}
+
+.batch-report-pdf-export .MuiChip-root {
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+.batch-report-pdf-export .MuiCollapse-root,
+.batch-report-pdf-export .MuiCollapse-hidden,
+.batch-report-pdf-export .MuiAccordionDetails-root {
+  height: auto !important;
+  overflow: visible !important;
+  visibility: visible !important;
+  display: block !important;
+}
+
+.batch-report-pdf-export img {
+  max-width: 220px !important;
+}
+
 @media print {
   @page {
     margin: 12mm;

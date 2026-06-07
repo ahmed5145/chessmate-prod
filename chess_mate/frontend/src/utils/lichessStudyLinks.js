@@ -57,8 +57,11 @@ export const lichessPuzzleUrlForTheme = (theme) => {
   return 'https://lichess.org/training';
 };
 
-export const lichessOpeningSearchUrl = (openingName) =>
-  `https://lichess.org/analysis?q=${encodeURIComponent(openingName || 'opening')}`;
+export const lichessOpeningSearchUrl = (openingName) => {
+  const query = String(openingName || 'opening').trim();
+  const params = new URLSearchParams({ order: 'hot', q: query });
+  return `https://lichess.org/study/search?${params.toString()}`;
+};
 
 export const lichessEndgamePracticeUrl = (endgameType) => {
   const key = normalizeThemeKey(endgameType);

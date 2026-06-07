@@ -104,9 +104,19 @@ const LandingPage = () => {
 
       <div className={`py-20 ${isDarkMode ? 'bg-gray-800/40' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className={`text-3xl font-bold text-center mb-12 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            How it works
-          </h2>
+          <div className="text-center mb-12">
+            <h2 className={`text-3xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              How it works
+            </h2>
+            <Link
+              to="/how-batch-coach-works"
+              className={`text-sm font-medium underline underline-offset-2 ${
+                isDarkMode ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-600 hover:text-indigo-800'
+              }`}
+            >
+              Full Batch Coach guide →
+            </Link>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <Step
               number="1"

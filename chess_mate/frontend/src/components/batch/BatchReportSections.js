@@ -44,6 +44,7 @@ const BatchReportSections = ({
     <Box className="batch-report-print-root">
       <BatchReportLegend />
       <Box
+        className="batch-report-sections-layout"
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '200px 1fr' },

@@ -64,22 +64,40 @@ const BatchSharedReport = () => {
           className="batch-report-no-print"
           elevation={0}
           sx={(theme) => ({
-            p: 2.5,
+            p: { xs: 2, sm: 2.5 },
             mb: 3,
-            border: '1px solid',
-            borderColor: theme.palette.mode === 'dark' ? 'grey.700' : 'divider',
-            bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'background.paper',
-            color: 'text.primary',
             borderRadius: 2,
+            border: '1px solid',
+            borderColor: theme.palette.mode === 'dark' ? 'rgba(99, 102, 241, 0.35)' : 'rgba(99, 102, 241, 0.25)',
+            background:
+              theme.palette.mode === 'dark'
+                ? 'linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #1f2937 100%)'
+                : 'linear-gradient(135deg, #eef2ff 0%, #ffffff 55%, #f8fafc 100%)',
+            color: theme.palette.mode === 'dark' ? 'grey.100' : 'grey.900',
           })}
         >
-          <Typography variant="overline" sx={{ opacity: 0.9 }}>
+          <Typography
+            variant="overline"
+            sx={{
+              color: (theme) =>
+                theme.palette.mode === 'dark' ? 'indigo.200' : 'indigo.700',
+              letterSpacing: 1.2,
+            }}
+          >
             ChessMate Batch Coach
           </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5, mt: 0.5 }}>
             Personalized coaching from your real games
           </Typography>
-          <Typography variant="body2" sx={{ mb: 2, opacity: 0.95 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              mb: 2,
+              color: (theme) =>
+                theme.palette.mode === 'dark' ? 'grey.300' : 'grey.700',
+              maxWidth: 640,
+            }}
+          >
             This report combines Stockfish engine analysis with AI coaching across
             {gamesCount ? ` ${gamesCount} games` : ' a batch of games'} — recurring mistakes,
             opening gaps, and a training plan tied to actual positions.
@@ -87,19 +105,37 @@ const BatchSharedReport = () => {
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             <Button
               component={RouterLink}
-              to="/login"
+              to="/register"
               variant="contained"
-              color="secondary"
               size="small"
+              sx={{
+                bgcolor: '#4f46e5',
+                color: '#fff',
+                fontWeight: 600,
+                textTransform: 'none',
+                '&:hover': { bgcolor: '#4338ca' },
+              }}
             >
               Get your own batch report
             </Button>
             <Button
               component={RouterLink}
-              to="/batch-analysis"
+              to="/how-batch-coach-works"
               variant="outlined"
               size="small"
-              sx={{ borderColor: 'primary.contrastText', color: 'primary.contrastText' }}
+              sx={(theme) => ({
+                textTransform: 'none',
+                fontWeight: 600,
+                borderColor: theme.palette.mode === 'dark' ? 'indigo.300' : 'indigo.400',
+                color: theme.palette.mode === 'dark' ? 'indigo.100' : 'indigo.800',
+                '&:hover': {
+                  borderColor: theme.palette.mode === 'dark' ? 'indigo.200' : 'indigo.600',
+                  bgcolor:
+                    theme.palette.mode === 'dark'
+                      ? 'rgba(99, 102, 241, 0.15)'
+                      : 'rgba(99, 102, 241, 0.08)',
+                },
+              })}
             >
               See how it works
             </Button>
