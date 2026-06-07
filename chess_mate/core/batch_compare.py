@@ -43,9 +43,9 @@ def build_compare_narrative(
     acc_delta = metrics.get("overall_accuracy_pct_delta")
     if acc_delta is not None:
         if acc_delta > 1:
-            parts.append(f"accuracy improved by {acc_delta:.1f}%")
+            parts.append(f"move match improved by {acc_delta:.1f}%")
         elif acc_delta < -1:
-            parts.append(f"accuracy dipped by {abs(acc_delta):.1f}%")
+            parts.append(f"move match dipped by {abs(acc_delta):.1f}%")
 
     stab_delta = metrics.get("overall_eval_stability_delta")
     if stab_delta is not None:

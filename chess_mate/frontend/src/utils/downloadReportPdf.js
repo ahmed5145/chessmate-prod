@@ -1,6 +1,7 @@
 /**
- * Client-side PDF download for batch coach reports.
- * Captures an off-screen clone so the live page never flashes light mode.
+ * Legacy html2canvas PDF export — deprecated for owner download (slow, ~100MB+ files).
+ * Owner UI uses printBatchReport.js (browser Save as PDF) instead.
+ * Kept for admin/debug only; do not wire back into BatchReportActions.
  */
 
 const PDF_EXPORT_CLASS = 'batch-report-pdf-export';

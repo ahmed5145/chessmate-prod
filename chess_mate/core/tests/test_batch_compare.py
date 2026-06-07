@@ -17,7 +17,7 @@ def test_build_compare_narrative_improved_accuracy():
         current_summary={"worst_phase": "middlegame"},
         other_summary={"worst_phase": "endgame"},
     )
-    assert "Accuracy improved" in text
+    assert "move match improved" in text.lower()
     assert "hanging piece" in text.lower()
 
 

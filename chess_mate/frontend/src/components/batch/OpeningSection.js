@@ -180,15 +180,15 @@ const OpeningSection = ({ batch_summary, per_game_results = [] }) => {
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>
                     {item.game_label || '—'}
                   </TableCell>
-                  <TableCell sx={{ minWidth: 160, maxWidth: 260, wordBreak: 'break-word' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {item.opening_name}
-                    </Typography>
+                  <TableCell sx={{ minWidth: 160, maxWidth: 280, wordBreak: 'break-word' }}>
                     {item.recommendation ? (
-                      <Box sx={{ mt: 0.5 }}>
-                        <OpeningRecommendationText item={item} />
-                      </Box>
-                    ) : null}
+                      <OpeningRecommendationText item={item} />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        {item.opening_name}
+                        {item.eco_code ? ` (${item.eco_code})` : ''}
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell>{item.eco_code || '—'}</TableCell>
                   <TableCell sx={{ textTransform: 'capitalize' }}>{item.player_color || '—'}</TableCell>
