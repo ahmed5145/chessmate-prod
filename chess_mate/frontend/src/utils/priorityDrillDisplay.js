@@ -1,15 +1,12 @@
 import { humanizeGameIdInText } from './formatGameLabel';
 
 const THEME_DRILLS = {
-  hanging_piece:
-    'Practice 10–15 hanging-piece puzzles (Lichess Training or Chess.com puzzles). Before each move, name every undefended piece.',
-  fork: 'Practice fork and double-attack puzzles. Look for knight forks and moves that attack two targets at once.',
-  pin: 'Practice pin and skewer puzzles. Trace lines from enemy bishops, rooks, and queens to your king or queen.',
-  skewer: 'Practice skewer tactics — attack a valuable piece first to win material behind it.',
-  missed_tactic:
-    'Practice 15–20 mixed tactics at your rating. Pause on forcing moves: checks, captures, and threats.',
-  tactical_oversight:
-    'Practice 15–20 mixed tactics at your rating. Pause on forcing moves: checks, captures, and threats.',
+  hanging_piece: 'Do 10–15 hanging-piece puzzles. Before each move, name every undefended piece.',
+  fork: 'Do fork and double-attack puzzles. Look for knight forks and moves that hit two targets.',
+  pin: 'Do pin and skewer puzzles. Trace lines from enemy bishops, rooks, and queens.',
+  skewer: 'Do skewer tactics — attack a valuable piece first to win material behind it.',
+  missed_tactic: 'Do 15–20 mixed tactics at your rating. Pause on checks, captures, and threats.',
+  tactical_oversight: 'Do 15–20 mixed tactics at your rating. Pause on checks, captures, and threats.',
 };
 
 const inferThemeKey = (title = '') => {
@@ -34,20 +31,103 @@ const splitStructuredDrill = (text) => {
   return null;
 };
 
+const cleanPracticeLine = (text) => {
+  if (!text) {
+    return '';
+  }
+  return text
+    .replace(/^practice[:\s]*/i, '')
+    .replace(/^do\s+/i, 'Do ')
+    .trim()
+    .replace(/\s+/g, ' ');
+};
+
+const cleanReviewLine = (text) => {
+  if (!text) {
+    return '';
+  }
+  return text
+    .replace(/^review[:\s]*/i, '')
+    .trim()
+    .replace(/\s+/g, ' ');
+};
+
+const ensureSentence = (text) => {
+  const trimmed = (text || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+};
+
+const combineDrillParts = (practice, review) => {
+  const practiceLine = cleanPracticeLine(practice);
+  const reviewLine = cleanReviewLine(review);
+
+  if (practiceLine && reviewLine) {
+    const reviewLower = reviewLine.charAt(0).toLowerCase() + reviewLine.slice(1);
+    if (/^(vs\s|in\s)/i.test(reviewLine)) {
+      return `${ensureSentence(practiceLine)} Then replay ${reviewLower}`;
+    }
+    if (/^move\s\d/i.test(reviewLine)) {
+      return `${ensureSentence(practiceLine)} Then ${reviewLower}`;
+    }
+    return `${ensureSentence(practiceLine)} Then ${reviewLower}`;
+  }
+
+  if (practiceLine) {
+    return ensureSentence(practiceLine);
+  }
+  if (reviewLine) {
+    return ensureSentence(reviewLine);
+  }
+  return '';
+};
+
+const isGameSpecificLine = (text) => /vs\s|move\s\d|replay/i.test(text || '');
+
+const practiceOverlaps = (practice, review) => {
+  const p = cleanPracticeLine(practice).toLowerCase();
+  const r = (review || '').toLowerCase();
+  if (!p || !r) {
+    return false;
+  }
+  return (
+    (p.includes('puzzle') && r.includes('puzzle'))
+    || (p.includes('tactic') && r.includes('tactic') && p.length > 20 && r.length > 20)
+  );
+};
+
+/**
+ * Single consolidated drill paragraph for priority cards (no nested Practice / Review labels).
+ */
 export const buildPriorityDrillDisplay = (priority, perGameResults = []) => {
   const humanized = humanizeGameIdInText(priority?.specific_drill || '', perGameResults);
   const structured = splitStructuredDrill(humanized);
 
   if (structured) {
-    return {
-      practice: structured.practice,
-      review: structured.review,
-    };
+    if (structured.practice && structured.review && practiceOverlaps(structured.practice, structured.review)) {
+      return ensureSentence(cleanReviewLine(structured.review) || cleanPracticeLine(structured.practice));
+    }
+    const combined = combineDrillParts(structured.practice, structured.review);
+    if (combined) {
+      return combined;
+    }
   }
 
   const themeKey = inferThemeKey(priority?.title);
-  return {
-    practice: THEME_DRILLS[themeKey] || priority?.how_to_fix || null,
-    review: humanized || null,
-  };
+  const themeDrill = THEME_DRILLS[themeKey] || null;
+
+  if (isGameSpecificLine(humanized)) {
+    if (/puzzle|tactic|drill/i.test(humanized) && !themeDrill) {
+      return ensureSentence(humanized);
+    }
+    return combineDrillParts(themeDrill, humanized) || ensureSentence(humanized);
+  }
+
+  if (humanized) {
+    return ensureSentence(humanized);
+  }
+
+  return themeDrill ? ensureSentence(themeDrill) : '';
 };

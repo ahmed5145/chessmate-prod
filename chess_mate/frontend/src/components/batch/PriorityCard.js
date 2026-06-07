@@ -56,7 +56,7 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
   const rankColor = getRankColor(rank);
   const linkedGames = extractGameIds(title, why_it_matters, how_to_fix, specific_drill);
   const humanize = (text) => humanizeGameIdInText(text, per_game_results);
-  const drillDisplay = buildPriorityDrillDisplay(priority, per_game_results);
+  const drillText = buildPriorityDrillDisplay(priority, per_game_results);
 
   return (
     <Card sx={{ mb: 3 }}>
@@ -101,31 +101,18 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
           </Typography>
         </Box>
 
-        <Box sx={{ mb: 3 }}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: 'block', fontWeight: 600, mb: 0.5 }}
-          >
-            Drill
-          </Typography>
-          {drillDisplay.practice ? (
-            <Box sx={{ mb: 1.5 }}>
-              <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.25 }}>
-                Practice
-              </Typography>
-              <Typography variant="body2">{drillDisplay.practice}</Typography>
-            </Box>
-          ) : null}
-          {drillDisplay.review ? (
-            <Box>
-              <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.25 }}>
-                Review in your games
-              </Typography>
-              <Typography variant="body2">{drillDisplay.review}</Typography>
-            </Box>
-          ) : null}
-        </Box>
+        {drillText ? (
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: 'block', fontWeight: 600, mb: 0.5 }}
+            >
+              Drill
+            </Typography>
+            <Typography variant="body2">{drillText}</Typography>
+          </Box>
+        ) : null}
 
         {linkedGames.length > 0 && (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>

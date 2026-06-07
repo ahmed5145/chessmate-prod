@@ -67,7 +67,7 @@ const PhaseBreakdown = ({ batch_summary }) => {
         Phase performance
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 3 }}>
-        Accuracy % uses the same engine curve as Chess.com/Lichess. Eval stability is a separate internal score.
+        Accuracy shows how closely your moves matched engine top lines. Eval stability is a separate batch-wide score.
       </Typography>
 
       <Grid container spacing={3}>

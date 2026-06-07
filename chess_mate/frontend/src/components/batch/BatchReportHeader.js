@@ -41,7 +41,7 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
           </Grid>
           {accuracyPct != null && (
             <Grid item xs={6} sm={3}>
-              <Tooltip title="Chess.com-style accuracy from engine centipawn loss per move (your moves only).">
+              <Tooltip title="How closely your moves matched Stockfish's top recommendations in this batch.">
                 <Box>
                   <Typography variant="caption" color="text.secondary">
                     Accuracy
