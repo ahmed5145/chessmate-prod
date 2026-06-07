@@ -136,15 +136,21 @@ const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
                 {item.recommendation ? (
                   <OpeningRecommendationText item={item} />
                 ) : null}
-                {item.opening_name ? (
-                  <Box sx={{ mt: 1 }}>
+                <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                  {item.opening_name ? (
                     <LichessActionButton
                       label="Study on Lichess"
                       url={lichessOpeningSearchUrl(item.opening_name)}
                       kind="opening"
                     />
-                  </Box>
-                ) : null}
+                  ) : null}
+                  {item.game_id ? (
+                    <GameExampleActions
+                      perGameResults={per_game_results}
+                      gameId={item.game_id}
+                    />
+                  ) : null}
+                </Box>
               </ListItem>
             ))}
           </List>

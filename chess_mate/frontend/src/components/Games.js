@@ -7,6 +7,7 @@ import { checkMultipleAnalysisStatuses, analyzeSpecificGame, shouldPollStatus } 
 import { useTheme } from '../context/ThemeContext';
 import { Box, CircularProgress } from '@mui/material';
 import { checkAuthStatus } from '../services/authService';
+import { formatListOpeningLabel } from '../utils/formatListOpeningLabel';
 
 const Games = () => {
   const [games, setGames] = useState([]);
@@ -486,7 +487,7 @@ const Games = () => {
                           {game.opponent}
                         </td>
                         <td className={`whitespace-nowrap px-3 py-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
-                          {game.opening_name || 'Unknown Opening'}
+                          {formatListOpeningLabel(game)}
                         </td>
                         <td className={`whitespace-nowrap px-3 py-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
                           {new Date(game.date_played).toLocaleDateString()}

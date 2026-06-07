@@ -21,6 +21,7 @@ import {
   formatBatchDurationRange,
 } from '../utils/batchTimeEstimate';
 import api from '../services/api';
+import { formatListOpeningLabel } from '../utils/formatListOpeningLabel';
 
 const BATCH_SIZE_OPTIONS = [5, 10, 15, 20, 25, 30];
 const ACTIVE_BATCH_STATUSES = new Set(['pending', 'in_progress']);
@@ -659,7 +660,7 @@ const BatchAnalysis = () => {
                           {game.white || 'White'} vs {game.black || 'Black'}
                         </div>
                         <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {game.opening_name || 'Unknown Opening'}
+                          {formatListOpeningLabel(game)}
                           {getTimeControlCategory(game) ? ` • ${getTimeControlCategory(game)}` : ''}
                           {' • '}
                           {new Date(game.date_played).toLocaleDateString()}
