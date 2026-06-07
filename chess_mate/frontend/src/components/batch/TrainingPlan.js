@@ -1,20 +1,10 @@
 /**
- * TrainingPlan.js
- *
- * Displays a 4-week training plan from the coaching report.
- * If coaching_report is null, shows a graceful fallback.
- *
- * Props:
- *   - coaching_report: object | null
- *       Contains training_plan object with week_1, week_2, week_3, week_4 strings
- *
- * Pure display component — no state, no API calls.
+ * TrainingPlan.js — 4-week training plan from the coaching report.
  */
 
 import React from 'react';
 import {
   Typography,
-  Alert,
   Container,
   Accordion,
   AccordionSummary,
@@ -23,17 +13,8 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const TrainingPlan = ({ coaching_report }) => {
-  // If coaching_report is null or training_plan missing, show fallback
-  if (!coaching_report || !coaching_report.training_plan) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Alert severity="info" sx={{ mb: 4 }}>
-          <Typography variant="body2">
-            Coaching narrative unavailable for this batch — analysis data shown below.
-          </Typography>
-        </Alert>
-      </Container>
-    );
+  if (!coaching_report?.training_plan) {
+    return null;
   }
 
   const trainingPlan = coaching_report.training_plan;
@@ -51,7 +32,7 @@ const TrainingPlan = ({ coaching_report }) => {
       </Typography>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        AI-suggested study outline based on this batch. Pair with the game breakdown above for specific positions.
+        AI-suggested study outline based on this batch. Pair with the game breakdown below for specific positions.
       </Typography>
 
       {weeks.map((week) => (

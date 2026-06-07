@@ -6,36 +6,17 @@ import React from 'react';
 import {
   Box,
   Typography,
-  Alert,
   Container,
   Paper,
   List,
   ListItem,
   ListItemText
 } from '@mui/material';
-
-const splitSummaryBullets = (text) => {
-  if (!text || typeof text !== 'string') {
-    return [];
-  }
-  return text
-    .split(/\n+|(?<=[.!?])\s+/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 12)
-    .slice(0, 6);
-};
+import { splitSummaryBullets } from '../../utils/batchReportText';
 
 const ExecutiveSummary = ({ coaching_report }) => {
-  if (!coaching_report) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Alert severity="info" sx={{ mb: 4 }}>
-          <Typography variant="body2">
-            Coaching narrative unavailable for this batch — analysis data shown below.
-          </Typography>
-        </Alert>
-      </Container>
-    );
+  if (!coaching_report?.executive_summary) {
+    return null;
   }
 
   const executiveSummary = coaching_report.executive_summary || '';

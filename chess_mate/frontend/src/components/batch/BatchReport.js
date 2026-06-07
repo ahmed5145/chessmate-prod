@@ -185,7 +185,7 @@ const BatchReport = () => {
             />
             <BatchReportSections
               batchReport={batchReport}
-              status={status}
+              status={batchReport.status || status}
               batchId={batchId}
               readOnly={false}
             />

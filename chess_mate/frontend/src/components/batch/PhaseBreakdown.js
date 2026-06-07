@@ -67,7 +67,7 @@ const PhaseBreakdown = ({ batch_summary }) => {
         Phase performance
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 3 }}>
-        How closely your moves matched engine top lines in each phase of the game.
+        Move quality by game phase — same &quot;move match&quot; idea as the header, split by opening / middlegame / endgame.
       </Typography>
 
       <Grid container spacing={3}>
@@ -91,7 +91,7 @@ const PhaseBreakdown = ({ batch_summary }) => {
           const trendChip = getTrendChip(trend);
           const metricLabel =
             accuracyPct != null
-              ? `${Number(accuracyPct).toFixed(1)}% accuracy`
+              ? `${Number(accuracyPct).toFixed(1)}% move match`
               : `${Math.round(score * 100)}% stable`;
 
           return (

@@ -1,0 +1,106 @@
+/**
+ * Above-the-fold report hero: games, date, takeaway, CTA to priorities.
+ */
+
+import React from 'react';
+import {
+  Box,
+  Button,
+  Chip,
+  Container,
+  Paper,
+  Typography,
+} from '@mui/material';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import {
+  extractExecutiveTakeaway,
+  hasCoachingPriorities,
+} from '../../utils/batchReportText';
+
+const scrollToSection = (sectionId) => {
+  const element = document.getElementById(sectionId);
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+};
+
+const BatchReportHero = ({
+  batch_summary,
+  games_count,
+  coaching_report,
+  status = 'completed',
+}) => {
+  const analyzed = batch_summary?.games_analyzed ?? games_count ?? 0;
+  const dateRange = batch_summary?.date_range;
+  const takeaway = extractExecutiveTakeaway(coaching_report);
+  const showPriorityCta = hasCoachingPriorities(coaching_report);
+  const isPartial = status === 'partial';
+
+  return (
+    <Container maxWidth="lg" sx={{ py: 0, pb: 1 }}>
+      <Paper
+        elevation={0}
+        sx={(theme) => ({
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: theme.palette.mode === 'dark' ? 'rgba(99, 102, 241, 0.35)' : 'rgba(99, 102, 241, 0.25)',
+          background:
+            theme.palette.mode === 'dark'
+              ? 'linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #1f2937 100%)'
+              : 'linear-gradient(135deg, #eef2ff 0%, #ffffff 55%, #f8fafc 100%)',
+        })}
+      >
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, mb: 1 }}>
+          <CheckCircleOutlineIcon color="primary" fontSize="small" />
+          <Typography variant="overline" sx={{ fontWeight: 700, letterSpacing: '0.06em' }}>
+            Batch coach report ready
+          </Typography>
+          {isPartial ? (
+            <Chip size="small" label="Partial batch" color="warning" variant="outlined" />
+          ) : null}
+        </Box>
+
+        <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5, lineHeight: 1.25 }}>
+          {analyzed} game{analyzed === 1 ? '' : 's'} analyzed
+          {dateRange ? ` · ${dateRange}` : ''}
+        </Typography>
+
+        {takeaway ? (
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6, maxWidth: 720 }}>
+            {takeaway}
+          </Typography>
+        ) : (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Review your priorities and phase scores below, then drill into individual games.
+          </Typography>
+        )}
+
+        {showPriorityCta ? (
+          <Button
+            variant="contained"
+            size="small"
+            endIcon={<ArrowDownwardIcon />}
+            onClick={() => scrollToSection('batch-section-priorities')}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            Start with priority #1
+          </Button>
+        ) : (
+          <Button
+            variant="outlined"
+            size="small"
+            endIcon={<ArrowDownwardIcon />}
+            onClick={() => scrollToSection('batch-section-phases')}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            View phase breakdown
+          </Button>
+        )}
+      </Paper>
+    </Container>
+  );
+};
+
+export default BatchReportHero;

@@ -4,16 +4,18 @@
 
 import React, { useEffect, useState } from 'react';
 import { Box, List, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
+import { collectStudyLinksFromBatchSummary } from '../../utils/lichessStudyLinks';
 
 export const BATCH_REPORT_SECTIONS = [
-  { id: 'batch-section-critical-moments', label: 'Critical moments' },
-  { id: 'batch-section-time-management', label: 'Time management' },
   { id: 'batch-section-summary', label: 'Executive summary' },
+  { id: 'batch-section-priorities', label: 'Top priorities' },
   { id: 'batch-section-phases', label: 'Phase breakdown' },
+  { id: 'batch-section-time-management', label: 'Time management' },
   { id: 'batch-section-coaching-insights', label: 'Coaching insights' },
   { id: 'batch-section-openings', label: 'Openings' },
   { id: 'batch-section-patterns', label: 'Tactical patterns' },
-  { id: 'batch-section-priorities', label: 'Top priorities' },
+  { id: 'batch-section-critical-moments', label: 'Critical moments' },
+  { id: 'batch-section-drills', label: 'Suggested drills' },
   { id: 'batch-section-training', label: 'Training plan' },
   { id: 'batch-section-games', label: 'Game breakdown' },
 ];
@@ -34,7 +36,14 @@ export const hasTacticalPatternsSection = (batchReport) => {
   return weaknesses.length > 0 || endgameInsights.length > 0;
 };
 
-export const buildBatchReportTocSections = (batchReport, { showTimeManagement = true } = {}) => {
+export const hasStudyDrillsSection = (batchReport) => (
+  collectStudyLinksFromBatchSummary(batchReport?.batch_summary).length > 0
+);
+
+export const buildBatchReportTocSections = (
+  batchReport,
+  { showTimeManagement = true, showStudyDrills = true } = {}
+) => {
   let sections = [...BATCH_REPORT_SECTIONS];
   if (!showTimeManagement) {
     sections = sections.filter((section) => section.id !== 'batch-section-time-management');
@@ -44,6 +53,9 @@ export const buildBatchReportTocSections = (batchReport, { showTimeManagement = 
   }
   if (!hasTacticalPatternsSection(batchReport)) {
     sections = sections.filter((section) => section.id !== 'batch-section-patterns');
+  }
+  if (!showStudyDrills || !hasStudyDrillsSection(batchReport)) {
+    sections = sections.filter((section) => section.id !== 'batch-section-drills');
   }
   return sections;
 };

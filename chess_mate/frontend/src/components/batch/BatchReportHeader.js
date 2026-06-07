@@ -28,7 +28,7 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
           {dateRange ? ` · ${dateRange}` : ''}
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          Stats from Stockfish depth 14. Coaching text below is AI-assisted.
+          Engine stats (Stockfish depth 14). See legend below for metric definitions.
         </Typography>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={6} sm={3}>
@@ -41,10 +41,10 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
           </Grid>
           {accuracyPct != null && (
             <Grid item xs={6} sm={3}>
-              <Tooltip title="How closely your moves matched Stockfish's top recommendations in this batch.">
+              <Tooltip title="Share of your moves that matched Stockfish's top line in this batch.">
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    Accuracy
+                  Move match %
                   </Typography>
                   <Typography variant="h6" sx={{ fontWeight: 700 }}>
                     {Number(accuracyPct).toFixed(1)}%
@@ -54,7 +54,7 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
             </Grid>
           )}
           <Grid item xs={6} sm={3}>
-            <Tooltip title="Internal eval stability score (batch-wide). Differs from per-game breakdown.">
+            <Tooltip title="How stable your evaluation stayed across games (batch-wide composite; not the same as move match %).">
               <Box>
                 <Typography variant="caption" color="text.secondary">
                   Eval stability

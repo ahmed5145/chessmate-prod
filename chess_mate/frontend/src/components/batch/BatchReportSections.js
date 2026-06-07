@@ -4,7 +4,9 @@
 
 import React from 'react';
 import { Box } from '@mui/material';
+import BatchReportHero from './BatchReportHero';
 import BatchReportHeader from './BatchReportHeader';
+import CoachingUnavailableBanner from './CoachingUnavailableBanner';
 import ExecutiveSummary from './ExecutiveSummary';
 import PhaseBreakdown from './PhaseBreakdown';
 import RecurringPatterns from './RecurringPatterns';
@@ -21,6 +23,7 @@ import StudyDrillLinks from './StudyDrillLinks';
 import BatchReportToc, {
   buildBatchReportTocSections,
   hasCoachingInsightsSection,
+  hasStudyDrillsSection,
   hasTacticalPatternsSection,
 } from './BatchReportToc';
 import BatchReportLegend from './BatchReportLegend';
@@ -44,7 +47,11 @@ const BatchReportSections = ({
   }
 
   const showTimeManagement = shouldShowTimeManagementInsight(batchReport.batch_summary);
-  const tocSections = buildBatchReportTocSections(batchReport, { showTimeManagement });
+  const showStudyDrills = hasStudyDrillsSection(batchReport);
+  const tocSections = buildBatchReportTocSections(batchReport, {
+    showTimeManagement,
+    showStudyDrills,
+  });
 
   return (
     <Box className="batch-report-print-root">
@@ -63,29 +70,44 @@ const BatchReportSections = ({
           {status === 'partial' ? (
             <FailedGamesList failures={batchReport.errors || batchReport.failed_games || []} />
           ) : null}
+
+          <BatchReportHero
+            batch_summary={batchReport.batch_summary}
+            games_count={batchReport.games_count}
+            coaching_report={batchReport.coaching_report}
+            status={status}
+          />
+
+          <CoachingUnavailableBanner coachingReport={batchReport.coaching_report} />
+
           <BatchReportHeader
             batch_summary={batchReport.batch_summary}
             games_count={batchReport.games_count}
           />
-          {!readOnly && batchId ? <BatchCompareCard batchId={batchId} /> : null}
-          <SectionWrap id="batch-section-critical-moments">
-            <TopCriticalMoments
-              batch_summary={batchReport.batch_summary}
+
+          <SectionWrap id="batch-section-summary">
+            <ExecutiveSummary coaching_report={batchReport.coaching_report} />
+          </SectionWrap>
+
+          <SectionWrap id="batch-section-priorities">
+            <TopPriorities
+              coaching_report={batchReport.coaching_report}
               per_game_results={batchReport.per_game_results}
-              readOnly={readOnly}
             />
           </SectionWrap>
+
+          {!readOnly && batchId ? <BatchCompareCard batchId={batchId} /> : null}
+
+          <SectionWrap id="batch-section-phases">
+            <PhaseBreakdown batch_summary={batchReport.batch_summary} />
+          </SectionWrap>
+
           {showTimeManagement ? (
             <SectionWrap id="batch-section-time-management">
               <TimeManagementInsight batch_summary={batchReport.batch_summary} />
             </SectionWrap>
           ) : null}
-          <SectionWrap id="batch-section-summary">
-            <ExecutiveSummary coaching_report={batchReport.coaching_report} />
-          </SectionWrap>
-          <SectionWrap id="batch-section-phases">
-            <PhaseBreakdown batch_summary={batchReport.batch_summary} />
-          </SectionWrap>
+
           {hasCoachingInsightsSection(batchReport) ? (
             <SectionWrap id="batch-section-coaching-insights">
               <CoachingInsightsSection
@@ -94,12 +116,14 @@ const BatchReportSections = ({
               />
             </SectionWrap>
           ) : null}
+
           <SectionWrap id="batch-section-openings">
             <OpeningSection
               batch_summary={batchReport.batch_summary}
               per_game_results={batchReport.per_game_results}
             />
           </SectionWrap>
+
           {hasTacticalPatternsSection(batchReport) ? (
             <SectionWrap id="batch-section-patterns">
               <RecurringPatterns
@@ -108,16 +132,25 @@ const BatchReportSections = ({
               />
             </SectionWrap>
           ) : null}
-          <StudyDrillLinks batch_summary={batchReport.batch_summary} />
-          <SectionWrap id="batch-section-priorities">
-            <TopPriorities
-              coaching_report={batchReport.coaching_report}
+
+          <SectionWrap id="batch-section-critical-moments">
+            <TopCriticalMoments
+              batch_summary={batchReport.batch_summary}
               per_game_results={batchReport.per_game_results}
+              readOnly={readOnly}
             />
           </SectionWrap>
+
+          {showStudyDrills ? (
+            <SectionWrap id="batch-section-drills">
+              <StudyDrillLinks batch_summary={batchReport.batch_summary} />
+            </SectionWrap>
+          ) : null}
+
           <SectionWrap id="batch-section-training">
             <TrainingPlan coaching_report={batchReport.coaching_report} />
           </SectionWrap>
+
           <SectionWrap id="batch-section-games">
             <GameAccordion per_game_results={batchReport.per_game_results} readOnly={readOnly} />
           </SectionWrap>

@@ -26,6 +26,9 @@ const BatchReportLegend = () => (
         amber
       </Typography>
       {' '}= needs work
+      {' · '}
+      <strong>Move match %</strong> = engine top-line agreement (header) ·{' '}
+      <strong>Eval stability</strong> = batch-wide eval consistency (header)
     </Typography>
   </Container>
 );
