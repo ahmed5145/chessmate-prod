@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from './App';
 
 jest.mock('./context/ThemeContext', () => ({
@@ -17,6 +18,14 @@ jest.mock('./routes/AppRoutes', () => () => <div>AppRoutes</div>);
 jest.mock('react-hot-toast', () => ({
   Toaster: () => <div>Toaster</div>,
 }));
+jest.mock('./components/AchievementToast', () => () => null);
+
+const renderApp = () =>
+  render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>
+  );
 
 // Mock localStorage
 const mockLocalStorage = {
@@ -32,11 +41,11 @@ describe('App', () => {
   });
 
   it('renders without crashing', () => {
-    render(<App />);
+    renderApp();
   });
 
   it('renders app shell components', () => {
-    render(<App />);
+    renderApp();
     expect(screen.getByText('Navbar')).toBeInTheDocument();
     expect(screen.getByText('AppRoutes')).toBeInTheDocument();
     expect(screen.getByText('SiteFooter')).toBeInTheDocument();
