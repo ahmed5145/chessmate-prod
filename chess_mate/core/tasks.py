@@ -1092,7 +1092,7 @@ def analyze_single_game_subtask(
 
                 saved_row = (
                     Game.objects.filter(id=saved_game_id, user_id=user_id)
-                    .values("opponent", "date_played", "platform", "game_url")
+                    .values("opponent", "date_played", "platform", "game_url", "opening_name", "eco_code")
                     .first()
                 )
                 if saved_row:
@@ -1104,6 +1104,12 @@ def analyze_single_game_subtask(
                         game_result["platform"] = saved_row["platform"]
                     if saved_row.get("game_url"):
                         game_result["platform_game_url"] = saved_row["game_url"]
+                    saved_opening = (saved_row.get("opening_name") or "").strip()
+                    if saved_opening and saved_opening.lower() not in ("unknown", "unknown opening", "?"):
+                        game_result["opening_name"] = saved_opening
+                    saved_eco = (saved_row.get("eco_code") or "").strip().upper()
+                    if saved_eco:
+                        game_result["eco_code"] = saved_eco[:3]
             except Exception:
                 _log_ignored_exception(f"Ignoring saved game metadata lookup for {saved_game_id}")
 

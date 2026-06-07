@@ -1,6 +1,7 @@
 import {
   buildOpeningInsightsFromGames,
   buildPerGameOpeningInsights,
+  resolveGameOpeningName,
   resolveOpeningInsights,
   resolveRepertoireGaps,
 } from '../openingInsights';
@@ -51,6 +52,29 @@ describe('openingInsights', () => {
   it('prefers per-game rows when per_game_results are available', () => {
     const insights = resolveOpeningInsights({}, games);
     expect(insights).toHaveLength(3);
+  });
+
+  it('resolves unknown opening names from ECO codes', () => {
+    const name = resolveGameOpeningName({
+      opening_name: 'Unknown Opening',
+      eco_code: 'B73',
+    });
+    expect(name).toContain('Dragon');
+    expect(name).not.toBe('Unknown Opening');
+  });
+
+  it('shows resolved ECO names in per-game opening rows', () => {
+    const insights = buildPerGameOpeningInsights([
+      {
+        game_id: 'game_dragon',
+        result: '1-0',
+        player_color: 'black',
+        opening_name: 'Unknown Opening',
+        eco_code: 'B73',
+        phase_breakdown: { opening: { moves: 8, avg_eval_drop: 0.2 } },
+      },
+    ]);
+    expect(insights[0].opening_name).toContain('Dragon');
   });
 
   it('resolves repertoire gaps from batch summary', () => {

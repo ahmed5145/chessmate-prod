@@ -614,21 +614,25 @@ def _opening_group_key(result: Dict[str, Any]) -> str:
 def _opening_display_name(games: List[Dict[str, Any]]) -> str:
     from ..eco_codes import get_opening_name
 
+    names = [g.get("opening_name") for g in games if g.get("opening_name")]
+    known_names = [
+        n
+        for n in names
+        if str(n).strip().lower() not in ("unknown", "unknown opening", "?")
+    ]
+    if known_names:
+        with_variation = [n for n in known_names if ":" in n]
+        if with_variation:
+            return max(with_variation, key=len)
+        return max(known_names, key=len)
+
     eco_codes = sorted({g.get("eco_code") for g in games if g.get("eco_code")})
     if len(eco_codes) == 1:
         specific = get_opening_name(eco_codes[0])
         if specific and specific != "Unknown Opening":
             return specific
 
-    names = [g.get("opening_name") for g in games if g.get("opening_name")]
-    if not names:
-        return "Unknown"
-
-    with_variation = [n for n in names if ":" in n]
-    if with_variation:
-        return max(with_variation, key=len)
-
-    return max(names, key=len)
+    return "Unknown"
 
 
 def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -779,8 +783,11 @@ def _compute_endgame_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
                 )
 
     total_games = len(per_game_results)
+    has_specific_endgame = any(eg_type != "general_endgame" for eg_type in type_games)
     insights: List[Dict[str, Any]] = []
     for eg_type, game_ids in sorted(type_games.items(), key=lambda kv: len(kv[1]), reverse=True):
+        if eg_type == "general_endgame" and has_specific_endgame:
+            continue
         count = len(game_ids)
         if count < 2 and total_games >= 5:
             continue

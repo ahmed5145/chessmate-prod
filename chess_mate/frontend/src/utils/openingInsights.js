@@ -4,7 +4,19 @@
  */
 
 import { isUnknownOpening } from './batchGameLinks';
+import { getEcoOpeningName } from './ecoOpeningNames';
 import { formatGameLabel } from './formatGameLabel';
+
+export const resolveGameOpeningName = (game) => {
+  if (!isUnknownOpening(game?.opening_name)) {
+    return game.opening_name;
+  }
+  const fromEco = getEcoOpeningName(game?.eco_code);
+  if (fromEco) {
+    return fromEco;
+  }
+  return game?.opening_name || 'Unknown';
+};
 
 const hasOpeningData = (game) =>
   Boolean(game?.eco_code) || !isUnknownOpening(game?.opening_name);
@@ -45,7 +57,7 @@ const openingGroupKey = (game) => {
 };
 
 const openingDisplayName = (games) => {
-  const names = games.map((game) => game.opening_name).filter(Boolean);
+  const names = games.map((game) => resolveGameOpeningName(game)).filter(Boolean);
   if (names.length === 0) {
     return 'Unknown';
   }
@@ -106,8 +118,9 @@ export const buildPerGameOpeningInsights = (perGameResults = []) => {
     const avgOpeningScore =
       openingPhase && Number(openingPhase.moves) > 0 ? phaseScore(openingPhase) : null;
 
+    const openingName = resolveGameOpeningName(game);
     const { status, recommendation } = buildRecommendation(
-      game.opening_name,
+      openingName,
       [game],
       wins,
       losses,
@@ -116,7 +129,7 @@ export const buildPerGameOpeningInsights = (perGameResults = []) => {
     );
 
     return {
-      opening_name: game.opening_name,
+      opening_name: openingName,
       eco_code: game.eco_code || null,
       games: 1,
       record: `${wins}W-${losses}L-${draws}D`,

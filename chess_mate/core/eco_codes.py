@@ -134,6 +134,15 @@ ECO_OPENINGS = {
     "B58": "Sicilian Defense: Classical Variation",
     "B59": "Sicilian Defense: Classical Variation, Dragon Variation",
     "B70": "Sicilian Defense: Dragon Variation",
+    "B71": "Sicilian Defense: Dragon Variation, Modern Variation",
+    "B72": "Sicilian Defense: Dragon Variation, Classical Variation, 7...O-O",
+    "B73": "Sicilian Defense: Dragon Variation, Classical Variation",
+    "B74": "Sicilian Defense: Dragon Variation, Classical Variation, 9.Nb3",
+    "B75": "Sicilian Defense: Dragon Variation, Classical Variation, 9.Bc4",
+    "B76": "Sicilian Defense: Dragon Variation, Minor Variation",
+    "B77": "Sicilian Defense: Dragon Variation, Yugoslav Attack",
+    "B78": "Sicilian Defense: Dragon Variation, Yugoslav Attack, 10.O-O-O",
+    "B79": "Sicilian Defense: Dragon Variation, Yugoslav Attack, Old Line",
     "B80": "Sicilian Defense: Scheveningen Variation",
     "B90": "Sicilian Defense: Najdorf Variation",
     "C00": "French Defense",
@@ -221,11 +230,20 @@ def get_opening_name(eco_code):
     if opening_name:
         logger.info(f"Found opening name: {opening_name}")
         return opening_name
+
+    # Prefix fallback: B73 -> B72 -> B71 -> B70 when exact code is missing
+    if len(eco_code) == 3 and eco_code[0] in "ABCDE" and eco_code[1:].isdigit():
+        letter = eco_code[0]
+        for num in range(int(eco_code[1:]) - 1, -1, -1):
+            parent = f"{letter}{num:02d}"
+            parent_name = ECO_OPENINGS.get(parent)
+            if parent_name:
+                logger.info(f"ECO fallback {eco_code} -> {parent}: {parent_name}")
+                return parent_name
+
+    if eco_code and len(eco_code) >= 1:
+        similar_codes = [code for code in ECO_OPENINGS.keys() if code.startswith(eco_code[0])]
+        logger.warning(f"No opening name found for ECO code: {eco_code}. Similar codes: {similar_codes}")
     else:
-        # Log all available keys that start with the same letter
-        if eco_code and len(eco_code) >= 1:
-            similar_codes = [code for code in ECO_OPENINGS.keys() if code.startswith(eco_code[0])]
-            logger.warning(f"No opening name found for ECO code: {eco_code}. Similar codes: {similar_codes}")
-        else:
-            logger.warning(f"No opening name found for ECO code: {eco_code}")
-        return "Unknown Opening"
+        logger.warning(f"No opening name found for ECO code: {eco_code}")
+    return "Unknown Opening"
