@@ -4,14 +4,13 @@ Apply credits for a completed Stripe Checkout session (ops recovery).
 Use when the user paid but /confirm-purchase/ did not run (expired JWT, old redirect URL, etc.).
 """
 
+from core.models import Profile, Transaction
+from core.payment import PaymentProcessor
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import F
-
-from core.models import Profile, Transaction
-from core.payment import PaymentProcessor
 
 
 class Command(BaseCommand):
