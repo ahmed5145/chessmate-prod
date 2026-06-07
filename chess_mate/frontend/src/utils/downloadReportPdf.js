@@ -118,7 +118,7 @@ export const downloadReportPdf = async (filename = 'chessmate-batch-report.pdf')
     import('jspdf'),
   ]);
 
-  const { host, clone } = buildCaptureClone(root);
+  const { clone } = buildCaptureClone(root);
 
   await new Promise((resolve) => {
     window.setTimeout(resolve, 400);
