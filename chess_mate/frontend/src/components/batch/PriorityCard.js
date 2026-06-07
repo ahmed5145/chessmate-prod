@@ -17,11 +17,13 @@ import {
   humanizeGameIdInText,
 } from '../../utils/formatGameLabel';
 import { buildPriorityDrillDisplay } from '../../utils/priorityDrillDisplay';
+import { resolvePriorityLichessLink } from '../../utils/lichessStudyLinks';
 import {
   getGamePlatformLabel,
   getGamePlatformUrl,
   scrollToBatchGame,
 } from '../../utils/batchGameLinks';
+import LichessActionButton from './LichessActionButton';
 
 const extractGameIds = (...parts) => {
   const text = parts.filter(Boolean).join(' ');
@@ -57,6 +59,7 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
   const linkedGames = extractGameIds(title, why_it_matters, how_to_fix, specific_drill);
   const humanize = (text) => humanizeGameIdInText(text, per_game_results);
   const drillText = buildPriorityDrillDisplay(priority, per_game_results);
+  const lichessLink = resolvePriorityLichessLink(priority);
 
   return (
     <Card sx={{ mb: 3 }}>
@@ -114,8 +117,15 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
           </Box>
         ) : null}
 
-        {linkedGames.length > 0 && (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+        {(lichessLink || linkedGames.length > 0) && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+            {lichessLink ? (
+              <LichessActionButton
+                label={lichessLink.label}
+                url={lichessLink.url}
+                kind={lichessLink.kind}
+              />
+            ) : null}
             {linkedGames.map((gameId) => {
               const platformUrl = getGamePlatformUrl(per_game_results, gameId);
               return (
@@ -124,6 +134,7 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
                     size="small"
                     variant="text"
                     onClick={() => scrollToBatchGame(gameId)}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
                   >
                     View {formatGameLabelById(per_game_results, gameId)}
                   </Button>
@@ -135,6 +146,7 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
                       target="_blank"
                       rel="noopener noreferrer"
                       endIcon={<OpenInNewIcon fontSize="small" />}
+                      sx={{ textTransform: 'none', fontWeight: 600 }}
                     >
                       Open on {getGamePlatformLabel(per_game_results, gameId)}
                     </Button>

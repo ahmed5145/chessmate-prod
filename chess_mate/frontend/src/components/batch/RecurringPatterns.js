@@ -25,6 +25,9 @@ import {
 import { resolveOpeningInsights } from '../../utils/openingInsights';
 import { getOpeningRecordChipProps } from '../../utils/openingRecordChip';
 import { toTitleCase } from '../../utils/formatLabel';
+import OpeningRecommendationText from './OpeningRecommendationText';
+import LichessActionButton from './LichessActionButton';
+import { lichessOpeningSearchUrl } from '../../utils/lichessStudyLinks';
 
 const GameExampleActions = ({ perGameResults, gameId, moveNumber }) => {
   const platformUrl = getGamePlatformUrl(perGameResults, gameId);
@@ -130,9 +133,18 @@ const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
                     {item.game_label}
                   </Typography>
                 ) : null}
-                {item.recommendation && (
-                  <Typography variant="body2">{item.recommendation}</Typography>
-                )}
+                {item.recommendation ? (
+                  <OpeningRecommendationText item={item} />
+                ) : null}
+                {item.opening_name ? (
+                  <Box sx={{ mt: 1 }}>
+                    <LichessActionButton
+                      label="Study on Lichess"
+                      url={lichessOpeningSearchUrl(item.opening_name)}
+                      kind="opening"
+                    />
+                  </Box>
+                ) : null}
               </ListItem>
             ))}
           </List>

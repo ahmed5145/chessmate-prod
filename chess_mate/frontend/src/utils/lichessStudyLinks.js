@@ -35,10 +35,12 @@ const PUZZLE_THEME_SLUGS = {
 };
 
 const ENDGAME_PRACTICE_URLS = {
-  rook_and_pawn: 'https://lichess.org/practice/endgames/rook',
-  rook_endgame: 'https://lichess.org/practice/endgames/rook',
-  king_and_pawn: 'https://lichess.org/learn#king',
-  queen_endgame: 'https://lichess.org/learn#queen',
+  rook_and_pawn: 'https://lichess.org/learn#/1',
+  rook_endgame: 'https://lichess.org/learn#/1',
+  king_and_pawn: 'https://lichess.org/learn#/6',
+  queen_endgame: 'https://lichess.org/learn#/3',
+  minor_piece_endgame: 'https://lichess.org/learn',
+  pawn_structure_endgame: 'https://lichess.org/learn#/6',
   general_endgame: 'https://lichess.org/learn'
 };
 
@@ -66,6 +68,100 @@ export const lichessOpeningSearchUrl = (openingName) => {
 export const lichessEndgamePracticeUrl = (endgameType) => {
   const key = normalizeThemeKey(endgameType);
   return ENDGAME_PRACTICE_URLS[key] || ENDGAME_PRACTICE_URLS.general_endgame;
+};
+
+const inferPriorityThemeKey = (priority = {}) => {
+  const combined = [priority.title, priority.how_to_fix, priority.specific_drill]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (combined.includes('hanging')) return 'hanging_piece';
+  if (combined.includes('fork')) return 'fork';
+  if (combined.includes('pin')) return 'pin';
+  if (combined.includes('skewer')) return 'skewer';
+  if (combined.includes('tactic')) return 'missed_tactic';
+  return 'missed_tactic';
+};
+
+const extractOpeningNameFromPriority = (priority = {}) => {
+  const sources = [priority.title, priority.how_to_fix, priority.specific_drill].filter(Boolean);
+
+  for (const raw of sources) {
+    const text = String(raw);
+
+    const fromTheory = text.match(/opening theory on\s+(.+?)(?:\s+to\b|[.;]|$)/i);
+    if (fromTheory?.[1]) {
+      return fromTheory[1].trim();
+    }
+
+    const fromIdeas = text.match(/ideas from (?:the\s+)?(.+?)(?:\s+to\b|[.;]|$)/i);
+    if (fromIdeas?.[1]) {
+      return fromIdeas[1].trim();
+    }
+
+    const fromMasters = text.match(/masters in (?:the\s+)?(.+?)(?:\s*[.;]|$)/i);
+    if (fromMasters?.[1]) {
+      return fromMasters[1].trim();
+    }
+
+    const quotedOpening = text.match(/(?:Queen's|King's|London|Sicilian|Caro|French|Slav|Indian)[^.;]*/i);
+    if (quotedOpening?.[0]) {
+      return quotedOpening[0].trim();
+    }
+  }
+
+  return null;
+};
+
+const isEndgamePriority = (priority = {}) => {
+  const combined = [priority.title, priority.how_to_fix, priority.specific_drill]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return /endgame|king activation|passed pawn|rook ending|pawn ending/.test(combined);
+};
+
+const isOpeningPriority = (priority = {}) => {
+  const combined = [priority.title, priority.how_to_fix, priority.specific_drill]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return /opening|repertoire|london system|queen'?s pawn|theory/.test(combined)
+    || Boolean(extractOpeningNameFromPriority(priority));
+};
+
+/**
+ * Map a single top-3 priority to a Lichess study / puzzle / endgame URL.
+ */
+export const resolvePriorityLichessLink = (priority) => {
+  if (!priority || typeof priority !== 'object') {
+    return null;
+  }
+
+  if (isEndgamePriority(priority)) {
+    return {
+      label: 'Practice on Lichess',
+      url: lichessEndgamePracticeUrl('general_endgame'),
+      kind: 'endgame',
+    };
+  }
+
+  if (isOpeningPriority(priority)) {
+    const openingName = extractOpeningNameFromPriority(priority) || 'opening repertoire';
+    return {
+      label: 'Study on Lichess',
+      url: lichessOpeningSearchUrl(openingName),
+      kind: 'opening',
+    };
+  }
+
+  const themeKey = inferPriorityThemeKey(priority);
+  return {
+    label: 'Train on Lichess',
+    url: lichessPuzzleUrlForTheme(themeKey),
+    kind: 'puzzle',
+  };
 };
 
 export const collectStudyLinksFromBatchSummary = (batchSummary) => {
