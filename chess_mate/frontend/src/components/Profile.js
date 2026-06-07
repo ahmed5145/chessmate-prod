@@ -6,7 +6,6 @@ import {
   Brain,
   Lock,
   TrendingUp,
-  CheckCircle,
   XCircle,
   AlertTriangle,
   Layout,
