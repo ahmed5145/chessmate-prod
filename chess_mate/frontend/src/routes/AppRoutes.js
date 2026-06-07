@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Dashboard from '../components/Dashboard';
 import Profile from '../components/Profile';
 import Login from '../components/Login';
@@ -26,10 +26,11 @@ import PrivacyPage from '../components/PrivacyPage';
 import ProtectedRoute from './ProtectedRoute';
 
 const AppRoutes = () => {
+  const location = useLocation();
   const isAuthenticated = !!localStorage.getItem('tokens');
 
   return (
-    <Routes>
+    <Routes location={location} key={location.pathname}>
       {/* Public routes */}
       <Route
         path="/"

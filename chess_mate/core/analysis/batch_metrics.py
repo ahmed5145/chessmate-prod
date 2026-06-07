@@ -30,10 +30,16 @@ def move_centipawn_loss(move: Dict[str, Any]) -> float:
     return deterioration_pawns * 100.0
 
 
-def compute_game_acpl(analyzed_moves: List[Dict[str, Any]]) -> float:
-    if not analyzed_moves:
+def compute_game_acpl(
+    analyzed_moves: List[Dict[str, Any]],
+    player_color: Optional[str] = None,
+) -> float:
+    moves = analyzed_moves
+    if player_color:
+        moves = _filter_player_moves(analyzed_moves, player_color)
+    if not moves:
         return 0.0
-    losses = [move_centipawn_loss(mv) for mv in analyzed_moves]
+    losses = [move_centipawn_loss(mv) for mv in moves]
     return round(sum(losses) / len(losses), 1)
 
 

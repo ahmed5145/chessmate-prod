@@ -103,6 +103,28 @@ def infer_player_color_from_headers(
     return "white"
 
 
+def _resolve_player_color_from_pgn(
+    pgn: str,
+    *,
+    chess_com_username: str = "",
+    lichess_username: str = "",
+) -> str:
+    """Infer which side the user played before classifying moves."""
+    try:
+        reader = io.StringIO(pgn)
+        game = chess.pgn.read_game(reader)
+        if game:
+            return infer_player_color_from_headers(
+                game.headers.get("White", ""),
+                game.headers.get("Black", ""),
+                chess_com_username=chess_com_username,
+                lichess_username=lichess_username,
+            )
+    except Exception:
+        pass
+    return "white"
+
+
 def build_game_result(
     pgn: str,
     game_id: str = None,
@@ -240,11 +262,20 @@ def build_game_result(
         pass
 
     # Compute opening_accuracy: percentage of opening-phase moves that match engine top-3
+    player_color = _resolve_player_color_from_pgn(
+        pgn,
+        chess_com_username=chess_com_username,
+        lichess_username=lichess_username,
+    )
+    player_is_white = player_color == "white"
+
     opening_length = int(metadata.get("opening_length", 0))
     opening_matches = 0
     opening_evaluated = 0
 
-    for i, mv in enumerate(analyzed_moves[:opening_length]):
+    for mv in analyzed_moves[:opening_length]:
+        if bool(mv.get("is_white", True)) != player_is_white:
+            continue
         best_line = mv.get("best_line") or []
         if not best_line:
             continue
@@ -278,10 +309,17 @@ def build_game_result(
         raw_endgame_start,
     )
 
+    def _is_player_half_move_index(idx: int) -> bool:
+        return bool(analyzed_moves[idx].get("is_white", True)) == player_is_white
+
     def _avg_drop_for_slice(start: int, end: int) -> float:
         if end <= start:
             return 0.0
-        slice_vals = eval_drops[start:end]
+        slice_vals = [
+            eval_drops[i]
+            for i in range(start, end)
+            if _is_player_half_move_index(i)
+        ]
         return float(sum(slice_vals) / len(slice_vals)) if slice_vals else 0.0
 
     # Initialize phase_breakdown with zeros (will be filled during classification pass)
@@ -356,7 +394,10 @@ def build_game_result(
 
         phase = phase_for_half_move_index(i, opening_end, endgame_start)
 
-        # Increment both move_quality and phase_breakdown counters together
+        # Only count the user's moves — opponent errors matter only if the user failed to capitalize
+        if not _is_player_half_move_index(i):
+            continue
+
         move_quality_out[classification] += 1
         phase_breakdown[phase]["moves"] += 1
         if classification == "blunder":
@@ -379,7 +420,9 @@ def build_game_result(
     critical_moves_candidates = [
         (idx, move_deteriorations[idx])
         for idx in range(len(analyzed_moves))
-        if move_deteriorations[idx] >= CRITICAL_MOMENT_MIN_PAWNS and not _skip_critical_moment(idx)
+        if _is_player_half_move_index(idx)
+        and move_deteriorations[idx] >= CRITICAL_MOMENT_MIN_PAWNS
+        and not _skip_critical_moment(idx)
     ]
     # Sort by deterioration (descending)
     critical_moves_candidates.sort(key=lambda x: x[1], reverse=True)
@@ -459,11 +502,11 @@ def build_game_result(
         "game_id": game_id,
         "total_moves": total_moves,
         "result": "",
-        "player_color": "white",
+        "player_color": player_color,
         "opening_name": opening_name,
         "eco_code": eco_code,
         "opening_accuracy": opening_accuracy,
-        "acpl": compute_game_acpl(analyzed_moves),
+        "acpl": compute_game_acpl(analyzed_moves, player_color),
         "phase_breakdown": phase_breakdown,
         "move_quality": move_quality_out,
         "critical_moments": critical_moments,
@@ -529,7 +572,9 @@ def build_game_result(
     if saved_game_id is not None:
         result["saved_game_id"] = saved_game_id
 
-    critical_move_numbers = [int(m.get("move_number")) for m in critical_moments if m.get("move_number") is not None]
+    critical_move_numbers = [
+        int(m.get("move_number")) for m in player_moments if m.get("move_number") is not None
+    ]
     time_management = compute_time_management_from_pgn(
         pgn,
         player_color,

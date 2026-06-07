@@ -144,6 +144,25 @@ def test_build_game_result_saved_game_id_and_player_color():
     assert res["saved_game_id"] == 42
 
 
+def test_move_quality_and_phases_count_player_moves_only():
+    res = build_game_result(
+        CLEAN_GAME_PGN,
+        game_id="player-only-mq",
+        chess_com_username="Tester",
+    )
+    player_moves = res["player_moves"]
+    classified_moves = sum(res["move_quality"].values())
+    phase_moves = sum(
+        phase.get("moves", 0) for phase in res["phase_breakdown"].values()
+    )
+
+    assert player_moves > 0
+    assert classified_moves == player_moves
+    assert phase_moves == player_moves
+    for moment in res["critical_moments"]:
+        assert moment.get("mover") == res["player_color"]
+
+
 def test_blunder_game_detects_critical_moment():
     res = build_game_result(BLUNDER_GAME_PGN, game_id="blunder-1")
 

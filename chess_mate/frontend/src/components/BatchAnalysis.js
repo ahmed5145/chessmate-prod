@@ -24,6 +24,10 @@ import api from '../services/api';
 
 const BATCH_SIZE_OPTIONS = [5, 10, 15, 20, 25, 30];
 const ACTIVE_BATCH_STATUSES = new Set(['pending', 'in_progress']);
+
+const normalizeBatchStatus = (status) => String(status || '').toLowerCase();
+
+const isActiveBatchStatus = (status) => ACTIVE_BATCH_STATUSES.has(normalizeBatchStatus(status));
 const clampBatchSize = (value, maxAvailable) => {
   const numeric = Number(value) || 10;
   return Math.min(Math.max(numeric, 5), Math.min(30, maxAvailable || 30));
@@ -51,6 +55,8 @@ const BatchAnalysis = () => {
   const [batchSendsEmail, setBatchSendsEmail] = useState(true);
   const [batchEtaOptions, setBatchEtaOptions] = useState({});
   const pollingErrorCountRef = useRef(0);
+  const isMountedRef = useRef(true);
+  const navigateFallbackRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,11 +80,34 @@ const BatchAnalysis = () => {
     };
   }, []);
 
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (navigateFallbackRef.current) {
+        window.clearTimeout(navigateFallbackRef.current);
+        navigateFallbackRef.current = null;
+      }
+    };
+  }, []);
+
   const navigateReliably = useCallback((targetPath, options = {}) => {
+    if (!isMountedRef.current) {
+      return;
+    }
+
     navigate(targetPath, options);
 
+    if (navigateFallbackRef.current) {
+      window.clearTimeout(navigateFallbackRef.current);
+    }
+
     // Router occasionally updates URL before rendering target route; force fallback.
-    window.setTimeout(() => {
+    navigateFallbackRef.current = window.setTimeout(() => {
+      navigateFallbackRef.current = null;
+      if (!isMountedRef.current) {
+        return;
+      }
       if (window.location.pathname !== targetPath) {
         window.location.assign(targetPath);
       }
@@ -115,15 +144,41 @@ const BatchAnalysis = () => {
     loadReportHistory();
   }, []);
 
+  const refreshReportHistory = useCallback(async () => {
+    try {
+      const reports = await fetchBatchReportHistory(12);
+      if (isMountedRef.current) {
+        setReportHistory(Array.isArray(reports) ? reports : []);
+      }
+    } catch (error) {
+      console.error('Error refreshing batch report history:', error);
+    }
+  }, []);
+
+  const hasActiveBatchJob = isAnalyzing || reportHistory.some((report) => isActiveBatchStatus(report.status));
+
+  useEffect(() => {
+    if (!hasActiveBatchJob) {
+      return undefined;
+    }
+
+    refreshReportHistory();
+    const intervalId = window.setInterval(refreshReportHistory, 15000);
+    return () => window.clearInterval(intervalId);
+  }, [hasActiveBatchJob, refreshReportHistory]);
+
   useEffect(() => {
     let intervalId;
     let toastId;
 
     const checkProgress = async () => {
-      if (!batchId) return;
+      if (!batchId || !isMountedRef.current) return;
 
       try {
         const response = await getBatchStatus(batchId);
+        if (!isMountedRef.current) {
+          return true;
+        }
         console.log('Status response:', response);
         pollingErrorCountRef.current = 0;
 
@@ -347,7 +402,7 @@ const BatchAnalysis = () => {
     ? formatBatchDurationRange(gamesForEstimate, batchEtaOptions)
     : null;
 
-  const activeBatchReport = reportHistory.find((report) => ACTIVE_BATCH_STATUSES.has(report.status));
+  const activeBatchReport = reportHistory.find((report) => isActiveBatchStatus(report.status));
   const batchStartBlocked = isAnalyzing || Boolean(activeBatchReport);
 
   const openBatchReport = (report) => {
@@ -356,7 +411,7 @@ const BatchAnalysis = () => {
       toast.error('Report is not ready yet. Try again in a moment.');
       return;
     }
-    navigateReliably(`/batch-report/${reportId}`);
+    navigate(`/batch-report/${reportId}`);
   };
 
   const toggleSelectedGame = (gameId) => {
@@ -636,7 +691,7 @@ const BatchAnalysis = () => {
                 </div>
               ) : (
                 reportHistory.map((report) => {
-                  const statusLabel = report.status || 'completed';
+                  const statusLabel = normalizeBatchStatus(report.status || 'completed');
                   const statusColors = {
                     completed: isDarkMode ? 'bg-green-900/40 text-green-300' : 'bg-green-100 text-green-800',
                     partial: isDarkMode ? 'bg-amber-900/40 text-amber-300' : 'bg-amber-100 text-amber-800',
@@ -675,7 +730,7 @@ const BatchAnalysis = () => {
                           {new Date(report.created_at).toLocaleString()}
                         </div>
                       </div>
-                      {ACTIVE_BATCH_STATUSES.has(statusLabel) ? (
+                      {isActiveBatchStatus(statusLabel) ? (
                         <button
                           type="button"
                           onClick={() => openBatchReport(report)}
@@ -837,8 +892,17 @@ const BatchAnalysis = () => {
                     : 'border-amber-200 bg-amber-50 text-amber-900'
                 }`}
               >
-                A batch report is already running (Batch #{activeBatchReport.id}). Wait for it to finish or use{' '}
-                <strong>View progress</strong> above before starting another.
+                A batch report is already running (Batch #{activeBatchReport.id}). Wait for it to finish or{' '}
+                <button
+                  type="button"
+                  onClick={() => openBatchReport(activeBatchReport)}
+                  className={`font-semibold underline underline-offset-2 ${
+                    isDarkMode ? 'text-amber-200 hover:text-amber-100' : 'text-amber-800 hover:text-amber-900'
+                  }`}
+                >
+                  view progress
+                </button>{' '}
+                before starting another.
               </div>
             ) : null}
             <button
