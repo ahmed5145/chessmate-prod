@@ -160,7 +160,7 @@ const Register = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className={`py-8 px-4 shadow sm:rounded-lg sm:px-10 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="on">
             <div>
               <label htmlFor="username" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                 Username
@@ -173,7 +173,9 @@ const Register = () => {
                   id="username"
                   name="username"
                   type="text"
-                  autoComplete="username"
+                  autoComplete="nickname"
+                  autoCapitalize="none"
+                  spellCheck="false"
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -199,7 +201,10 @@ const Register = () => {
                   id="email"
                   name="email"
                   type="email"
+                  inputMode="email"
                   autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck="false"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

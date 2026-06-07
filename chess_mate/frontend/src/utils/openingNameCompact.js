@@ -32,3 +32,33 @@ export const compactOpeningName = (openingName) => {
   text = text.replace(/\s+/g, ' ').trim();
   return text;
 };
+
+/**
+ * Build a focused Lichess study search query — variation name + ECO when available.
+ */
+export const buildOpeningStudyQuery = (openingName, ecoCode = null, playerColor = null) => {
+  const compacted = compactOpeningName(openingName);
+  if (!compacted) {
+    return 'chess opening';
+  }
+
+  let query = compacted;
+  if (compacted.includes(':')) {
+    const variation = compacted.split(':').slice(1).join(':').trim();
+    if (variation) {
+      query = variation;
+    }
+  }
+
+  const eco = String(ecoCode || '').trim().toUpperCase();
+  if (eco && !query.toUpperCase().includes(eco)) {
+    query = `${query} ${eco}`;
+  }
+
+  const color = String(playerColor || '').trim().toLowerCase();
+  if (color === 'white' || color === 'black') {
+    query = `${query} ${color}`;
+  }
+
+  return query.trim();
+};

@@ -22,6 +22,21 @@ describe('lichessOpeningSearchUrl', () => {
     expect(url).not.toContain('9.f4');
     expect(url).not.toContain('Qb6');
   });
+
+  it('builds distinct URLs with ECO and player color', () => {
+    const whiteUrl = lichessOpeningSearchUrl("Queen's Pawn Game: London System", {
+      ecoCode: 'D02',
+      playerColor: 'white',
+    });
+    const blackUrl = lichessOpeningSearchUrl("Queen's Pawn Game: London System", {
+      ecoCode: 'D02',
+      playerColor: 'black',
+    });
+
+    expect(whiteUrl).toContain('London+System+D02+white');
+    expect(blackUrl).toContain('London+System+D02+black');
+    expect(whiteUrl).not.toBe(blackUrl);
+  });
 });
 
 describe('resolvePriorityLichessLink', () => {

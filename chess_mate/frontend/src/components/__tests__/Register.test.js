@@ -21,6 +21,19 @@ describe('Register', () => {
     expect(screen.getByText('Passwords match')).toBeInTheDocument();
   });
 
+  it('uses nickname autocomplete on username to avoid Safari email autofill', () => {
+    render(
+      <BrowserRouter>
+        <Register />
+      </BrowserRouter>
+    );
+
+    const usernameField = screen.getByLabelText(/^username$/i);
+    expect(usernameField).toHaveAttribute('autoComplete', 'nickname');
+    expect(usernameField).toHaveAttribute('autoCapitalize', 'none');
+    expect(usernameField).toHaveAttribute('spellCheck', 'false');
+  });
+
   it('uses dark-mode friendly confirm password field classes', () => {
     render(
       <BrowserRouter>

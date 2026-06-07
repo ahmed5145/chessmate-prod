@@ -108,7 +108,10 @@ const RepertoireGaps = ({ batch_summary, per_game_results = [] }) => {
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                   <Box
                     component="a"
-                    href={lichessOpeningSearchUrl(gap.opening_name)}
+                    href={lichessOpeningSearchUrl(gap.opening_name, {
+                      ecoCode: gap.eco_code,
+                      playerColor: gap.player_color,
+                    })}
                     target="_blank"
                     rel="noopener noreferrer"
                     sx={{

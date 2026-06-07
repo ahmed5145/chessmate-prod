@@ -17,7 +17,7 @@ import { toast } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 import { fetchProfileData } from '../services/apiRequests';
 import { default as LoadingSpinner } from '../components/LoadingSpinner';
-import api from '../services/api';
+import ProfileLinkedAccounts from './profile/ProfileLinkedAccounts';
 
 
 const StatCard = ({ title, value, icon: Icon, trend, color = 'indigo' }) => {
@@ -392,7 +392,6 @@ const Profile = () => {
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [newUsernames, setNewUsernames] = useState({ chesscom: '', lichess: '' });
   const [performanceStats, setPerformanceStats] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
 
@@ -425,49 +424,6 @@ const Profile = () => {
       toast.error('Failed to load profile data');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleLinkAccount = async (platform) => {
-    try {
-      const username = platform === 'chess.com' ? newUsernames.chesscom : newUsernames.lichess;
-
-      if (!username) {
-        toast.error('Please enter a username');
-        return;
-      }
-
-      const payload =
-        platform === 'chess.com'
-          ? { chess_com_username: username.trim() }
-          : { lichess_username: username.trim() };
-
-      await api.patch('/api/v1/profile/update/', payload);
-
-      // Clear the input and refresh profile data
-      setNewUsernames(prev => ({ ...prev, [platform === 'chess.com' ? 'chesscom' : 'lichess']: '' }));
-      await loadProfileData();
-      toast.success(`Successfully linked ${platform} account`);
-    } catch (error) {
-      console.error('Error linking account:', error);
-      toast.error(error.response?.data?.message || error.message || 'Failed to link account');
-    }
-  };
-
-  const handleUnlinkAccount = async (platform) => {
-    try {
-      const payload =
-        platform === 'chess.com'
-          ? { chess_com_username: '' }
-          : { lichess_username: '' };
-
-      await api.patch('/api/v1/profile/update/', payload);
-
-      await loadProfileData();
-      toast.success(`Successfully unlinked ${platform} account`);
-    } catch (error) {
-      console.error('Error unlinking account:', error);
-      toast.error(error.response?.data?.message || error.message || 'Failed to unlink account');
     }
   };
 
@@ -600,108 +556,12 @@ const Profile = () => {
             </div>
           </div>
 
-        {/* Platform Usernames */}
-        <div className={`p-6 rounded-xl ${
-          isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-        } shadow-lg mb-8`}>
-          <h3 className={`text-lg font-semibold mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Linked Accounts
-          </h3>
-          <p className={`text-sm mb-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            Connect Chess.com and Lichess so imports use the right usernames.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              {
-                key: 'chess.com',
-                label: 'Chess.com',
-                connected: Boolean(profileData.chesscom_username),
-                username: profileData.chesscom_username,
-                inputKey: 'chesscom',
-                placeholder: 'Chess.com username',
-              },
-              {
-                key: 'lichess',
-                label: 'Lichess',
-                connected: Boolean(profileData.lichess_username),
-                username: profileData.lichess_username,
-                inputKey: 'lichess',
-                placeholder: 'Lichess username',
-              },
-            ].map((platform) => (
-              <div
-                key={platform.key}
-                className={`rounded-xl border p-4 flex flex-col gap-3 ${
-                  platform.connected
-                    ? isDarkMode
-                      ? 'border-green-800/60 bg-green-950/20'
-                      : 'border-green-200 bg-green-50/60'
-                    : isDarkMode
-                      ? 'border-gray-700 bg-gray-900/40'
-                      : 'border-gray-200 bg-gray-50/80'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {platform.label}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${
-                      platform.connected
-                        ? isDarkMode ? 'text-green-300' : 'text-green-700'
-                        : isDarkMode ? 'text-gray-500' : 'text-gray-500'
-                    }`}>
-                      {platform.connected ? 'Connected' : 'Not connected'}
-                    </p>
-                  </div>
-                  {platform.connected ? (
-                    <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />
-                  ) : (
-                    <XCircle className={`h-5 w-5 shrink-0 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'}`} />
-                  )}
-                </div>
-
-                {platform.connected ? (
-                  <>
-                    <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                      @{platform.username}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => handleUnlinkAccount(platform.key)}
-                      className={`self-start text-sm font-medium ${
-                        isDarkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700'
-                      }`}
-                    >
-                      Unlink account
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <input
-                      type="text"
-                      placeholder={platform.placeholder}
-                      value={newUsernames[platform.inputKey] || ''}
-                      onChange={(e) => setNewUsernames((prev) => ({ ...prev, [platform.inputKey]: e.target.value }))}
-                      className={`block w-full px-3 py-2 text-sm rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
-                        isDarkMode
-                          ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                          : 'border-gray-300 text-gray-900 placeholder-gray-500'
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleLinkAccount(platform.key)}
-                      className="self-start inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                    >
-                      Link account
-                    </button>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <ProfileLinkedAccounts
+          chesscomUsername={profileData.chesscom_username}
+          lichessUsername={profileData.lichess_username}
+          isDarkMode={isDarkMode}
+          onUpdated={loadProfileData}
+        />
       </div>
     </div>
   );

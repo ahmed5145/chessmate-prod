@@ -99,7 +99,10 @@ const OpeningSection = ({ batch_summary, per_game_results = [] }) => {
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
                     <LichessActionButton
                       label="Study on Lichess"
-                      url={lichessOpeningSearchUrl(gap.opening_name)}
+                      url={lichessOpeningSearchUrl(gap.opening_name, {
+                        ecoCode: gap.eco_code,
+                        playerColor: gap.player_color,
+                      })}
                       kind="opening"
                     />
                     {linkedGame?.platform_game_url ? (
@@ -172,7 +175,10 @@ const OpeningSection = ({ batch_summary, per_game_results = [] }) => {
               <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
                 <LichessActionButton
                   label="Study on Lichess"
-                  url={lichessOpeningSearchUrl(item.opening_name)}
+                  url={lichessOpeningSearchUrl(item.opening_name, {
+                    ecoCode: item.eco_code,
+                    playerColor: item.player_color,
+                  })}
                   kind="opening"
                 />
                 {item.game_id ? (

@@ -3,7 +3,7 @@
  */
 
 import { toTitleCase } from './formatLabel';
-import { compactOpeningName } from './openingNameCompact';
+import { buildOpeningStudyQuery, compactOpeningName } from './openingNameCompact';
 
 const PUZZLE_THEME_SLUGS = {
   fork: 'fork',
@@ -60,8 +60,12 @@ export const lichessPuzzleUrlForTheme = (theme) => {
   return 'https://lichess.org/training';
 };
 
-export const lichessOpeningSearchUrl = (openingName) => {
-  const query = compactOpeningName(openingName) || 'opening';
+export const lichessOpeningSearchUrl = (openingName, options = {}) => {
+  const query = buildOpeningStudyQuery(
+    openingName,
+    options.ecoCode,
+    options.playerColor
+  ) || 'opening';
   const params = new URLSearchParams({ order: 'hot', q: query });
   return `https://lichess.org/study/search?${params.toString()}`;
 };
@@ -178,8 +182,8 @@ export const collectStudyLinksFromBatchSummary = (batchSummary) => {
   const links = [];
   const seen = new Set();
 
-  const addLink = (label, url, kind) => {
-    const dedupe = `${kind}:${url}`;
+  const addLink = (label, url, kind, dedupeKey = null) => {
+    const dedupe = dedupeKey || `${kind}:${url}`;
     if (!url || seen.has(dedupe)) {
       return;
     }
@@ -208,10 +212,15 @@ export const collectStudyLinksFromBatchSummary = (batchSummary) => {
         return;
       }
       const color = item.player_color ? ` (${item.player_color})` : '';
+      const url = lichessOpeningSearchUrl(name, {
+        ecoCode: item.eco_code,
+        playerColor: item.player_color,
+      });
       addLink(
         `Study ${name}${color}`,
-        lichessOpeningSearchUrl(name),
-        'opening'
+        url,
+        'opening',
+        `opening:${item.eco_code || ''}:${buildOpeningStudyQuery(name, item.eco_code, item.player_color)}`
       );
     });
 
