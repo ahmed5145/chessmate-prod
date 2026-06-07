@@ -1,0 +1,60 @@
+# Codecov configuration (https://docs.codecov.com/docs/codecov-yaml)
+codecov:
+  require_ci_to_pass: yes
+  notify:
+    wait_for_ci: yes
+
+coverage:
+  precision: 2
+  round: down
+  range: "60...100"
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+
+flag_management:
+  default_rules:
+    carryforward: true
+
+ignore:
+  - "chess_mate/core/migrations/**"
+  - "chess_mate/telemetry/**"
+  - "**/run_*.py"
+  - "**/manage.py"
+  - "chess_mate/core/tests/**"
+  - "chess_mate/core/analysis/tests/**"
+  - "standalone_tests/**"
+  - "chess_mate/frontend/src/**/__tests__/**"
+  - "chess_mate/frontend/src/**/*.test.js"
+  - "chess_mate/frontend/src/**/*.test.jsx"
+  - "chess_mate/create_superuser.py"
+  - "chess_mate/patch_celery.py"
+  - "chess_mate/patch_and_run_celery.py"
+  - "chess_mate/test_connections.py"
+  - "chess_mate/test_django.py"
+  - "chess_mate/current_models.py"
+  - "chess_mate/current_schema.py"
+  - "chess_mate/scripts/**"
+  - "chess_mate/core/djangostubs.py"
+  - "chess_mate/core/types.py"
+  - "chess_mate/core/vine_patch.py"
+  - "chess_mate/core/windows_worker.py"
+  - "chess_mate/core/batch_analyze_games.py"
+  - "chess_mate/core/leaderboard_views.py"
+  - "chess_mate/frontend/src/index.js"
+  - "chess_mate/frontend/src/reportWebVitals.js"
+  - "chess_mate/frontend/src/setupTests.js"
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: true
+
+github_checks:
+  annotations: false

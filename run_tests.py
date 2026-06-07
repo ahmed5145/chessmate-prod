@@ -82,7 +82,10 @@ def build_command(args):
 
     # Handle coverage
     if args.coverage:
+        coverage_config = Path(__file__).parent.absolute() / ".coveragerc"
         coverage_args = ["--cov=chess_mate"]
+        if coverage_config.is_file():
+            coverage_args.append(f"--cov-config={coverage_config}")
         if args.html:
             coverage_args.append("--cov-report=html")
         coverage_args.append("--cov-report=term")

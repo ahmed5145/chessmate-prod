@@ -99,7 +99,11 @@
     "collectCoverageFrom": [
       "src/**/*.{js,jsx}",
       "!src/index.js",
-      "!src/reportWebVitals.js"
+      "!src/reportWebVitals.js",
+      "!src/setupTests.js",
+      "!src/**/__tests__/**",
+      "!src/**/*.test.js",
+      "!src/**/*.test.jsx"
     ]
   }
 }

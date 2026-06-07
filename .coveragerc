@@ -1,0 +1,30 @@
+# Pytest-cov / coverage.py — keep aligned with codecov.yml ignore list.
+[run]
+source = chess_mate
+omit =
+    chess_mate/core/migrations/*
+    chess_mate/telemetry/*
+    */run_*.py
+    */manage.py
+    chess_mate/core/tests/*
+    chess_mate/core/analysis/tests/*
+    standalone_tests/*
+    chess_mate/create_superuser.py
+    chess_mate/patch_celery.py
+    chess_mate/patch_and_run_celery.py
+    chess_mate/test_connections.py
+    chess_mate/test_django.py
+    chess_mate/current_models.py
+    chess_mate/current_schema.py
+    chess_mate/scripts/*
+    chess_mate/core/djangostubs.py
+    chess_mate/core/types.py
+    chess_mate/core/vine_patch.py
+    chess_mate/core/windows_worker.py
+    chess_mate/core/batch_analyze_games.py
+    chess_mate/core/leaderboard_views.py
+
+[report]
+precision = 2
+show_missing = True
+skip_covered = False
