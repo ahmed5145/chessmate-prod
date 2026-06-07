@@ -35,6 +35,7 @@ The following documents have been consolidated into other files and should no lo
 
 - HOW_TO_RUN.md → INSTALLATION.md
 - WINDOWS_SETUP.md → INSTALLATION.md
+- SETUP_AND_TESTING.md → INSTALLATION.md + TESTING.md (split and updated)
 - SECURITY_AUDIT.md → SECURITY.md
 - API_SECURITY.md → SECURITY.md
 - PROJECT_STATUS.md → CHANGELOG.md
