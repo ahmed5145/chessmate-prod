@@ -50,8 +50,8 @@ describe('Credits Component', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/Buy credits once/i)).toBeInTheDocument();
-    expect(screen.getByText(/Not a subscription/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Buy credits once/i })).toBeInTheDocument();
+    expect(screen.getByText(/Not a subscription — credits never expire/i)).toBeInTheDocument();
     expect(screen.getByText(/Coach Starter/i)).toBeInTheDocument();
     expect(screen.getByText(/Coach Plus/i)).toBeInTheDocument();
     expect(screen.getByText(/Coach Pro/i)).toBeInTheDocument();
