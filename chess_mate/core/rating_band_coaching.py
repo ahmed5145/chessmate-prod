@@ -47,7 +47,9 @@ def _tailor_band_advice(
 
     if worst_phase == "middlegame" or weakness:
         theme = weakness or "tactical patterns"
-        tailored["focus"] = f"Middlegame accuracy slipped most often around {theme} — calculate forcing lines before committing."
+        tailored["focus"] = (
+            f"Middlegame accuracy slipped most often around {theme} — calculate forcing lines before committing."
+        )
         tailored["daily_drill"] = (
             f"20 themed tactics on {theme}, then review one batch blunder where the same theme appeared."
         )

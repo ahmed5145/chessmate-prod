@@ -613,15 +613,10 @@ def _opening_group_key(result: Dict[str, Any]) -> str:
 
 def _opening_display_name(games: List[Dict[str, Any]]) -> str:
     from ..eco_codes import get_opening_name
-
     from ..opening_name_utils import compact_opening_name
 
     names = [compact_opening_name(g.get("opening_name")) for g in games if g.get("opening_name")]
-    known_names = [
-        n
-        for n in names
-        if n and str(n).strip().lower() not in ("unknown", "unknown opening", "?")
-    ]
+    known_names = [n for n in names if n and str(n).strip().lower() not in ("unknown", "unknown opening", "?")]
     if known_names:
         with_variation = [n for n in known_names if ":" in n]
         if with_variation:

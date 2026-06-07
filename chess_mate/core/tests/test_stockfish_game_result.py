@@ -152,9 +152,7 @@ def test_move_quality_and_phases_count_player_moves_only():
     )
     player_moves = res["player_moves"]
     classified_moves = sum(res["move_quality"].values())
-    phase_moves = sum(
-        phase.get("moves", 0) for phase in res["phase_breakdown"].values()
-    )
+    phase_moves = sum(phase.get("moves", 0) for phase in res["phase_breakdown"].values())
 
     assert player_moves > 0
     assert classified_moves == player_moves

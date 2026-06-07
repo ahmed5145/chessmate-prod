@@ -2,9 +2,9 @@
 
 import chess
 from core.analysis.moment_insights import (
+    _is_square_hanging,
     classify_endgame_material,
     classify_tactical_theme,
-    _is_square_hanging,
 )
 
 

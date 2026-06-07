@@ -321,11 +321,7 @@ def build_game_result(
     def _avg_drop_for_slice(start: int, end: int) -> float:
         if end <= start:
             return 0.0
-        slice_vals = [
-            eval_drops[i]
-            for i in range(start, end)
-            if _is_player_half_move_index(i)
-        ]
+        slice_vals = [eval_drops[i] for i in range(start, end) if _is_player_half_move_index(i)]
         return float(sum(slice_vals) / len(slice_vals)) if slice_vals else 0.0
 
     # Initialize phase_breakdown with zeros (will be filled during classification pass)
@@ -555,13 +551,9 @@ def build_game_result(
     result["black_elo"] = black_elo
 
     player_color = result.get("player_color", "white")
-    player_moments = [
-        moment for moment in critical_moments if moment.get("mover") == player_color
-    ]
+    player_moments = [moment for moment in critical_moments if moment.get("mover") == player_color]
     result["critical_moments"] = player_moments
-    result["tactical_patterns_missed"] = list(
-        {cm.get("tactical_theme", "missed_tactic") for cm in player_moments}
-    )
+    result["tactical_patterns_missed"] = list({cm.get("tactical_theme", "missed_tactic") for cm in player_moments})
     result["accuracy"] = compute_game_accuracy(analyzed_moves, player_color)
     result["player_moves"] = len(
         [mv for mv in analyzed_moves if bool(mv.get("is_white", True)) == (player_color == "white")]
@@ -578,9 +570,7 @@ def build_game_result(
     if saved_game_id is not None:
         result["saved_game_id"] = saved_game_id
 
-    critical_move_numbers = [
-        int(m.get("move_number")) for m in player_moments if m.get("move_number") is not None
-    ]
+    critical_move_numbers = [int(m.get("move_number")) for m in player_moments if m.get("move_number") is not None]
     time_management = compute_time_management_from_pgn(
         pgn,
         player_color,
