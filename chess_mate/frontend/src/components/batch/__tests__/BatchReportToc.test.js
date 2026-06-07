@@ -1,7 +1,9 @@
 import {
   BATCH_REPORT_SECTIONS,
   buildBatchReportTocSections,
+  hasCoachingInsightsSection,
   hasStudyDrillsSection,
+  hasTacticalPatternsSection,
 } from '../BatchReportToc';
 
 describe('BATCH_REPORT_SECTIONS order', () => {
@@ -49,6 +51,52 @@ describe('buildBatchReportTocSections', () => {
     const ids = sections.map((section) => section.id);
     expect(ids).toContain('batch-section-coaching-insights');
     expect(ids).toContain('batch-section-patterns');
+  });
+});
+
+describe('hasCoachingInsightsSection', () => {
+  it('is false when coaching data is empty', () => {
+    expect(hasCoachingInsightsSection({ batch_summary: {}, coaching_report: null })).toBe(false);
+  });
+
+  it('is true when rating band focus exists', () => {
+    expect(
+      hasCoachingInsightsSection({
+        batch_summary: { rating_band_coaching: { focus: 'Tactics' } },
+        coaching_report: null,
+      })
+    ).toBe(true);
+  });
+
+  it('is true when coaching narrative has phase text', () => {
+    expect(
+      hasCoachingInsightsSection({
+        batch_summary: {},
+        coaching_report: { coaching_narrative: { opening: 'Play principled development' } },
+      })
+    ).toBe(true);
+  });
+});
+
+describe('hasTacticalPatternsSection', () => {
+  it('is false without weaknesses or endgame insights', () => {
+    expect(hasTacticalPatternsSection({ batch_summary: {} })).toBe(false);
+  });
+
+  it('is true when recurring weaknesses exist', () => {
+    expect(
+      hasTacticalPatternsSection({
+        batch_summary: { recurring_weaknesses: [{ pattern: 'fork' }] },
+      })
+    ).toBe(true);
+  });
+
+  it('is true when endgame insights exist', () => {
+    expect(
+      hasTacticalPatternsSection({
+        batch_summary: { endgame_insights: [{ theme: 'rook_endgame' }] },
+      })
+    ).toBe(true);
   });
 });
 
