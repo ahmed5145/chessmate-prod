@@ -47,7 +47,7 @@ describe('GameAccordion', () => {
       );
     });
 
-    const accordion = document.getElementById('batch-game-game_1');
+    const accordion = screen.getByTestId('batch-game-game_1');
     expect(accordion).toHaveClass('batch-game-highlight');
     expect(accordion).toHaveClass('Mui-expanded');
 
@@ -55,7 +55,7 @@ describe('GameAccordion', () => {
       jest.advanceTimersByTime(2100);
     });
 
-    expect(accordion).not.toHaveClass('batch-game-highlight');
+    expect(screen.getByTestId('batch-game-game_1')).not.toHaveClass('batch-game-highlight');
     jest.useRealTimers();
   });
 });

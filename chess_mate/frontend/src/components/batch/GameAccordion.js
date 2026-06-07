@@ -176,6 +176,7 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
         return (
           <Accordion
             id={game.game_id ? `batch-game-${game.game_id}` : undefined}
+            data-testid={game.game_id ? `batch-game-${game.game_id}` : undefined}
             key={game.game_id || index}
             expanded={game.game_id ? expandedIds.has(game.game_id) : false}
             onChange={game.game_id ? handleAccordionChange(game.game_id) : undefined}

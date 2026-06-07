@@ -1,9 +1,7 @@
 import {
   BATCH_REPORT_SECTIONS,
   buildBatchReportTocSections,
-  hasCoachingInsightsSection,
   hasStudyDrillsSection,
-  hasTacticalPatternsSection,
 } from '../BatchReportToc';
 
 describe('BATCH_REPORT_SECTIONS order', () => {
