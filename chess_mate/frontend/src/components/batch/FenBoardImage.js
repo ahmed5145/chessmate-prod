@@ -1,5 +1,6 @@
 /**
- * FenBoardImage — static board diagram from FEN with optional orientation and move arrows.
+ * FenBoardImage — static board diagram from FEN with move arrows.
+ * Board stays upright (white at bottom); `orientation` / `perspective` only flips a–h / 1–8 labels.
  */
 
 import React, { useMemo, useState } from 'react';
