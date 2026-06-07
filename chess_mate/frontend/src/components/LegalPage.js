@@ -2,6 +2,27 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 
+export const LegalLink = ({ to, href, children }) => {
+  const { isDarkMode } = useTheme();
+  const className = isDarkMode
+    ? 'text-indigo-300 hover:text-indigo-200 underline'
+    : 'text-indigo-600 hover:text-indigo-800 underline';
+
+  if (to) {
+    return (
+      <Link to={to} className={className}>
+        {children}
+      </Link>
+    );
+  }
+
+  return (
+    <a href={href} className={className}>
+      {children}
+    </a>
+  );
+};
+
 const LegalPage = ({ title, children }) => {
   const { isDarkMode } = useTheme();
 

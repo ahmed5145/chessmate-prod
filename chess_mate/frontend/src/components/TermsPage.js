@@ -1,35 +1,66 @@
 import React from 'react';
-import LegalPage from './LegalPage';
+import LegalPage, { LegalLink } from './LegalPage';
 
 const TermsPage = () => (
   <LegalPage title="Terms of Service (Beta)">
     <p>
-      ChessMate is in <strong>beta</strong>. By using the service you agree to these terms.
-      We may change features, pricing, or availability without notice during beta.
+      ChessMate is in <strong>beta</strong>. By creating an account or using the service you agree to these terms
+      and our <LegalLink to="/privacy">Privacy Policy</LegalLink>.
+      We may change features, pricing, or availability during beta; material changes will be reflected on this page.
     </p>
-    <h2 className="text-xl font-semibold mt-6 mb-2">Service</h2>
+
+    <h2 className="text-xl font-semibold mt-6 mb-2">The service</h2>
     <p>
-      ChessMate imports your chess games, runs engine analysis, and produces batch coaching reports.
-      Analysis and coaching are automated; they are not a substitute for human coaching or guaranteed accuracy.
+      ChessMate imports chess games from platforms you connect (e.g. Chess.com, Lichess), runs Stockfish engine
+      analysis, and may generate AI-assisted batch coaching reports. Analysis and coaching are automated
+      estimates — not human coaching and not guaranteed to be complete or error-free.
     </p>
-    <h2 className="text-xl font-semibold mt-6 mb-2">Accounts & credits</h2>
+
+    <h2 className="text-xl font-semibold mt-6 mb-2">Accounts</h2>
+    <ul className="list-disc pl-6 space-y-2">
+      <li>You must provide accurate registration information and keep your credentials secure.</li>
+      <li>You must be at least <strong>13 years old</strong> (or the minimum age required in your country) to use ChessMate.</li>
+      <li>We may suspend or terminate accounts that violate these terms or pose a security risk.</li>
+    </ul>
+
+    <h2 className="text-xl font-semibold mt-6 mb-2">Credits & payments</h2>
+    <ul className="list-disc pl-6 space-y-2">
+      <li>
+        Credits are sold as <strong>one-time packs</strong>, not subscriptions. Purchased credits do not expire
+        while your account remains active unless stated otherwise at checkout.
+      </li>
+      <li>Importing a game typically costs <strong>1 credit</strong>. Batch Coach analysis is included once games are on your account.</li>
+      <li>Payments are processed by Stripe. Refunds follow our refund policy and applicable law.</li>
+    </ul>
+
+    <h2 className="text-xl font-semibold mt-6 mb-2">Shared reports</h2>
     <p>
-      You are responsible for your account credentials. Credits are consumed when importing games (1 credit per game).
-      Batch coach analysis is included once games are on your account. Purchased credits are non-refundable except where required by law.
+      You may generate a public link to a batch coaching report. Anyone with that link can view the shared content
+      until you revoke sharing. You are responsible for who you share links with.
     </p>
+
     <h2 className="text-xl font-semibold mt-6 mb-2">Acceptable use</h2>
     <p>
-      Do not abuse the API, attempt to access other users&apos; data, or use the service for unlawful purposes.
-      We may suspend accounts that violate these rules.
+      Do not abuse the API, scrape the service, attempt to access other users&apos; data, reverse-engineer protected
+      parts of the product, or use ChessMate for unlawful purposes.
     </p>
-    <h2 className="text-xl font-semibold mt-6 mb-2">Disclaimer</h2>
+
+    <h2 className="text-xl font-semibold mt-6 mb-2">Your content</h2>
     <p>
-      The service is provided &quot;as is&quot; during beta. We do not warrant uninterrupted or error-free operation.
-      Limitation of liability applies to the maximum extent permitted by law.
+      You retain ownership of games and data you import. You grant ChessMate a limited license to store, process,
+      analyze, and display that data to provide the service (including generating coaching text and shared reports).
     </p>
+
+    <h2 className="text-xl font-semibold mt-6 mb-2">Disclaimer & liability</h2>
+    <p>
+      The service is provided <strong>&quot;as is&quot;</strong> during beta. To the maximum extent permitted by law,
+      ChessMate is not liable for indirect or consequential damages, and our total liability is limited to amounts
+      you paid us in the twelve months before the claim.
+    </p>
+
     <h2 className="text-xl font-semibold mt-6 mb-2">Contact</h2>
     <p>
-      Questions: <a href="mailto:support@chess-mate.online" className="text-indigo-600 hover:underline">support@chess-mate.online</a>
+      Questions: <LegalLink href="mailto:support@chess-mate.online">support@chess-mate.online</LegalLink>
     </p>
     <p className="text-sm opacity-75 mt-8">Last updated: June 2026</p>
   </LegalPage>
