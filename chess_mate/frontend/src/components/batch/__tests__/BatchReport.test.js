@@ -31,6 +31,13 @@ jest.mock('../BatchReportStickyActions', () => function MockStickyActions() {
   return <div data-testid="batch-report-sticky-actions">Actions</div>;
 });
 
+jest.mock('../BatchLoadingScreen', () => function MockLoadingScreen({ status }) {
+  if (status === 'pending' || status === 'in_progress') {
+    return <div data-testid="batch-loading">Loading</div>;
+  }
+  return null;
+});
+
 const completedReport = {
   id: 'batch-42',
   status: 'completed',

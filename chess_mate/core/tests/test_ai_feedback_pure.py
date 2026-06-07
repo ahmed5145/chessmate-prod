@@ -1,5 +1,6 @@
 """Pure helper tests for core.ai_feedback.AIFeedbackGenerator (no OpenAI calls)."""
 
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -22,7 +23,11 @@ def generator():
     with patch("core.ai_feedback.OpenAI") as mock_openai:
         mock_openai.return_value = MagicMock()
         with override_settings(**TEST_SETTINGS):
-            yield AIFeedbackGenerator(api_key="test-key")
+            gen = AIFeedbackGenerator(api_key="test-key")
+            gen._extract_tactical_patterns = MagicMock(return_value=[])
+            gen._extract_positional_patterns = MagicMock(return_value=[])
+            gen._extract_endgame_patterns = MagicMock(return_value=[])
+            yield gen
 
 
 def _sample_games_analysis():
@@ -60,8 +65,8 @@ def _sample_games_analysis():
 def test_rate_limiter_blocks_after_max_calls():
     limiter = RateLimiter(max_calls=2, time_window=60)
     assert limiter.can_make_request() is True
-    limiter.calls.append(0)
-    limiter.calls.append(0)
+    now = time.time()
+    limiter.calls.extend([now, now])
     assert limiter.can_make_request() is False
 
 
