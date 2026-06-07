@@ -911,7 +911,7 @@ export const getUserProfile = async () => {
 
 export const updateUserProfile = async (profileData) => {
     try {
-        const response = await api.patch("/api/v1/profile/", profileData);
+        const response = await api.patch("/api/v1/profile/update/", profileData);
         return response.data;
     } catch (error) {
         if (error.response?.status === 400) {

@@ -12,7 +12,7 @@ const FetchGames = () => {
   const [loading, setLoading] = useState(false);
   const [gameMode, setGameMode] = useState('all');
   const [numGames, setNumGames] = useState(10);
-  const { credits } = useContext(UserContext);
+  const { credits, refreshUserData } = useContext(UserContext);
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
@@ -57,6 +57,11 @@ const FetchGames = () => {
       }
 
       await loadProfileData();
+      if (refreshUserData) {
+        await refreshUserData();
+      }
+      window.dispatchEvent(new CustomEvent('game-imported'));
+      window.dispatchEvent(new CustomEvent('credits-updated'));
       navigate('/games');
     } catch (error) {
       console.error('Error fetching games:', error);

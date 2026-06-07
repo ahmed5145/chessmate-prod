@@ -9,7 +9,7 @@ import { Alert, Box, Container } from '@mui/material';
 import BatchLoadingScreen from './BatchLoadingScreen';
 import BatchReportActions from './BatchReportActions';
 import BatchReportSections from './BatchReportSections';
-import { getBatchStatus, getBatchReport, regenerateBatchCoaching } from '../../services/apiRequests';
+import { getBatchStatus, getBatchReport } from '../../services/apiRequests';
 import api from '../../services/api';
 
 const BatchReport = () => {
@@ -22,7 +22,6 @@ const BatchReport = () => {
   const [totalGames, setTotalGames] = useState(0);
   const [error, setError] = useState(null);
   const [failedReport, setFailedReport] = useState(null);
-  const [regenerating, setRegenerating] = useState(false);
   const [batchSendsEmail, setBatchSendsEmail] = useState(true);
   const intervalRef = useRef(null);
   const loadingReportRef = useRef(false);
@@ -138,38 +137,6 @@ const BatchReport = () => {
   }, [batchId]);
 
   const showReport = batchReport && ['completed', 'partial'].includes(status);
-  const canRegenerate =
-    showReport &&
-    Array.isArray(batchReport?.per_game_results) &&
-    batchReport.per_game_results.length >= 5;
-
-  const handleRegenerateCoaching = async () => {
-    if (!canRegenerate || regenerating) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      'Regenerate the coaching report from your saved game analysis? Stockfish will not re-run (about 10–30 seconds).'
-    );
-    if (!confirmed) {
-      return;
-    }
-
-    setRegenerating(true);
-    try {
-      const updated = await regenerateBatchCoaching(batchId);
-      setBatchReport(updated);
-      setShareToken(updated?.share_token || shareToken);
-      setStatus(updated?.status || status);
-      toast.success('Coaching report updated.');
-    } catch (regenError) {
-      const message =
-        regenError?.detail || regenError?.message || 'Could not regenerate coaching. Try again later.';
-      toast.error(message);
-    } finally {
-      setRegenerating(false);
-    }
-  };
 
   return (
     <Box sx={{ minHeight: '100vh' }}>
@@ -212,9 +179,6 @@ const BatchReport = () => {
               batchId={batchId}
               shareToken={shareToken}
               onShareTokenChange={setShareToken}
-              canRegenerate={canRegenerate}
-              regenerating={regenerating}
-              onRegenerateCoaching={handleRegenerateCoaching}
               hasCoaching={Boolean(batchReport.coaching_report)}
             />
             <BatchReportSections

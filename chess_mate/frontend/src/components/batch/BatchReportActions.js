@@ -1,5 +1,5 @@
 /**
- * Share link + print actions for batch report owners.
+ * Share link + download actions for batch report owners.
  */
 
 import React, { useState } from 'react';
@@ -13,9 +13,6 @@ const BatchReportActions = ({
   batchId,
   shareToken,
   onShareTokenChange,
-  canRegenerate,
-  regenerating,
-  onRegenerateCoaching,
   hasCoaching
 }) => {
   const [sharing, setSharing] = useState(false);
@@ -70,7 +67,7 @@ const BatchReportActions = ({
       <Typography variant="body2" color="text.secondary">
         {hasCoaching
           ? 'Coaching is AI-generated from your engine analysis.'
-          : 'Coaching unavailable — regenerate to try again.'}
+          : 'Coaching is unavailable for this report.'}
       </Typography>
       <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="flex-end">
         <Button variant="outlined" size="small" onClick={handlePrint}>
@@ -85,16 +82,6 @@ const BatchReportActions = ({
         >
           {sharing ? 'Copying…' : 'Copy share link'}
         </Button>
-        {canRegenerate ? (
-          <Button
-            variant="outlined"
-            size="small"
-            disabled={regenerating}
-            onClick={onRegenerateCoaching}
-          >
-            {regenerating ? 'Regenerating…' : 'Regenerate coaching'}
-          </Button>
-        ) : null}
       </Stack>
     </Stack>
   );

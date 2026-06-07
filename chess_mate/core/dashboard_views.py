@@ -282,7 +282,12 @@ def dashboard_view(request):
         dashboard_data["win_rate"] = round(win_rate, 1)
         dashboard_data["credits"] = profile.credits
         dashboard_data["average_accuracy"] = average_accuracy
-        dashboard_data["insights"] = format_dashboard_insights(analysis_insights)
+        dashboard_data["insights"] = format_dashboard_insights(
+            analysis_insights,
+            total_games=total_games,
+            latest_batch_coach=latest_batch_coach,
+            latest_batch_summary=latest_batch_summary,
+        )
 
         # Cache the dashboard data
         cache_manager.set(cache_key, dashboard_data, timeout=300)  # Cache for 5 minutes

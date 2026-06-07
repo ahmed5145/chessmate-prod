@@ -27,18 +27,19 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
     );
   }
 
-  const getResultChipColor = (result) => {
-    if (result === '1-0') return 'success';
-    if (result === '0-1') return 'error';
-    return 'default';
-  };
-
   const getResultLabel = (result, playerColor) => {
     if (result === '1/2-1/2' || result === '*') return 'D';
     const playedWhite = playerColor === 'white';
     if (result === '1-0') return playedWhite ? 'W' : 'L';
     if (result === '0-1') return playedWhite ? 'L' : 'W';
     return 'D';
+  };
+
+  const getResultChipColor = (result, playerColor) => {
+    const label = getResultLabel(result, playerColor);
+    if (label === 'W') return 'success';
+    if (label === 'L') return 'error';
+    return 'default';
   };
 
   const formatPercent = (value) => {
@@ -113,7 +114,7 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
                 </Typography>
                 <Chip
                   label={getResultLabel(game.result, game.player_color)}
-                  color={getResultChipColor(game.result)}
+                  color={getResultChipColor(game.result, game.player_color)}
                   size="small"
                 />
                 <Typography variant="subtitle2">{game.opening_name || 'Unknown opening'}</Typography>

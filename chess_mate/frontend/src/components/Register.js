@@ -171,7 +171,9 @@ const Register = () => {
                 </div>
                 <input
                   id="username"
+                  name="username"
                   type="text"
+                  autoComplete="username"
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -195,7 +197,9 @@ const Register = () => {
                 </div>
                 <input
                   id="email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -219,7 +223,9 @@ const Register = () => {
                 </div>
                 <input
                   id="password"
+                  name="password"
                   type="password"
+                  autoComplete="new-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

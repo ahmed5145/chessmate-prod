@@ -23,6 +23,7 @@ import {
 import api from '../services/api';
 
 const BATCH_SIZE_OPTIONS = [5, 10, 15, 20, 25, 30];
+const ACTIVE_BATCH_STATUSES = new Set(['pending', 'in_progress']);
 const clampBatchSize = (value, maxAvailable) => {
   const numeric = Number(value) || 10;
   return Math.min(Math.max(numeric, 5), Math.min(30, maxAvailable || 30));
@@ -346,6 +347,9 @@ const BatchAnalysis = () => {
     ? formatBatchDurationRange(gamesForEstimate, batchEtaOptions)
     : null;
 
+  const activeBatchReport = reportHistory.find((report) => ACTIVE_BATCH_STATUSES.has(report.status));
+  const batchStartBlocked = isAnalyzing || Boolean(activeBatchReport);
+
   const toggleSelectedGame = (gameId) => {
     setSelectedGameIds((prev) => {
       if (prev.includes(gameId)) {
@@ -662,17 +666,31 @@ const BatchAnalysis = () => {
                           {new Date(report.created_at).toLocaleString()}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => navigateReliably(`/batch-report/${report.id}`)}
-                        className={`px-3 py-1.5 text-sm rounded-md border ${
-                          isDarkMode
-                            ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
-                            : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        Open Report
-                      </button>
+                      {ACTIVE_BATCH_STATUSES.has(statusLabel) ? (
+                        <button
+                          type="button"
+                          onClick={() => navigateReliably(`/batch-report/${report.id}`)}
+                          className={`px-3 py-1.5 text-sm rounded-md border ${
+                            isDarkMode
+                              ? 'border-blue-700 text-blue-200 hover:bg-blue-900/40'
+                              : 'border-blue-300 text-blue-800 hover:bg-blue-50'
+                          }`}
+                        >
+                          View progress
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => navigateReliably(`/batch-report/${report.id}`)}
+                          className={`px-3 py-1.5 text-sm rounded-md border ${
+                            isDarkMode
+                              ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          Open Report
+                        </button>
+                      )}
                     </div>
                   </div>
                   );
@@ -801,22 +819,42 @@ const BatchAnalysis = () => {
             </div>
           </div>
         ) : (
-          <button
-            onClick={startBatchAnalysis}
-            disabled={isAnalyzing || requiredCredits < 5}
-            className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-              isAnalyzing ? 'bg-gray-400 cursor-not-allowed' : isDarkMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-            }`}
-          >
-            {isAnalyzing ? (
-              <div className="flex items-center justify-center space-x-2">
-                <LoadingSpinner size="small" />
-                <span>Analyzing...</span>
+          <>
+            {activeBatchReport && !isAnalyzing ? (
+              <div
+                className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+                  isDarkMode
+                    ? 'border-amber-800/60 bg-amber-950/30 text-amber-100'
+                    : 'border-amber-200 bg-amber-50 text-amber-900'
+                }`}
+              >
+                A batch report is already running (Batch #{activeBatchReport.id}). Wait for it to finish or use{' '}
+                <strong>View progress</strong> above before starting another.
               </div>
-            ) : (
-              'Start Batch Analysis'
-            )}
-          </button>
+            ) : null}
+            <button
+              onClick={startBatchAnalysis}
+              disabled={batchStartBlocked || requiredCredits < 5}
+              className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+                batchStartBlocked || requiredCredits < 5
+                  ? 'bg-gray-400 cursor-not-allowed text-white'
+                  : isDarkMode
+                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+              }`}
+            >
+              {isAnalyzing ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <LoadingSpinner size="small" />
+                  <span>Analyzing...</span>
+                </div>
+              ) : activeBatchReport ? (
+                'Batch already in progress'
+              ) : (
+                'Start Batch Analysis'
+              )}
+            </button>
+          </>
         )}
       </div>
     </div>

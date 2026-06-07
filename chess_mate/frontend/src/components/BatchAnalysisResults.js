@@ -1116,21 +1116,6 @@ const BatchAnalysisResults = () => {
     prepareConfirm('Retry with Completed Games', combined, 'Game IDs', { gameIds: combined });
   };
 
-  const handleRegenerateCoaching = async () => {
-    // For partial batches where coaching generation failed, allow regenerating
-    const successfulIds = Array.isArray(results)
-      ? results.map((r) => r.game_id || r.id || null).filter(Boolean)
-      : [];
-
-    if (successfulIds.length < 5) {
-      toast.error('Need at least 5 analyzed games to regenerate coaching.');
-      return;
-    }
-
-    // Open confirmation dialog for regeneration
-    prepareConfirm('Regenerate Coaching Report', successfulIds, 'Game IDs', { gameIds: successfulIds });
-  };
-
   const handleOpenAdd = () => setOpenAddDialog(true);
   const handleCloseAdd = () => {
     setOpenAddDialog(false);
@@ -1265,16 +1250,6 @@ const BatchAnalysisResults = () => {
                 )}
               </>
             )}
-            {status === 'PARTIAL' && !hasRawCoach && (
-              <Box sx={{ display: 'inline-flex', alignItems: 'center', ml: 2 }}>
-                <Button variant="contained" color="secondary" onClick={handleRegenerateCoaching} disabled={isRetrying}>
-                  {isRetrying ? 'Starting...' : 'Regenerate Coaching Report'}
-                </Button>
-                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                  (coaching generation failed)
-                </Typography>
-              </Box>
-            )}
           </Box>
         )}
           <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)} fullWidth maxWidth="sm">
@@ -1314,16 +1289,8 @@ const BatchAnalysisResults = () => {
                   </>
                 );
               })()}
-              {confirmActionName === 'Regenerate Coaching Report' && (
-                <Typography variant="body2" color="warning.main" sx={{ mt: 2 }}>
-                  This starts a new batch and re-analyzes all selected games with Stockfish, then generates a new
-                  coaching report. Retries do not charge additional credits.
-                </Typography>
-              )}
               <Typography variant="body2" sx={{ mt: 2 }}>
-                Proceed to start this batch?
-                {confirmActionName !== 'Regenerate Coaching Report' &&
-                  ' Retries do not charge additional credits.'}
+                Proceed to start this batch? Retries do not charge additional credits.
               </Typography>
             </DialogContent>
             <DialogActions>
@@ -1335,7 +1302,7 @@ const BatchAnalysisResults = () => {
         {/* Banner for PARTIAL batches where coaching generation failed */}
         {status === 'PARTIAL' && !hasRawCoach && (
           <Alert severity="warning" sx={{ mb: 2 }}>
-            Your games were analyzed, but coaching report generation didn't complete. You can view your game stats below and regenerate the coaching report when ready.
+            Your games were analyzed, but coaching report generation didn&apos;t complete. You can still view engine stats below.
           </Alert>
         )}
 

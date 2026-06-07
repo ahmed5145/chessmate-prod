@@ -278,7 +278,13 @@ def compute_user_average_accuracy(
     return round(sum(accuracies) / len(accuracies), 1)
 
 
-def format_dashboard_insights(analysis_insights: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+def format_dashboard_insights(
+    analysis_insights: List[Dict[str, Any]],
+    *,
+    total_games: int = 0,
+    latest_batch_coach: Optional[Dict[str, Any]] = None,
+    latest_batch_summary: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, str]]:
     """Map raw analysis insights to UI-friendly {type, text} entries."""
     formatted: List[Dict[str, str]] = []
     for item in analysis_insights or []:
@@ -299,6 +305,10 @@ def format_dashboard_insights(analysis_insights: List[Dict[str, Any]]) -> List[D
 
         formatted.append({"type": insight_type, "text": text[:240]})
 
+    if not formatted and (total_games > 0 or latest_batch_coach):
+        batch_insights = _batch_dashboard_insights(latest_batch_coach, latest_batch_summary)
+        formatted.extend(batch_insights)
+
     if not formatted:
         formatted.append(
             {
@@ -307,6 +317,54 @@ def format_dashboard_insights(analysis_insights: List[Dict[str, Any]]) -> List[D
             }
         )
     return formatted
+
+
+def _batch_dashboard_insights(
+    latest_batch_coach: Optional[Dict[str, Any]],
+    latest_batch_summary: Optional[Dict[str, Any]],
+) -> List[Dict[str, str]]:
+    """Build performance insights from batch coach when per-game analysis is unavailable."""
+    insights: List[Dict[str, str]] = []
+    summary = latest_batch_summary if isinstance(latest_batch_summary, dict) else {}
+    coach = latest_batch_coach if isinstance(latest_batch_coach, dict) else {}
+
+    accuracy = summary.get("overall_accuracy_pct") or coach.get("overall_accuracy_pct")
+    if accuracy is not None:
+        try:
+            accuracy_val = float(accuracy)
+            insight_type = "success" if accuracy_val >= 80 else "warning" if accuracy_val >= 65 else "error"
+            insights.append(
+                {
+                    "type": insight_type,
+                    "text": f"Latest batch coach: {accuracy_val:.1f}% overall accuracy across your games.",
+                }
+            )
+        except (TypeError, ValueError):
+            pass
+
+    priorities = summary.get("top_priorities") or summary.get("priorities") or []
+    if isinstance(priorities, list) and priorities:
+        first = priorities[0]
+        if isinstance(first, dict):
+            priority_text = (first.get("title") or first.get("priority") or first.get("text") or "").strip()
+        else:
+            priority_text = str(first).strip()
+        if priority_text:
+            insights.append({"type": "warning", "text": f"Top focus area: {priority_text[:200]}"})
+
+    opening_weakness = summary.get("opening_weakness") or summary.get("weakest_opening")
+    if opening_weakness:
+        if isinstance(opening_weakness, dict):
+            opening_name = opening_weakness.get("name") or opening_weakness.get("opening") or "an opening"
+        else:
+            opening_name = str(opening_weakness)
+        insights.append({"type": "warning", "text": f"Opening to review: {opening_name[:120]}"})
+
+    coach_summary = (coach.get("summary") or "").strip()
+    if coach_summary and len(insights) < 3:
+        insights.append({"type": "success", "text": coach_summary[:240]})
+
+    return insights[:3]
 
 
 def compute_user_achievements(profile: Profile, game_counts: Optional[Dict[str, int]] = None) -> List[Dict[str, Any]]:

@@ -5,15 +5,20 @@
  */
 
 import React from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Typography,
   CircularProgress,
   LinearProgress,
-  Alert
+  Alert,
+  Button,
+  Stack
 } from '@mui/material';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import { formatBatchDurationRange } from '../../utils/batchTimeEstimate';
+
+const NAVBAR_HEIGHT_PX = 64;
 
 const BatchLoadingScreen = ({
   status,
@@ -37,11 +42,11 @@ const BatchLoadingScreen = ({
     <Box
       sx={{
         position: 'fixed',
-        top: 0,
+        top: `${NAVBAR_HEIGHT_PX}px`,
         left: 0,
         width: '100%',
-        height: '100%',
-        zIndex: 1000,
+        height: `calc(100% - ${NAVBAR_HEIGHT_PX}px)`,
+        zIndex: 40,
         backgroundColor: 'rgba(0, 0, 0, 0.7)',
         display: 'flex',
         alignItems: 'center',
@@ -123,6 +128,27 @@ const BatchLoadingScreen = ({
             </>
           )}
         </Alert>
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: '100%' }}>
+          <Button
+            component={RouterLink}
+            to="/dashboard"
+            variant="outlined"
+            size="small"
+            sx={{ color: 'grey.100', borderColor: 'grey.500', flex: 1 }}
+          >
+            Back to dashboard
+          </Button>
+          <Button
+            component={RouterLink}
+            to="/batch-analysis"
+            variant="outlined"
+            size="small"
+            sx={{ color: 'grey.100', borderColor: 'grey.500', flex: 1 }}
+          >
+            Batch analysis
+          </Button>
+        </Stack>
       </Box>
     </Box>
   );

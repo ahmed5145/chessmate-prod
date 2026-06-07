@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { X, Coins, Download, Brain, BarChart3, Sparkles } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { X, Coins, Download, Brain, BarChart3, Trophy } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import api from '../services/api';
@@ -56,6 +57,7 @@ const WelcomeGuide = () => {
       }
     } catch (error) {
       setVisible(true);
+      toast.error('Could not save your preference. Please try again.');
     } finally {
       setDismissing(false);
     }
@@ -83,7 +85,7 @@ const WelcomeGuide = () => {
           isDarkMode ? 'bg-indigo-950/60' : 'bg-indigo-600'
         }`}>
           <div className="flex items-center gap-2 min-w-0">
-            <Sparkles className={`h-5 w-5 shrink-0 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-100'}`} />
+            <Trophy className={`h-5 w-5 shrink-0 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-100'}`} />
             <div>
               <h2
                 id="welcome-guide-title"
