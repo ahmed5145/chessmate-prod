@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Box, List, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
-import { collectStudyLinksFromBatchSummary } from '../../utils/lichessStudyLinks';
+import { getRemainingStudyDrillLinks } from '../../utils/practiceNextLinks';
 import { scrollToBatchSection } from '../../utils/batchReportScroll';
 
 export const BATCH_REPORT_SECTIONS = [
@@ -38,7 +38,7 @@ export const hasTacticalPatternsSection = (batchReport) => {
 };
 
 export const hasStudyDrillsSection = (batchReport) => (
-  collectStudyLinksFromBatchSummary(batchReport?.batch_summary).length > 0
+  getRemainingStudyDrillLinks(batchReport).length > 0
 );
 
 export const buildBatchReportTocSections = (

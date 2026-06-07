@@ -5,13 +5,13 @@
 import React from 'react';
 import {
   Box,
-  Typography,
-  Container,
   Paper,
   List,
   ListItem,
-  ListItemText
+  ListItemText,
+  Typography,
 } from '@mui/material';
+import ReportSectionShell from './ReportSectionShell';
 import { splitSummaryBullets } from '../../utils/batchReportText';
 
 const ExecutiveSummary = ({ coaching_report }) => {
@@ -23,10 +23,7 @@ const ExecutiveSummary = ({ coaching_report }) => {
   const bullets = splitSummaryBullets(executiveSummary);
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-        Executive summary
-      </Typography>
+    <ReportSectionShell title="Executive summary">
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         {bullets.length > 1 ? (
           <List dense disablePadding>
@@ -53,7 +50,7 @@ const ExecutiveSummary = ({ coaching_report }) => {
           </Box>
         )}
       </Paper>
-    </Container>
+    </ReportSectionShell>
   );
 };
 

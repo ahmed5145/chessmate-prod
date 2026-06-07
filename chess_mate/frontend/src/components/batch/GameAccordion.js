@@ -2,7 +2,7 @@
  * GameAccordion.js — per-game breakdown from Stockfish analysis (critical moments, phases).
  */
 
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Typography,
@@ -10,7 +10,6 @@ import {
   AccordionSummary,
   AccordionDetails,
   Chip,
-  Container,
   Box,
   Divider,
   Link,
@@ -19,17 +18,83 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import FenBoardImage from './FenBoardImage';
+import ReportSectionShell from './ReportSectionShell';
 import { formatGameLabel, humanizeGameIdInText } from '../../utils/formatGameLabel';
-import { getGamePlatformLabel } from '../../utils/batchGameLinks';
+import { BATCH_GAME_FOCUS_EVENT, getGamePlatformLabel } from '../../utils/batchGameLinks';
 import { formatNumber } from '../../utils/formatNumber';
 import { sanitizeReportFloats } from '../../utils/sanitizeReportText';
 
+const HIGHLIGHT_MS = 2000;
+
+const truncateOpening = (name, maxLength = 36) => {
+  const text = String(name || '').trim();
+  if (!text || text.length <= maxLength) {
+    return text;
+  }
+  return `${text.slice(0, maxLength - 1)}…`;
+};
+
+const buildDefaultExpandedIds = (games = []) => {
+  const ids = new Set();
+  games.forEach((game, index) => {
+    if (!game?.game_id) {
+      return;
+    }
+    const criticalMoments = Array.isArray(game.critical_moments) ? game.critical_moments : [];
+    if (index === 0 || criticalMoments.length > 0) {
+      ids.add(game.game_id);
+    }
+  });
+  return ids;
+};
+
 const GameAccordion = ({ per_game_results, readOnly = false }) => {
-  if (!per_game_results || !Array.isArray(per_game_results) || per_game_results.length === 0) {
+  const [expandedIds, setExpandedIds] = useState(() => buildDefaultExpandedIds(per_game_results));
+  const [highlightedId, setHighlightedId] = useState(null);
+
+  useEffect(() => {
+    setExpandedIds(buildDefaultExpandedIds(per_game_results));
+  }, [per_game_results]);
+
+  useEffect(() => {
+    let highlightTimer;
+
+    const handleFocus = (event) => {
+      const gameId = event?.detail?.gameId;
+      if (!gameId) {
+        return;
+      }
+
+      setExpandedIds((previous) => new Set([...previous, gameId]));
+      setHighlightedId(gameId);
+
+      if (highlightTimer) {
+        window.clearTimeout(highlightTimer);
+      }
+      highlightTimer = window.setTimeout(() => {
+        setHighlightedId((current) => (current === gameId ? null : current));
+      }, HIGHLIGHT_MS);
+    };
+
+    window.addEventListener(BATCH_GAME_FOCUS_EVENT, handleFocus);
+    return () => {
+      window.removeEventListener(BATCH_GAME_FOCUS_EVENT, handleFocus);
+      if (highlightTimer) {
+        window.clearTimeout(highlightTimer);
+      }
+    };
+  }, []);
+
+  const games = useMemo(
+    () => (Array.isArray(per_game_results) ? per_game_results : []),
+    [per_game_results]
+  );
+
+  if (games.length === 0) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <ReportSectionShell title="Game-by-game breakdown">
         <Typography variant="body1">No game data available.</Typography>
-      </Container>
+      </ReportSectionShell>
     );
   }
 
@@ -71,16 +136,24 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
     return 'default';
   };
 
-  return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-        Game-by-game breakdown
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Engine-derived stats and critical moments from each game in this batch.
-      </Typography>
+  const handleAccordionChange = (gameId) => (_, isExpanded) => {
+    setExpandedIds((previous) => {
+      const next = new Set(previous);
+      if (isExpanded) {
+        next.add(gameId);
+      } else {
+        next.delete(gameId);
+      }
+      return next;
+    });
+  };
 
-      {per_game_results.map((game, index) => {
+  return (
+    <ReportSectionShell
+      title="Game-by-game breakdown"
+      subtitle="Engine-derived stats and critical moments from each game in this batch."
+    >
+      {games.map((game, index) => {
         const phaseBreakdown = game.phase_breakdown || {};
         const moveQuality = game.move_quality || {};
         const criticalMoments = Array.isArray(game.critical_moments) ? game.critical_moments : [];
@@ -93,86 +166,100 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
             : game.player_color === 'white'
               ? game.white_elo
               : null;
-
         const gameAccuracy = game.accuracy;
-
-        const shouldExpand = index === 0 || criticalMoments.length > 0;
+        const openingLabel = game.opening_name
+          && !['unknown', 'unknown opening'].includes(String(game.opening_name).toLowerCase())
+          ? truncateOpening(game.opening_name)
+          : null;
+        const isHighlighted = highlightedId === game.game_id;
 
         return (
           <Accordion
             id={game.game_id ? `batch-game-${game.game_id}` : undefined}
             key={game.game_id || index}
-            defaultExpanded={shouldExpand}
-            sx={{ mb: 2 }}
+            expanded={game.game_id ? expandedIds.has(game.game_id) : false}
+            onChange={game.game_id ? handleAccordionChange(game.game_id) : undefined}
+            className={isHighlighted ? 'batch-game-highlight' : undefined}
+            sx={{
+              mb: 2,
+              ...(isHighlighted
+                ? {
+                    border: '2px solid',
+                    borderColor: 'primary.main',
+                    boxShadow: '0 0 0 4px rgba(99, 102, 241, 0.18)',
+                  }
+                : {}),
+            }}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1.5,
+                  gap: 1,
                   flexWrap: 'wrap',
-                  width: '100%'
+                  width: '100%',
+                  minWidth: 0,
                 }}
               >
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                   {formatGameLabel(game)}
                 </Typography>
-                {game.platform_game_url && (
-                  <Link
-                    href={game.platform_game_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="caption"
-                    sx={{ ml: 0.5 }}
-                  >
-                    View on {game.platform || 'platform'}
-                  </Link>
-                )}
                 <Chip
                   label={getResultLabel(game.result, game.player_color)}
                   color={getResultChipColor(game.result, game.player_color)}
                   size="small"
                 />
-                {game.opening_name &&
-                  !['unknown', 'unknown opening'].includes(String(game.opening_name).toLowerCase()) && (
-                  <Typography variant="subtitle2">{game.opening_name}</Typography>
-                )}
-                {game.player_color && (
-                  <Chip label={game.player_color} size="small" variant="outlined" />
-                )}
-                {elo != null && (
-                  <Typography variant="caption" color="text.secondary">
-                    {elo} elo
-                  </Typography>
-                )}
-                {gameAccuracy != null && (
-                  <Chip
-                    label={`${Number(gameAccuracy).toFixed(1)}% accuracy`}
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                  />
-                )}
-                {!readOnly && game.saved_game_id ? (
-                  <Link
-                    component={RouterLink}
-                    to={`/game/${game.saved_game_id}/analysis`}
-                    variant="caption"
-                    onClick={(event) => event.stopPropagation()}
-                    sx={{ ml: 'auto' }}
+                {openingLabel ? (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: { xs: 180, sm: 280 },
+                    }}
                   >
-                    Saved game analysis
-                  </Link>
+                    {openingLabel}
+                  </Typography>
                 ) : null}
-                <Typography variant="caption" color="text.secondary">
-                  {game.total_moves || 0} moves · {moveQuality.blunder || 0} blunders
-                </Typography>
               </Box>
             </AccordionSummary>
 
             <AccordionDetails>
               <Box sx={{ display: 'grid', gap: 2 }}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
+                  {game.player_color ? (
+                    <Typography variant="caption" color="text.secondary">
+                      Played as {game.player_color}
+                    </Typography>
+                  ) : null}
+                  {elo != null ? (
+                    <Typography variant="caption" color="text.secondary">
+                      {elo} elo
+                    </Typography>
+                  ) : null}
+                  {gameAccuracy != null ? (
+                    <Typography variant="caption" color="text.secondary">
+                      {Number(gameAccuracy).toFixed(1)}% move match
+                    </Typography>
+                  ) : null}
+                  <Typography variant="caption" color="text.secondary">
+                    {game.total_moves || 0} moves · {moveQuality.blunder || 0} blunders
+                  </Typography>
+                  {!readOnly && game.saved_game_id ? (
+                    <Link
+                      component={RouterLink}
+                      to={`/game/${game.saved_game_id}/analysis`}
+                      variant="caption"
+                      sx={{ ml: { sm: 'auto' } }}
+                    >
+                      Saved game analysis
+                    </Link>
+                  ) : null}
+                </Box>
+
                 <Box>
                   {game.platform_game_url ? (
                     <Button
@@ -338,7 +425,7 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
           </Accordion>
         );
       })}
-    </Container>
+    </ReportSectionShell>
   );
 };
 

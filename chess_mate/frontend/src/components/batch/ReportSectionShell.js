@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Box, Container, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import SectionStatusHint from './SectionStatusHint';
 
 const ReportSectionShell = ({
@@ -13,7 +13,7 @@ const ReportSectionShell = ({
   children,
   sx = {},
 }) => (
-  <Container maxWidth="lg" sx={{ py: 2, ...sx }}>
+  <Box sx={{ py: 2, ...sx }}>
     <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
       {title}
     </Typography>
@@ -24,7 +24,7 @@ const ReportSectionShell = ({
     ) : null}
     {showStatusHint ? <SectionStatusHint sx={{ mb: 2 }} /> : null}
     {children}
-  </Container>
+  </Box>
 );
 
 export const ReportSubsection = ({ title, children, sx = {} }) => (

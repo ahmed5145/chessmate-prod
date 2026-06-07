@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Box, Chip, Container, Grid, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, Grid, Paper, Tooltip, Typography } from '@mui/material';
 import { toTitleCase } from '../../utils/formatLabel';
 
 const BatchReportHeader = ({ batch_summary, games_count }) => {
@@ -21,7 +21,7 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
   const dateRange = batch_summary.date_range;
 
   return (
-    <Container maxWidth="lg" sx={{ py: 2 }}>
+    <Box sx={{ py: 2 }}>
       <Paper sx={{ p: 3, border: '1px solid', borderColor: 'divider' }}>
         <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
           Batch analysis · {analyzed} games
@@ -90,7 +90,7 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
           )}
         </Grid>
       </Paper>
-    </Container>
+    </Box>
   );
 };
 

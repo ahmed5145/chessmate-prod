@@ -8,13 +8,13 @@ import {
   Box,
   Button,
   Chip,
-  Container,
   Grid,
   Paper,
   Typography
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import FenBoardImage from './FenBoardImage';
+import ReportSectionShell from './ReportSectionShell';
 import { findGameResultById, formatGameLabelById } from '../../utils/formatGameLabel';
 import { formatNumber } from '../../utils/formatNumber';
 import { sanitizeReportFloats } from '../../utils/sanitizeReportText';
@@ -65,41 +65,31 @@ const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false 
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 2 }}>
-      <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
-        Biggest turning points in your games
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Your largest eval swings in this batch — positions before your move (engine depth 14).
-      </Typography>
+    <ReportSectionShell
+      title="Biggest turning points in your games"
+      subtitle="Your largest eval swings in this batch — positions before your move (engine depth 14)."
+    >
       <Grid container spacing={2}>
         {moments.map((moment, index) => {
           const platformUrl = moment.platform_game_url || getGamePlatformUrl(per_game_results, moment.game_id);
+          const metaParts = [
+            `Move ${moment.move_number}`,
+            moment.game_id ? formatGameLabelById(per_game_results, moment.game_id) : null,
+            moment.player_color ? `You were ${moment.player_color}` : null,
+          ].filter(Boolean);
+
           return (
             <Grid item xs={12} md={4} key={`top-moment-${moment.game_id}-${moment.move_number}-${index}`}>
               <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', mb: 1 }}>
                   <Chip
                     size="small"
                     label={moment.type || 'moment'}
                     color={momentSeverityColor(moment.type)}
                   />
-                  <Chip size="small" label={`Move ${moment.move_number}`} variant="outlined" />
-                  {moment.game_id && (
-                    <Chip
-                      size="small"
-                      label={formatGameLabelById(per_game_results, moment.game_id)}
-                      variant="outlined"
-                    />
-                  )}
-                  {moment.player_color && (
-                    <Chip
-                      size="small"
-                      label={`You were ${moment.player_color}`}
-                      variant="outlined"
-                      color="info"
-                    />
-                  )}
+                  <Typography variant="caption" color="text.secondary">
+                    {metaParts.join(' · ')}
+                  </Typography>
                 </Box>
                 {moment.fen ? (
                   <Box sx={{ mb: 1.5 }}>
@@ -159,7 +149,7 @@ const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false 
           );
         })}
       </Grid>
-    </Container>
+    </ReportSectionShell>
   );
 };
 

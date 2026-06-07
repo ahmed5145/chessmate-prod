@@ -3,7 +3,8 @@
  */
 
 import React from 'react';
-import { Box, Typography, Container } from '@mui/material';
+import { Box } from '@mui/material';
+import ReportSectionShell from './ReportSectionShell';
 import PriorityCard from './PriorityCard';
 
 const TopPriorities = ({ coaching_report, per_game_results = [] }) => {
@@ -18,21 +19,18 @@ const TopPriorities = ({ coaching_report, per_game_results = [] }) => {
   const priorities = coaching_report.top_3_priorities;
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>
-        Top 3 Priorities
-      </Typography>
-
+    <ReportSectionShell title="Top 3 priorities">
       <Box>
         {priorities.map((priority, index) => (
           <PriorityCard
             key={priority.rank || index}
             priority={priority}
             per_game_results={per_game_results}
+            showLichessLink={Number(priority.rank) !== 1}
           />
         ))}
       </Box>
-    </Container>
+    </ReportSectionShell>
   );
 };
 

@@ -5,12 +5,12 @@
 import React from 'react';
 import {
   Typography,
-  Container,
   Accordion,
   AccordionSummary,
   AccordionDetails
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ReportSectionShell from './ReportSectionShell';
 
 const TrainingPlan = ({ coaching_report }) => {
   if (!coaching_report?.training_plan) {
@@ -26,15 +26,10 @@ const TrainingPlan = ({ coaching_report }) => {
   ];
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>
-        4-Week Training Plan
-      </Typography>
-
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        AI-suggested study outline based on this batch. Pair with the game breakdown below for specific positions.
-      </Typography>
-
+    <ReportSectionShell
+      title="4-week training plan"
+      subtitle="AI-suggested study outline based on this batch. Pair with the game breakdown below for specific positions."
+    >
       {weeks.map((week) => (
         <Accordion
           key={week.key}
@@ -53,7 +48,7 @@ const TrainingPlan = ({ coaching_report }) => {
           </AccordionDetails>
         </Accordion>
       ))}
-    </Container>
+    </ReportSectionShell>
   );
 };
 

@@ -7,7 +7,6 @@ import {
   Box,
   Button,
   Chip,
-  Container,
   Paper,
   Typography,
 } from '@mui/material';
@@ -32,7 +31,7 @@ const BatchReportHero = ({
   const isPartial = status === 'partial';
 
   return (
-    <Container maxWidth="lg" sx={{ py: 0, pb: 1 }}>
+    <Box sx={{ py: 0, pb: 1 }}>
       <Paper
         elevation={0}
         sx={(theme) => ({
@@ -93,7 +92,7 @@ const BatchReportHero = ({
           </Button>
         )}
       </Paper>
-    </Container>
+    </Box>
   );
 };
 

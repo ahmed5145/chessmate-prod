@@ -7,7 +7,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   List,
   ListItem,
   Typography,
@@ -22,8 +21,6 @@ import {
   resolveOpeningInsights,
   resolveRepertoireGaps,
 } from '../../utils/openingInsights';
-import { getOpeningRecordChipProps } from '../../utils/openingRecordChip';
-
 const findExampleGame = (gap, perGameResults) => {
   if (!Array.isArray(perGameResults)) {
     return null;
@@ -79,16 +76,12 @@ const OpeningSection = ({ batch_summary, per_game_results = [] }) => {
                     bgcolor: 'background.paper',
                   }}
                 >
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
-                    <Chip size="small" label={gap.opening_name} color="error" variant="outlined" />
-                    {gap.eco_code ? (
-                      <Chip size="small" label={`ECO ${gap.eco_code}`} variant="outlined" />
-                    ) : null}
-                    {gap.player_color ? (
-                      <Chip size="small" label={`as ${gap.player_color}`} variant="outlined" />
-                    ) : null}
-                    {gap.record ? <Chip size="small" label={gap.record} variant="outlined" /> : null}
-                  </Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                    {gap.opening_name}
+                    {gap.eco_code ? ` · ECO ${gap.eco_code}` : ''}
+                    {gap.player_color ? ` · as ${gap.player_color}` : ''}
+                    {gap.record ? ` · ${gap.record}` : ''}
+                  </Typography>
                   <Typography variant="body2" sx={{ mb: 1 }}>
                     {gap.summary || (
                       <>
@@ -152,20 +145,16 @@ const OpeningSection = ({ batch_summary, per_game_results = [] }) => {
                 mb: 1,
               }}
             >
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
-                <Chip size="small" label={item.opening_name} color="primary" variant="outlined" />
-                {item.eco_code ? (
-                  <Chip size="small" label={`ECO ${item.eco_code}`} variant="outlined" />
-                ) : null}
-                <Chip size="small" label={item.record || ''} {...getOpeningRecordChipProps(item.record)} />
-                {item.avg_opening_score != null ? (
-                  <Chip
-                    size="small"
-                    label={`Opening phase ${Math.round(item.avg_opening_score * 100)}%`}
-                    variant="outlined"
-                  />
-                ) : null}
-              </Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.25 }}>
+                {item.opening_name}
+                {item.eco_code ? ` · ECO ${item.eco_code}` : ''}
+                {item.record ? ` · ${item.record}` : ''}
+              </Typography>
+              {item.avg_opening_score != null ? (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                  Opening phase {Math.round(item.avg_opening_score * 100)}% move match
+                </Typography>
+              ) : null}
               {item.game_label ? (
                 <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
                   {item.game_label}

@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Alert, Button, Container, Typography } from '@mui/material';
+import { Alert, Button, Box, Typography } from '@mui/material';
 import { normalizeFailedGames } from './FailedGamesList';
 import { scrollToBatchSection } from '../../utils/batchReportScroll';
 
@@ -29,7 +29,7 @@ const PartialBatchBanner = ({ batchReport, status }) => {
     : 'Engine stats below cover the games that completed successfully.';
 
   return (
-    <Container maxWidth="lg" sx={{ py: 0 }}>
+    <Box sx={{ py: 0 }}>
       <Alert
         severity="warning"
         variant="outlined"
@@ -51,7 +51,7 @@ const PartialBatchBanner = ({ batchReport, status }) => {
           analyzed successfully ({failures.length} failed). {coachingNote}
         </Typography>
       </Alert>
-    </Container>
+    </Box>
   );
 };
 

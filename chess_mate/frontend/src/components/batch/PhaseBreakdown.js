@@ -1,14 +1,5 @@
 /**
- * PhaseBreakdown.js
- *
- * Displays performance across chess phases (opening, middlegame, endgame).
- * Shows 3 colored progress bars with trend indicators.
- *
- * Props:
- *   - batch_summary: object | null
- *       Contains phase_performance with opening/middlegame/endgame scores and trends
- *
- * Pure display component — no state, no API calls.
+ * PhaseBreakdown.js — performance across chess phases (opening, middlegame, endgame).
  */
 
 import React from 'react';
@@ -17,13 +8,12 @@ import {
   Typography,
   LinearProgress,
   Chip,
-  Container,
   Grid,
   Paper
 } from '@mui/material';
+import ReportSectionShell from './ReportSectionShell';
 
 const PhaseBreakdown = ({ batch_summary }) => {
-  // Return null if batch_summary missing or no phase_performance
   if (!batch_summary || !batch_summary.phase_performance) {
     return null;
   }
@@ -31,18 +21,12 @@ const PhaseBreakdown = ({ batch_summary }) => {
   const phases = batch_summary.phase_performance;
   const phaseKeys = ['opening', 'middlegame', 'endgame'];
 
-  /**
-   * Get color for LinearProgress based on score (0-1 scale)
-   */
   const getProgressColor = (score) => {
     if (score >= 0.75) return 'success';
     if (score >= 0.5) return 'warning';
     return 'error';
   };
 
-  /**
-   * Get Chip color and label based on trend
-   */
   const getTrendChip = (trend) => {
     if (!trend) return { color: 'default', label: 'No data' };
 
@@ -52,24 +36,16 @@ const PhaseBreakdown = ({ batch_summary }) => {
     if (trendLower === 'weak') return { color: 'error', label: 'Weak' };
     if (trendLower === 'no_data') return { color: 'default', label: 'No data' };
 
-    // Default fallback
     return { color: 'default', label: trendLower };
   };
 
-  /**
-   * Capitalize phase name
-   */
   const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-        Phase performance
-      </Typography>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 3 }}>
-        Move quality by game phase — same &quot;move match&quot; idea as the header, split by opening / middlegame / endgame.
-      </Typography>
-
+    <ReportSectionShell
+      title="Phase performance"
+      subtitle='Move quality by game phase — same "move match" idea as the header, split by opening / middlegame / endgame.'
+    >
       <Grid container spacing={3}>
         {phaseKeys.map((phaseKey) => {
           const phaseData = phases[phaseKey];
@@ -104,7 +80,6 @@ const PhaseBreakdown = ({ batch_summary }) => {
                   borderColor: 'divider'
                 }}
               >
-                {/* Phase label row: name on left, score on right */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                     {capitalize(phaseKey)}
@@ -114,7 +89,6 @@ const PhaseBreakdown = ({ batch_summary }) => {
                   </Typography>
                 </Box>
 
-                {/* Progress bar */}
                 <Box sx={{ mb: 1.5 }}>
                   <LinearProgress
                     variant="determinate"
@@ -124,7 +98,6 @@ const PhaseBreakdown = ({ batch_summary }) => {
                   />
                 </Box>
 
-                {/* Trend chip below bar */}
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <Chip
                     label={trendChip.label}
@@ -139,7 +112,7 @@ const PhaseBreakdown = ({ batch_summary }) => {
           );
         })}
       </Grid>
-    </Container>
+    </ReportSectionShell>
   );
 };
 

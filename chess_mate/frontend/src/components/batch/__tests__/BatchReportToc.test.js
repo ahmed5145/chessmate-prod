@@ -55,10 +55,24 @@ describe('buildBatchReportTocSections', () => {
 });
 
 describe('hasStudyDrillsSection', () => {
-  it('is true when recurring weaknesses exist', () => {
+  it('is false when all drill links fit in the practice strip', () => {
     expect(
       hasStudyDrillsSection({
         batch_summary: { recurring_weaknesses: [{ pattern: 'pin' }] },
+      })
+    ).toBe(false);
+  });
+
+  it('is true when extra drill links remain beyond the practice strip', () => {
+    expect(
+      hasStudyDrillsSection({
+        batch_summary: {
+          recurring_weaknesses: [
+            { pattern: 'pin' },
+            { pattern: 'fork' },
+            { pattern: 'skewer' },
+          ],
+        },
       })
     ).toBe(true);
   });

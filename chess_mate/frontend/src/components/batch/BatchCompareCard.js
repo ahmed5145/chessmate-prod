@@ -7,7 +7,6 @@ import {
   Alert,
   Box,
   Chip,
-  Container,
   Paper,
   Typography,
 } from '@mui/material';
@@ -77,21 +76,21 @@ const BatchCompareCard = ({ batchId }) => {
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 0 }}>
+      <Box sx={{ py: 0 }}>
         <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
           <Typography variant="body2" color="text.secondary">
             Loading comparison with your previous batch…
           </Typography>
         </Paper>
-      </Container>
+      </Box>
     );
   }
 
   if (missing || !compare) {
     return (
-      <Container maxWidth="lg" sx={{ py: 0 }}>
+      <Box sx={{ py: 0 }}>
         <CompareEmptyState />
-      </Container>
+      </Box>
     );
   }
 
@@ -103,7 +102,7 @@ const BatchCompareCard = ({ batchId }) => {
   );
 
   return (
-    <Container maxWidth="lg" sx={{ py: 0 }}>
+    <Box sx={{ py: 0 }}>
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
           vs previous batch (#{compare.other_batch_id})
@@ -152,7 +151,7 @@ const BatchCompareCard = ({ batchId }) => {
           )}
         </Box>
       </Paper>
-    </Container>
+    </Box>
   );
 };
 

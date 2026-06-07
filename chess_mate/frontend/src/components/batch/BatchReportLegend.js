@@ -3,10 +3,10 @@
  */
 
 import React from 'react';
-import { Container, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 
 const BatchReportLegend = () => (
-  <Container maxWidth="lg" sx={{ py: 0, pb: 1.5 }}>
+  <Box sx={{ py: 0, pb: 1.5 }}>
     <Typography
       variant="caption"
       color="text.secondary"
@@ -30,7 +30,7 @@ const BatchReportLegend = () => (
       <strong>Move match %</strong> = engine top-line agreement (header) ·{' '}
       <strong>Eval stability</strong> = batch-wide eval consistency (header)
     </Typography>
-  </Container>
+  </Box>
 );
 
 export default BatchReportLegend;

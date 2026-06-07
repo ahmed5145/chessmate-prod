@@ -31,7 +31,7 @@ const extractGameIds = (...parts) => {
   return [...new Set(matches.map((id) => id.toLowerCase()))];
 };
 
-const PriorityCard = ({ priority, per_game_results = [] }) => {
+const PriorityCard = ({ priority, per_game_results = [], showLichessLink = true }) => {
   if (!priority || typeof priority !== 'object') {
     return null;
   }
@@ -117,9 +117,9 @@ const PriorityCard = ({ priority, per_game_results = [] }) => {
           </Box>
         ) : null}
 
-        {(lichessLink || linkedGames.length > 0) && (
+        {((showLichessLink && lichessLink) || linkedGames.length > 0) && (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
-            {lichessLink ? (
+            {showLichessLink && lichessLink ? (
               <LichessActionButton
                 label={lichessLink.label}
                 url={lichessLink.url}

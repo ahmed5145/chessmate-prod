@@ -20,10 +20,14 @@ import TimeManagementInsight, { shouldShowTimeManagementInsight } from './TimeMa
 import OpeningSection from './OpeningSection';
 import CoachingInsightsSection from './CoachingInsightsSection';
 import StudyDrillLinks from './StudyDrillLinks';
+import PracticeNextStrip from './PracticeNextStrip';
+import {
+  collectPracticeNextLinks,
+  getRemainingStudyDrillLinks,
+} from '../../utils/practiceNextLinks';
 import BatchReportToc, {
   buildBatchReportTocSections,
   hasCoachingInsightsSection,
-  hasStudyDrillsSection,
   hasTacticalPatternsSection,
 } from './BatchReportToc';
 import BatchReportLegend from './BatchReportLegend';
@@ -54,7 +58,13 @@ const BatchReportSections = ({
   }
 
   const showTimeManagement = shouldShowTimeManagementInsight(batchReport.batch_summary);
-  const showStudyDrills = hasStudyDrillsSection(batchReport);
+  const practiceLinks = collectPracticeNextLinks({
+    coaching_report: batchReport.coaching_report,
+    batch_summary: batchReport.batch_summary,
+    per_game_results: batchReport.per_game_results,
+  });
+  const remainingDrillLinks = getRemainingStudyDrillLinks(batchReport);
+  const showStudyDrills = remainingDrillLinks.length > 0;
   const tocSections = buildBatchReportTocSections(batchReport, {
     showTimeManagement,
     showStudyDrills,
@@ -107,6 +117,9 @@ const BatchReportSections = ({
               coaching_report={batchReport.coaching_report}
               per_game_results={batchReport.per_game_results}
             />
+            <Box sx={{ mt: 1 }}>
+              <PracticeNextStrip links={practiceLinks} />
+            </Box>
           </SectionWrap>
 
           {!readOnly && batchId ? (
@@ -160,7 +173,7 @@ const BatchReportSections = ({
 
           {showStudyDrills ? (
             <SectionWrap id="batch-section-drills">
-              <StudyDrillLinks batch_summary={batchReport.batch_summary} />
+              <StudyDrillLinks links={remainingDrillLinks} />
             </SectionWrap>
           ) : null}
 

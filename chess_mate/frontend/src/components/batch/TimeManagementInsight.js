@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Alert, Container, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Tooltip, Typography } from '@mui/material';
 
 /** Hide batch-level time banner when every game already has per-game clock stats. */
 export const shouldShowTimeManagementInsight = (batchSummary) => {
@@ -30,7 +30,7 @@ const TimeManagementInsight = ({ batch_summary }) => {
   const severity = summary.pattern === 'rushed_critical_moments' ? 'warning' : 'info';
 
   return (
-    <Container maxWidth="lg" sx={{ py: 1 }}>
+    <Box sx={{ py: 1 }}>
       <Alert severity={severity}>
         <Tooltip title="Only games with clock timestamps in the PGN are included in time analysis.">
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -44,7 +44,7 @@ const TimeManagementInsight = ({ batch_summary }) => {
           {summary.insight}
         </Typography>
       </Alert>
-    </Container>
+    </Box>
   );
 };
 
