@@ -17,13 +17,7 @@ import {
   extractExecutiveTakeaway,
   hasCoachingPriorities,
 } from '../../utils/batchReportText';
-
-const scrollToSection = (sectionId) => {
-  const element = document.getElementById(sectionId);
-  if (element) {
-    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-};
+import { scrollToBatchSection } from '../../utils/batchReportScroll';
 
 const BatchReportHero = ({
   batch_summary,
@@ -82,7 +76,7 @@ const BatchReportHero = ({
             variant="contained"
             size="small"
             endIcon={<ArrowDownwardIcon />}
-            onClick={() => scrollToSection('batch-section-priorities')}
+            onClick={() => scrollToBatchSection('batch-section-priorities')}
             sx={{ textTransform: 'none', fontWeight: 700 }}
           >
             Start with priority #1
@@ -92,7 +86,7 @@ const BatchReportHero = ({
             variant="outlined"
             size="small"
             endIcon={<ArrowDownwardIcon />}
-            onClick={() => scrollToSection('batch-section-phases')}
+            onClick={() => scrollToBatchSection('batch-section-phases')}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             View phase breakdown

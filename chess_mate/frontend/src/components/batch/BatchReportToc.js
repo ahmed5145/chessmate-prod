@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, List, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
 import { collectStudyLinksFromBatchSummary } from '../../utils/lichessStudyLinks';
+import { scrollToBatchSection } from '../../utils/batchReportScroll';
 
 export const BATCH_REPORT_SECTIONS = [
   { id: 'batch-section-summary', label: 'Executive summary' },
@@ -90,12 +91,9 @@ const BatchReportToc = ({ sections = BATCH_REPORT_SECTIONS }) => {
     return () => observer.disconnect();
   }, [sections]);
 
-  const scrollToSection = (sectionId) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setActiveId(sectionId);
-    }
+  const handleSectionClick = (sectionId) => {
+    scrollToBatchSection(sectionId);
+    setActiveId(sectionId);
   };
 
   return (
@@ -146,7 +144,7 @@ const BatchReportToc = ({ sections = BATCH_REPORT_SECTIONS }) => {
               <ListItemButton
                 key={section.id}
                 selected={isActive}
-                onClick={() => scrollToSection(section.id)}
+                onClick={() => handleSectionClick(section.id)}
                 sx={(theme) => ({
                   borderRadius: 1.5,
                   py: 0.65,

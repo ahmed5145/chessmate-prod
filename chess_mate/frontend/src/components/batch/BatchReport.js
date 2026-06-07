@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Alert, Box, Container } from '@mui/material';
 import BatchLoadingScreen from './BatchLoadingScreen';
-import BatchReportActions from './BatchReportActions';
+import BatchReportStickyActions from './BatchReportStickyActions';
 import BatchReportSections from './BatchReportSections';
 import { getBatchStatus, getBatchReport } from '../../services/apiRequests';
 import api from '../../services/api';
@@ -177,7 +177,7 @@ const BatchReport = () => {
 
         {showReport ? (
           <>
-            <BatchReportActions
+            <BatchReportStickyActions
               batchId={batchId}
               shareToken={shareToken}
               onShareTokenChange={setShareToken}

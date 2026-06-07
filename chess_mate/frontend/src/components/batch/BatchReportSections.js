@@ -27,11 +27,18 @@ import BatchReportToc, {
   hasTacticalPatternsSection,
 } from './BatchReportToc';
 import BatchReportLegend from './BatchReportLegend';
+import BatchReportMobileNav from './BatchReportMobileNav';
+import PartialBatchBanner from './PartialBatchBanner';
 import './batchReportPrint.css';
 import './batchReportScreen.css';
 
 const SectionWrap = ({ id, children }) => (
-  <Box id={id} sx={{ scrollMarginTop: '88px' }}>
+  <Box
+    id={id}
+    sx={{
+      scrollMarginTop: { xs: '168px', md: '88px' },
+    }}
+  >
     {children}
   </Box>
 );
@@ -67,9 +74,7 @@ const BatchReportSections = ({
       >
         <BatchReportToc sections={tocSections} />
         <Box sx={{ display: 'grid', gap: 2, minWidth: 0 }}>
-          {status === 'partial' ? (
-            <FailedGamesList failures={batchReport.errors || batchReport.failed_games || []} />
-          ) : null}
+          <BatchReportMobileNav sections={tocSections} />
 
           <BatchReportHero
             batch_summary={batchReport.batch_summary}
@@ -78,7 +83,15 @@ const BatchReportSections = ({
             status={status}
           />
 
+          <PartialBatchBanner batchReport={batchReport} status={status} />
+
           <CoachingUnavailableBanner coachingReport={batchReport.coaching_report} />
+
+          {status === 'partial' ? (
+            <SectionWrap id="batch-section-failed-games">
+              <FailedGamesList failures={batchReport.errors || batchReport.failed_games || []} />
+            </SectionWrap>
+          ) : null}
 
           <BatchReportHeader
             batch_summary={batchReport.batch_summary}
@@ -96,7 +109,11 @@ const BatchReportSections = ({
             />
           </SectionWrap>
 
-          {!readOnly && batchId ? <BatchCompareCard batchId={batchId} /> : null}
+          {!readOnly && batchId ? (
+            <SectionWrap id="batch-section-compare">
+              <BatchCompareCard batchId={batchId} />
+            </SectionWrap>
+          ) : null}
 
           <SectionWrap id="batch-section-phases">
             <PhaseBreakdown batch_summary={batchReport.batch_summary} />
