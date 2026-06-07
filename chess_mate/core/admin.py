@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.utils.html import format_html
 
 from .batch_coaching import regenerate_batch_coaching
+from .batch_rerun import BatchRerunError, queue_batch_rerun
 from .models import (
     BatchAnalysisReport,
     Game,
@@ -172,7 +173,7 @@ class BatchAnalysisReportAdmin(admin.ModelAdmin):
         "failed_games_display",
         "coach_summary_preview",
     )
-    actions = ("regenerate_coaching",)
+    actions = ("regenerate_coaching", "rerun_stockfish_analysis")
     fieldsets = (
         (
             None,
@@ -255,6 +256,27 @@ class BatchAnalysisReportAdmin(admin.ModelAdmin):
         if len(text) > 500:
             text = f"{text[:500]}…"
         return text
+
+    @admin.action(description="Re-run Stockfish analysis (classification fixes, no credits)")
+    def rerun_stockfish_analysis(self, request, queryset):
+        ok_count = 0
+        for batch_report in queryset:
+            try:
+                message = queue_batch_rerun(batch_report)
+                ok_count += 1
+                self.message_user(request, message, messages.SUCCESS)
+            except BatchRerunError as exc:
+                self.message_user(
+                    request,
+                    f"Batch {batch_report.id}: {exc}",
+                    messages.ERROR,
+                )
+        if ok_count:
+            self.message_user(
+                request,
+                f"Queued Stockfish re-analysis for {ok_count} batch report(s).",
+                messages.SUCCESS,
+            )
 
     @admin.action(description="Regenerate coaching (OpenAI, no Stockfish)")
     def regenerate_coaching(self, request, queryset):
