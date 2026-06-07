@@ -7,6 +7,19 @@
   scrollbar-width: none;
 }
 
+.batch-report-page {
+  overflow-x: clip;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media screen and (max-width: 899px) {
+  body:has(.batch-report-page) {
+    overflow-x: clip;
+  }
+}
+
 .batch-report-sticky-actions {
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
 }
@@ -30,11 +43,22 @@
   background: rgba(99, 102, 241, 0.35);
 }
 
-/* Batch report — mobile / narrow viewport polish (screen only) */
-@media screen and (max-width: 600px) {
+/* Batch report — narrow viewport polish (screen only, through md breakpoint) */
+@media screen and (max-width: 899px) {
+  .batch-report-page {
+    overflow-x: clip;
+  }
+
+  .batch-report-print-root {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+  }
+
   .batch-report-print-root .MuiContainer-root {
-    padding-left: 12px !important;
-    padding-right: 12px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 
   .batch-report-print-root .MuiPaper-root {
@@ -49,16 +73,31 @@
     font-size: 1.05rem;
   }
 
-  .batch-report-print-root img {
+  .batch-report-print-root img,
+  .batch-report-print-root svg {
+    max-width: 100% !important;
+  }
+
+  .batch-report-print-root .fen-board-diagram {
     max-width: 100% !important;
   }
 
   .batch-report-print-root .MuiAccordionSummary-content {
     flex-wrap: wrap;
     gap: 4px;
+    min-width: 0;
   }
 
   .batch-report-print-root .MuiChip-root {
     max-width: 100%;
+  }
+
+  .batch-report-print-root .MuiTableContainer-root {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .batch-report-actions {
+    width: 100%;
   }
 }

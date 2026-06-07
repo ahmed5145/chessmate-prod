@@ -67,19 +67,29 @@ const BatchReportActions = ({
 
   return (
     <Stack
-      className="batch-report-no-print"
-      direction={{ xs: 'column', sm: 'row' }}
-      alignItems={{ xs: 'stretch', sm: 'center' }}
+      className="batch-report-no-print batch-report-actions"
+      direction={{ xs: 'column', md: 'row' }}
+      alignItems={{ xs: 'stretch', md: 'center' }}
       justifyContent="space-between"
-      spacing={1}
-      sx={{ px: { xs: 0, sm: 1 } }}
+      spacing={1.25}
+      sx={{ width: '100%', maxWidth: '100%', minWidth: 0 }}
     >
-      <Typography variant="body2" color="text.secondary">
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ width: '100%', minWidth: 0, lineHeight: 1.45 }}
+      >
         {hasCoaching
           ? 'Coaching is AI-generated from your engine analysis.'
           : 'Coaching is unavailable for this report.'}
       </Typography>
-      <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="flex-end">
+      <Stack
+        direction="row"
+        spacing={1}
+        flexWrap="wrap"
+        useFlexGap
+        sx={{ width: { xs: '100%', md: 'auto' }, minWidth: 0 }}
+      >
         <Tooltip title='Opens your browser print dialog — pick "Save as PDF" to download. Nav and action buttons are hidden in the export.'>
           <Button
             variant="outlined"
@@ -87,6 +97,7 @@ const BatchReportActions = ({
             onClick={handleDownload}
             startIcon={<DownloadIcon fontSize="small" />}
             aria-label="Download report"
+            sx={{ flex: { xs: 1, md: 'none' }, minWidth: 0 }}
           >
             Download
           </Button>
@@ -97,6 +108,7 @@ const BatchReportActions = ({
           disabled={sharing}
           onClick={handleCopyShareLink}
           startIcon={<LinkIcon fontSize="small" />}
+          sx={{ flex: { xs: 1, md: 'none' }, minWidth: 0 }}
         >
           {sharing ? 'Copying…' : 'Copy share link'}
         </Button>

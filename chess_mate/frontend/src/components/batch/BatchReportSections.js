@@ -33,6 +33,7 @@ import BatchReportToc, {
 import BatchReportLegend from './BatchReportLegend';
 import BatchReportMobileNav from './BatchReportMobileNav';
 import PartialBatchBanner from './PartialBatchBanner';
+import { BATCH_REPORT_MOBILE_SCROLL_MARGIN_PX } from './batchReportLayout';
 import './batchReportPrint.css';
 import './batchReportScreen.css';
 
@@ -40,7 +41,7 @@ const SectionWrap = ({ id, children }) => (
   <Box
     id={id}
     sx={{
-      scrollMarginTop: { xs: '168px', md: '88px' },
+      scrollMarginTop: { xs: `${BATCH_REPORT_MOBILE_SCROLL_MARGIN_PX}px`, md: '88px' },
     }}
   >
     {children}
@@ -71,7 +72,10 @@ const BatchReportSections = ({
   });
 
   return (
-    <Box className="batch-report-print-root">
+    <Box
+      className="batch-report-print-root"
+      sx={{ width: '100%', maxWidth: '100%', minWidth: 0, overflowX: 'clip' }}
+    >
       <BatchReportLegend />
       <Box
         className="batch-report-sections-layout"

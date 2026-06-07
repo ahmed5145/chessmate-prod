@@ -152,46 +152,67 @@ const BatchReport = () => {
         />
       </Box>
 
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        {error ? (
-          <Alert severity="error" sx={{ mb: 3, width: '100%' }}>
-            {error}
-          </Alert>
-        ) : null}
-
-        {status === 'failed' ? (
-          <Alert severity="error" sx={{ mb: 3, width: '100%' }}>
-            {failedReport?.message ||
-              'Analysis failed — insufficient games succeeded. Please try again with at least 5 games.'}
-            {failedReport?.credits_refunded && failedReport?.credits_refunded_amount ? (
-              <>
-                {' '}
-                Your account was refunded {failedReport.credits_refunded_amount} credit
-                {failedReport.credits_refunded_amount === 1 ? '' : 's'} for this batch.
-              </>
-            ) : failedReport?.credits_refunded ? (
-              <> Your credits for this batch were refunded.</>
-            ) : null}
-          </Alert>
-        ) : null}
-
+      <Box
+        className="batch-report-page"
+        sx={{
+          width: '100%',
+          maxWidth: '100%',
+          minWidth: 0,
+          overflowX: 'clip',
+        }}
+      >
         {showReport ? (
-          <>
-            <BatchReportStickyActions
-              batchId={batchId}
-              shareToken={shareToken}
-              onShareTokenChange={setShareToken}
-              hasCoaching={Boolean(batchReport.coaching_report)}
-            />
+          <BatchReportStickyActions
+            batchId={batchId}
+            shareToken={shareToken}
+            onShareTokenChange={setShareToken}
+            hasCoaching={Boolean(batchReport.coaching_report)}
+          />
+        ) : null}
+
+        <Container
+          maxWidth="lg"
+          disableGutters={false}
+          sx={{
+            py: { xs: 2, md: 4 },
+            px: { xs: 2, sm: 3 },
+            width: '100%',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
+          }}
+        >
+          {error ? (
+            <Alert severity="error" sx={{ mb: 3, width: '100%' }}>
+              {error}
+            </Alert>
+          ) : null}
+
+          {status === 'failed' ? (
+            <Alert severity="error" sx={{ mb: 3, width: '100%' }}>
+              {failedReport?.message ||
+                'Analysis failed — insufficient games succeeded. Please try again with at least 5 games.'}
+              {failedReport?.credits_refunded && failedReport?.credits_refunded_amount ? (
+                <>
+                  {' '}
+                  Your account was refunded {failedReport.credits_refunded_amount} credit
+                  {failedReport.credits_refunded_amount === 1 ? '' : 's'} for this batch.
+                </>
+              ) : failedReport?.credits_refunded ? (
+                <> Your credits for this batch were refunded.</>
+              ) : null}
+            </Alert>
+          ) : null}
+
+          {showReport ? (
             <BatchReportSections
               batchReport={batchReport}
               status={batchReport.status || status}
               batchId={batchId}
               readOnly={false}
             />
-          </>
-        ) : null}
-      </Container>
+          ) : null}
+        </Container>
+      </Box>
     </Box>
   );
 };

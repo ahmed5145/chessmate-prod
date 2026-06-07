@@ -58,7 +58,10 @@ const BatchSharedReport = () => {
   const gamesCount = batchReport?.games_count || batchReport?.batch_summary?.games_analyzed;
 
   return (
-    <Box sx={{ minHeight: '100vh', py: 4, bgcolor: 'background.default' }}>
+    <Box
+      className="batch-report-page"
+      sx={{ minHeight: '100vh', py: 4, bgcolor: 'background.default', width: '100%', maxWidth: '100%', overflowX: 'clip' }}
+    >
       <Container maxWidth="lg">
         <Paper
           className="batch-report-no-print"

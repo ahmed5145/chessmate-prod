@@ -5,6 +5,10 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Chip } from '@mui/material';
 import { scrollToBatchSection } from '../../utils/batchReportScroll';
+import {
+  BATCH_REPORT_MOBILE_NAV_TOP,
+  BATCH_REPORT_PAGE_GUTTER_SX,
+} from './batchReportLayout';
 
 const INDIGO = '#4f46e5';
 
@@ -46,23 +50,27 @@ const BatchReportMobileNav = ({ sections = [] }) => {
       sx={{
         display: { xs: 'block', md: 'none' },
         position: 'sticky',
-        top: { xs: 108, sm: 116 },
-        zIndex: 25,
-        mx: { xs: -0.5, sm: 0 },
+        top: BATCH_REPORT_MOBILE_NAV_TOP,
+        zIndex: 28,
+        width: '100vw',
+        maxWidth: '100vw',
+        marginLeft: 'calc(50% - 50vw)',
+        minWidth: 0,
         mb: 1,
         py: 1,
         bgcolor: 'background.default',
         borderBottom: 1,
         borderColor: 'divider',
+        boxSizing: 'border-box',
       }}
     >
       <Box
         sx={{
+          ...BATCH_REPORT_PAGE_GUTTER_SX,
           display: 'flex',
           gap: 0.75,
           overflowX: 'auto',
           flexWrap: 'nowrap',
-          px: 0.5,
           pb: 0.25,
           WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'none',
