@@ -286,6 +286,41 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
     expect(callArg.pgnList.length).toBeGreaterThanOrEqual(5);
   });
 
+  test('renders weakness and strength frequency labels in coaching report', async () => {
+    getBatchReport.mockResolvedValue(
+      completedBatchReport({
+        batch_summary: {
+          overall_accuracy: 0.62,
+          phase_performance: {
+            opening: { score: 0.7, primary_openings: ['Italian Game'] },
+            middlegame: { score: 0.55 },
+            endgame: { score: 0.5 },
+          },
+          recurring_weaknesses: [{ pattern: 'Hanging pieces', frequency: 4 }],
+          strength_patterns: [{ pattern: 'Solid development', frequency: '3x', detail: 'Good piece play' }],
+        },
+        coaching_report: {
+          executive_summary: 'You hang pieces too often.',
+          one_thing_to_do_today: 'Do hanging-piece puzzles',
+          training_plan: { week_1: 'Puzzles daily' },
+        },
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/batch-analysis/results/report/FREQ_LABELS']}>
+        <Routes>
+          <Route path="/batch-analysis/results/report/:reportId" element={<BatchAnalysisResults />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Combined Coaching Report');
+    expect(screen.getByText('Hanging pieces (4)')).toBeInTheDocument();
+    expect(screen.getByText('Solid development (3x)')).toBeInTheDocument();
+    expect(screen.getAllByText(/Puzzles daily/).length).toBeGreaterThan(0);
+  });
+
   test('displays per-game failure reasons from report errors', async () => {
     const fakeReportWithErrors = completedBatchReport({
       status: 'partial',
