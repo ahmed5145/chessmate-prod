@@ -155,7 +155,9 @@ const normalizeBatchReport = (report) => {
       focus_areas: topPriorities.map((item) => item.title || 'Focus area'),
       weekly_target: {
         goal: coachingReport.one_thing_to_do_today || topPriorities[0]?.title || 'Work on your biggest weakness',
-        measure: topPriorities[0]?.estimated_study_hours ? `${topPriorities[0].estimated_study_hours} hours` : '4 hours',
+        measure: topPriorities[0]?.estimated_study_hours
+          ? `${topPriorities[0].estimated_study_hours} hours`
+          : topPriorities[0]?.specific_drill || 'Complete the priority drill below',
         confidence,
       },
       drills: topPriorities.map((item) => item.specific_drill).filter(Boolean),

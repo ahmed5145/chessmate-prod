@@ -67,7 +67,7 @@ const PhaseBreakdown = ({ batch_summary }) => {
         Phase performance
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 3 }}>
-        Accuracy shows how closely your moves matched engine top lines. Eval stability is a separate batch-wide score.
+        How closely your moves matched engine top lines in each phase of the game.
       </Typography>
 
       <Grid container spacing={3}>

@@ -8,7 +8,6 @@ import BatchReportHeader from './BatchReportHeader';
 import ExecutiveSummary from './ExecutiveSummary';
 import PhaseBreakdown from './PhaseBreakdown';
 import RecurringPatterns from './RecurringPatterns';
-import CoachingNarrative from './CoachingNarrative';
 import TopPriorities from './TopPriorities';
 import TrainingPlan from './TrainingPlan';
 import GameAccordion from './GameAccordion';
@@ -16,10 +15,14 @@ import FailedGamesList from './FailedGamesList';
 import TopCriticalMoments from './TopCriticalMoments';
 import BatchCompareCard from './BatchCompareCard';
 import TimeManagementInsight, { shouldShowTimeManagementInsight } from './TimeManagementInsight';
-import RepertoireGaps from './RepertoireGaps';
+import OpeningSection from './OpeningSection';
+import CoachingInsightsSection from './CoachingInsightsSection';
 import StudyDrillLinks from './StudyDrillLinks';
-import RatingBandCoaching from './RatingBandCoaching';
-import BatchReportToc, { BATCH_REPORT_SECTIONS } from './BatchReportToc';
+import BatchReportToc, {
+  buildBatchReportTocSections,
+  hasCoachingInsightsSection,
+  hasTacticalPatternsSection,
+} from './BatchReportToc';
 import BatchReportLegend from './BatchReportLegend';
 import './batchReportPrint.css';
 import './batchReportScreen.css';
@@ -41,9 +44,7 @@ const BatchReportSections = ({
   }
 
   const showTimeManagement = shouldShowTimeManagementInsight(batchReport.batch_summary);
-  const tocSections = showTimeManagement
-    ? BATCH_REPORT_SECTIONS
-    : BATCH_REPORT_SECTIONS.filter((section) => section.id !== 'batch-section-time-management');
+  const tocSections = buildBatchReportTocSections(batchReport, { showTimeManagement });
 
   return (
     <Box className="batch-report-print-root">
@@ -85,23 +86,29 @@ const BatchReportSections = ({
           <SectionWrap id="batch-section-phases">
             <PhaseBreakdown batch_summary={batchReport.batch_summary} />
           </SectionWrap>
-          <SectionWrap id="batch-section-repertoire">
-            <RepertoireGaps
+          {hasCoachingInsightsSection(batchReport) ? (
+            <SectionWrap id="batch-section-coaching-insights">
+              <CoachingInsightsSection
+                batch_summary={batchReport.batch_summary}
+                coaching_report={batchReport.coaching_report}
+              />
+            </SectionWrap>
+          ) : null}
+          <SectionWrap id="batch-section-openings">
+            <OpeningSection
               batch_summary={batchReport.batch_summary}
               per_game_results={batchReport.per_game_results}
             />
           </SectionWrap>
-          <SectionWrap id="batch-section-patterns">
-            <RecurringPatterns
-              batch_summary={batchReport.batch_summary}
-              per_game_results={batchReport.per_game_results}
-            />
-          </SectionWrap>
-          <RatingBandCoaching batch_summary={batchReport.batch_summary} />
+          {hasTacticalPatternsSection(batchReport) ? (
+            <SectionWrap id="batch-section-patterns">
+              <RecurringPatterns
+                batch_summary={batchReport.batch_summary}
+                per_game_results={batchReport.per_game_results}
+              />
+            </SectionWrap>
+          ) : null}
           <StudyDrillLinks batch_summary={batchReport.batch_summary} />
-          <SectionWrap id="batch-section-coaching">
-            <CoachingNarrative coaching_report={batchReport.coaching_report} />
-          </SectionWrap>
           <SectionWrap id="batch-section-priorities">
             <TopPriorities
               coaching_report={batchReport.coaching_report}

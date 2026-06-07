@@ -28,7 +28,7 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
           {dateRange ? ` · ${dateRange}` : ''}
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          Engine depth 14 · move labels and accuracy are Stockfish-derived, not AI guesses.
+          Stats from Stockfish depth 14. Coaching text below is AI-assisted.
         </Typography>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={6} sm={3}>

@@ -10,13 +10,43 @@ export const BATCH_REPORT_SECTIONS = [
   { id: 'batch-section-time-management', label: 'Time management' },
   { id: 'batch-section-summary', label: 'Executive summary' },
   { id: 'batch-section-phases', label: 'Phase breakdown' },
-  { id: 'batch-section-repertoire', label: 'Repertoire gaps' },
-  { id: 'batch-section-patterns', label: 'Patterns' },
-  { id: 'batch-section-coaching', label: 'Coaching narrative' },
+  { id: 'batch-section-coaching-insights', label: 'Coaching insights' },
+  { id: 'batch-section-openings', label: 'Openings' },
+  { id: 'batch-section-patterns', label: 'Tactical patterns' },
   { id: 'batch-section-priorities', label: 'Top priorities' },
   { id: 'batch-section-training', label: 'Training plan' },
   { id: 'batch-section-games', label: 'Game breakdown' },
 ];
+
+export const hasCoachingInsightsSection = (batchReport) => {
+  const band = batchReport?.batch_summary?.rating_band_coaching;
+  const strengths = batchReport?.batch_summary?.strength_patterns || [];
+  const narrative = batchReport?.coaching_report?.coaching_narrative;
+  const phases = narrative && typeof narrative === 'object'
+    ? ['opening', 'middlegame', 'endgame'].filter((key) => narrative[key])
+    : [];
+  return Boolean(band?.focus) || strengths.length > 0 || phases.length > 0;
+};
+
+export const hasTacticalPatternsSection = (batchReport) => {
+  const weaknesses = batchReport?.batch_summary?.recurring_weaknesses || [];
+  const endgameInsights = batchReport?.batch_summary?.endgame_insights || [];
+  return weaknesses.length > 0 || endgameInsights.length > 0;
+};
+
+export const buildBatchReportTocSections = (batchReport, { showTimeManagement = true } = {}) => {
+  let sections = [...BATCH_REPORT_SECTIONS];
+  if (!showTimeManagement) {
+    sections = sections.filter((section) => section.id !== 'batch-section-time-management');
+  }
+  if (!hasCoachingInsightsSection(batchReport)) {
+    sections = sections.filter((section) => section.id !== 'batch-section-coaching-insights');
+  }
+  if (!hasTacticalPatternsSection(batchReport)) {
+    sections = sections.filter((section) => section.id !== 'batch-section-patterns');
+  }
+  return sections;
+};
 
 const INDIGO = '#4f46e5';
 
