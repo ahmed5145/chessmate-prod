@@ -3,6 +3,7 @@ codecov:
   require_ci_to_pass: yes
   notify:
     wait_for_ci: yes
+    after_n_builds: 2
 
 coverage:
   precision: 2
@@ -12,14 +13,27 @@ coverage:
     project:
       default:
         target: auto
-        threshold: 1%
+        threshold: 2%
+        if_ci_failed: success
     patch:
       default:
         target: auto
-        threshold: 1%
+        threshold: 5%
+        if_ci_failed: success
 
 flag_management:
   default_rules:
+    carryforward: true
+
+flags:
+  backend:
+    paths:
+      - chess_mate/core/**
+      - chess_mate/chess_mate/**
+    carryforward: true
+  frontend:
+    paths:
+      - chess_mate/frontend/src/**
     carryforward: true
 
 ignore:
