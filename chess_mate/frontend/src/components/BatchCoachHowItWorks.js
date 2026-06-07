@@ -7,7 +7,7 @@ import {
   Download,
   Layers,
   Share2,
-  Sparkles,
+  FileText,
   Target,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
@@ -169,7 +169,7 @@ const BatchCoachHowItWorks = () => {
                 body: 'Your last blitz week, a slump stretch, or a hand-picked mix — Batch Coach needs at least 5 games to find patterns.',
               },
               {
-                icon: Sparkles,
+                icon: FileText,
                 title: 'Read, drill, share',
                 body: 'Open the report when ready (we can email you). Study Lichess drills from your weaknesses and share a read-only link.',
               },

@@ -206,6 +206,12 @@ class TestDashboardViews:
                 assert "type" in response.data["insights"][0]
                 assert "text" in response.data["insights"][0]
 
+                recent = response.data.get("recent_games") or []
+                assert recent
+                for game in recent:
+                    opponent = (game.get("opponent") or "").lower()
+                    assert opponent not in ("testuser", test_user.username.lower())
+
                 # Verify cache was set
                 assert mock_set.called
 

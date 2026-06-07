@@ -27,6 +27,7 @@ from .stats_helpers import (
     ANALYZED_GAME_Q,
     compute_user_average_accuracy,
     format_dashboard_insights,
+    resolve_game_opponent_display,
 )
 
 # Configure logging
@@ -78,20 +79,25 @@ def dashboard_view(request):
             return Response({"error": "User profile not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Get recent games with optimized query - limit select fields
-        recent_games = (
-            Game.objects.filter(user=user)  # type: ignore[attr-defined]
+        recent_games = [
+            {
+                **row,
+                "opponent": resolve_game_opponent_display(row, profile),
+            }
+            for row in Game.objects.filter(user=user)  # type: ignore[attr-defined]
             .order_by("-date_played")
             .values(
                 "id",
                 "white",
                 "black",
+                "opponent",
                 "result",
                 "date_played",
                 "platform",
                 "opening_name",
                 "status",
             )[:5]
-        )
+        ]
 
         # Use database aggregation instead of Python counting
         game_stats = Game.objects.filter(user=user).aggregate(  # type: ignore[attr-defined]
@@ -195,11 +201,7 @@ def dashboard_view(request):
                         {
                             "game_id": game.id,
                             "date": game.date_played,
-                            "opponent": (
-                                game.black
-                                if game.white.lower() == profile.get_platform_username(game.platform).lower()
-                                else game.white
-                            ),
+                            "opponent": resolve_game_opponent_display(game, profile),
                             "mistake_count": len(mistakes),
                             "summary": analysis.analysis_data.get("summary", "No summary available"),
                         }

@@ -105,24 +105,24 @@ const LandingPage = () => {
       <div className={`py-20 ${isDarkMode ? 'bg-gray-800/40' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className={`text-3xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <h2 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               How it works
             </h2>
-            <p className={`text-sm mb-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Import, batch analyze, and read your coaching report — step by step below.
-            </p>
             <Link
               to="/how-batch-coach-works"
-              className={`inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl border text-sm font-semibold shadow-sm transition-colors ${
+              className={`inline-flex items-center gap-2 mt-4 px-6 py-3 rounded-full text-sm font-semibold transition-all ${
                 isDarkMode
-                  ? 'bg-gray-800/90 border-indigo-700/60 text-indigo-200 hover:bg-gray-800 hover:border-indigo-500'
-                  : 'bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300'
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-950/40'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md'
               }`}
             >
               <Brain className="h-4 w-4 shrink-0" />
-              <span>Full Batch Coach guide</span>
-              <ArrowRight className="h-4 w-4 shrink-0 opacity-80" />
+              <span>See the full Batch Coach guide</span>
+              <ArrowRight className="h-4 w-4 shrink-0" />
             </Link>
+            <p className={`text-sm mt-4 max-w-md mx-auto ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Import → pick 5–10 games → get patterns and a coaching plan. Details in the three steps below.
+            </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <Step

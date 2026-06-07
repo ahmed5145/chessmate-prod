@@ -1,6 +1,41 @@
-"""Tests for dashboard insight formatting."""
+"""Tests for dashboard insight formatting and opponent resolution."""
 
-from core.stats_helpers import format_dashboard_insights
+from core.stats_helpers import format_dashboard_insights, resolve_game_opponent_display
+
+
+class _ProfileStub:
+    def __init__(self, chess_com_username="", lichess_username=""):
+        self.chess_com_username = chess_com_username
+        self.lichess_username = lichess_username
+
+    def get_platform_username(self, platform):
+        if platform == "chess.com":
+            return self.chess_com_username
+        if platform == "lichess":
+            return self.lichess_username
+        return None
+
+
+def test_resolve_opponent_uses_platform_username_when_stored_opponent_missing():
+    profile = _ProfileStub(chess_com_username="AhmeddM1")
+    row = {
+        "white": "StellarOstrich",
+        "black": "AhmeddM1",
+        "platform": "chess.com",
+        "opponent": "",
+    }
+    assert resolve_game_opponent_display(row, profile) == "StellarOstrich"
+
+
+def test_resolve_opponent_prefers_stored_opponent_field():
+    profile = _ProfileStub(chess_com_username="AhmeddM1")
+    row = {
+        "white": "AhmeddM1",
+        "black": "StellarOstrich",
+        "platform": "chess.com",
+        "opponent": "StellarOstrich",
+    }
+    assert resolve_game_opponent_display(row, profile) == "StellarOstrich"
 
 
 def test_batch_insights_when_no_game_analysis_rows():

@@ -152,9 +152,33 @@ const InsightCard = ({ title, insights, icon: Icon }) => {
   );
 };
 
+const resolveDashboardOpponent = (game, user) => {
+  if (game.opponent && game.opponent !== 'Unknown') {
+    return game.opponent;
+  }
+  const platformUser =
+    game.platform === 'chess.com'
+      ? user?.chess_com_username
+      : game.platform === 'lichess'
+        ? user?.lichess_username
+        : null;
+  const names = [platformUser, user?.username].filter(Boolean);
+  for (const name of names) {
+    const lower = name.toLowerCase();
+    if (game.white && lower === String(game.white).toLowerCase()) {
+      return game.black || 'Unknown';
+    }
+    if (game.black && lower === String(game.black).toLowerCase()) {
+      return game.white || 'Unknown';
+    }
+  }
+  return game.white || game.black || 'Unknown';
+};
+
 const RecentGameCard = ({ game }) => {
   const { isDarkMode } = useTheme();
   const { user } = useUser();
+  const opponent = resolveDashboardOpponent(game, user);
 
   return (
     <Link
@@ -169,7 +193,7 @@ const RecentGameCard = ({ game }) => {
         <div>
           <div className="flex items-center gap-2">
             <h3 className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              vs {game.opponent || (game.white === user?.username ? game.black : game.white) || 'Unknown'}
+              vs {opponent}
             </h3>
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${
               game.result === 'win'

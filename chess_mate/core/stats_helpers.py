@@ -55,6 +55,37 @@ def get_time_control_distribution(user) -> Dict[str, float]:
     return {key: round((value / total) * 100, 1) for key, value in counts.items()}
 
 
+def resolve_game_opponent_display(game: Any, profile: Optional[Profile]) -> str:
+    """Opponent name for UI — prefers stored `opponent`, else infers from PGN headers + linked accounts."""
+    stored = ""
+    if isinstance(game, dict):
+        stored = str(game.get("opponent") or "").strip()
+        white = game.get("white") or ""
+        black = game.get("black") or ""
+        platform = game.get("platform") or ""
+    else:
+        stored = str(getattr(game, "opponent", None) or "").strip()
+        white = getattr(game, "white", "") or ""
+        black = getattr(game, "black", "") or ""
+        platform = getattr(game, "platform", "") or ""
+
+    if stored and stored.lower() != "unknown":
+        return stored
+
+    class _GameRow:
+        def __init__(self, white_name: str, black_name: str, platform_name: str):
+            self.white = white_name
+            self.black = black_name
+            self.platform = platform_name
+
+    is_white = _is_user_white(_GameRow(white, black, platform), profile)
+    if is_white is True:
+        return black or "Unknown"
+    if is_white is False:
+        return white or "Unknown"
+    return black or white or "Unknown"
+
+
 def _is_user_white(game, profile: Optional[Profile]) -> Optional[bool]:
     """Return True if the account owner played white, False if black, else None."""
     names: List[str] = []
