@@ -6,6 +6,7 @@ import { updateUserProfile } from '../../services/apiRequests';
 import api from '../../services/api';
 
 const mockRefreshUserData = jest.fn();
+const mockSetUser = jest.fn();
 
 jest.mock('../../services/apiRequests');
 jest.mock('../../contexts/UserContext', () => ({
@@ -15,6 +16,7 @@ jest.mock('../../contexts/UserContext', () => ({
       preferences: {},
       credits: 15,
     },
+    setUser: mockSetUser,
     refreshUserData: mockRefreshUserData,
   }),
 }));
@@ -71,5 +73,7 @@ describe('WelcomeGuide', () => {
       });
     });
     expect(mockRefreshUserData).toHaveBeenCalled();
+    expect(mockSetUser).toHaveBeenCalled();
+    expect(screen.queryByText('Welcome to ChessMate')).not.toBeInTheDocument();
   });
 });

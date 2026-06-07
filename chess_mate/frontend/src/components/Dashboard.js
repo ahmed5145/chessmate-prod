@@ -19,7 +19,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { formatDate } from '../utils/dateUtils';
-import { fetchDashboardData } from '../services/apiRequests';
+import { fetchDashboardData, refreshDashboardCache } from '../services/apiRequests';
 import LoadingSpinner from './LoadingSpinner';
 import WelcomeGuide from './WelcomeGuide';
 
@@ -290,7 +290,8 @@ const Dashboard = () => {
 
   useEffect(() => {
     // Listen for game imports and credit updates
-    const handleGameImported = () => {
+    const handleGameImported = async () => {
+      await refreshDashboardCache();
       refreshDashboardData();
     };
 
@@ -474,10 +475,15 @@ const Dashboard = () => {
               insights={
                 dashboardData?.insights?.length
                   ? dashboardData.insights
-                  : [{
-                      type: 'success',
-                      text: 'Import and analyze games to unlock personalized performance insights.',
-                    }]
+                  : (dashboardData?.game_stats?.total_games || dashboardData?.total_games || 0) > 0
+                    ? [{
+                        type: 'success',
+                        text: 'Run Batch Coach or analyze individual games to unlock more personalized insights.',
+                      }]
+                    : [{
+                        type: 'success',
+                        text: 'Import and analyze games to unlock personalized performance insights.',
+                      }]
               }
             />
           </div>

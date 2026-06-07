@@ -254,6 +254,14 @@ const normalizeDashboardData = (raw) => {
     };
 };
 
+export const refreshDashboardCache = async () => {
+    try {
+        await api.post('/api/v1/dashboard/refresh/');
+    } catch (error) {
+        console.warn('Dashboard cache refresh failed:', error);
+    }
+};
+
 export const fetchDashboardData = async () => {
     try {
         const response = await api.get("/api/v1/dashboard/");

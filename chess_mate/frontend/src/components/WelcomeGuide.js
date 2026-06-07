@@ -16,18 +16,21 @@ export const shouldShowWelcomeGuide = (user) => {
 
 const WelcomeGuide = () => {
   const { isDarkMode } = useTheme();
-  const { user, refreshUserData } = useUser();
+  const { user, setUser, refreshUserData } = useUser();
   const [visible, setVisible] = useState(false);
   const [signupBonusCredits, setSignupBonusCredits] = useState(15);
   const [dismissing, setDismissing] = useState(false);
+  const [locallyDismissed, setLocallyDismissed] = useState(false);
 
   useEffect(() => {
-    if (user && shouldShowWelcomeGuide(user)) {
-      setVisible(true);
-    } else {
-      setVisible(false);
+    if (!user || locallyDismissed) {
+      if (!user) {
+        setVisible(false);
+      }
+      return;
     }
-  }, [user]);
+    setVisible(shouldShowWelcomeGuide(user));
+  }, [user, locallyDismissed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,13 +52,24 @@ const WelcomeGuide = () => {
       return;
     }
     setDismissing(true);
+    setLocallyDismissed(true);
     setVisible(false);
+
+    if (setUser && user) {
+      const currentPreferences = getPreferences(user);
+      setUser({
+        ...user,
+        preferences: { ...currentPreferences, welcome_guide_seen: true },
+      });
+    }
+
     try {
       await updateUserProfile({ preferences: { welcome_guide_seen: true } });
       if (refreshUserData) {
         await refreshUserData();
       }
     } catch (error) {
+      setLocallyDismissed(false);
       setVisible(true);
       toast.error('Could not save your preference. Please try again.');
     } finally {

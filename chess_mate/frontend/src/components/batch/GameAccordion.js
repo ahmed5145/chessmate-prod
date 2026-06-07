@@ -18,6 +18,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FenBoardImage from './FenBoardImage';
 import { formatGameLabel } from '../../utils/formatGameLabel';
+import { formatNumber } from '../../utils/formatNumber';
 
 const GameAccordion = ({ per_game_results, readOnly = false }) => {
   if (!per_game_results || !Array.isArray(per_game_results) || per_game_results.length === 0) {
@@ -221,7 +222,7 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
                     return (
                       <Typography key={phase} variant="body2">
                         {phase.charAt(0).toUpperCase() + phase.slice(1)}: {label}
-                        {phaseData.moves != null ? ` (${phaseData.moves} half-moves)` : ''}
+                        {phaseData.moves != null ? ` (${phaseData.moves} moves)` : ''}
                       </Typography>
                     );
                   })}
@@ -257,9 +258,15 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
                           borderColor: `${momentSeverityColor(moment.type)}.main`
                         }}
                       >
-                        {index === 0 && momentIndex < 3 && moment.fen ? (
+                        {moment.fen ? (
                           <Box sx={{ mb: 1 }}>
-                            <FenBoardImage fen={moment.fen} size={200} />
+                            <FenBoardImage
+                              fen={moment.fen}
+                              size={200}
+                              orientation={game.player_color || 'white'}
+                              playedMoveUci={moment.played_move_uci}
+                              bestMoveUci={moment.best_move_uci}
+                            />
                           </Box>
                         ) : null}
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
@@ -289,8 +296,8 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
                           )}
                         </Box>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          Played {moment.played_move || '?'} · engine suggests {moment.best_move || '?'} · swing{' '}
-                          {Number(moment.eval_swing || 0).toFixed(2)}
+                          You played {moment.played_move || '?'} · best for you {moment.best_move || '?'} · swing{' '}
+                          {formatNumber(moment.eval_swing, 2)}
                         </Typography>
                         {moment.explanation && (
                           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>

@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { UserContext } from '../contexts/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-hot-toast';
-import { fetchExternalGames, fetchProfileData } from '../services/apiRequests';
+import { fetchExternalGames, fetchProfileData, refreshDashboardCache } from '../services/apiRequests';
 import { Coins, AlertCircle, UserCircle, Loader2 } from 'lucide-react';
 
 const FetchGames = () => {
@@ -60,6 +60,7 @@ const FetchGames = () => {
       if (refreshUserData) {
         await refreshUserData();
       }
+      await refreshDashboardCache();
       window.dispatchEvent(new CustomEvent('game-imported'));
       window.dispatchEvent(new CustomEvent('credits-updated'));
       navigate('/games');

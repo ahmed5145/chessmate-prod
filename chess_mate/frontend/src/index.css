@@ -57,7 +57,22 @@ body {
 
   a {
     @apply text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300;
-}
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: inherit;
+    transition: background-color 9999s ease-out 0s;
+    box-shadow: 0 0 0 1000px #374151 inset;
+  }
+
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f9fafb;
+    box-shadow: 0 0 0 1000px #374151 inset;
+  }
 
 code {
     @apply font-mono bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm;

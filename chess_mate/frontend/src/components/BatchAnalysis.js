@@ -350,6 +350,15 @@ const BatchAnalysis = () => {
   const activeBatchReport = reportHistory.find((report) => ACTIVE_BATCH_STATUSES.has(report.status));
   const batchStartBlocked = isAnalyzing || Boolean(activeBatchReport);
 
+  const openBatchReport = (report) => {
+    const reportId = report?.id ?? report?.batch_id;
+    if (!reportId) {
+      toast.error('Report is not ready yet. Try again in a moment.');
+      return;
+    }
+    navigateReliably(`/batch-report/${reportId}`);
+  };
+
   const toggleSelectedGame = (gameId) => {
     setSelectedGameIds((prev) => {
       if (prev.includes(gameId)) {
@@ -669,7 +678,7 @@ const BatchAnalysis = () => {
                       {ACTIVE_BATCH_STATUSES.has(statusLabel) ? (
                         <button
                           type="button"
-                          onClick={() => navigateReliably(`/batch-report/${report.id}`)}
+                          onClick={() => openBatchReport(report)}
                           className={`px-3 py-1.5 text-sm rounded-md border ${
                             isDarkMode
                               ? 'border-blue-700 text-blue-200 hover:bg-blue-900/40'
@@ -681,7 +690,7 @@ const BatchAnalysis = () => {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => navigateReliably(`/batch-report/${report.id}`)}
+                          onClick={() => openBatchReport(report)}
                           className={`px-3 py-1.5 text-sm rounded-md border ${
                             isDarkMode
                               ? 'border-gray-600 text-gray-200 hover:bg-gray-700'

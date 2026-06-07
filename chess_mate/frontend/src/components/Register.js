@@ -319,8 +319,8 @@ const Register = () => {
                 />
               </div>
               {!passwordsMatch && confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">
-                  Passwords don't match
+                <p className={`mt-1 text-sm ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+                  Passwords don&apos;t match
                 </p>
               )}
             </div>

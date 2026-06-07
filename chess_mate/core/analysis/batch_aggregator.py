@@ -589,7 +589,7 @@ def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
     by_opening: Dict[str, List[Dict[str, Any]]] = {}
     for result in per_game_results:
         name = (result.get("opening_name") or "").strip()
-        if not name or name.lower() == "unknown":
+        if not name or name.lower() in ("unknown", "unknown opening"):
             continue
         by_opening.setdefault(name, []).append(result)
 

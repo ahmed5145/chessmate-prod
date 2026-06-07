@@ -14,7 +14,12 @@ import {
   Typography
 } from '@mui/material';
 import FenBoardImage from './FenBoardImage';
-import { formatGameLabelById } from '../../utils/formatGameLabel';
+import { findGameResultById, formatGameLabelById } from '../../utils/formatGameLabel';
+import { formatNumber } from '../../utils/formatNumber';
+import {
+  getGamePlatformLabel,
+  scrollToBatchGame,
+} from '../../utils/batchGameLinks';
 
 const momentSeverityColor = (type) => {
   if (type === 'blunder') return 'error';
@@ -22,16 +27,19 @@ const momentSeverityColor = (type) => {
   return 'default';
 };
 
-const scrollToGame = (gameId) => {
-  const el = document.getElementById(`batch-game-${gameId}`);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+const enrichMoment = (moment, per_game_results) => {
+  const game = findGameResultById(per_game_results, moment.game_id);
+  return {
+    ...moment,
+    player_color: moment.player_color || game?.player_color,
+    platform_game_url: moment.platform_game_url || game?.platform_game_url,
+    platform: moment.platform || game?.platform,
+  };
 };
 
 const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false }) => {
   let moments = Array.isArray(batch_summary?.top_critical_moments)
-    ? batch_summary.top_critical_moments
+    ? [...batch_summary.top_critical_moments]
     : [];
 
   if (moments.length === 0 && Array.isArray(per_game_results)) {
@@ -46,6 +54,8 @@ const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false 
       .sort((a, b) => Number(b.eval_swing || 0) - Number(a.eval_swing || 0))
       .slice(0, 3);
   }
+
+  moments = moments.map((moment) => enrichMoment(moment, per_game_results));
 
   if (moments.length === 0) {
     return null;
@@ -78,7 +88,12 @@ const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false 
                   />
                 )}
                 {moment.player_color && (
-                  <Chip size="small" label={`You: ${moment.player_color}`} variant="outlined" />
+                  <Chip
+                    size="small"
+                    label={`You were ${moment.player_color}`}
+                    variant="outlined"
+                    color="info"
+                  />
                 )}
               </Box>
               {moment.fen ? (
@@ -93,8 +108,8 @@ const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false 
                 </Box>
               ) : null}
               <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                Played {moment.played_move || '?'} · best {moment.best_move || '?'} · swing{' '}
-                {Number(moment.eval_swing || 0).toFixed(2)}
+                You played {moment.played_move || '?'} · best for you {moment.best_move || '?'} · swing{' '}
+                {formatNumber(moment.eval_swing, 2)}
               </Typography>
               {moment.explanation && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -107,9 +122,19 @@ const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false 
                     component="button"
                     type="button"
                     variant="body2"
-                    onClick={() => scrollToGame(moment.game_id)}
+                    onClick={() => scrollToBatchGame(moment.game_id)}
                   >
                     View in breakdown
+                  </Link>
+                ) : null}
+                {moment.platform_game_url ? (
+                  <Link
+                    href={moment.platform_game_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="body2"
+                  >
+                    View on {getGamePlatformLabel(per_game_results, moment.game_id)}
                   </Link>
                 ) : null}
                 {!readOnly && moment.saved_game_id ? (

@@ -8,6 +8,7 @@ import { Button, Stack, Typography } from '@mui/material';
 import LinkIcon from '@mui/icons-material/Link';
 import { enableBatchShare } from '../../services/apiRequests';
 import { copyTextToClipboard } from '../../utils/clipboard';
+import { downloadReportPdf } from '../../utils/downloadReportPdf';
 
 const BatchReportActions = ({
   batchId,
@@ -16,9 +17,22 @@ const BatchReportActions = ({
   hasCoaching
 }) => {
   const [sharing, setSharing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadPdf = async () => {
+    if (downloading) {
+      return;
+    }
+    setDownloading(true);
+    try {
+      await downloadReportPdf(`chessmate-batch-report-${batchId || 'export'}.pdf`);
+      toast.success('PDF downloaded.');
+    } catch (error) {
+      console.error('PDF download failed:', error);
+      toast.error('Could not generate PDF. Try again or use your browser print dialog.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const handleCopyShareLink = async () => {
@@ -70,8 +84,8 @@ const BatchReportActions = ({
           : 'Coaching is unavailable for this report.'}
       </Typography>
       <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="flex-end">
-        <Button variant="outlined" size="small" onClick={handlePrint}>
-          Download PDF
+        <Button variant="outlined" size="small" disabled={downloading} onClick={handleDownloadPdf}>
+          {downloading ? 'Preparing PDF…' : 'Download PDF'}
         </Button>
         <Button
           variant="outlined"

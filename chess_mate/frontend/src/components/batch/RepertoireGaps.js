@@ -15,11 +15,7 @@ import {
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { lichessOpeningSearchUrl } from '../../utils/lichessStudyLinks';
-
-const isUnknownOpening = (name) => {
-  const normalized = String(name || '').trim().toLowerCase();
-  return !normalized || normalized === 'unknown' || normalized === 'unknown opening';
-};
+import { isUnknownOpening } from '../../utils/batchGameLinks';
 
 const RepertoireGaps = ({ batch_summary, per_game_results = [] }) => {
   const rawGaps = Array.isArray(batch_summary?.repertoire_gaps)
@@ -81,7 +77,13 @@ const RepertoireGaps = ({ batch_summary, per_game_results = [] }) => {
                 {gap.record && <Chip size="small" label={gap.record} variant="outlined" />}
               </Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {gap.summary || gap.recommendation}
+                {gap.summary ? (
+                  gap.summary
+                ) : (
+                  <>
+                    Review <strong>{gap.opening_name}</strong> as {gap.player_color || 'your color'}.
+                  </>
+                )}
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 <Box
