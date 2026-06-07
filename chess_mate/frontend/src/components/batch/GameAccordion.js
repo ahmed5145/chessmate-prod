@@ -13,11 +13,14 @@ import {
   Container,
   Box,
   Divider,
-  Link
+  Link,
+  Button
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import FenBoardImage from './FenBoardImage';
-import { formatGameLabel } from '../../utils/formatGameLabel';
+import { formatGameLabel, humanizeGameIdInText } from '../../utils/formatGameLabel';
+import { getGamePlatformLabel } from '../../utils/batchGameLinks';
 import { formatNumber } from '../../utils/formatNumber';
 
 const GameAccordion = ({ per_game_results, readOnly = false }) => {
@@ -169,6 +172,20 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
 
             <AccordionDetails>
               <Box sx={{ display: 'grid', gap: 2 }}>
+                {game.platform_game_url ? (
+                  <Box>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      href={game.platform_game_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      endIcon={<OpenInNewIcon fontSize="small" />}
+                    >
+                      Open on {getGamePlatformLabel(per_game_results, game.game_id)}
+                    </Button>
+                  </Box>
+                ) : null}
                 {game.coach_note ? (
                   <Box
                     sx={{
@@ -183,7 +200,9 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
                       Coach note (worst moment)
                     </Typography>
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      {game.coach_note}
+                      {humanizeGameIdInText(game.coach_note, per_game_results, {
+                        inThisGameId: game.game_id,
+                      })}
                     </Typography>
                   </Box>
                 ) : null}

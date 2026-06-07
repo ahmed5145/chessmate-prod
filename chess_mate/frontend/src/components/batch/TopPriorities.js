@@ -20,7 +20,7 @@ import {
 } from '@mui/material';
 import PriorityCard from './PriorityCard';
 
-const TopPriorities = ({ coaching_report }) => {
+const TopPriorities = ({ coaching_report, per_game_results = [] }) => {
   // If coaching_report is null or top_3_priorities missing/empty, show fallback
   if (
     !coaching_report ||
@@ -49,7 +49,11 @@ const TopPriorities = ({ coaching_report }) => {
 
       <Box>
         {priorities.map((priority, index) => (
-          <PriorityCard key={priority.rank || index} priority={priority} />
+          <PriorityCard
+            key={priority.rank || index}
+            priority={priority}
+            per_game_results={per_game_results}
+          />
         ))}
       </Box>
     </Container>

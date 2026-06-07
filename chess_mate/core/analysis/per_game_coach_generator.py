@@ -97,7 +97,9 @@ def generate_per_game_coach_notes(
         client = OpenAI()
         system_prompt = (
             "You are a chess coach. For each game, write exactly one coach_note (2–3 sentences, max 320 chars) "
-            "about the listed worst_moment only. Use facts from the JSON; cite move_number and game_id. "
+            "about the listed worst_moment only. Use facts from the JSON; cite move_number. "
+            "Do not mention internal game_id strings in coach_note — write as if reviewing this specific game "
+            '(e.g. "In this game, at move 19..." or "At move 19..."). '
             'No markdown. Return JSON: {"notes":[{"game_id":"game_0","coach_note":"..."}, ...]} '
             "Include every game_id from the input."
         )

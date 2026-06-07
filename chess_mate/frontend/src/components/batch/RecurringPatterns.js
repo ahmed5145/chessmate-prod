@@ -20,9 +20,9 @@ import { formatNumber } from '../../utils/formatNumber';
 import {
   getGamePlatformLabel,
   getGamePlatformUrl,
-  isUnknownOpening,
   scrollToBatchGame,
 } from '../../utils/batchGameLinks';
+import { resolveOpeningInsights } from '../../utils/openingInsights';
 
 const GameExampleActions = ({ perGameResults, gameId, moveNumber }) => {
   const platformUrl = getGamePlatformUrl(perGameResults, gameId);
@@ -62,9 +62,7 @@ const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
   const strengths = Array.isArray(batch_summary.strength_patterns)
     ? batch_summary.strength_patterns
     : [];
-  const openingInsights = (Array.isArray(batch_summary.opening_insights)
-    ? batch_summary.opening_insights
-    : []).filter((item) => !isUnknownOpening(item?.opening_name));
+  const openingInsights = resolveOpeningInsights(batch_summary, per_game_results);
   const endgameInsights = Array.isArray(batch_summary.endgame_insights)
     ? batch_summary.endgame_insights
     : [];
@@ -97,7 +95,12 @@ const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
                   alignItems: 'flex-start',
                   py: 1.5,
                   borderLeft: 3,
-                  borderColor: item.status === 'struggling' ? 'warning.main' : 'success.main',
+                  borderColor:
+                    item.status === 'struggling' || item.status === 'needs_work'
+                      ? 'warning.main'
+                      : item.status === 'strong'
+                        ? 'success.main'
+                        : 'divider',
                   pl: 2,
                   mb: 1
                 }}

@@ -4,7 +4,7 @@ Verifies schema completeness and field types.
 """
 
 import pytest
-from core.analysis.batch_aggregator import _count_results, aggregate_batch
+from core.analysis.batch_aggregator import _compute_opening_insights, _count_results, aggregate_batch
 
 
 def _make_game_result(
@@ -62,6 +62,26 @@ def _make_game_result(
             }
         ],
     }
+
+
+def test_opening_insights_include_neutral_and_group_eco_variants():
+    queens_base = _make_game_result("qp-1", "1-0", "Queen's Pawn Game", 0.2, 0.3, "pin", "D00")
+    queens_london = _make_game_result(
+        "qp-2", "0-1", "Queen's Pawn Game: London System", 0.25, 0.35, "fork", "D00"
+    )
+    sicilian = _make_game_result("sic-1", "0-1", "Sicilian Defense", 0.22, 0.4, "pin", "B90")
+
+    insights = _compute_opening_insights([queens_base, queens_london, sicilian])
+    assert len(insights) >= 2
+
+    queens = next(i for i in insights if "Queen" in i["opening_name"])
+    assert queens["games"] == 2
+    assert queens["status"] in ("neutral", "struggling", "needs_work")
+    assert queens.get("recommendation")
+
+    sicilian_insight = next(i for i in insights if i["opening_name"] == "Sicilian Defense")
+    assert sicilian_insight["games"] == 1
+    assert sicilian_insight.get("recommendation")
 
 
 def test_batch_aggregator_schema_structure():

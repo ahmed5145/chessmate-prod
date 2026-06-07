@@ -96,7 +96,10 @@ const BatchReportSections = ({
             <CoachingNarrative coaching_report={batchReport.coaching_report} />
           </SectionWrap>
           <SectionWrap id="batch-section-priorities">
-            <TopPriorities coaching_report={batchReport.coaching_report} />
+            <TopPriorities
+              coaching_report={batchReport.coaching_report}
+              per_game_results={batchReport.per_game_results}
+            />
           </SectionWrap>
           <SectionWrap id="batch-section-training">
             <TrainingPlan coaching_report={batchReport.coaching_report} />

@@ -1,4 +1,4 @@
-import { formatGameLabel, formatGameLabelById } from '../formatGameLabel';
+import { formatGameLabel, formatGameLabelById, humanizeGameIdInText } from '../formatGameLabel';
 
 describe('formatGameLabel', () => {
   it('formats opponent and date', () => {
@@ -22,5 +22,25 @@ describe('formatGameLabelById', () => {
       'game_0'
     );
     expect(label).toContain('vs alice');
+  });
+});
+
+describe('humanizeGameIdInText', () => {
+  const games = [
+    { game_id: 'game_0', opponent: 'alice', date_played: '2024-01-02' },
+    { game_id: 'game_1', opponent: 'bob', date_played: '2024-02-03' },
+  ];
+
+  it('replaces the current game id with "this game"', () => {
+    const text = 'In game_0, at move 19, you played Rac8.';
+    expect(humanizeGameIdInText(text, games, { inThisGameId: 'game_0' })).toBe(
+      'In this game, at move 19, you played Rac8.'
+    );
+  });
+
+  it('replaces other game ids with opponent labels', () => {
+    const text = 'In game_1 move 11, review hanging pieces.';
+    expect(humanizeGameIdInText(text, games)).toMatch(/vs bob/);
+    expect(humanizeGameIdInText(text, games)).toMatch(/move 11/);
   });
 });

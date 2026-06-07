@@ -64,3 +64,32 @@ export const formatGameLabelById = (perGameResults, gameId) => {
   }
   return 'Unknown game';
 };
+
+const GAME_ID_PATTERN = /\bgame_\d+\b/gi;
+
+/**
+ * Replace internal game_N ids with human labels (or "this game" when shown in-context).
+ */
+export const humanizeGameIdInText = (text, perGameResults, options = {}) => {
+  if (!text || typeof text !== 'string') {
+    return text;
+  }
+
+  const { inThisGameId = null } = options;
+
+  let result = text.replace(GAME_ID_PATTERN, (match) => {
+    const normalized = match.toLowerCase();
+    if (inThisGameId && normalized === String(inThisGameId).toLowerCase()) {
+      return 'this game';
+    }
+    return formatGameLabelById(perGameResults, normalized);
+  });
+
+  result = result.replace(/\bIn this game\b/g, 'In this game');
+  result = result.replace(
+    /(In (?:this game|vs [^,]+ — [^,]+|Game \d+))\s+move\b/gi,
+    '$1, move'
+  );
+
+  return result;
+};

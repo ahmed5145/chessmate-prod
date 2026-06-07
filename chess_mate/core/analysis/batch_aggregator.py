@@ -582,6 +582,27 @@ def _find_most_common_blunder_type(per_game_results: List[Dict[str, Any]]) -> st
     return "Unknown"
 
 
+def _opening_group_key(result: Dict[str, Any]) -> str:
+    """Group ECO variants (e.g. Queen's Pawn + London System) for batch-level stats."""
+    eco = (result.get("eco_code") or "").strip()
+    if eco:
+        return f"eco:{eco}"
+    name = (result.get("opening_name") or "").strip()
+    if ":" in name:
+        return name.split(":", 1)[0].strip()
+    return name
+
+
+def _opening_display_name(games: List[Dict[str, Any]]) -> str:
+    names = [g.get("opening_name") for g in games if g.get("opening_name")]
+    if not names:
+        return "Unknown"
+    without_suffix = [n for n in names if ":" not in n]
+    if without_suffix:
+        return without_suffix[0]
+    return min(names, key=len).split(":", 1)[0].strip()
+
+
 def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Per-opening performance so coaching can name lines the player struggles in.
@@ -591,10 +612,12 @@ def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
         name = (result.get("opening_name") or "").strip()
         if not name or name.lower() in ("unknown", "unknown opening"):
             continue
-        by_opening.setdefault(name, []).append(result)
+        group_key = _opening_group_key(result)
+        by_opening.setdefault(group_key, []).append(result)
 
     insights: List[Dict[str, Any]] = []
-    for opening_name, games in by_opening.items():
+    for _group_key, games in by_opening.items():
+        opening_name = _opening_display_name(games)
         outcomes = [_player_outcome(g) for g in games]
         wins = outcomes.count("win")
         losses = outcomes.count("loss")
@@ -627,9 +650,13 @@ def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
                 f"Opening phase accuracy in {opening_name} averaged {int(avg_opening_score * 100)}%. "
                 f"Study model games and common middlegame plans from this opening."
             )
-
-        if status == "neutral" and not recommendation:
-            continue
+        else:
+            score_text = ""
+            if avg_opening_score is not None:
+                score_text = f" Opening phase averaged {int(avg_opening_score * 100)}%."
+            recommendation = (
+                f"Played {len(games)} time(s) in this batch ({wins}W-{losses}L-{draws}D).{score_text}"
+            )
 
         colors = [g.get("player_color", "white") for g in games]
         player_color = "black" if colors.count("black") > colors.count("white") else "white"
@@ -650,8 +677,13 @@ def _compute_opening_insights(per_game_results: List[Dict[str, Any]]) -> List[Di
             }
         )
 
-    insights.sort(key=lambda x: (0 if x["status"] == "struggling" else 1, -x["games"]))
-    return insights[:5]
+    insights.sort(
+        key=lambda x: (
+            0 if x["status"] == "struggling" else 1 if x["status"] == "needs_work" else 2,
+            -x["games"],
+        )
+    )
+    return insights[:8]
 
 
 def _compute_repertoire_gaps(opening_insights: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

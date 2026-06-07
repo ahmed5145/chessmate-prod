@@ -26,6 +26,10 @@ import {
   Chip,
   Button
 } from '@mui/material';
+import {
+  formatGameLabelById,
+  humanizeGameIdInText,
+} from '../../utils/formatGameLabel';
 
 const extractGameIds = (...parts) => {
   const text = parts.filter(Boolean).join(' ');
@@ -40,7 +44,7 @@ const scrollToGame = (gameId) => {
   }
 };
 
-const PriorityCard = ({ priority }) => {
+const PriorityCard = ({ priority, per_game_results = [] }) => {
   // Validate priority object
   if (!priority || typeof priority !== 'object') {
     return null;
@@ -69,7 +73,8 @@ const PriorityCard = ({ priority }) => {
   };
 
   const rankColor = getRankColor(rank);
-  const linkedGames = extractGameIds(title, why_it_matters, specific_drill);
+  const linkedGames = extractGameIds(title, why_it_matters, how_to_fix, specific_drill);
+  const humanize = (text) => humanizeGameIdInText(text, per_game_results);
 
   return (
     <Card sx={{ mb: 3 }}>
@@ -87,7 +92,7 @@ const PriorityCard = ({ priority }) => {
 
         {/* Title */}
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 2.5 }}>
-          {title}
+          {humanize(title)}
         </Typography>
 
         {/* Why it matters section */}
@@ -100,7 +105,7 @@ const PriorityCard = ({ priority }) => {
             Why it matters
           </Typography>
           <Typography variant="body2">
-            {why_it_matters}
+            {humanize(why_it_matters)}
           </Typography>
         </Box>
 
@@ -114,7 +119,7 @@ const PriorityCard = ({ priority }) => {
             How to fix
           </Typography>
           <Typography variant="body2">
-            {how_to_fix}
+            {humanize(how_to_fix)}
           </Typography>
         </Box>
 
@@ -128,7 +133,7 @@ const PriorityCard = ({ priority }) => {
             Drill
           </Typography>
           <Typography variant="body2">
-            {specific_drill}
+            {humanize(specific_drill)}
           </Typography>
         </Box>
 
@@ -141,7 +146,7 @@ const PriorityCard = ({ priority }) => {
                 variant="text"
                 onClick={() => scrollToGame(gameId)}
               >
-                View {gameId}
+                View {formatGameLabelById(per_game_results, gameId)}
               </Button>
             ))}
           </Box>
