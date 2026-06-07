@@ -4,6 +4,7 @@ import chess
 from core.analysis.moment_insights import (
     classify_endgame_material,
     classify_tactical_theme,
+    _is_square_hanging,
 )
 
 
@@ -17,13 +18,26 @@ def test_classify_endgame_material_rook_and_pawn():
     assert classify_endgame_material(board.fen()) == "rook_and_pawn"
 
 
-def test_classify_tactical_theme_hanging_piece_before_fork():
-    # White queen on d1 can be left en prise after a careless king move in a simplified position.
+def test_classify_tactical_theme_small_swing_not_hanging_piece():
     board = chess.Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-    played = "e2e4"
-    best = "d2d4"
-    theme = classify_tactical_theme(board.fen(), played, best)
-    assert theme in ("hanging_piece", "missed_tactic", "fork")
+    theme = classify_tactical_theme(board.fen(), "e2e4", "d2d4", eval_swing=0.5)
+    assert theme != "hanging_piece"
+
+
+def test_classify_tactical_theme_hanging_piece_requires_material_loss():
+    board = chess.Board("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKB1R b KQkq e3 0 2")
+    theme = classify_tactical_theme(board.fen(), "d7d5", "e4d5", eval_swing=0.5)
+    assert theme != "hanging_piece"
+
+
+def test_is_square_hanging_detects_undefended_piece():
+    board = chess.Board("8/8/8/8/3q4/8/8/3R2K1 w - - 0 1")
+    assert _is_square_hanging(board, chess.D4, chess.BLACK)
+
+
+def test_classify_endgame_material_minor_piece():
+    board = chess.Board("8/4k3/8/8/8/3BN3/3P4/4K3 w - - 0 1")
+    assert classify_endgame_material(board.fen()) == "minor_piece_endgame"
 
 
 def test_classify_tactical_theme_prefers_missed_fork_on_best_move():

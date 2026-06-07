@@ -113,7 +113,14 @@ export const collectStudyLinksFromBatchSummary = (batchSummary) => {
       );
     });
 
-  (batchSummary.endgame_insights || []).slice(0, 3).forEach((item) => {
+  const endgameInsights = batchSummary.endgame_insights || [];
+  const hasSpecificEndgame = endgameInsights.some(
+    (item) => item?.endgame_type && item.endgame_type !== 'general_endgame'
+  );
+  endgameInsights
+    .filter((item) => !(hasSpecificEndgame && item?.endgame_type === 'general_endgame'))
+    .slice(0, 3)
+    .forEach((item) => {
     const type = item.endgame_type || item.label;
     if (!type) {
       return;

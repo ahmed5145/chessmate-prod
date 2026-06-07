@@ -15,6 +15,9 @@ BLUNDER_PAWNS = 1.5
 # Minimum deterioration to include in critical_moments shortlist
 CRITICAL_MOMENT_MIN_PAWNS = 0.2
 
+# Hanging-piece theme requires meaningful material loss — not small positional slips
+HANGING_PIECE_MIN_PAWNS = 1.0
+
 
 def is_delivered_checkmate(san: str | None) -> bool:
     """True when SAN ends with # (checkmate delivered on this move)."""

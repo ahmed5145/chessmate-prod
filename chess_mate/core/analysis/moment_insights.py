@@ -4,9 +4,23 @@ Classify critical moments and positions for specific coaching insights.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, Optional
 
 import chess
+
+from .batch_move_classification import HANGING_PIECE_MIN_PAWNS
+
+
+def _material_counts(board: chess.Board) -> tuple[Dict[int, int], Dict[int, int]]:
+    white = {pt: 0 for pt in chess.PIECE_TYPES}
+    black = {pt: 0 for pt in chess.PIECE_TYPES}
+    for sq in chess.SQUARES:
+        piece = board.piece_at(sq)
+        if not piece:
+            continue
+        bucket = white if piece.color == chess.WHITE else black
+        bucket[piece.piece_type] += 1
+    return white, black
 
 
 def classify_endgame_material(fen: str) -> str:
@@ -16,39 +30,48 @@ def classify_endgame_material(fen: str) -> str:
     except Exception:
         return "unknown_endgame"
 
-    white = {pt: 0 for pt in chess.PIECE_TYPES}
-    black = {pt: 0 for pt in chess.PIECE_TYPES}
-    for sq in chess.SQUARES:
-        piece = board.piece_at(sq)
-        if not piece:
-            continue
-        bucket = white if piece.color == chess.WHITE else black
-        bucket[piece.piece_type] += 1
+    white, black = _material_counts(board)
 
     def total(side: Dict[int, int]) -> int:
         return sum(side.values())
 
     w, b = total(white), total(black)
-    if w <= 6 and b <= 6:
-        wr, br = white[chess.ROOK], black[chess.ROOK]
-        wp, bp = white[chess.PAWN], black[chess.PAWN]
-        wq, bq = white[chess.QUEEN], black[chess.QUEEN]
-        if wr + br >= 1 and wq + bq == 0 and wp + bp >= 1:
+    max_side = max(w, b)
+    if max_side > 12:
+        return "general_endgame"
+
+    wr, br = white[chess.ROOK], black[chess.ROOK]
+    wp, bp = white[chess.PAWN], black[chess.PAWN]
+    wq, bq = white[chess.QUEEN], black[chess.QUEEN]
+    wb, bb = white[chess.BISHOP], black[chess.BISHOP]
+    wn, bn = white[chess.KNIGHT], black[chess.KNIGHT]
+    minors = wb + wn + bb + bn
+
+    if wq + bq >= 1 and wr + br == 0 and minors <= 2:
+        return "queen_endgame"
+    if wr + br >= 1 and wq + bq == 0:
+        if wp + bp >= 1:
             return "rook_and_pawn"
-        if wr + br == 0 and wq + bq == 0 and wp + bp >= 2:
+        return "rook_endgame"
+    if wr + br == 0 and wq + bq == 0:
+        if wp + bp >= 2:
             return "king_and_pawn"
-        if wq + bq >= 1 and wr + br == 0:
-            return "queen_endgame"
-        if wr + br >= 2:
-            return "rook_endgame"
+        if minors >= 2 and wp + bp >= 1:
+            return "minor_piece_endgame"
+    if wq + bq == 0 and wr + br <= 2 and wp + bp >= 4:
+        return "pawn_structure_endgame"
+    if wq + bq == 0 and wr + br <= 1 and minors >= 2:
+        return "minor_piece_endgame"
     return "general_endgame"
 
 
 ENDGAME_LICHESS_URLS = {
-    "rook_and_pawn": "https://lichess.org/practice/endgames/rook",
-    "rook_endgame": "https://lichess.org/practice/endgames/rook",
-    "king_and_pawn": "https://lichess.org/practice/endgames/pawn",
-    "queen_endgame": "https://lichess.org/practice/endgames/queen",
+    "rook_and_pawn": "https://lichess.org/learn#/1",
+    "rook_endgame": "https://lichess.org/learn#/1",
+    "king_and_pawn": "https://lichess.org/learn#/6",
+    "queen_endgame": "https://lichess.org/learn#/3",
+    "minor_piece_endgame": "https://lichess.org/learn",
+    "pawn_structure_endgame": "https://lichess.org/learn/6",
     "general_endgame": "https://lichess.org/learn",
     "unknown_endgame": "https://lichess.org/learn",
 }
@@ -64,6 +87,14 @@ ENDGAME_STUDY_HINTS = {
     "rook_endgame": (
         "Study rook endgames: active rook placement, cutting the enemy king off, and seventh-rank activity."
     ),
+    "minor_piece_endgame": (
+        "Study minor-piece endgames: bishop vs knight imbalances, wrong-colored bishop pawn endings, "
+        "and keeping pieces coordinated around passed pawns."
+    ),
+    "pawn_structure_endgame": (
+        "Study pawn-structure endgames: creating passed pawns, fixing weaknesses, and king activity "
+        "before pushing pawns."
+    ),
     "general_endgame": (
         "Review fundamental endgame technique: activate your king, reduce counterplay, and calculate forcing lines first."
     ),
@@ -71,21 +102,17 @@ ENDGAME_STUDY_HINTS = {
 }
 
 
-def _left_piece_en_prise(board: chess.Board, victim_color: chess.Color) -> bool:
-    """True if victim has a valuable piece attacked and undefended after the played move."""
-    for sq in chess.SQUARES:
-        piece = board.piece_at(sq)
-        if not piece or piece.color != victim_color:
-            continue
-        if piece.piece_type < chess.KNIGHT and piece.piece_type != chess.KING:
-            continue
-        attackers = board.attackers(not victim_color, sq)
-        if not attackers:
-            continue
-        defenders = board.attackers(victim_color, sq)
-        if not defenders:
-            return True
-    return False
+def _is_square_hanging(board: chess.Board, sq: int, color: chess.Color) -> bool:
+    """True when a piece on sq is attacked by the opponent and has no defenders."""
+    piece = board.piece_at(sq)
+    if not piece or piece.color != color or piece.piece_type == chess.KING:
+        return False
+    if piece.piece_type < chess.KNIGHT:
+        return False
+    opponent = not color
+    if not board.attackers(opponent, sq):
+        return False
+    return not board.attackers(color, sq)
 
 
 def _is_fork_by_square(board: chess.Board, from_sq: int, to_sq: int) -> bool:
@@ -111,9 +138,11 @@ def classify_tactical_theme(
     fen: str,
     played_move_uci: Optional[str],
     best_move_uci: Optional[str],
+    eval_swing: Optional[float] = None,
 ) -> str:
     """
-    Classify why the moment hurt: prefer themes from the missed best move, not noisy post-blunder board.
+    Classify why the moment hurt. Hanging-piece labels require meaningful eval loss
+    and a piece left undefended by the played move — not unrelated board noise.
     """
     try:
         board_before = chess.Board(fen) if fen else None
@@ -123,18 +152,18 @@ def classify_tactical_theme(
     if board_before is None:
         return "missed_tactic"
 
+    swing = float(eval_swing or 0.0)
+    allow_hanging_piece = swing >= HANGING_PIECE_MIN_PAWNS
+
     try:
-        if played_move_uci:
+        if allow_hanging_piece and played_move_uci:
             played = chess.Move.from_uci(played_move_uci)
             if played in board_before.legal_moves:
                 after_played = board_before.copy()
                 after_played.push(played)
+                mover_color = not after_played.turn
                 to_sq = played.to_square
-                if not after_played.is_attacked_by(after_played.turn, to_sq) and after_played.is_attacked_by(
-                    not after_played.turn, to_sq
-                ):
-                    return "hanging_piece"
-                if _left_piece_en_prise(after_played, not after_played.turn):
+                if _is_square_hanging(after_played, to_sq, mover_color):
                     return "hanging_piece"
 
         if best_move_uci:

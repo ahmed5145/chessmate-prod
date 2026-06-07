@@ -458,7 +458,7 @@ def build_game_result(
         if is_delivered_checkmate(played_move) or player_has_winning_mate(bool(mv.get("is_white", True)), eval_after):
             continue
 
-        tactical_theme = classify_tactical_theme(fen, played_uci, best_uci)
+        tactical_theme = classify_tactical_theme(fen, played_uci, best_uci, eval_swing=eval_swing)
 
         # generate explanation via template
         explanation = get_explanation(
