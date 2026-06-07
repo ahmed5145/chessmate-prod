@@ -182,6 +182,11 @@ const BatchReport = () => {
               shareToken={shareToken}
               onShareTokenChange={setShareToken}
               hasCoaching={Boolean(batchReport.coaching_report)}
+              canRegenerateCoaching={['completed', 'partial'].includes(batchReport.status || status)}
+              onReportRefresh={(updatedReport) => {
+                setBatchReport(updatedReport);
+                setShareToken(updatedReport?.share_token || shareToken);
+              }}
             />
             <BatchReportSections
               batchReport={batchReport}

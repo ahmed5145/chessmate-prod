@@ -12,6 +12,14 @@ describe('BatchCompareCard', () => {
     fetchBatchCompare.mockReset();
   });
 
+  it('shows skeleton while loading', () => {
+    fetchBatchCompare.mockReturnValue(new Promise(() => {}));
+
+    render(<BatchCompareCard batchId={12} />);
+
+    expect(screen.getByLabelText(/Loading batch comparison/i)).toBeInTheDocument();
+  });
+
   it('shows empty state when no previous batch exists', async () => {
     const error = new Error('No previous batch');
     error.status = 404;

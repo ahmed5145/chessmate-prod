@@ -90,6 +90,7 @@ const BatchReportSections = ({
             batch_summary={batchReport.batch_summary}
             games_count={batchReport.games_count}
             coaching_report={batchReport.coaching_report}
+            per_game_results={batchReport.per_game_results}
             status={status}
           />
 
@@ -109,7 +110,10 @@ const BatchReportSections = ({
           />
 
           <SectionWrap id="batch-section-summary">
-            <ExecutiveSummary coaching_report={batchReport.coaching_report} />
+            <ExecutiveSummary
+              coaching_report={batchReport.coaching_report}
+              per_game_results={batchReport.per_game_results}
+            />
           </SectionWrap>
 
           <SectionWrap id="batch-section-priorities">

@@ -1,5 +1,5 @@
 /**
- * Above-the-fold report hero: games, date, takeaway, CTA to priorities.
+ * Above-the-fold report hero: games, date, takeaway, do-today, CTA to priorities.
  */
 
 import React from 'react';
@@ -16,12 +16,14 @@ import {
   extractExecutiveTakeaway,
   hasCoachingPriorities,
 } from '../../utils/batchReportText';
+import { humanizeGameIdInText } from '../../utils/formatGameLabel';
 import { scrollToBatchSection } from '../../utils/batchReportScroll';
 
 const BatchReportHero = ({
   batch_summary,
   games_count,
   coaching_report,
+  per_game_results = [],
   status = 'completed',
 }) => {
   const analyzed = batch_summary?.games_analyzed ?? games_count ?? 0;
@@ -29,6 +31,7 @@ const BatchReportHero = ({
   const takeaway = extractExecutiveTakeaway(coaching_report);
   const showPriorityCta = hasCoachingPriorities(coaching_report);
   const isPartial = status === 'partial';
+  const doToday = coaching_report?.one_thing_to_do_today?.trim();
 
   return (
     <Box sx={{ py: 0, pb: 1 }}>
@@ -48,7 +51,7 @@ const BatchReportHero = ({
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, mb: 1 }}>
           <CheckCircleOutlineIcon color="primary" fontSize="small" />
           <Typography variant="overline" sx={{ fontWeight: 700, letterSpacing: '0.06em' }}>
-            Batch coach report ready
+            Your batch coach report is ready
           </Typography>
           {isPartial ? (
             <Chip size="small" label="Partial batch" color="warning" variant="outlined" />
@@ -59,6 +62,37 @@ const BatchReportHero = ({
           {analyzed} game{analyzed === 1 ? '' : 's'} analyzed
           {dateRange ? ` · ${dateRange}` : ''}
         </Typography>
+
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mb: 1.5, lineHeight: 1.55, maxWidth: 720 }}
+        >
+          Personalized coaching from your real games — Stockfish engine stats plus AI guidance on
+          recurring mistakes, opening gaps, and a training plan tied to actual positions.
+        </Typography>
+
+        {doToday ? (
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 1.5,
+              mb: 2,
+              bgcolor: 'rgba(99, 102, 241, 0.08)',
+              borderColor: 'rgba(99, 102, 241, 0.35)',
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, color: 'primary.main', display: 'block', mb: 0.5 }}
+            >
+              Do today
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.55, wordBreak: 'break-word' }}>
+              {humanizeGameIdInText(doToday, per_game_results)}
+            </Typography>
+          </Paper>
+        ) : null}
 
         {takeaway ? (
           <Typography variant="body1" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6, maxWidth: 720 }}>

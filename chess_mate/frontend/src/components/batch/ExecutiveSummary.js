@@ -4,7 +4,6 @@
 
 import React from 'react';
 import {
-  Box,
   Paper,
   List,
   ListItem,
@@ -13,41 +12,45 @@ import {
 } from '@mui/material';
 import ReportSectionShell from './ReportSectionShell';
 import { splitSummaryBullets } from '../../utils/batchReportText';
+import { humanizeGameIdInText } from '../../utils/formatGameLabel';
 
-const ExecutiveSummary = ({ coaching_report }) => {
+const summaryTextSx = {
+  lineHeight: 1.65,
+  wordBreak: 'break-word',
+};
+
+const ExecutiveSummary = ({ coaching_report, per_game_results = [] }) => {
   if (!coaching_report?.executive_summary) {
     return null;
   }
 
   const executiveSummary = coaching_report.executive_summary || '';
-  const bullets = splitSummaryBullets(executiveSummary);
+  const bullets = splitSummaryBullets(executiveSummary).map((bullet) =>
+    humanizeGameIdInText(bullet, per_game_results)
+  );
+  const humanizedSummary = humanizeGameIdInText(executiveSummary, per_game_results);
 
   return (
     <ReportSectionShell title="Executive summary">
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
         {bullets.length > 1 ? (
           <List dense disablePadding>
             {bullets.map((bullet, index) => (
-              <ListItem key={`summary-bullet-${index}`} disableGutters sx={{ py: 0.5 }}>
+              <ListItem key={`summary-bullet-${index}`} disableGutters sx={{ py: 0.5, alignItems: 'flex-start' }}>
+                <Typography component="span" variant="body2" sx={{ mr: 1, mt: 0.15, color: 'primary.main' }}>
+                  •
+                </Typography>
                 <ListItemText
                   primary={bullet}
-                  primaryTypographyProps={{ variant: 'body2' }}
+                  primaryTypographyProps={{ variant: 'body2', sx: summaryTextSx }}
                 />
               </ListItem>
             ))}
           </List>
         ) : (
-          <Typography variant="body1" sx={{ lineHeight: 1.7 }}>
-            {executiveSummary}
+          <Typography variant="body1" sx={summaryTextSx}>
+            {humanizedSummary}
           </Typography>
-        )}
-        {coaching_report.one_thing_to_do_today && (
-          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-              Do today
-            </Typography>
-            <Typography variant="body2">{coaching_report.one_thing_to_do_today}</Typography>
-          </Box>
         )}
       </Paper>
     </ReportSectionShell>

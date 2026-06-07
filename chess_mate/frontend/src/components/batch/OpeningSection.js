@@ -1,5 +1,5 @@
 /**
- * Unified openings section: flagged repertoire gaps + per-game matchup rows.
+ * Unified openings section: flagged repertoire gaps + per-game table.
  */
 
 import React from 'react';
@@ -9,6 +9,12 @@ import {
   Button,
   List,
   ListItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Typography,
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -21,6 +27,7 @@ import {
   resolveOpeningInsights,
   resolveRepertoireGaps,
 } from '../../utils/openingInsights';
+
 const findExampleGame = (gap, perGameResults) => {
   if (!Array.isArray(perGameResults)) {
     return null;
@@ -32,6 +39,22 @@ const findExampleGame = (gap, perGameResults) => {
       && game.player_color === gap.player_color
       && game.platform_game_url
   );
+};
+
+const formatResultLabel = (record) => {
+  const match = String(record || '').match(/(\d+)W-(\d+)L/);
+  if (!match) {
+    return '—';
+  }
+  const wins = Number(match[1]);
+  const losses = Number(match[2]);
+  if (wins === 1 && losses === 0) {
+    return 'W';
+  }
+  if (wins === 0 && losses === 1) {
+    return 'L';
+  }
+  return 'D';
 };
 
 const OpeningSection = ({ batch_summary, per_game_results = [] }) => {
@@ -54,7 +77,7 @@ const OpeningSection = ({ batch_summary, per_game_results = [] }) => {
   return (
     <ReportSectionShell
       title="Openings"
-      subtitle="Flagged lines need study; below that, every game’s opening result in this batch."
+      subtitle="Flagged lines need study; the table below lists every game’s opening in this batch."
       showStatusHint
     >
       {gaps.length > 0 ? (
@@ -126,57 +149,70 @@ const OpeningSection = ({ batch_summary, per_game_results = [] }) => {
       )}
 
       <ReportSubsection title="Game-by-game results">
-        <List dense disablePadding>
-          {openingInsights.map((item) => (
-            <ListItem
-              key={item.game_id || `${item.opening_name}-${item.eco_code || 'x'}-${item.player_color || 'x'}`}
-              sx={{
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                py: 1.5,
-                borderLeft: 3,
-                borderColor:
-                  item.status === 'struggling' || item.status === 'needs_work'
-                    ? 'warning.main'
-                    : item.status === 'strong'
-                      ? 'success.main'
-                      : 'divider',
-                pl: 2,
-                mb: 1,
-              }}
-            >
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.25 }}>
-                {item.opening_name}
-                {item.eco_code ? ` · ECO ${item.eco_code}` : ''}
-                {item.record ? ` · ${item.record}` : ''}
-              </Typography>
-              {item.avg_opening_score != null ? (
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                  Opening phase {Math.round(item.avg_opening_score * 100)}% move match
-                </Typography>
-              ) : null}
-              {item.game_label ? (
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
-                  {item.game_label}
-                </Typography>
-              ) : null}
-              {item.recommendation ? <OpeningRecommendationText item={item} /> : null}
-              <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
-                <LichessActionButton
-                  label="Study on Lichess"
-                  url={lichessOpeningSearchUrl(item.opening_name, {
-                    ecoCode: item.eco_code,
-                    playerColor: item.player_color,
-                  })}
-                  kind="opening"
-                />
-                {item.game_id ? (
-                  <GameExampleActions perGameResults={per_game_results} gameId={item.game_id} />
-                ) : null}
-              </Box>
-            </ListItem>
-          ))}
-        </List>
+        <TableContainer sx={{ overflowX: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+          <Table size="small" aria-label="Opening results by game">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700 }}>Game</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Opening</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>ECO</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Color</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Result</TableCell>
+                <TableCell sx={{ fontWeight: 700 }} align="right">
+                  Practice
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {openingInsights.map((item) => (
+                <TableRow
+                  key={item.game_id || `${item.opening_name}-${item.eco_code || 'x'}-${item.player_color || 'x'}`}
+                  sx={{
+                    '&:last-child td': { borderBottom: 0 },
+                    bgcolor:
+                      item.status === 'struggling' || item.status === 'needs_work'
+                        ? 'rgba(255, 152, 0, 0.06)'
+                        : item.status === 'strong'
+                          ? 'rgba(76, 175, 80, 0.05)'
+                          : 'inherit',
+                  }}
+                >
+                  <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                    {item.game_label || '—'}
+                  </TableCell>
+                  <TableCell sx={{ minWidth: 160, maxWidth: 260, wordBreak: 'break-word' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {item.opening_name}
+                    </Typography>
+                    {item.recommendation ? (
+                      <Box sx={{ mt: 0.5 }}>
+                        <OpeningRecommendationText item={item} />
+                      </Box>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>{item.eco_code || '—'}</TableCell>
+                  <TableCell sx={{ textTransform: 'capitalize' }}>{item.player_color || '—'}</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>{formatResultLabel(item.record)}</TableCell>
+                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                    <Box sx={{ display: 'inline-flex', flexWrap: 'wrap', gap: 0.75, justifyContent: 'flex-end' }}>
+                      <LichessActionButton
+                        label="Study"
+                        url={lichessOpeningSearchUrl(item.opening_name, {
+                          ecoCode: item.eco_code,
+                          playerColor: item.player_color,
+                        })}
+                        kind="opening"
+                      />
+                      {item.game_id ? (
+                        <GameExampleActions perGameResults={per_game_results} gameId={item.game_id} />
+                      ) : null}
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </ReportSubsection>
     </ReportSectionShell>
   );

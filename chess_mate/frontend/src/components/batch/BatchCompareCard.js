@@ -8,14 +8,34 @@ import {
   Box,
   Chip,
   Paper,
+  Skeleton,
   Typography,
 } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import { fetchBatchCompare } from '../../services/apiRequests';
 import { toTitleCase } from '../../utils/formatLabel';
 
+const COMPARE_CARD_MIN_HEIGHT = 132;
+
+const CompareSkeleton = () => (
+  <Paper
+    variant="outlined"
+    sx={{ p: 2, mb: 2, minHeight: COMPARE_CARD_MIN_HEIGHT }}
+    aria-busy="true"
+    aria-label="Loading batch comparison"
+  >
+    <Skeleton variant="text" width="45%" height={28} sx={{ mb: 1 }} />
+    <Skeleton variant="text" width="92%" />
+    <Skeleton variant="text" width="78%" />
+    <Skeleton variant="rounded" width="100%" height={36} sx={{ mt: 1.5 }} />
+  </Paper>
+);
+
 const CompareEmptyState = () => (
-  <Paper variant="outlined" sx={{ p: 2, mb: 2, bgcolor: 'action.hover' }}>
+  <Paper
+    variant="outlined"
+    sx={{ p: 2, mb: 2, minHeight: COMPARE_CARD_MIN_HEIGHT, bgcolor: 'action.hover' }}
+  >
     <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
       <TrendingUpIcon color="action" fontSize="small" sx={{ mt: 0.25 }} />
       <Box>
@@ -77,11 +97,7 @@ const BatchCompareCard = ({ batchId }) => {
   if (loading) {
     return (
       <Box sx={{ py: 0 }}>
-        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-          <Typography variant="body2" color="text.secondary">
-            Loading comparison with your previous batch…
-          </Typography>
-        </Paper>
+        <CompareSkeleton />
       </Box>
     );
   }
@@ -103,7 +119,7 @@ const BatchCompareCard = ({ batchId }) => {
 
   return (
     <Box sx={{ py: 0 }}>
-      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+      <Paper variant="outlined" sx={{ p: 2, mb: 2, minHeight: COMPARE_CARD_MIN_HEIGHT }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
           vs previous batch (#{compare.other_batch_id})
         </Typography>

@@ -20,7 +20,7 @@ describe('BatchReportHero', () => {
       />
     );
 
-    expect(screen.getByText(/Batch coach report ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/batch coach report is ready/i)).toBeInTheDocument();
     expect(screen.getByText(/10 games analyzed/i)).toBeInTheDocument();
     expect(screen.getByText(/leak material in the middlegame/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Start with priority #1/i })).toBeInTheDocument();
@@ -39,6 +39,22 @@ describe('BatchReportHero', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Start with priority #1/i }));
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('shows do-today callout above the fold', () => {
+    render(
+      <BatchReportHero
+        batch_summary={{ games_analyzed: 8 }}
+        coaching_report={{
+          executive_summary: 'Focus on tactics in the middlegame across this batch.',
+          one_thing_to_do_today: 'Do 15 fork puzzles before your next rapid session.',
+          top_3_priorities: [{ rank: 1, title: 'Forks', why_it_matters: 'a', how_to_fix: 'b', specific_drill: 'c' }],
+        }}
+      />
+    );
+
+    expect(screen.getByText(/^Do today$/i)).toBeInTheDocument();
+    expect(screen.getByText(/15 fork puzzles/i)).toBeInTheDocument();
   });
 
   it('falls back to phase CTA without priorities', () => {
