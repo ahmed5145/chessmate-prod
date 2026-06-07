@@ -3,6 +3,11 @@ import { CheckCircle, ExternalLink, Link2, Loader2, Unlink, XCircle } from 'luci
 import { toast } from 'react-hot-toast';
 import api from '../../services/api';
 
+const CONNECTED_ACCENT = {
+  connected: 'border-green-500/40 bg-green-50 dark:border-green-700/50 dark:bg-green-950/25',
+  text: 'text-green-700 dark:text-green-400',
+};
+
 const PLATFORMS = [
   {
     key: 'chess.com',
@@ -11,10 +16,9 @@ const PLATFORMS = [
     placeholder: 'Chess.com username',
     profileUrl: (username) => `https://www.chess.com/member/${encodeURIComponent(username)}`,
     accent: {
-      connected: 'border-[#81b64c]/50 bg-[#81b64c]/10',
+      ...CONNECTED_ACCENT,
       idle: 'border-gray-200 dark:border-gray-700',
       badge: 'bg-[#81b64c] text-white',
-      text: 'text-[#5a8f35] dark:text-[#9fd36f]',
     },
   },
   {
@@ -24,10 +28,9 @@ const PLATFORMS = [
     placeholder: 'Lichess username',
     profileUrl: (username) => `https://lichess.org/@/${encodeURIComponent(username)}`,
     accent: {
-      connected: 'border-gray-800/30 bg-gray-900/5 dark:border-gray-500/40 dark:bg-white/5',
+      ...CONNECTED_ACCENT,
       idle: 'border-gray-200 dark:border-gray-700',
       badge: 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900',
-      text: 'text-gray-700 dark:text-gray-200',
     },
   },
 ];
