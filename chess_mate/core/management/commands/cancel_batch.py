@@ -1,9 +1,10 @@
 from datetime import timedelta
 
-from core.batch_credits import refund_batch_credits_on_hard_fail
-from core.models import BatchAnalysisReport
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
+
+from core.batch_credits import refund_batch_credits_on_hard_fail
+from core.models import BatchAnalysisReport
 
 
 class Command(BaseCommand):

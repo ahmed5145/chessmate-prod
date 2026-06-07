@@ -515,9 +515,9 @@ Run from **`chess_mate`** (where `manage.py` lives), not `chess_mate/chess_mate/
 
 ```powershell
 cd C:\Users\PCAdmin\Desktop\chessmate_prod\chess_mate
-py -3.10 -m pip install black isort
-py -3.10 -m isort --profile black core/tasks.py core/management/commands/
-py -3.10 -m black --line-length=120 core/tasks.py core/management/commands/
+py -3.11 -m pip install black isort
+py -3.11 -m isort --profile black core/tasks.py core/management/commands/
+py -3.11 -m black --line-length=120 core/tasks.py core/management/commands/
 ```
 
 Use **Python 3.10** to match Docker/CI (3.12.5 can break Black).

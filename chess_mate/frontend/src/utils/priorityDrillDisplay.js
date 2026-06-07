@@ -86,18 +86,6 @@ const combineDrillParts = (practice, review) => {
 
 const isGameSpecificLine = (text) => /vs\s|move\s\d|replay/i.test(text || '');
 
-const practiceOverlaps = (practice, review) => {
-  const p = cleanPracticeLine(practice).toLowerCase();
-  const r = (review || '').toLowerCase();
-  if (!p || !r) {
-    return false;
-  }
-  return (
-    (p.includes('puzzle') && r.includes('puzzle'))
-    || (p.includes('tactic') && r.includes('tactic') && p.length > 20 && r.length > 20)
-  );
-};
-
 /**
  * Single consolidated drill paragraph for priority cards (no nested Practice / Review labels).
  */
@@ -106,9 +94,6 @@ export const buildPriorityDrillDisplay = (priority, perGameResults = []) => {
   const structured = splitStructuredDrill(humanized);
 
   if (structured) {
-    if (structured.practice && structured.review && practiceOverlaps(structured.practice, structured.review)) {
-      return ensureSentence(cleanReviewLine(structured.review) || cleanPracticeLine(structured.practice));
-    }
     const combined = combineDrillParts(structured.practice, structured.review);
     if (combined) {
       return combined;
