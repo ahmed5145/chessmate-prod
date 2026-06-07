@@ -86,6 +86,7 @@ const BatchReportActions = ({
             size="small"
             onClick={handleDownload}
             startIcon={<DownloadIcon fontSize="small" />}
+            aria-label="Download report"
           >
             Download
           </Button>

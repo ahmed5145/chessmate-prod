@@ -34,7 +34,7 @@ describe('BatchReportActions', () => {
 
   it('downloads via browser print dialog', () => {
     render(<BatchReportActions batchId={3} hasCoaching />);
-    fireEvent.click(screen.getByRole('button', { name: /^Download$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Download report/i }));
     expect(downloadBatchReport).toHaveBeenCalled();
     expect(toast).toHaveBeenCalledWith(
       expect.stringMatching(/Save as PDF/i),
