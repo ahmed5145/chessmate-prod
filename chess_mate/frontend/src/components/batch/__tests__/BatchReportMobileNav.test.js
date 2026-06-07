@@ -8,6 +8,16 @@ describe('BatchReportMobileNav', () => {
     { id: 'batch-section-priorities', label: 'Top priorities' },
   ];
 
+  beforeAll(() => {
+    global.IntersectionObserver = class {
+      observe() {}
+
+      disconnect() {}
+
+      unobserve() {}
+    };
+  });
+
   beforeEach(() => {
     document.body.innerHTML = `
       <div id="batch-section-summary"></div>
