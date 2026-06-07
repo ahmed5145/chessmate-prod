@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Crown, Download, Layers, FileText } from 'lucide-react';
+import { ArrowRight, Brain, Crown, Download, Layers, FileText } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import api from '../services/api';
@@ -105,16 +105,23 @@ const LandingPage = () => {
       <div className={`py-20 ${isDarkMode ? 'bg-gray-800/40' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className={`text-3xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <h2 className={`text-3xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               How it works
             </h2>
+            <p className={`text-sm mb-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Import, batch analyze, and read your coaching report — step by step below.
+            </p>
             <Link
               to="/how-batch-coach-works"
-              className={`text-sm font-medium underline underline-offset-2 ${
-                isDarkMode ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-600 hover:text-indigo-800'
+              className={`inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl border text-sm font-semibold shadow-sm transition-colors ${
+                isDarkMode
+                  ? 'bg-gray-800/90 border-indigo-700/60 text-indigo-200 hover:bg-gray-800 hover:border-indigo-500'
+                  : 'bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300'
               }`}
             >
-              Full Batch Coach guide →
+              <Brain className="h-4 w-4 shrink-0" />
+              <span>Full Batch Coach guide</span>
+              <ArrowRight className="h-4 w-4 shrink-0 opacity-80" />
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

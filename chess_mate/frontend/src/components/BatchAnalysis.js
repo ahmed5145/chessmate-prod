@@ -8,7 +8,7 @@ import {
 } from '../services/apiRequests';
 import { useTheme } from '../context/ThemeContext';
 import { UserContext } from '../contexts/UserContext';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart2,
   Clock,
@@ -51,12 +51,12 @@ const BatchAnalysis = () => {
   const userContext = useContext(UserContext);
   const credits = userContext?.credits ?? 0;
   const navigate = useNavigate();
+  const location = useLocation();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [batchSendsEmail, setBatchSendsEmail] = useState(true);
   const [batchEtaOptions, setBatchEtaOptions] = useState({});
   const pollingErrorCountRef = useRef(0);
   const isMountedRef = useRef(true);
-  const navigateFallbackRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,35 +84,26 @@ const BatchAnalysis = () => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      if (navigateFallbackRef.current) {
-        window.clearTimeout(navigateFallbackRef.current);
-        navigateFallbackRef.current = null;
-      }
     };
   }, []);
 
+  const isOnBatchCoachPage = useCallback(
+    () => window.location.pathname === '/batch-analysis',
+    []
+  );
+
   const navigateReliably = useCallback((targetPath, options = {}) => {
-    if (!isMountedRef.current) {
+    if (!isMountedRef.current || !isOnBatchCoachPage()) {
       return;
     }
-
     navigate(targetPath, options);
+  }, [navigate, isOnBatchCoachPage]);
 
-    if (navigateFallbackRef.current) {
-      window.clearTimeout(navigateFallbackRef.current);
+  useEffect(() => {
+    if (location.pathname !== '/batch-analysis') {
+      setIsAnalyzing(false);
     }
-
-    // Router occasionally updates URL before rendering target route; force fallback.
-    navigateFallbackRef.current = window.setTimeout(() => {
-      navigateFallbackRef.current = null;
-      if (!isMountedRef.current) {
-        return;
-      }
-      if (window.location.pathname !== targetPath) {
-        window.location.assign(targetPath);
-      }
-    }, 250);
-  }, [navigate]);
+  }, [location.pathname]);
 
   // Fetch available games when component mounts
   useEffect(() => {
@@ -172,11 +163,13 @@ const BatchAnalysis = () => {
     let toastId;
 
     const checkProgress = async () => {
-      if (!batchId || !isMountedRef.current) return;
+      if (!batchId || !isMountedRef.current || !isOnBatchCoachPage()) {
+        return true;
+      }
 
       try {
         const response = await getBatchStatus(batchId);
-        if (!isMountedRef.current) {
+        if (!isMountedRef.current || !isOnBatchCoachPage()) {
           return true;
         }
         console.log('Status response:', response);
@@ -275,7 +268,7 @@ const BatchAnalysis = () => {
         toast.dismiss(toastId);
       }
     };
-  }, [isAnalyzing, batchId, navigate, navigateReliably, totalGames]);
+  }, [isAnalyzing, batchId, navigate, navigateReliably, totalGames, isOnBatchCoachPage]);
 
   useEffect(() => {
     let timer;

@@ -84,14 +84,17 @@ const BatchReport = () => {
       }
     };
 
+    const isOnBatchReportPage = () =>
+      window.location.pathname.startsWith('/batch-report/');
+
     const pollStatus = async () => {
-      if (!batchId || finishedRef.current) {
+      if (!batchId || finishedRef.current || !isOnBatchReportPage()) {
         return;
       }
 
       try {
         const response = await getBatchStatus(batchId);
-        if (!isMounted) {
+        if (!isMounted || !isOnBatchReportPage()) {
           return;
         }
 

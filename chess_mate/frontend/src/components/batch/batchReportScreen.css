@@ -1,3 +1,17 @@
+/* Batch report — section nav */
+.batch-report-toc {
+  scrollbar-width: thin;
+}
+
+.batch-report-toc::-webkit-scrollbar {
+  width: 6px;
+}
+
+.batch-report-toc::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.35);
+}
+
 /* Batch report — mobile / narrow viewport polish (screen only) */
 @media screen and (max-width: 600px) {
   .batch-report-print-root .MuiContainer-root {

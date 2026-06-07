@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { ThemeProvider as TailwindThemeProvider, useTheme } from './context/ThemeContext';
 import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
@@ -10,6 +11,7 @@ import './App.css';
 
 // Inner component that uses Tailwind theme context and provides MUI theme
 function AppContent() {
+  const location = useLocation();
   const { isDarkMode } = useTheme();
 
   // Create MUI theme based on Tailwind dark mode state
@@ -24,7 +26,7 @@ function AppContent() {
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <main className="flex-1 pt-16">
-          <AppRoutes />
+          <AppRoutes key={`${location.pathname}${location.key}`} />
         </main>
         <SiteFooter />
         <AchievementToast />

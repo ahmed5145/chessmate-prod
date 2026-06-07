@@ -47,7 +47,7 @@ const BatchReportSections = ({
         className="batch-report-sections-layout"
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '200px 1fr' },
+          gridTemplateColumns: { xs: '1fr', md: '212px 1fr' },
           gap: { xs: 0, md: 2 },
           alignItems: 'start',
         }}
