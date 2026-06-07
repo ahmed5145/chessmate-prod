@@ -86,9 +86,11 @@ def credit_model_for_api() -> Dict[str, Any]:
         "batch_included": batch_per_game == 0,
         "summary_points": [
             "1 credit per game import from Chess.com or Lichess",
-            "Batch Coach analysis is included once games are on your account"
-            if batch_per_game == 0
-            else f"Batch Coach costs {batch_per_game} credit(s) per game in the batch",
+            (
+                "Batch Coach analysis is included once games are on your account"
+                if batch_per_game == 0
+                else f"Batch Coach costs {batch_per_game} credit(s) per game in the batch"
+            ),
             f"New accounts receive {signup_bonus} free credits",
             f"Optional single-game deep analysis costs {single_game} credit per game",
             "Credits are sold as one-time packs — not a subscription",
