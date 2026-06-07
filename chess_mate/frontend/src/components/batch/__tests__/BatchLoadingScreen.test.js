@@ -35,7 +35,7 @@ describe('BatchLoadingScreen', () => {
   });
 
   it('shows in-progress state with linear progress', () => {
-    const { container } = renderScreen({
+    renderScreen({
       status: 'in_progress',
       total_games: 4,
       completed_games: 2,
@@ -44,8 +44,7 @@ describe('BatchLoadingScreen', () => {
 
     expect(screen.getByText('Game 2 of 4')).toBeInTheDocument();
     expect(screen.getByText('2 of 4 games analyzed')).toBeInTheDocument();
-    const linearProgress = container.querySelector('.MuiLinearProgress-root');
-    expect(linearProgress).toHaveAttribute('aria-valuenow', '50');
+    expect(screen.getByRole('progressbar', { value: { now: 50 } })).toBeInTheDocument();
   });
 
   it('shows email alert by default and alternate copy when email is disabled', () => {
