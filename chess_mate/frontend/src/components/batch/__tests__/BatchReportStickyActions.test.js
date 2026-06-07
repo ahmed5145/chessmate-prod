@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import BatchReportStickyActions from '../BatchReportStickyActions';
 
 jest.mock('../BatchReportActions', () => function MockActions() {
@@ -19,11 +19,9 @@ describe('BatchReportStickyActions', () => {
   });
 
   it('renders actions inside sticky chrome', () => {
-    const { getByTestId } = render(
-      <BatchReportStickyActions batchId="batch-1" hasCoaching />
-    );
+    render(<BatchReportStickyActions batchId="batch-1" hasCoaching />);
 
-    expect(getByTestId('batch-report-actions')).toBeInTheDocument();
+    expect(screen.getByTestId('batch-report-actions')).toBeInTheDocument();
   });
 
   it('syncs sticky height css variable via ResizeObserver', async () => {
