@@ -31,7 +31,12 @@ const extractGameIds = (...parts) => {
   return [...new Set(matches.map((id) => id.toLowerCase()))];
 };
 
-const PriorityCard = ({ priority, per_game_results = [], showLichessLink = true }) => {
+const PriorityCard = ({
+  priority,
+  per_game_results = [],
+  batch_summary = null,
+  showLichessLink = true,
+}) => {
   if (!priority || typeof priority !== 'object') {
     return null;
   }
@@ -59,7 +64,10 @@ const PriorityCard = ({ priority, per_game_results = [], showLichessLink = true 
   const linkedGames = extractGameIds(title, why_it_matters, how_to_fix, specific_drill);
   const humanize = (text) => humanizeGameIdInText(text, per_game_results);
   const drillText = buildPriorityDrillDisplay(priority, per_game_results);
-  const lichessLink = resolvePriorityLichessLink(priority);
+  const lichessLink = resolvePriorityLichessLink(priority, {
+    batch_summary,
+    per_game_results,
+  });
 
   return (
     <Card sx={{ mb: 3 }}>

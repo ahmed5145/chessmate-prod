@@ -2,8 +2,11 @@
  * Map batch weakness themes to Lichess study URLs (puzzles, openings, endgames).
  */
 
+import { findGameResultById } from './formatGameLabel';
 import { toTitleCase } from './formatLabel';
 import { buildOpeningStudyQuery, compactOpeningName } from './openingNameCompact';
+
+const UNKNOWN_OPENING_LABELS = new Set(['unknown', 'unknown opening', '?']);
 
 const PUZZLE_THEME_SLUGS = {
   fork: 'fork',
@@ -94,34 +97,191 @@ const cleanExtractedOpeningName = (name) => {
   return compacted || String(name || '').trim() || null;
 };
 
+const extractGameIdsFromPriority = (priority = {}) => {
+  const text = [priority.title, priority.why_it_matters, priority.how_to_fix, priority.specific_drill]
+    .filter(Boolean)
+    .join(' ');
+  const matches = text.match(/game_\d+/gi) || [];
+  return [...new Set(matches.map((id) => id.toLowerCase()))];
+};
+
+const isRecognizedOpeningName = (name) => {
+  const compacted = compactOpeningName(name);
+  if (!compacted || UNKNOWN_OPENING_LABELS.has(compacted.toLowerCase())) {
+    return false;
+  }
+  const normalized = compacted.toLowerCase();
+  if (/^game_\d+$/i.test(normalized) || /\bgame_\d+\b/i.test(normalized)) {
+    return false;
+  }
+  if (normalized === 'opening repertoire' || normalized === 'your repertoire' || normalized === 'the repertoire') {
+    return false;
+  }
+  return true;
+};
+
+const openingStudyTargetFromName = (openingName, options = {}) => ({
+  openingName: compactOpeningName(openingName),
+  ecoCode: options.ecoCode || null,
+  playerColor: options.playerColor || null,
+});
+
 const extractOpeningNameFromPriority = (priority = {}) => {
-  const sources = [priority.title, priority.how_to_fix, priority.specific_drill].filter(Boolean);
+  const sources = [priority.title, priority.how_to_fix, priority.specific_drill, priority.why_it_matters]
+    .filter(Boolean);
 
   for (const raw of sources) {
     const text = String(raw);
 
-    const fromTheory = text.match(/opening theory on\s+(.+?)(?:\s+to\b|[.;]|$)/i);
+    const fromTheory = text.match(
+      /opening theory(?:\s+(?:on|for|about|in))?\s+(.+?)(?:\s+to\b|[.;]|$)/i
+    );
     if (fromTheory?.[1]) {
-      return cleanExtractedOpeningName(fromTheory[1]);
+      const name = cleanExtractedOpeningName(fromTheory[1]);
+      if (isRecognizedOpeningName(name)) {
+        return name;
+      }
+    }
+
+    const fromStudyTheory = text.match(
+      /study\s+opening\s+theory(?:\s*(?:on|for|about|in|:)\s*)?(.+?)(?:\s+to\b|[.;]|$)/i
+    );
+    if (fromStudyTheory?.[1]) {
+      const name = cleanExtractedOpeningName(fromStudyTheory[1]);
+      if (isRecognizedOpeningName(name)) {
+        return name;
+      }
+    }
+
+    const fromColon = text.match(/opening\s+theory\s*:\s*(.+?)(?:\s+to\b|[.;]|$)/i);
+    if (fromColon?.[1]) {
+      const name = cleanExtractedOpeningName(fromColon[1]);
+      if (isRecognizedOpeningName(name)) {
+        return name;
+      }
     }
 
     const fromIdeas = text.match(/ideas from (?:the\s+)?(.+?)(?:\s+to\b|[.;]|$)/i);
     if (fromIdeas?.[1]) {
-      return cleanExtractedOpeningName(fromIdeas[1]);
+      const name = cleanExtractedOpeningName(fromIdeas[1]);
+      if (isRecognizedOpeningName(name)) {
+        return name;
+      }
     }
 
     const fromMasters = text.match(/masters in (?:the\s+)?(.+?)(?:\s*[.;]|$)/i);
     if (fromMasters?.[1]) {
-      return cleanExtractedOpeningName(fromMasters[1]);
+      const name = cleanExtractedOpeningName(fromMasters[1]);
+      if (isRecognizedOpeningName(name)) {
+        return name;
+      }
     }
 
-    const quotedOpening = text.match(/(?:Queen's|King's|London|Sicilian|Caro|French|Slav|Indian)[^.;]*/i);
+    const fromLine = text.match(/\b(?:line|lines)\s+in\s+(?:the\s+)?(.+?)(?:\s+to\b|[.;]|$)/i);
+    if (fromLine?.[1]) {
+      const name = cleanExtractedOpeningName(fromLine[1]);
+      if (isRecognizedOpeningName(name)) {
+        return name;
+      }
+    }
+
+    const quotedOpening = text.match(
+      /(?:Queen's|King's|London|Sicilian|Caro|French|Slav|Indian|Italian|Ruy|Scandinavian|Nimzo|Grünfeld|Catalan)[^.;]*/i
+    );
     if (quotedOpening?.[0]) {
-      return cleanExtractedOpeningName(quotedOpening[0]);
+      const name = cleanExtractedOpeningName(quotedOpening[0]);
+      if (isRecognizedOpeningName(name)) {
+        return name;
+      }
     }
   }
 
   return null;
+};
+
+const resolveOpeningStudyTargetFromLinkedGames = (priority, perGameResults = []) => {
+  const gameIds = extractGameIdsFromPriority(priority);
+  for (const gameId of gameIds) {
+    const game = findGameResultById(perGameResults, gameId);
+    if (isRecognizedOpeningName(game?.opening_name)) {
+      return openingStudyTargetFromName(game.opening_name, {
+        ecoCode: game.eco_code,
+        playerColor: game.player_color,
+      });
+    }
+  }
+  return null;
+};
+
+const resolveOpeningStudyTargetFromBatchSummary = (batchSummary = {}) => {
+  const gaps = Array.isArray(batchSummary.repertoire_gaps) ? batchSummary.repertoire_gaps : [];
+  if (gaps[0]?.opening_name && isRecognizedOpeningName(gaps[0].opening_name)) {
+    return openingStudyTargetFromName(gaps[0].opening_name, {
+      ecoCode: gaps[0].eco_code,
+      playerColor: gaps[0].player_color,
+    });
+  }
+
+  const struggling = (batchSummary.opening_insights || []).filter(
+    (item) => item?.status === 'struggling' || item?.status === 'needs_work'
+  );
+  if (struggling[0]?.opening_name && isRecognizedOpeningName(struggling[0].opening_name)) {
+    return openingStudyTargetFromName(struggling[0].opening_name, {
+      ecoCode: struggling[0].eco_code,
+      playerColor: struggling[0].player_color,
+    });
+  }
+
+  const primaryOpenings = batchSummary.phase_performance?.opening?.primary_openings || [];
+  const primary = primaryOpenings.find((name) => isRecognizedOpeningName(name));
+  if (primary) {
+    return openingStudyTargetFromName(primary);
+  }
+
+  return null;
+};
+
+const resolveOpeningStudyTargetFromPerGameResults = (perGameResults = []) => {
+  const counts = new Map();
+  perGameResults.forEach((game) => {
+    const name = compactOpeningName(game?.opening_name);
+    if (!isRecognizedOpeningName(name)) {
+      return;
+    }
+    counts.set(name, (counts.get(name) || 0) + 1);
+  });
+
+  const [topOpening] = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  if (topOpening?.[0]) {
+    const sample = perGameResults.find(
+      (game) => compactOpeningName(game?.opening_name) === topOpening[0]
+    );
+    return openingStudyTargetFromName(topOpening[0], {
+      ecoCode: sample?.eco_code,
+      playerColor: sample?.player_color,
+    });
+  }
+
+  return null;
+};
+
+export const resolveOpeningStudyTarget = (priority, context = {}) => {
+  const { batch_summary: batchSummary = {}, per_game_results: perGameResults = [] } = context;
+
+  const linkedGameTarget = resolveOpeningStudyTargetFromLinkedGames(priority, perGameResults);
+  if (linkedGameTarget) {
+    return linkedGameTarget;
+  }
+
+  const extractedName = extractOpeningNameFromPriority(priority);
+  if (extractedName) {
+    return openingStudyTargetFromName(extractedName);
+  }
+
+  return (
+    resolveOpeningStudyTargetFromBatchSummary(batchSummary)
+    || resolveOpeningStudyTargetFromPerGameResults(perGameResults)
+  );
 };
 
 const isEndgamePriority = (priority = {}) => {
@@ -144,7 +304,7 @@ const isOpeningPriority = (priority = {}) => {
 /**
  * Map a single top-3 priority to a Lichess study / puzzle / endgame URL.
  */
-export const resolvePriorityLichessLink = (priority) => {
+export const resolvePriorityLichessLink = (priority, context = {}) => {
   if (!priority || typeof priority !== 'object') {
     return null;
   }
@@ -158,11 +318,23 @@ export const resolvePriorityLichessLink = (priority) => {
   }
 
   if (isOpeningPriority(priority)) {
-    const openingName = extractOpeningNameFromPriority(priority) || 'opening repertoire';
+    const openingTarget = resolveOpeningStudyTarget(priority, context);
+    if (!openingTarget?.openingName) {
+      return null;
+    }
+
+    const labelName = openingTarget.openingName.includes(':')
+      ? openingTarget.openingName.split(':').slice(1).join(':').trim() || openingTarget.openingName
+      : openingTarget.openingName;
+
     return {
       label: 'Study on Lichess',
-      url: lichessOpeningSearchUrl(openingName),
+      url: lichessOpeningSearchUrl(openingTarget.openingName, {
+        ecoCode: openingTarget.ecoCode,
+        playerColor: openingTarget.playerColor,
+      }),
       kind: 'opening',
+      openingName: labelName,
     };
   }
 

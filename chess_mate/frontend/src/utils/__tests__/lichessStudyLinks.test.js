@@ -60,7 +60,58 @@ describe('resolvePriorityLichessLink', () => {
     expect(link.kind).toBe('opening');
     expect(link.url).toContain('lichess.org/study/search');
     expect(link.url).toContain('London');
+    expect(link.url).not.toContain('opening+repertoire');
     expect(link.label).toBe('Study on Lichess');
+  });
+
+  it('uses batch repertoire gaps when opening priority has no explicit line name', () => {
+    const link = resolvePriorityLichessLink(
+      {
+        title: 'Study Opening Theory',
+        how_to_fix: 'Review your repertoire and prep before the next batch.',
+        specific_drill: 'Pick one line from this batch and study it for 15 minutes.',
+      },
+      {
+        batch_summary: {
+          repertoire_gaps: [
+            {
+              opening_name: "Queen's Pawn Game: London System",
+              eco_code: 'D02',
+              player_color: 'white',
+            },
+          ],
+        },
+      }
+    );
+
+    expect(link.kind).toBe('opening');
+    expect(link.url).toContain('lichess.org/study/search');
+    expect(link.url).toContain('London');
+    expect(link.url).not.toContain('opening+repertoire');
+  });
+
+  it('uses linked game opening when priority cites game ids without naming the line', () => {
+    const link = resolvePriorityLichessLink(
+      {
+        title: 'Study opening theory from game_0',
+        how_to_fix: 'Replay the opening phase from the cited game.',
+        specific_drill: 'Review game_0 moves 1-12 and compare to model games.',
+      },
+      {
+        per_game_results: [
+          {
+            game_id: 'game_0',
+            opening_name: 'Sicilian Defense: Najdorf Variation',
+            eco_code: 'B90',
+            player_color: 'black',
+          },
+        ],
+      }
+    );
+
+    expect(link.url).toContain('lichess.org/study/search');
+    expect(link.url).toContain('Najdorf');
+    expect(link.url).not.toContain('opening+repertoire');
   });
 
   it('maps endgame priorities to Lichess endgame practice', () => {

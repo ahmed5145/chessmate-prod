@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  ChevronLeft,
   ChevronRight,
   Trophy,
   Target,
@@ -143,12 +144,31 @@ const AchievementsSection = ({ achievements }) => {
           <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div className="sm:flex sm:items-start">
               <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className={`text-lg leading-6 font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {selectedCategory ? categories[selectedCategory].title : 'All Achievements'}
-                  </h3>
+                <div className="flex justify-between items-center mb-4 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {selectedCategory ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCategory(null)}
+                        className={`inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium shrink-0 ${
+                          isDarkMode
+                            ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        }`}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        All categories
+                      </button>
+                    ) : null}
+                    <h3 className={`text-lg leading-6 font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {selectedCategory ? categories[selectedCategory].title : 'All Achievements'}
+                    </h3>
+                  </div>
                   <button
-                    onClick={() => setShowModal(false)}
+                    onClick={() => {
+                      setSelectedCategory(null);
+                      setShowModal(false);
+                    }}
                     className={`rounded-md p-2 ${
                       isDarkMode
                         ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-300'

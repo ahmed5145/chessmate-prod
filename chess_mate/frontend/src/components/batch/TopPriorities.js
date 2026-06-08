@@ -7,7 +7,7 @@ import { Box } from '@mui/material';
 import ReportSectionShell from './ReportSectionShell';
 import PriorityCard from './PriorityCard';
 
-const TopPriorities = ({ coaching_report, per_game_results = [] }) => {
+const TopPriorities = ({ coaching_report, per_game_results = [], batch_summary = null }) => {
   if (
     !coaching_report?.top_3_priorities ||
     !Array.isArray(coaching_report.top_3_priorities) ||
@@ -26,6 +26,7 @@ const TopPriorities = ({ coaching_report, per_game_results = [] }) => {
             key={priority.rank || index}
             priority={priority}
             per_game_results={per_game_results}
+            batch_summary={batch_summary}
             showLichessLink={Number(priority.rank) !== 1}
           />
         ))}
