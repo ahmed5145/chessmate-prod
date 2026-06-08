@@ -6,14 +6,6 @@ jest.mock('../LichessActionButton', () => function MockLichessButton({ label }) 
   return <button type="button">{label}</button>;
 });
 
-jest.mock('../GameExampleActions', () => function MockGameExampleActions() {
-  return <span data-testid="game-example-actions">Example</span>;
-});
-
-jest.mock('../OpeningRecommendationText', () => function MockRecommendation({ item }) {
-  return <span data-testid="opening-recommendation">{item.recommendation}</span>;
-});
-
 const perGameResults = [
   {
     game_id: 'game_0',
@@ -87,39 +79,6 @@ describe('OpeningSection', () => {
     );
 
     expect(screen.getByText(/No major repertoire gaps/i)).toBeInTheDocument();
-    expect(screen.getByText(/Game-by-game results/i)).toBeInTheDocument();
-    expect(screen.getByText(/Sicilian Defense/i)).toBeInTheDocument();
-  });
-
-  it('formats W/L/D result labels in the table', () => {
-    render(
-      <OpeningSection
-        batch_summary={{}}
-        per_game_results={[
-          {
-            game_id: 'game_w',
-            result: '1-0',
-            player_color: 'white',
-            opening_name: 'Italian Game',
-            eco_code: 'C50',
-            phase_breakdown: { opening: { moves: 8, avg_eval_drop: 0.1 } },
-          },
-          {
-            game_id: 'game_l',
-            result: '0-1',
-            player_color: 'white',
-            opening_name: 'French Defense',
-            eco_code: 'C00',
-            phase_breakdown: { opening: { moves: 8, avg_eval_drop: 0.4 } },
-          },
-        ]}
-      />
-    );
-
-    const rows = screen.getAllByRole('row');
-    expect(rows.some((row) => row.textContent.includes('Italian Game') && row.textContent.includes('W'))).toBe(
-      true
-    );
-    expect(rows.some((row) => row.textContent.includes('French') && row.textContent.includes('L'))).toBe(true);
+    expect(screen.queryByText(/Game-by-game results/i)).not.toBeInTheDocument();
   });
 });

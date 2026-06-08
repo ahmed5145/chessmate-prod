@@ -713,8 +713,8 @@ const BatchAnalysis = () => {
                       isDarkMode ? 'border-gray-700' : 'border-gray-100'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <div className={`text-sm font-medium truncate ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                             Batch #{report.id} · {report.games_count || 0} games
@@ -728,38 +728,43 @@ const BatchAnalysis = () => {
                             </span>
                           )}
                         </div>
-                        <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <p
+                          className={`text-xs mt-0.5 line-clamp-2 break-words ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                          title={report.coach_summary || undefined}
+                        >
                           {report.coach_summary || 'Open report for coaching insights'}
-                        </div>
-                        <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                        </p>
+                        <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                           {new Date(report.created_at).toLocaleString()}
                         </div>
                       </div>
-                      {isActiveBatchStatus(statusLabel) ? (
-                        <button
-                          type="button"
-                          onClick={() => openBatchReport(report)}
-                          className={`px-3 py-1.5 text-sm rounded-md border ${
-                            isDarkMode
-                              ? 'border-blue-700 text-blue-200 hover:bg-blue-900/40'
-                              : 'border-blue-300 text-blue-800 hover:bg-blue-50'
-                          }`}
-                        >
-                          View progress
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => openBatchReport(report)}
-                          className={`px-3 py-1.5 text-sm rounded-md border ${
-                            isDarkMode
-                              ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
-                              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                          }`}
-                        >
-                          Open Report
-                        </button>
-                      )}
+                      <div className="shrink-0 self-center">
+                        {isActiveBatchStatus(statusLabel) ? (
+                          <button
+                            type="button"
+                            onClick={() => openBatchReport(report)}
+                            className={`whitespace-nowrap px-3 py-1.5 text-sm rounded-md border ${
+                              isDarkMode
+                                ? 'border-blue-700 text-blue-200 hover:bg-blue-900/40'
+                                : 'border-blue-300 text-blue-800 hover:bg-blue-50'
+                            }`}
+                          >
+                            View progress
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openBatchReport(report)}
+                            className={`whitespace-nowrap px-3 py-1.5 text-sm rounded-md border ${
+                              isDarkMode
+                                ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            Open Report
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                   );

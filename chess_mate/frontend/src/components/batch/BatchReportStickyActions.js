@@ -1,5 +1,5 @@
 /**
- * Owner actions — sticky below navbar on narrow viewports so Download/Share stay reachable.
+ * Owner actions — sticky below navbar on narrow viewports so Share stays reachable.
  */
 
 import React, { useEffect, useRef } from 'react';

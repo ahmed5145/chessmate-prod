@@ -3,6 +3,7 @@ import {
   collectStudyLinksFromBatchSummary,
   resolvePriorityLichessLink,
 } from './lichessStudyLinks';
+import { resolveOpeningInsights, resolveRepertoireGaps } from './openingInsights';
 
 const MAX_BATCH_LINKS = 2;
 
@@ -29,7 +30,11 @@ export const collectPracticeNextLinks = ({
   const priorityOne = priorities.find((item) => Number(item?.rank) === 1) || priorities[0];
 
   if (priorityOne) {
-    const lichessLink = resolvePriorityLichessLink(priorityOne);
+    const lichessLink = resolvePriorityLichessLink(priorityOne, {
+      repertoireGaps: resolveRepertoireGaps(batch_summary, per_game_results),
+      openingInsights: resolveOpeningInsights(batch_summary, per_game_results),
+      perGameResults: per_game_results,
+    });
     if (lichessLink) {
       addLink({
         ...lichessLink,

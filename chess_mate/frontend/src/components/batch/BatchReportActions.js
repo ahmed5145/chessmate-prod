@@ -1,15 +1,13 @@
 /**
- * Share link + download (print-to-PDF) for batch report owners.
+ * Share link for batch report owners (keeps users on-platform — no PDF/download export).
  */
 
 import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { Button, Stack, Tooltip, Typography } from '@mui/material';
-import DownloadIcon from '@mui/icons-material/Download';
+import { Button, Stack, Typography } from '@mui/material';
 import LinkIcon from '@mui/icons-material/Link';
 import { enableBatchShare } from '../../services/apiRequests';
 import { copyTextToClipboard } from '../../utils/clipboard';
-import { downloadBatchReport } from '../../utils/printBatchReport';
 
 const BatchReportActions = ({
   batchId,
@@ -18,18 +16,6 @@ const BatchReportActions = ({
   hasCoaching,
 }) => {
   const [sharing, setSharing] = useState(false);
-
-  const handleDownload = () => {
-    try {
-      downloadBatchReport();
-      toast('In the print dialog, choose Save as PDF as the destination.', {
-        duration: 5000,
-        icon: 'ℹ️',
-      });
-    } catch (error) {
-      toast.error('Download is not available on this device.');
-    }
-  };
 
   const handleCopyShareLink = async () => {
     if (!batchId || sharing) {
@@ -88,20 +74,8 @@ const BatchReportActions = ({
         spacing={1}
         flexWrap="wrap"
         useFlexGap
-        sx={{ width: { xs: '100%', md: 'auto' }, minWidth: 0 }}
+        sx={{ width: { xs: '100%', md: 'auto' }, minWidth: 0, justifyContent: { xs: 'stretch', md: 'flex-end' } }}
       >
-        <Tooltip title='Opens your browser print dialog — pick "Save as PDF" to download. Nav and action buttons are hidden in the export.'>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={handleDownload}
-            startIcon={<DownloadIcon fontSize="small" />}
-            aria-label="Download report"
-            sx={{ flex: { xs: 1, md: 'none' }, minWidth: 0 }}
-          >
-            Download
-          </Button>
-        </Tooltip>
         <Button
           variant="outlined"
           size="small"

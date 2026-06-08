@@ -23,7 +23,6 @@ jest.mock('../RecurringPatterns', () => () => <div data-testid="recurring-patter
 jest.mock('../TopCriticalMoments', () => () => <div data-testid="critical-moments" />);
 jest.mock('../StudyDrillLinks', () => () => <div data-testid="study-drills" />);
 jest.mock('../TrainingPlan', () => () => <div data-testid="training-plan" />);
-jest.mock('../GameAccordion', () => () => <div data-testid="game-accordion" />);
 jest.mock('../BatchReportToc', () => {
   const actual = jest.requireActual('../BatchReportToc');
   return {
