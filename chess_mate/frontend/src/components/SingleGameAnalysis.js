@@ -914,8 +914,8 @@ const SingleGameAnalysis = () => {
                 <p className="font-medium">Runs in the background</p>
                 <p className={`mt-1 ${isDarkMode ? 'text-indigo-200/90' : 'text-indigo-800'}`}>
                   {singleGameSendsEmail
-                    ? 'You can close this tab — we\'ll email you when the depth-20 review is ready. Games also shows live progress and a toast when you\'re signed in.'
-                    : 'You do not need to wait here. Open Games to see progress, or return to this link when the review finishes.'}
+                    ? 'Depth-20 reviews often take 5–15 minutes. You can close this tab — we\'ll email you when ready. Games also shows live progress and a toast when you\'re signed in.'
+                    : 'Depth-20 reviews often take 5–15 minutes. You do not need to wait here — open Games for progress, or return to this link when finished.'}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button

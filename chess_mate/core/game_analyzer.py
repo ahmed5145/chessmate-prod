@@ -358,6 +358,7 @@ class GameAnalyzer:
         task_id=None,
         force_reanalyze=False,
         batch_context=None,
+        analysis_timer=None,
     ):
         """
         Analyze a chess game and save the results.
@@ -442,12 +443,17 @@ class GameAnalyzer:
             # Analyze the game with Stockfish
             if progress_callback:
                 progress_callback(20, "Analyzing moves with Stockfish")
+            if analysis_timer:
+                analysis_timer.mark("stockfish_start")
 
             analyzed_moves = self.engine.analyze_pgn_game(
                 pgn,
                 depth=depth,
                 callback=lambda p, m: (progress_callback(20 + int(p * 0.5), m) if progress_callback else None),
             )
+
+            if analysis_timer:
+                analysis_timer.mark("stockfish_done", moves=len(analyzed_moves) if analyzed_moves else 0)
 
             # Backward-compatible fallback used by legacy unit tests where the
             # engine mock does not provide structured move analysis.
@@ -476,6 +482,8 @@ class GameAnalyzer:
             time_data = []  # Extract time data if available
             try:
                 metrics = self.metrics_calculator.calculate_game_metrics(analyzed_moves, time_data)
+                if analysis_timer:
+                    analysis_timer.mark("metrics_done")
             except MetricsError as me:
                 logger.warning(f"Error calculating metrics: {str(me)}")
                 # Provide default metrics structure with error information
@@ -538,6 +546,8 @@ class GameAnalyzer:
                             progress=85,
                             message="AI feedback generated successfully",
                         )
+                    if analysis_timer:
+                        analysis_timer.mark("ai_feedback_done")
                 except Exception as e:
                     logger.error(f"Error generating AI feedback: {str(e)}")
                     # Continue without AI feedback but update progress
@@ -579,6 +589,8 @@ class GameAnalyzer:
                 existing_feedback=feedback if isinstance(feedback, dict) else None,
                 batch_context=batch_context if isinstance(batch_context, dict) else None,
             )
+            if analysis_timer:
+                analysis_timer.mark("coaching_done")
 
             # Save the analysis data
             analysis_data = analysis_result.analysis_data
@@ -606,6 +618,8 @@ class GameAnalyzer:
                 analysis_result.accuracy_black = metrics.get("overall", {}).get("black_accuracy", 0)
 
             analysis_result.save()
+            if analysis_timer:
+                analysis_timer.mark("save_done", analysis_id=analysis_result.id)
 
             if progress_callback:
                 progress_callback(100, "Analysis complete")

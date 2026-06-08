@@ -134,17 +134,45 @@ You do **not** run `docker exec` on your PC. Logs live on the EB instance.
 | Symptom | Search in stdouterr.log / eb-engine.log |
 |---------|----------------------------------------|
 | Batch stuck `0/5` | `Celery worker`, `batch=`, `analyze_single_game_subtask`, `Chord callback` |
+| Single-game failed mid-game | `single_game_analysis`, `TIMEOUT`, `SoftTimeLimitExceeded`, `analyze_game_task` |
+| Single-game queued forever | `Task queued, waiting for worker`, `single_game_analysis START` (never appears) |
 | Import 0 games | `Import returned 0 games` |
 | Celery dead | `ERROR: Celery worker exited immediately` |
 
-After the Celery fix, **eb-engine.log** on deploy should include:
+After deploy, **eb-engine.log** should include:
 
 ```text
-Celery worker pid=123 (log: /app/chess_mate/logs/celery.log)
+Starting Celery worker (queues: default, analysis, batch_analysis; ...)
+Celery worker pid=123
 Celery worker is running.
 ```
 
-If you use **eb cli** and SSH: `eb ssh` → `sudo docker ps` → `sudo docker exec -it <container_id> tail -f /app/chess_mate/logs/celery.log`
+### How to read Celery logs (no special file)
+
+Celery runs in the **same Docker container** as Gunicorn and logs to **stdout** (`--logfile=-` in `docker-entrypoint.sh`). You do **not** need a separate `celery.log` path on EB.
+
+**Steps (AWS Console):**
+
+1. Elastic Beanstalk → your environment → **Logs** → **Request logs** → **Full logs** (or Last 100 lines for a quick peek).
+2. Download and unzip the bundle.
+3. Open `var/log/eb-docker/containers/eb-current-app/*-stdouterr.log`.
+4. Search (Ctrl+F) for:
+   - `single_game_analysis START` — task picked up (`plies`, `soft_time_limit`)
+   - `single_game_analysis phase=` — Stockfish / metrics / coaching timing
+   - `single_game_analysis COMPLETE` — success + `total_seconds`
+   - `single_game_analysis FAILED` / `TIMEOUT` — failure reason
+   - `analyze_game_task` — Celery task name
+   - `[batch=` — batch subtasks (depth 14)
+
+**Optional SSH (eb cli):**
+
+```bash
+eb ssh
+sudo docker ps
+sudo docker logs -f <container_id> 2>&1 | grep -E 'single_game_analysis|analyze_game_task|batch='
+```
+
+That streams the same stdout Celery uses in production.
 
 ### Batch status `0/5` for hours
 

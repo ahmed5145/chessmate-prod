@@ -67,6 +67,7 @@ const AnalyzeGameConfirmDialog = ({
             <strong>Your balance:</strong> {creditsAvailable} credit{Number(creditsAvailable) === 1 ? '' : 's'}
           </li>
           <li>Engine depth 20 · coach-style feedback · move-by-move breakdown</li>
+          <li>Typical runtime: about 5–15 minutes for a full game (longer than Batch Coach — depth 20 vs depth 14)</li>
           <li>
             Runs in the background — you can leave this page
             {sendsCompletionEmail

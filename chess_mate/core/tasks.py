@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import redis
 from celery import Task, chord, group, shared_task
-from celery.exceptions import MaxRetriesExceededError
+from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded, TimeLimitExceeded
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.core.cache import cache
@@ -46,6 +46,11 @@ from .error_handling import (
     ValidationError,
 )
 from .game_analyzer import AnalysisError, GameAnalyzer
+from .single_game_observability import (
+    SingleGameAnalysisTimer,
+    count_plies_in_pgn,
+    is_celery_time_limit_error,
+)
 from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 from .task_manager import (
     TASK_STATUS_FAILURE,
@@ -99,7 +104,12 @@ class BaseAnalysisTask(Task):
         super().after_return(status, retval, task_id, args, kwargs, einfo)
 
 
-@shared_task(bind=True, name="chess_mate.core.tasks.analyze_game_task")
+@shared_task(
+    bind=True,
+    name="chess_mate.core.tasks.analyze_game_task",
+    soft_time_limit=int(getattr(settings, "SINGLE_GAME_TASK_SOFT_TIME_LIMIT", 840)),
+    time_limit=int(getattr(settings, "SINGLE_GAME_TASK_TIME_LIMIT", 900)),
+)
 def analyze_game_task(
     self,
     game_id,
@@ -380,10 +390,31 @@ def analyze_game_task(
             },
         )
 
+    ply_count = count_plies_in_pgn(game.pgn)
+    analysis_timer = SingleGameAnalysisTimer(
+        task_id=task_id,
+        game_id=int(game_id),
+        depth=int(depth),
+        move_count=ply_count,
+    )
+    soft_limit = int(getattr(settings, "SINGLE_GAME_TASK_SOFT_TIME_LIMIT", 840))
+    hard_limit = int(getattr(settings, "SINGLE_GAME_TASK_TIME_LIMIT", 900))
+    logger.info(
+        "[%s] single_game_analysis START game_id=%s depth=%s plies=%s "
+        "soft_time_limit=%ss hard_time_limit=%ss use_ai=%s",
+        task_id,
+        game_id,
+        depth,
+        ply_count,
+        soft_limit,
+        hard_limit,
+        use_ai,
+    )
+
     try:
         # Create game analyzer
         game_analyzer = GameAnalyzer()
-        logger.info(f"[{task_id}] Starting analysis for game {game_id} (depth={depth}, use_ai={use_ai})")
+        analysis_timer.mark("setup")
 
         # Update progress to indicate we're starting
         update_progress(5, "Starting analysis...")
@@ -407,7 +438,6 @@ def analyze_game_task(
                 _log_ignored_exception(f"Ignoring batch context lookup for game {game_id}")
 
         # Run the analysis
-        logger.info(f"[{task_id}] Running analysis with progress callback")
         analysis_result = game_analyzer.analyze_game(
             game=game,
             depth=depth,
@@ -416,6 +446,7 @@ def analyze_game_task(
             task_id=task_id,
             force_reanalyze=force_reanalyze,
             batch_context=batch_context,
+            analysis_timer=analysis_timer,
         )
 
         # Ensure we have valid results
@@ -480,8 +511,7 @@ def analyze_game_task(
                     email_exc,
                 )
 
-        # Return success response
-        logger.info(f"[{task_id}] Analysis for game {game_id} completed successfully")
+        analysis_timer.complete(analysis_id=analysis_result.id)
         return {
             "status": "success",
             "message": "Analysis completed successfully",
@@ -489,11 +519,48 @@ def analyze_game_task(
             "game_id": game_id,
         }
 
+    except (SoftTimeLimitExceeded, TimeLimitExceeded) as e:
+        analysis_timer.fail(e, progress=getattr(game, "analysis_status", None))
+        error_message = (
+            f"Analysis exceeded the {soft_limit}s worker time limit at depth {depth}. "
+            "Try again later or contact support if this keeps happening."
+        )
+        error_type = type(e).__name__
+        logger.exception("[%s] single_game_analysis TIMEOUT game_id=%s", task_id, game_id)
+
+        if user_id:
+            from .single_game_credits import refund_single_game_credit_on_fail
+
+            refund_single_game_credit_on_fail(user_id, game_id)
+
+        task_manager.update_task_status(
+            **status_target,
+            status="FAILURE",
+            progress=0,
+            message="Analysis timed out",
+            error=error_message,
+        )
+        game.analysis_status = "failed"
+        game.save(update_fields=["analysis_status"])
+        return {
+            "status": "error",
+            "message": "Analysis timed out",
+            "error": error_message,
+            "error_type": error_type,
+            "game_id": game_id,
+        }
+
     except Exception as e:
+        analysis_timer.fail(e)
         logger.exception(f"[{task_id}] Error analyzing game {game_id}: {str(e)}")
 
         error_message = str(e)
         error_type = type(e).__name__
+        if is_celery_time_limit_error(e):
+            error_message = (
+                f"Analysis exceeded the {soft_limit}s worker time limit at depth {depth}. "
+                "Try again later or contact support if this keeps happening."
+            )
 
         if user_id:
             from .single_game_credits import refund_single_game_credit_on_fail
@@ -1188,7 +1255,12 @@ def analyze_single_game_subtask(
         }
 
 
-@shared_task(name="chess_mate.core.tasks.aggregate_and_report_task", bind=False)
+@shared_task(
+    name="chess_mate.core.tasks.aggregate_and_report_task",
+    bind=False,
+    soft_time_limit=600,
+    time_limit=660,
+)
 def aggregate_and_report_task(
     task_results: List[Dict[str, Any]],
     batch_id: str,
