@@ -145,6 +145,15 @@ describe('apiRequests batch API', () => {
       expect(results).toEqual([{ id: 'a' }, { id: 'b' }]);
     });
 
+    it('returns null on rate limit without legacy fallback', async () => {
+      api.get.mockRejectedValueOnce({ response: { status: 429, data: { code: 'RATE_001' } } });
+
+      const results = await fetchBatchReportHistory(12);
+
+      expect(results).toBeNull();
+      expect(api.get).toHaveBeenCalledTimes(1);
+    });
+
     it('falls back to legacy endpoint on Phase 2 failure', async () => {
       api.get
         .mockRejectedValueOnce({ response: { status: 500 } })

@@ -12,6 +12,7 @@ import { getGameAnalysisStatusLabel, isGameAnalyzed } from '../utils/gameAnalysi
 import GamePlatformBadge from './GamePlatformBadge';
 import AnalyzeGameConfirmDialog from './AnalyzeGameConfirmDialog';
 import { UserContext } from '../contexts/UserContext';
+import { qualifiesForFirstSingleGameFree } from '../utils/singleGameCredits';
 
 const Games = () => {
   const [games, setGames] = useState([]);
@@ -29,7 +30,7 @@ const Games = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const { credits = 0 } = useContext(UserContext) || {};
+  const { credits = 0, user } = useContext(UserContext) || {};
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [confirmingAnalysis, setConfirmingAnalysis] = useState(false);
   const singleGameCredits = 1;
@@ -272,7 +273,8 @@ const Games = () => {
         return;
       }
 
-      if (Number(credits) < singleGameCredits) {
+      const firstReviewFree = qualifiesForFirstSingleGameFree(user, { isReanalyze });
+      if (Number(credits) < singleGameCredits && !firstReviewFree) {
         toast.error('Insufficient credits for deep game review.');
         return;
       }
@@ -706,6 +708,9 @@ const Games = () => {
         creditsRequired={singleGameCredits}
         creditsAvailable={credits}
         isReanalyze={Boolean(confirmDialog?.isReanalyze)}
+        firstReviewFree={qualifiesForFirstSingleGameFree(user, {
+          isReanalyze: Boolean(confirmDialog?.isReanalyze),
+        })}
         confirming={confirmingAnalysis}
       />
     </div>

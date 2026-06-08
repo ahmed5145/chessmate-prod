@@ -131,7 +131,7 @@ const WelcomeGuide = () => {
             className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
           >
             You have <strong className={isDarkMode ? 'text-white' : 'text-gray-900'}>{signupBonusCredits} {creditLabel}</strong>{' '}
-            on us. Each credit imports one game; Batch Coach is included after that. Optional deep review on one game costs +1 credit.
+            on us. Each credit imports one game; Batch Coach is included after that. Your first depth-20 single-game review is free; later reviews cost 1 credit (free again when opened from a batch citation).
           </p>
 
           <ul className={`mt-4 space-y-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -141,7 +141,7 @@ const WelcomeGuide = () => {
             </li>
             <li className="flex items-start gap-2">
               <BarChart3 className={`h-4 w-4 mt-0.5 shrink-0 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`} />
-              <span><strong>Optional:</strong> depth-20 review on one game (+1 credit)</span>
+              <span><strong>Optional:</strong> depth-20 review on one game (first one free)</span>
             </li>
             <li className="flex items-start gap-2">
               <Brain className={`h-4 w-4 mt-0.5 shrink-0 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`} />

@@ -27,6 +27,7 @@ import {
   scrollToBatchGame,
 } from '../../utils/batchGameLinks';
 import LichessActionButton from './LichessActionButton';
+import { useTheme } from '../../context/ThemeContext';
 
 const extractGameIds = (...parts) => {
   const text = parts.filter(Boolean).join(' ');
@@ -41,6 +42,8 @@ const PriorityCard = ({
   batchId = null,
   showLichessLink = true,
 }) => {
+  const { isDarkMode } = useTheme();
+
   if (!priority || typeof priority !== 'object') {
     return null;
   }
@@ -149,7 +152,17 @@ const PriorityCard = ({
                   batchId,
                   priority: rank,
                 })}
-                sx={{ textTransform: 'none', fontWeight: 600 }}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  bgcolor: isDarkMode ? '#4f46e5' : '#4f46e5',
+                  color: '#ffffff',
+                  boxShadow: 'none',
+                  '&:hover': {
+                    bgcolor: isDarkMode ? '#4338ca' : '#4338ca',
+                    color: '#ffffff',
+                  },
+                }}
               >
                 Deep review {formatGameLabelById(per_game_results, deepReviewTarget.labelGameId)}
               </Button>

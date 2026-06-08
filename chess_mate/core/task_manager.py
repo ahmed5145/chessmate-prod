@@ -835,7 +835,7 @@ class TaskManager:
         progress = task_info.get("progress", 0)
 
         if str(status).upper() == TASK_STATUS_PENDING and (not message or message.lower() == "task pending"):
-            message = "Task queued, waiting for worker availability"
+            message = "Queued — your review will start shortly"
 
         # Ensure progress is consistent with status
         if status == TASK_STATUS_SUCCESS and progress < 100:

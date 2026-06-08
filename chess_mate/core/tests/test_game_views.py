@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -124,6 +125,7 @@ class TestGameViews:
         profile = Profile.objects.get(user=test_user)
         assert profile.credits == 9  # Started with 10, imported 1 game
 
+    @override_settings(SINGLE_GAME_FIRST_FREE=False)
     def test_analyze_game(self, authenticated_client, test_user, test_game):
         # Set game to unanalyzed first
         test_game.analysis_status = "not_analyzed"
@@ -243,6 +245,7 @@ class TestGameViews:
                 failing_manager.register_task.assert_not_called()
                 healthy_manager.register_task.assert_not_called()
 
+    @override_settings(SINGLE_GAME_FIRST_FREE=False)
     def test_analyze_game_rapid_repeat_returns_already_running(self, authenticated_client, test_user, test_game):
         test_game.analysis_status = "not_analyzed"
         test_game.save()

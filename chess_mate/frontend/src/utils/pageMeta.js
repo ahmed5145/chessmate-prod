@@ -87,9 +87,9 @@ export const usePageMeta = (config) => {
 
 export const PAGE_META = {
   landing: {
-    title: 'Batch Coach for your last 10 games',
+    title: 'Batch Coach for your recent games',
     description:
-      'ChessMate analyzes 5–10 Chess.com or Lichess games together — recurring mistakes, opening gaps, drills, and a coach-style action plan.',
+      'ChessMate analyzes 5–30 Chess.com or Lichess games together — recurring mistakes, opening gaps, drills, and a coach-style action plan. First depth-20 single-game review is free.',
     path: '/',
   },
   exampleBatchReport: {

@@ -36,7 +36,8 @@ describe('LandingPage', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/Your last 10 games/i)).toBeInTheDocument();
+    expect(screen.getByText(/Your recent games/i)).toBeInTheDocument();
+    expect(screen.getByText(/first single-game deep review is free/i)).toBeInTheDocument();
     expect(screen.getByText(/Not engine lines per move/i)).toBeInTheDocument();
     expect(screen.getByTestId('batch-report-preview')).toBeInTheDocument();
     expect(screen.getByTestId('value-bullets')).toBeInTheDocument();

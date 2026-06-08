@@ -9,6 +9,8 @@ const AnalyzeGameConfirmDialog = ({
   creditsRequired = 1,
   creditsAvailable = 0,
   isReanalyze = false,
+  firstReviewFree = false,
+  fromBatch = false,
   confirming = false,
 }) => {
   const { isDarkMode } = useTheme();
@@ -17,7 +19,14 @@ const AnalyzeGameConfirmDialog = ({
     return null;
   }
 
-  const hasEnoughCredits = Number(creditsAvailable) >= Number(creditsRequired);
+  const effectiveCost = isReanalyze
+    ? creditsRequired
+    : (fromBatch ? 0 : (firstReviewFree ? 0 : creditsRequired));
+  const hasEnoughCredits = Number(creditsAvailable) >= effectiveCost;
+
+  const costLabel = effectiveCost === 0
+    ? (fromBatch ? 'Free from batch citation' : 'First review free')
+    : `${effectiveCost} credit${effectiveCost === 1 ? '' : 's'}`;
 
   return (
     <div
@@ -44,19 +53,25 @@ const AnalyzeGameConfirmDialog = ({
           Optional depth-20 coach review for this game — separate from Batch Coach, which is included
           after import.
         </p>
+        {firstReviewFree && !isReanalyze && !fromBatch ? (
+          <p className={`mt-3 text-sm font-medium ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
+            Your first depth-20 single-game review is free — no credit needed.
+          </p>
+        ) : null}
         <ul className={`mt-4 space-y-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           <li>
-            <strong>Cost:</strong> {creditsRequired} credit{creditsRequired === 1 ? '' : 's'}
+            <strong>Cost:</strong> {costLabel}
           </li>
           <li>
             <strong>Your balance:</strong> {creditsAvailable} credit{Number(creditsAvailable) === 1 ? '' : 's'}
           </li>
           <li>Engine depth 20 · coach-style feedback · move-by-move breakdown</li>
+          <li>Runs in the background — you can leave and check Games when ready</li>
         </ul>
 
         {!hasEnoughCredits ? (
           <p className={`mt-4 text-sm ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
-            You need {creditsRequired} credit{creditsRequired === 1 ? '' : 's'} to analyze this game.{' '}
+            You need {effectiveCost} credit{effectiveCost === 1 ? '' : 's'} to analyze this game.{' '}
             <Link to="/credits" className="underline font-medium" onClick={onClose}>
               Get credits
             </Link>
@@ -86,7 +101,13 @@ const AnalyzeGameConfirmDialog = ({
                 : 'bg-indigo-400 cursor-not-allowed'
             }`}
           >
-            {confirming ? 'Starting…' : isReanalyze ? 'Re-analyze (1 credit)' : 'Analyze (1 credit)'}
+            {confirming
+              ? 'Starting…'
+              : isReanalyze
+                ? 'Re-analyze (1 credit)'
+                : effectiveCost === 0
+                  ? 'Start free review'
+                  : `Analyze (${effectiveCost} credit${effectiveCost === 1 ? '' : 's'})`}
           </button>
         </div>
       </div>

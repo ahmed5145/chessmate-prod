@@ -13,6 +13,7 @@ import GameAnalysisResults from './GameAnalysisResults';
 import BatchContextBanner from './singlegame/BatchContextBanner';
 import AnalyzeGameConfirmDialog from './AnalyzeGameConfirmDialog';
 import { parseSingleGameAnalysisSearch } from '../utils/singleGameAnalysisLinks';
+import { humanizeAnalysisStatusMessage } from '../utils/singleGameAnalysisStatus';
 import { trackSingleGameEvent } from '../utils/marketingAnalytics';
 import { UserContext } from '../contexts/UserContext';
 import './SingleGameAnalysis.css';
@@ -388,20 +389,21 @@ const SingleGameAnalysis = () => {
       setProgress(progressValue);
 
       if (statusResponse.message) {
-        setLoadingMessage(statusResponse.message);
-        setStatusMessage(statusResponse.message);
+        const humanized = humanizeAnalysisStatusMessage(statusResponse.message, progressValue);
+        setStatusMessage(humanized.status);
+        setLoadingMessage(humanized.detail);
       } else if (progressValue < 30) {
-        setLoadingMessage('Analyzing game moves...');
-        setStatusMessage('Analyzing each move with Stockfish engine');
+        setStatusMessage('Reviewing your moves');
+        setLoadingMessage('Stockfish depth 20 is analyzing each position. You can leave this page — we will keep working.');
       } else if (progressValue < 60) {
-        setLoadingMessage('Calculating game metrics...');
-        setStatusMessage('Calculating metrics and identifying patterns');
+        setStatusMessage('Calculating patterns');
+        setLoadingMessage('Measuring accuracy, swings, and time use. Check Games for live progress.');
       } else if (progressValue < 90) {
-        setLoadingMessage('Generating insights and recommendations...');
-        setStatusMessage('Generating personalized feedback and improvement suggestions');
+        setStatusMessage('Writing your coaching summary');
+        setLoadingMessage('Generating takeaway, critical moments, and practice notes.');
       } else {
-        setLoadingMessage('Finalizing analysis...');
-        setStatusMessage('Almost done! Putting everything together');
+        setStatusMessage('Almost ready');
+        setLoadingMessage('Finalizing your depth-20 report…');
       }
 
       // If we get to a high progress value without completing, try to fetch analysis directly
@@ -625,8 +627,8 @@ const SingleGameAnalysis = () => {
       analysisErrorRef.current = false;
       setAuthError(false);
       setPollingFailed(false);
-      setLoadingMessage('Starting analysis...');
-      setStatusMessage('Initializing analysis...');
+      setLoadingMessage('Your review runs in the background — feel free to leave and check Games later.');
+      setStatusMessage('Starting depth-20 review…');
 
       // Reset refs
       hasAttemptedDirectFetch.current = false;
@@ -659,7 +661,8 @@ const SingleGameAnalysis = () => {
       console.log('Analysis started response:', response);
 
       if (response && response.success) {
-        setLoadingMessage('Analysis has started. Initializing...');
+        setLoadingMessage('Queued or running — no need to keep this tab open. We will load results when ready.');
+        setStatusMessage('Depth-20 review started');
 
         // Set an initial delay before polling to give task time to register
         const initialDelayId = setTimeout(() => {
@@ -876,7 +879,47 @@ const SingleGameAnalysis = () => {
             </div>
             <div className={`ml-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               <p>{loadingMessage}</p>
-              <p>Time elapsed: {formatTime(elapsedTime)}</p>
+              <div
+                className={`mt-4 rounded-lg border px-4 py-3 text-sm ${
+                  isDarkMode
+                    ? 'border-indigo-700/60 bg-indigo-950/40 text-indigo-100'
+                    : 'border-indigo-200 bg-indigo-50 text-indigo-900'
+                }`}
+              >
+                <p className="font-medium">Runs in the background</p>
+                <p className={`mt-1 ${isDarkMode ? 'text-indigo-200/90' : 'text-indigo-800'}`}>
+                  You do not need to wait here. Open Games to see progress, or return to this link when the review finishes.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/games')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                      isDarkMode
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-500'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
+                  >
+                    Go to Games
+                  </button>
+                  {batchId ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/batch-report/${batchId}`)}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium border ${
+                        isDarkMode
+                          ? 'border-indigo-500 text-indigo-100 hover:bg-indigo-900/50'
+                          : 'border-indigo-300 text-indigo-800 hover:bg-indigo-100'
+                      }`}
+                    >
+                      Back to batch report
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              {elapsedTime > 0 ? (
+                <p className="mt-3 text-xs opacity-80">Time elapsed: {formatTime(elapsedTime)}</p>
+              ) : null}
               {overdueMessage && (
                 <div className={`mt-4 p-3 rounded-md ${
                   isDarkMode ? 'bg-amber-900 text-amber-200' : 'bg-amber-50 text-amber-800'

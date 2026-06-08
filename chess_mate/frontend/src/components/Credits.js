@@ -63,7 +63,7 @@ const DEFAULT_CREDIT_MODEL = {
     '1 credit per game import from Chess.com or Lichess',
     'Batch Coach is included once games are on your account',
     'New accounts receive 15 free credits',
-    'Optional single-game deep analysis costs 1 credit per game',
+    'First depth-20 single-game review is free; later reviews cost 1 credit (free from batch citations)',
     'Credits are sold as one-time packs — not a subscription',
     'Purchased credits do not expire while your account stays active',
   ],

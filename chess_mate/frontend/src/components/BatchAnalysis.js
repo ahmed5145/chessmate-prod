@@ -138,7 +138,9 @@ const BatchAnalysis = () => {
     const loadReportHistory = async () => {
       try {
         const reports = await fetchBatchReportHistory(12);
-        setReportHistory(Array.isArray(reports) ? reports : []);
+        if (reports !== null) {
+          setReportHistory(Array.isArray(reports) ? reports : []);
+        }
       } catch (error) {
         console.error('Error fetching batch report history:', error);
       }
@@ -150,7 +152,7 @@ const BatchAnalysis = () => {
   const refreshReportHistory = useCallback(async () => {
     try {
       const reports = await fetchBatchReportHistory(12);
-      if (isMountedRef.current) {
+      if (isMountedRef.current && reports !== null) {
         setReportHistory(Array.isArray(reports) ? reports : []);
       }
     } catch (error) {

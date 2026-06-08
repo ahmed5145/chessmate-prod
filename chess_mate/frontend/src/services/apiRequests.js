@@ -612,7 +612,13 @@ export const fetchBatchReportHistory = async (limit = 20) => {
             return response.data.results;
         }
     } catch (error) {
-        if (error?.response?.status && error.response.status !== 404) {
+        const status = error?.response?.status;
+        // Background refresh — keep existing UI; do not fall through to legacy on rate limit.
+        if (status === 429) {
+            console.warn('Batch history rate limited; will retry on next poll.');
+            return null;
+        }
+        if (status && status !== 404) {
             console.warn('Phase 2 batch history unavailable, trying legacy endpoint.', error);
         }
     }

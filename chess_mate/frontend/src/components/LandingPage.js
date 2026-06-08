@@ -97,13 +97,13 @@ const LandingPage = () => {
           </div>
 
           <h1 className={`text-4xl sm:text-5xl font-extrabold mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Your last 10 games.
+            Your recent games.
             <br />
             <span className={isDarkMode ? 'text-indigo-300' : 'text-indigo-600'}>One coaching report.</span>
           </h1>
 
           <p className={`text-lg sm:text-xl mb-4 max-w-2xl mx-auto ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-            Import from Chess.com or Lichess, pick 5–10 recent games, and get cross-game patterns —
+            Import from Chess.com or Lichess, pick 5–30 games, and get cross-game patterns —
             openings, blunders, drills, and a coach-style action plan.
           </p>
 
@@ -111,7 +111,7 @@ const LandingPage = () => {
             Not engine lines per move — patterns across your games.
           </p>
           <p className={`text-sm mb-8 max-w-lg mx-auto ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            Drill into any cited game with an optional depth-20 review — proof for your coaching plan.
+            Drill into any cited game with a depth-20 review — your first single-game deep review is free.
           </p>
 
           <p className={`text-sm mb-10 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -211,7 +211,7 @@ const LandingPage = () => {
               <ArrowRight className="h-4 w-4 shrink-0" />
             </Link>
             <p className={`text-sm mt-4 max-w-md mx-auto ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Import → pick 5–10 games → read your report. Scroll up to preview an example first.
+              Import → pick 5–30 games → read your report. Scroll up to preview an example first.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -224,7 +224,7 @@ const LandingPage = () => {
             <Step
               number="2"
               title="Pick a batch"
-              description="Select 5–10 games — your last blitz week, or a manual mix. Batch Coach is included."
+              description="Select 5–30 games — your last blitz week, or a manual mix. Batch Coach is included."
               isDarkMode={isDarkMode}
             />
             <Step
