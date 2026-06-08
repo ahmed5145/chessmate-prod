@@ -10,6 +10,7 @@ from core.models import Game, Profile
 from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -122,6 +123,7 @@ class TestGameAnalysis:
         response = api_client.post(url)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+    @override_settings(SINGLE_GAME_FIRST_FREE=False)
     def test_analyze_game_view_authorized(
         self,
         api_client,
@@ -160,6 +162,7 @@ class TestGameAnalysis:
         response = api_client.post(url)
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    @override_settings(SINGLE_GAME_FIRST_FREE=False)
     def test_analyze_game_view_insufficient_credits(self, api_client, user, game, mock_stockfish_engine):
         with transaction.atomic():
             profile = Profile.objects.get(user=user)
@@ -174,7 +177,7 @@ class TestGameAnalysis:
                 return_value=mock_stockfish_engine,
             ):
                 response = api_client.post(url)
-                assert response.status_code == status.HTTP_400_BAD_REQUEST
+                assert response.status_code == status.HTTP_402_PAYMENT_REQUIRED
                 assert "error" in response.data
                 assert "insufficient credits" in response.data["error"].lower()
 

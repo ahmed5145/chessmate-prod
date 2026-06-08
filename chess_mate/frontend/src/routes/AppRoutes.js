@@ -17,6 +17,7 @@ import BatchLegacyRedirect from '../components/BatchLegacyRedirect';
 import BatchUpload from '../components/batch/BatchUpload';
 import BatchReport from '../components/batch/BatchReport';
 import BatchSharedReport from '../components/batch/BatchSharedReport';
+import SharedGameMomentPage from '../components/singlegame/SharedGameMomentPage';
 import FetchGames from '../components/FetchGames';
 import PaymentSuccess from '../components/PaymentSuccess';
 import PaymentCancel from '../components/PaymentCancel';
@@ -53,6 +54,7 @@ const AppRoutes = () => {
       <Route path="/reset-password-success" element={<ResetPasswordSuccess />} />
       <Route path="/reset-password-failed" element={<ResetPasswordFailed />} />
       <Route path="/share/batch/:shareToken" element={<BatchSharedReport />} />
+      <Route path="/share/game-moment/:shareToken" element={<SharedGameMomentPage />} />
       <Route path="/example/batch-report" element={<ExampleBatchReportPage />} />
       <Route path="/how-batch-coach-works" element={<BatchCoachHowItWorks />} />
       <Route path="/terms" element={<TermsPage />} />

@@ -125,6 +125,7 @@ const BatchReportSections = ({
               coaching_report={batchReport.coaching_report}
               per_game_results={batchReport.per_game_results}
               batch_summary={batchReport.batch_summary}
+              batchId={batchId}
             />
             <Box sx={{ mt: 1 }}>
               <PracticeNextStrip links={practiceLinks} />

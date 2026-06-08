@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Card,
   CardContent,
@@ -13,9 +14,11 @@ import {
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
+  findGameResultById,
   formatGameLabelById,
   humanizeGameIdInText,
 } from '../../utils/formatGameLabel';
+import { buildSingleGameAnalysisLink } from '../../utils/singleGameAnalysisLinks';
 import { buildPriorityDrillDisplay } from '../../utils/priorityDrillDisplay';
 import { resolvePriorityLichessLink } from '../../utils/lichessStudyLinks';
 import {
@@ -35,6 +38,7 @@ const PriorityCard = ({
   priority,
   per_game_results = [],
   batch_summary = null,
+  batchId = null,
   showLichessLink = true,
 }) => {
   if (!priority || typeof priority !== 'object') {
@@ -68,6 +72,14 @@ const PriorityCard = ({
     batch_summary,
     per_game_results,
   });
+  const deepReviewTarget = linkedGames
+    .map((gameId) => {
+      const gameRow = findGameResultById(per_game_results, gameId);
+      return gameRow?.saved_game_id
+        ? { gameId: gameRow.saved_game_id, labelGameId: gameId }
+        : null;
+    })
+    .find(Boolean);
 
   return (
     <Card sx={{ mb: 3 }}>
@@ -125,8 +137,23 @@ const PriorityCard = ({
           </Box>
         ) : null}
 
-        {((showLichessLink && lichessLink) || linkedGames.length > 0) && (
+        {((showLichessLink && lichessLink) || linkedGames.length > 0 || deepReviewTarget) && (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+            {deepReviewTarget && batchId ? (
+              <Button
+                size="small"
+                variant="contained"
+                component={RouterLink}
+                to={buildSingleGameAnalysisLink({
+                  gameId: deepReviewTarget.gameId,
+                  batchId,
+                  priority: rank,
+                })}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                Deep review {formatGameLabelById(per_game_results, deepReviewTarget.labelGameId)}
+              </Button>
+            ) : null}
             {showLichessLink && lichessLink ? (
               <LichessActionButton
                 label={lichessLink.label}

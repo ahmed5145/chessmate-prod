@@ -70,6 +70,12 @@ from .error_handling import (
 from .models import BatchAnalysisReport, Game, GameAnalysis, Player, Profile, User
 from .analysis.single_game_context import resolve_batch_context_for_game
 from .single_game_credits import charge_single_game_credit, resolve_single_game_credit_waiver
+from .single_game_moment_share import (
+    build_moment_share_url,
+    build_public_moment_payload,
+    find_analysis_by_share_token,
+    get_or_create_moment_share,
+)
 from .stats_helpers import build_single_game_context
 from .serializers import GameSerializer
 from .task_manager import TaskManager
@@ -789,7 +795,7 @@ class GameViewSet(viewsets.ModelViewSet):
                         "credits_required": 1,
                         "credits_available": 0 if profile is None else profile.credits,
                     },
-                    status=status.HTTP_400_BAD_REQUEST,
+                    status=status.HTTP_402_PAYMENT_REQUIRED,
                 )
 
             analysis_allowed, analysis_info = check_single_analysis_allowed(request.user)
@@ -1337,7 +1343,7 @@ def analyze_game(request, game_id=None):
                     "credits_required": 1,
                     "credits_available": 0 if profile is None else profile.credits,
                 },
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_402_PAYMENT_REQUIRED,
             )
 
         analysis_allowed, analysis_info = check_single_analysis_allowed(request.user)
@@ -2388,3 +2394,62 @@ def get_game_analysis(request, game_id):
         Exception
     ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         return handle_api_error(e, "Error retrieving game analysis")
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_game_moment_share(request, game_id):
+    """POST /api/v1/games/{id}/analysis/share/ — public read-only moment link."""
+    try:
+        game = Game.objects.get(id=game_id)
+    except Game.DoesNotExist:
+        return Response({"detail": "Game not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if not request.user.is_staff and game.user_id != request.user.id:
+        return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        analysis = GameAnalysis.objects.get(game_id=game_id)
+    except GameAnalysis.DoesNotExist:
+        return Response(
+            {"detail": "Complete analysis before sharing a moment."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    move_param = request.data.get("move") or request.data.get("move_number")
+    try:
+        move_number = int(move_param) if move_param not in (None, "") else None
+    except (TypeError, ValueError):
+        move_number = None
+
+    share_meta = get_or_create_moment_share(analysis, move_number=move_number)
+    share_token = share_meta.get("token")
+    share_url = build_moment_share_url(str(share_token))
+
+    return Response(
+        {
+            "shared": True,
+            "share_token": str(share_token),
+            "share_url": share_url,
+            "move_number": share_meta.get("move_number"),
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def public_game_moment_view(request, share_token):
+    """GET /api/v1/games/public/moment/{share_token}/ — anonymous moment preview."""
+    analysis = find_analysis_by_share_token(str(share_token))
+    if analysis is None:
+        return Response({"detail": "Shared moment not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    payload = build_public_moment_payload(analysis)
+    if not payload.get("moment"):
+        return Response(
+            {"detail": "No critical moment available for this share link."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    return Response(payload, status=status.HTTP_200_OK)

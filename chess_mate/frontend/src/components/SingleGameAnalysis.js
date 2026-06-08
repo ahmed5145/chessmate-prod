@@ -200,7 +200,7 @@ const AnalysisInfo = ({ isDarkMode, ceyleryNotRunning }) => (
 );
 
 // Error and retry component
-const ErrorWithRetry = ({ error, onRetry, onBack }) => (
+const ErrorWithRetry = ({ error, onRetry, onBack, insufficientCredits = false, onBuyCredits }) => (
   <div className="flex flex-col items-center justify-center h-full">
     <div className="p-6 bg-red-50 dark:bg-red-900/20 rounded-lg shadow-md text-center max-w-xl w-full">
       <FaExclamationTriangle className="mx-auto text-red-500 text-4xl mb-4" />
@@ -208,16 +208,26 @@ const ErrorWithRetry = ({ error, onRetry, onBack }) => (
         {error || "An error occurred during analysis"}
       </h2>
       <p className="mb-6 text-gray-700 dark:text-gray-300">
-        We couldn't complete the analysis of your game. This could be due to server load or an
-        issue with the game data.
+        {insufficientCredits
+          ? 'Add credits to run a depth-20 deep review, or open this game from a Batch Coach citation for a free waiver when enabled.'
+          : "We couldn't complete the analysis of your game. This could be due to server load or an issue with the game data."}
       </p>
       <div className="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-3 justify-center">
-        <button
-          onClick={onRetry}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition"
-        >
-          Try Again
-        </button>
+        {insufficientCredits && onBuyCredits ? (
+          <button
+            onClick={onBuyCredits}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium transition"
+          >
+            Get credits
+          </button>
+        ) : (
+          <button
+            onClick={onRetry}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition"
+          >
+            Try Again
+          </button>
+        )}
         <button
           onClick={onBack}
           className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600
@@ -280,6 +290,7 @@ const SingleGameAnalysis = () => {
   const [analysisData, setAnalysisData] = useState(null);
     const [loading, setLoading] = useState(true);
   const [analysisError, setAnalysisError] = useState(null);
+  const [insufficientCreditsError, setInsufficientCreditsError] = useState(false);
   const [authError, setAuthError] = useState(false);
   const [progress, setProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('Starting analysis...');
@@ -501,6 +512,7 @@ const SingleGameAnalysis = () => {
     try {
       setLoading(true);
       setAnalysisError(null);
+      setInsufficientCreditsError(false);
       analysisErrorRef.current = false;
       setPollingFailed(false);
       setLoadingMessage('Restarting analysis...');
@@ -609,6 +621,7 @@ const SingleGameAnalysis = () => {
       setProgress(0);
       setAnalysisData(null);
       setAnalysisError(null);
+      setInsufficientCreditsError(false);
       analysisErrorRef.current = false;
       setAuthError(false);
       setPollingFailed(false);
@@ -685,8 +698,11 @@ const SingleGameAnalysis = () => {
     } catch (error) {
       console.error('Error starting analysis:', error);
 
-      if (error.auth_error) {
+      if (error.authError || error.auth_error) {
         setAuthError(true);
+      } else if (error.insufficientCredits) {
+        setInsufficientCreditsError(true);
+        setAnalysisError(error.message || 'Insufficient credits to run a deep review.');
       } else {
         setAnalysisError(error.message || 'Failed to start analysis. Please try again.');
       }
@@ -778,6 +794,7 @@ const SingleGameAnalysis = () => {
 
     // Reset state
     setAnalysisError(null);
+    setInsufficientCreditsError(false);
     analysisErrorRef.current = false;
     setPollingFailed(false);
     setProgress(0);
@@ -807,6 +824,8 @@ const SingleGameAnalysis = () => {
         error={analysisError}
         onRetry={handleRetry}
         onBack={() => navigate('/games')}
+        insufficientCredits={insufficientCreditsError}
+        onBuyCredits={() => navigate('/credits')}
       />
     );
   }

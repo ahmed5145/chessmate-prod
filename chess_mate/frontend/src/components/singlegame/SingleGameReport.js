@@ -17,6 +17,7 @@ import {
 import PhaseStrip from './PhaseStrip';
 import TrainingBlockSection from './TrainingBlockSection';
 import SingleGameReportActions from './SingleGameReportActions';
+import EngineMetaNote from './EngineMetaNote';
 import { trackSingleGameEvent } from '../../utils/marketingAnalytics';
 import './singleGamePrint.css';
 
@@ -233,11 +234,7 @@ const SingleGameReport = ({
         onReanalyze={onReanalyze}
       />
 
-      {engineMeta.classification_note ? (
-        <p className={`mb-4 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-          {engineMeta.classification_note}
-        </p>
-      ) : null}
+      <EngineMetaNote engineMeta={engineMeta} batchContext={batchContext} />
 
       <SingleGameHero coaching={coaching} />
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { buildSingleGameAnalysisLink } from '../../utils/singleGameAnalysisLinks';
 import { trackSingleGameEvent } from '../../utils/marketingAnalytics';
+import { createGameMomentShare } from '../../services/gameAnalysisService';
 
 const SingleGameReportActions = ({
   gameId,
@@ -12,6 +13,8 @@ const SingleGameReportActions = ({
 }) => {
   const { isDarkMode } = useTheme();
   const [copyLabel, setCopyLabel] = useState('Copy link');
+  const [shareLabel, setShareLabel] = useState('Share moment');
+  const [sharing, setSharing] = useState(false);
 
   const handlePrint = () => {
     trackSingleGameEvent('single_game_print', { game_id: gameId, batch_id: batchId });
@@ -36,6 +39,30 @@ const SingleGameReportActions = ({
     }
   };
 
+  const handleShareMoment = async () => {
+    if (!gameId || sharing) {
+      return;
+    }
+    setSharing(true);
+    try {
+      const data = await createGameMomentShare(gameId, { move });
+      const url = data.share_url || `${window.location.origin}/share/game-moment/${data.share_token}`;
+      await navigator.clipboard.writeText(url);
+      setShareLabel('Moment link copied!');
+      trackSingleGameEvent('single_game_moment_share_copy', {
+        game_id: gameId,
+        batch_id: batchId,
+        move,
+      });
+      setTimeout(() => setShareLabel('Share moment'), 2000);
+    } catch {
+      setShareLabel('Share failed');
+      setTimeout(() => setShareLabel('Share moment'), 2000);
+    } finally {
+      setSharing(false);
+    }
+  };
+
   const buttonClass = isDarkMode
     ? 'px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-600 text-gray-200 hover:bg-gray-700'
     : 'px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50';
@@ -52,6 +79,14 @@ const SingleGameReportActions = ({
       </button>
       <button type="button" className={buttonClass} onClick={handleCopyLink}>
         {copyLabel}
+      </button>
+      <button
+        type="button"
+        className={buttonClass}
+        onClick={handleShareMoment}
+        disabled={sharing}
+      >
+        {sharing ? 'Sharing…' : shareLabel}
       </button>
     </div>
   );

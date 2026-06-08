@@ -130,6 +130,59 @@ describe('SingleGameAnalysis', () => {
     });
   });
 
+  it('shows batch context banner when analysis includes batch_context', async () => {
+    localStorage.setItem('analysis_complete_1', 'true');
+    fetchGameAnalysis.mockResolvedValue({
+      batch_context: {
+        batch_id: 5,
+        priority: { title: 'Fix opening prep' },
+        priority_rank: 1,
+        linked_moment: { move_number: 12 },
+      },
+      coaching: { takeaway: 'Batch-linked takeaway', do_today: 'Study the tactic.' },
+      moves: [{ move_number: 12, san: 'Nf3', position: 'fen', eval_after: -1.2, is_white: true }],
+      metrics: { overall: { accuracy: 82 } },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/game/1/analysis?batch=5&move=12&priority=1']}>
+        <Routes>
+          <Route path="/game/:gameId/analysis" element={<SingleGameAnalysis />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/From your Batch Coach report/i)).toBeInTheDocument();
+    });
+
+    expect(fetchGameAnalysis).toHaveBeenCalledWith('1', 0, {
+      batchId: '5',
+      move: 12,
+      priority: 1,
+    });
+  });
+
+  it('shows credits CTA when analysis start returns insufficient credits', async () => {
+    const creditError = new Error('Insufficient credits to run a deep review.');
+    creditError.insufficientCredits = true;
+    analyzeSpecificGame.mockRejectedValue(creditError);
+
+    render(
+      <MemoryRouter initialEntries={['/game/1/analysis']}>
+        <Routes>
+          <Route path="/game/:gameId/analysis" element={<SingleGameAnalysis />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Insufficient credits/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: /Get credits/i })).toBeInTheDocument();
+  });
+
   it('renders error state when API call fails', async () => {
     analyzeSpecificGame.mockRejectedValue(new Error('API Error'));
 

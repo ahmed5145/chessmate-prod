@@ -38,6 +38,16 @@ urlpatterns = [
         game_views.get_game_analysis,
         name="get_game_analysis",
     ),
+    path(
+        "<int:game_id>/analysis/share/",
+        game_views.create_game_moment_share,
+        name="create_game_moment_share",
+    ),
+    path(
+        "public/moment/<uuid:share_token>/",
+        game_views.public_game_moment_view,
+        name="public_game_moment",
+    ),
     path("batch-analyze/", game_views.batch_analyze_games, name="batch_analyze"),
     path("batch-status/", game_views.batch_get_analysis_status, name="batch_status"),
     path(

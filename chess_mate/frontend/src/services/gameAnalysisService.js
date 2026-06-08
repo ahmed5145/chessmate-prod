@@ -7,6 +7,44 @@ const inFlightAnalysisFetches = new Map();
 const SUCCESS_STATUSES = new Set(['SUCCESS', 'COMPLETED']);
 const TERMINAL_FAILURE_STATUSES = new Set(['FAILURE', 'FAILED', 'ERROR', 'REVOKED', 'AUTH_ERROR']);
 
+export const isInsufficientCreditsError = (error) => {
+    const statusCode = error?.response?.status;
+    if (statusCode === 402) {
+        return true;
+    }
+    const payload = error?.response?.data;
+    const message = String(
+        payload?.error
+        || payload?.message
+        || payload?.detail
+        || error?.message
+        || ''
+    ).toLowerCase();
+    return message.includes('insufficient credits');
+};
+
+export const parseAnalysisStartError = (error) => {
+    if (error?.response?.status === 401) {
+        return { message: 'Authentication required', authError: true };
+    }
+    if (isInsufficientCreditsError(error)) {
+        const payload = error?.response?.data || {};
+        return {
+            message: 'Insufficient credits to run a deep review.',
+            insufficientCredits: true,
+            creditsRequired: payload.credits_required ?? 1,
+            creditsAvailable: payload.credits_available ?? 0,
+        };
+    }
+    const payload = error?.response?.data;
+    const message = payload?.error
+        || payload?.message
+        || payload?.detail
+        || error?.message
+        || 'Failed to start analysis';
+    return { message: typeof message === 'string' ? message : 'Failed to start analysis' };
+};
+
 export const classifyAnalysisPollingStatus = (status, progress = 0) => {
     const normalizedStatus = String(status || '').toUpperCase();
     const numericProgress = Number(progress) || 0;
@@ -135,10 +173,13 @@ export const analyzeSpecificGame = async (gameId, options = {}) => {
             return normalizedResponse;
         } catch (error) {
             console.error('Error starting analysis:', error);
-            if (error.response?.status === 401) {
-                throw new Error('Authentication required');
-            }
-            throw error.response?.data?.error || error.message || 'Failed to start analysis';
+            const parsed = parseAnalysisStartError(error);
+            const startError = new Error(parsed.message);
+            startError.authError = parsed.authError;
+            startError.insufficientCredits = parsed.insufficientCredits;
+            startError.creditsRequired = parsed.creditsRequired;
+            startError.creditsAvailable = parsed.creditsAvailable;
+            throw startError;
         } finally {
             inFlightAnalysisStarts.delete(dedupKey);
         }
@@ -676,9 +717,26 @@ export const restartAnalysis = async (gameId) => {
         };
     } catch (error) {
         console.error('Error restarting analysis:', error);
-        if (error.response?.status === 401) {
-            throw new Error('Authentication required');
-        }
-        throw error.response?.data?.error || error.message || 'Failed to restart analysis';
+        const parsed = parseAnalysisStartError(error);
+        const restartError = new Error(parsed.message);
+        restartError.authError = parsed.authError;
+        restartError.insufficientCredits = parsed.insufficientCredits;
+        restartError.creditsRequired = parsed.creditsRequired;
+        restartError.creditsAvailable = parsed.creditsAvailable;
+        throw restartError;
     }
+};
+
+export const createGameMomentShare = async (gameId, { move = null } = {}) => {
+    const body = {};
+    if (move != null) {
+        body.move = move;
+    }
+    const response = await api.post(`/api/v1/games/${gameId}/analysis/share/`, body);
+    return response.data;
+};
+
+export const getPublicGameMoment = async (shareToken) => {
+    const response = await api.get(`/api/v1/games/public/moment/${shareToken}/`);
+    return response.data;
 };

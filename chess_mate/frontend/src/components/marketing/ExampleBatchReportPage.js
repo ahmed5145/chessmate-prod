@@ -12,6 +12,7 @@ import {
 import BatchReportSections from '../batch/BatchReportSections';
 import useExampleBatchReport from '../../hooks/useExampleBatchReport';
 import { buildRegisterHref, MARKETING_SOURCES } from '../../utils/marketingLinks';
+import { buildSingleGameAnalysisLink } from '../../utils/singleGameAnalysisLinks';
 import { trackMarketingEvent } from '../../utils/marketingAnalytics';
 import { PAGE_META, usePageMeta } from '../../utils/pageMeta';
 
@@ -28,6 +29,14 @@ const ExampleBatchReportPage = () => {
   const registerHref = buildRegisterHref(MARKETING_SOURCES.EXAMPLE_PAGE);
   const isLiveDemo = reportSource === 'live';
   const gamesCount = batchReport?.games_count || batchReport?.batch_summary?.games_analyzed;
+  const previewMoment = batchReport?.batch_summary?.top_critical_moments?.[0];
+  const previewDeepLink = previewMoment?.saved_game_id && batchReport?.id
+    ? buildSingleGameAnalysisLink({
+      gameId: previewMoment.saved_game_id,
+      batchId: batchReport.id,
+      move: previewMoment.move_number,
+    })
+    : null;
 
   return (
     <Box
@@ -79,6 +88,33 @@ const ExampleBatchReportPage = () => {
             >
               Get your own report — {signupBonus} free {creditLabel}
             </Button>
+            {previewDeepLink ? (
+              <Button
+                component={RouterLink}
+                to={previewDeepLink}
+                variant="outlined"
+                onClick={() => trackMarketingEvent('cta_click', {
+                  location: 'example_page_moment_preview',
+                  source: MARKETING_SOURCES.EXAMPLE_PAGE,
+                })}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                Open worst moment in deep review
+              </Button>
+            ) : (
+              <Button
+                component={RouterLink}
+                to={registerHref}
+                variant="outlined"
+                onClick={() => trackMarketingEvent('cta_click', {
+                  location: 'example_page_moment_signup',
+                  source: MARKETING_SOURCES.EXAMPLE_PAGE,
+                })}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                Sign up to drill into turning points
+              </Button>
+            )}
             <Button
               component={RouterLink}
               to="/"
@@ -98,6 +134,7 @@ const ExampleBatchReportPage = () => {
           <BatchReportSections
             batchReport={batchReport}
             status={batchReport?.status || 'completed'}
+            batchId={batchReport?.id || null}
             readOnly
           />
         )}

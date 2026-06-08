@@ -1,7 +1,22 @@
 # Single-Game Analysis — Implementation Plan
 
-**Status:** Phase 3 complete — ready for smoke test (2026-06-01)  
+**Status:** Implementation complete — gap-fill done, ready for smoke test (2026-06-01)  
 **Date:** 2026-06-01  
+
+### Gap-fill completion (2026-06-01)
+
+| Ticket | Status |
+|--------|--------|
+| SGA-1-FE-06 `EngineMetaNote.js` | Done |
+| SGA-1-FE-09 Retire `GameFeedback.js` | Done — deleted; `apiRequests.fetchGameFeedback` removed |
+| SGA-1-FE-10 `SingleGameReport` / `EvalChart` tests | Done |
+| SGA-2-FE-06 Example moment CTA | Done — `ExampleBatchReportPage` deep-link or signup CTA |
+| SGA-2-FE-07 Batch → single-game integration test | Done — `SingleGameAnalysis.test.js` |
+| SGA-3-02 `SharedGameMomentPage` + share token | Done — JSON `moment_share` in `analysis_data` |
+| PriorityCard deep-review CTA | Done |
+| 402 insufficient credits | Done — backend + `gameAnalysisService` + UI |
+| PDF export (SGA-3-05) | Deferred — print CSS covers MVP; dedicated PDF later |
+
 **Scope:** Supplementary drill-down at `/game/:gameId/analysis` — batch-connected, coaching-oriented, better than free per-game tools without competing with Batch Coach as the flagship.  
 **Related:** [PRODUCT_CONTRACT.md](./PRODUCT_CONTRACT.md), [DIFFERENTIATION_MATRIX.md](./DIFFERENTIATION_MATRIX.md), [BATCH_REPORT_UX_PLAN.md](./BATCH_REPORT_UX_PLAN.md), [PRD.md](./PRD.md)
 

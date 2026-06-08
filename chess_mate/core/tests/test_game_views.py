@@ -13,7 +13,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from .. import constants, game_views
-from ..models import Game, Profile
+from ..models import BatchAnalysisReport, Game, GameAnalysis, Profile
 
 
 @pytest.fixture
@@ -354,6 +354,50 @@ class TestGameViews:
         assert response.status_code == status.HTTP_200_OK
         assert "analysis_data" in response.data
         assert response.data["analysis_data"]["analysis_results"]["summary"]["user_accuracy"] == 85.5
+
+    def test_get_game_analysis_includes_batch_context(self, authenticated_client, test_user, test_game):
+        report = BatchAnalysisReport.objects.create(
+            user=test_user,
+            task_id="batch_get_ctx",
+            status="completed",
+            games_count=5,
+            batch_summary={
+                "top_critical_moments": [
+                    {
+                        "move_number": 12,
+                        "type": "mistake",
+                        "saved_game_id": test_game.id,
+                    }
+                ],
+            },
+            coaching_report={
+                "top_3_priorities": [{"rank": 1, "title": "Fix opening prep"}],
+            },
+            per_game_results=[
+                {
+                    "game_id": "game_0",
+                    "saved_game_id": test_game.id,
+                    "critical_moments": [{"move_number": 12, "type": "mistake"}],
+                }
+            ],
+        )
+        GameAnalysis.objects.create(
+            game=test_game,
+            analysis_data={
+                "coaching": {"takeaway": "Linked takeaway"},
+                "critical_moments": [{"move_number": 12, "type": "mistake"}],
+            },
+            feedback={},
+            depth=20,
+        )
+
+        url = reverse("get_game_analysis", kwargs={"game_id": test_game.id})
+        response = authenticated_client.get(f"{url}?batch={report.id}&move=12&priority=1")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["batch_context"]["batch_id"] == report.id
+        assert response.data["batch_context"]["priority"]["title"] == "Fix opening prep"
+        assert response.data["batch_context"]["linked_moment"]["move_number"] == 12
 
     def test_check_analysis_status(self, authenticated_client, test_user):
         # Mock the task manager and AsyncResult
