@@ -6,6 +6,8 @@ import {
   classifyAnalysisPollingStatus,
   computeNextPollDelay,
   fetchGameAnalysis,
+  hasRenderableAnalysisData,
+  isAnalysisInFlight,
   restartAnalysis,
   shouldPollStatus,
 } from '../services/gameAnalysisService';
@@ -427,17 +429,6 @@ const SingleGameAnalysis = () => {
         setLoadingMessage('Finalizing your depth-20 report…');
       }
 
-      // If we get to a high progress value without completing, try to fetch analysis directly
-      if (progressValue >= 90 && !hasAttemptedDirectFetch.current) {
-        hasAttemptedDirectFetch.current = true;
-        try {
-          console.log('Progress is high, attempting direct fetch');
-          await fetchAnalysisData();
-        } catch (err) {
-          console.log('Direct fetch failed, continuing to poll', err);
-        }
-      }
-
       // Handle stale progress - if we've been at the same progress for too long, try a direct fetch
       const prevProgress = parseInt(localStorage.getItem(`last_known_progress_${gameId}`)) || 0;
       const prevProgressTime = parseInt(localStorage.getItem(`last_progress_update_${gameId}`)) || 0;
@@ -604,28 +595,27 @@ const SingleGameAnalysis = () => {
         return false;
       }
 
-      // Verify we have valid data
-      const hasMoves = data.moves?.length > 0 ||
-                      data.analysis_results?.moves?.length > 0;
-      const hasMetrics = data.metrics ||
-                        (data.analysis_results && Object.keys(data.analysis_results).length > 0);
+      if (isAnalysisInFlight(data) || (activeTaskIdRef.current && !hasRenderableAnalysisData(data))) {
+        console.log('Analysis still in progress, continuing to poll');
+        isFetchingAnalysisRef.current = false;
+        return false;
+      }
 
-      if (data && (hasMoves || hasMetrics)) {
+      if (hasRenderableAnalysisData(data)) {
         console.log('Analysis data retrieved successfully:', data);
         setAnalysisData(data);
-                    setLoading(false);
+        setLoading(false);
         analysisCompleted.current = true;
-        // Mark as complete in localStorage to avoid unnecessary API calls
         localStorage.setItem(`analysis_complete_${gameId}`, 'true');
         isFetchingAnalysisRef.current = false;
         return true;
-                } else {
-        console.warn('Retrieved data structure is invalid:', data);
-        setAnalysisError('The analysis data structure is invalid or incomplete. Please try again.');
-                    setLoading(false);
-        isFetchingAnalysisRef.current = false;
-        return false;
-            }
+      }
+
+      console.warn('Retrieved data structure is invalid:', data);
+      setAnalysisError('The analysis data structure is invalid or incomplete. Please try again.');
+      setLoading(false);
+      isFetchingAnalysisRef.current = false;
+      return false;
         } catch (error) {
       console.error('Error fetching analysis data:', error);
       setAnalysisError(error.message || 'Failed to load analysis data');

@@ -82,6 +82,83 @@ export const shouldPollStatus = (status, progress = 0) => {
     return true;
 };
 
+const IN_FLIGHT_ANALYSIS_STATUS_TOKENS = new Set([
+    'PENDING',
+    'STARTED',
+    'PROGRESS',
+    'PROCESSING',
+    'IN_PROGRESS',
+    'ANALYZING',
+    'QUEUED',
+]);
+
+export const normalizeAnalysisStatusToken = (status) => {
+    const raw = String(status || '').trim();
+    if (!raw) {
+        return '';
+    }
+    const upper = raw.toUpperCase();
+    if (upper.startsWith('IN_PROGRESS')) {
+        return 'IN_PROGRESS';
+    }
+    if (upper.includes('IN_PROGRESS')) {
+        return 'IN_PROGRESS';
+    }
+    return upper;
+};
+
+export const isAnalysisInFlight = (payload) => {
+    if (!payload || typeof payload !== 'object') {
+        return false;
+    }
+
+    const statusCandidates = [
+        payload.status,
+        payload.analysis_data?.status,
+        payload.analysis_status,
+    ];
+
+    return statusCandidates.some((candidate) => {
+        const token = normalizeAnalysisStatusToken(candidate);
+        return IN_FLIGHT_ANALYSIS_STATUS_TOKENS.has(token);
+    });
+};
+
+export const hasRenderableAnalysisData = (payload) => {
+    if (!payload || typeof payload !== 'object') {
+        return false;
+    }
+    if (payload.error || isAnalysisInFlight(payload)) {
+        return false;
+    }
+
+    const moves = payload.moves
+        || payload.movesAnalysis
+        || payload.analysis_results?.moves
+        || [];
+    if (Array.isArray(moves) && moves.length > 0) {
+        return true;
+    }
+
+    const metrics = payload.metrics;
+    if (metrics && typeof metrics === 'object' && !Array.isArray(metrics)) {
+        const metricKeys = Object.keys(metrics).filter((key) => key !== 'status' && metrics[key] != null);
+        if (metricKeys.length > 0) {
+            return true;
+        }
+    }
+
+    const analysisResults = payload.analysis_results;
+    if (analysisResults && typeof analysisResults === 'object') {
+        const summary = analysisResults.summary;
+        if (summary && typeof summary === 'object' && Object.keys(summary).length > 0) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
 export const normalizeAnalysisResponsePayload = (rawPayload) => {
     const payload = rawPayload && typeof rawPayload === 'object' ? rawPayload : {};
     const unwrapped = payload.analysis_data && typeof payload.analysis_data === 'object'
@@ -427,15 +504,7 @@ export const fetchGameAnalysis = async (gameId, retry = 0, options = {}) => {
             console.log(`Analysis data received for game ${gameId}:`, response.data);
             const normalizedPayload = normalizeAnalysisResponsePayload(response.data);
 
-            const hasMetrics =
-                (normalizedPayload.metrics && Object.keys(normalizedPayload.metrics).length > 0) ||
-                (normalizedPayload.analysis_results && Object.keys(normalizedPayload.analysis_results).length > 0);
-            const hasMoves =
-                (Array.isArray(normalizedPayload.moves) && normalizedPayload.moves.length > 0) ||
-                (Array.isArray(normalizedPayload.movesAnalysis) && normalizedPayload.movesAnalysis.length > 0);
-
-            // If we have a valid analysis, mark it as complete in localStorage
-            if (hasMetrics && hasMoves) {
+            if (hasRenderableAnalysisData(normalizedPayload)) {
                 localStorage.setItem(`analysis_complete_${gameId}`, 'true');
                 localStorage.removeItem(`analysis_error_${gameId}`);
                 return {
@@ -444,19 +513,36 @@ export const fetchGameAnalysis = async (gameId, retry = 0, options = {}) => {
                 };
             }
 
+            if (isAnalysisInFlight(normalizedPayload) || isAnalysisInFlight(response.data)) {
+                const progress = response.data.progress
+                    || normalizedPayload.progress
+                    || localStorage.getItem(`last_known_progress_${gameId}`)
+                    || 0;
+                return {
+                    ...normalizedPayload,
+                    error: null,
+                    status: 'IN_PROGRESS',
+                    progress: Number(progress) || 0,
+                    metrics: {},
+                    movesAnalysis: [],
+                    ai_feedback: null,
+                    isComplete: false
+                };
+            }
+
             // If we have a task status but no complete analysis
             if (response.data.status) {
-                const status = response.data.status;
+                const status = normalizeAnalysisStatusToken(response.data.status);
 
                 // If the analysis is still in progress
-                if (status === 'PENDING' || status === 'STARTED' || status === 'PROGRESS') {
-                    // Get the progress if available
-                    const progress = response.data.progress ||
-                                    localStorage.getItem(`last_known_progress_${gameId}`) || 0;
+                if (IN_FLIGHT_ANALYSIS_STATUS_TOKENS.has(status)) {
+                    const progress = response.data.progress
+                        || localStorage.getItem(`last_known_progress_${gameId}`)
+                        || 0;
                     return {
                         error: null,
-                        status: status,
-                        progress: progress,
+                        status,
+                        progress: Number(progress) || 0,
                         metrics: {},
                         movesAnalysis: [],
                         ai_feedback: null,

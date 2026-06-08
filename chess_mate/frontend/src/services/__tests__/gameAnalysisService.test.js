@@ -1,6 +1,8 @@
 import {
   classifyAnalysisPollingStatus,
   computeNextPollDelay,
+  hasRenderableAnalysisData,
+  isAnalysisInFlight,
   normalizeAnalysisResponsePayload,
   shouldPollStatus,
 } from '../gameAnalysisService';
@@ -106,5 +108,33 @@ describe('gameAnalysisService polling helpers', () => {
 
     expect(normalized.metrics.overall.accuracy).toBe(91);
     expect(normalized.moves).toHaveLength(1);
+  });
+
+  test('detects in_progress analysis from API shape', () => {
+    const partial = {
+      analysis_data: { status: 'in_progress' },
+      status: 'in_progress',
+      feedback: {},
+      coaching: {},
+      critical_moments: [],
+      game_context: { id: 165 },
+    };
+
+    expect(isAnalysisInFlight(partial)).toBe(true);
+    expect(hasRenderableAnalysisData(partial)).toBe(false);
+    expect(hasRenderableAnalysisData(normalizeAnalysisResponsePayload(partial))).toBe(false);
+  });
+
+  test('detects complete analysis when moves are present', () => {
+    const complete = normalizeAnalysisResponsePayload({
+      analysis_data: {
+        status: 'complete',
+        moves: [{ move: 'e4', evaluation: 0.2 }],
+        metrics: { overall: { accuracy: 80 } },
+      },
+    });
+
+    expect(isAnalysisInFlight(complete)).toBe(false);
+    expect(hasRenderableAnalysisData(complete)).toBe(true);
   });
 });
