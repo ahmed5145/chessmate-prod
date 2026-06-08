@@ -189,10 +189,12 @@ export const analyzeSpecificGame = async (gameId, options = {}) => {
     return requestPromise;
 };
 
-export const checkAnalysisStatus = async (gameId) => {
+export const checkAnalysisStatus = async (gameId, options = {}) => {
+    const { taskId = null } = options;
     try {
-        console.log(`Checking analysis status for game ${gameId}`);
-        const response = await api.get(`/api/v1/games/${gameId}/analysis/status/`);
+        console.log(`Checking analysis status for game ${gameId}`, taskId ? `(task ${taskId})` : '');
+        const query = taskId ? `?task_id=${encodeURIComponent(taskId)}` : '';
+        const response = await api.get(`/api/v1/games/${gameId}/analysis/status${query}`);
 
         // Process the response data
         const data = response.data;
@@ -242,6 +244,18 @@ export const checkAnalysisStatus = async (gameId) => {
         if (data && data.task) {
             const taskData = data.task;
             console.log(`Detailed task data for game ${gameId}:`, taskData);
+
+            if (taskId && taskData.id && String(taskData.id) !== String(taskId)) {
+                console.warn(
+                    `Ignoring stale status for game ${gameId}: expected task ${taskId}, got ${taskData.id}`
+                );
+                return {
+                    status: 'PROCESSING',
+                    progress: Number(localStorage.getItem(`last_known_progress_${gameId}`)) || 0,
+                    message: 'Waiting for the current analysis to update…',
+                    staleTask: true,
+                };
+            }
 
             const status = taskData.status?.toUpperCase() || 'UNKNOWN';
             const progressValue = taskData.progress !== undefined ? Number(taskData.progress) : 0;

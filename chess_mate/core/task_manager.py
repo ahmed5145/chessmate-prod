@@ -503,11 +503,14 @@ class TaskManager:
                     error_msg = f"Error updating Redis for task {task_id}: {str(e)}"
                     logger.error(error_msg)
 
-            # If task is in terminal state (SUCCESS/FAILURE), perform cleanup
-            if status in [TASK_STATUS_SUCCESS, TASK_STATUS_FAILURE]:
-                logger.debug(f"Task {task_id} reached terminal state: {status}")
-                # Keep task info in memory for a short time for status checks
-                # But will eventually be cleaned up by the cleanup_expired_tasks method
+            # Terminal tasks should not keep blocking new runs via game→task mapping.
+            if normalized_status in self.TERMINAL_STATUSES:
+                logger.debug(f"Task {task_id} reached terminal state: {normalized_status}")
+                mapped_game_id = task_info.get("game_id") or (previous_info or {}).get("game_id")
+                if mapped_game_id is not None:
+                    game_id_str = str(mapped_game_id)
+                    if self.game_tasks.get(game_id_str) == task_id:
+                        self._clear_game_task_mapping(mapped_game_id)
 
             return True
 
@@ -1194,6 +1197,17 @@ class TaskManager:
         )
         return self.get_task_status_by_id(task_id)
 
+    def _clear_game_task_mapping(self, game_id: Union[int, str]) -> None:
+        """Remove game→task mapping so a new analysis can register cleanly."""
+        game_id_str = str(game_id)
+        self.game_tasks.pop(game_id_str, None)
+        self._cache_delete_value(f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}")
+        if self.redis_client is not None:
+            try:
+                self.redis_client.delete(f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}")
+            except Exception as exc:
+                logger.debug("Could not clear Redis game-task mapping for %s: %s", game_id, exc)
+
     def _get_task_id_for_game(self, game_id: Union[int, str]) -> Optional[str]:
         """
         Get the task ID associated with a game.
@@ -1209,13 +1223,10 @@ class TaskManager:
             game_id_str = str(game_id)
 
             # First check in-memory cache
-            if game_id_str in self.game_tasks:
-                task_id = self.game_tasks[game_id_str]
-                logger.debug(f"Found task ID {task_id} for game {game_id} in memory cache")
-                return task_id
+            task_id = self.game_tasks.get(game_id_str)
 
-            # Try in Redis
-            if self.redis_client is not None:
+            # Try in Redis when memory miss
+            if not task_id and self.redis_client is not None:
                 game_key = f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}"
                 try:
                     task_id = self.redis_client.get(game_key)
@@ -1223,16 +1234,29 @@ class TaskManager:
                         # Convert bytes to string if needed
                         if isinstance(task_id, bytes):
                             task_id = task_id.decode("utf-8")
-
-                        # Cache in memory for future lookups
                         self.game_tasks[game_id_str] = task_id
-                        logger.debug(f"Found task ID {task_id} for game {game_id} in Redis")
-                        return task_id
                 except Exception as e:
                     logger.error(f"Redis error getting task ID for game {game_id}: {str(e)}")
 
-            logger.debug(f"No task found for game {game_id}")
-            return None
+            if not task_id:
+                logger.debug(f"No task found for game {game_id}")
+                return None
+
+            task_info = self.get_task_info(task_id)
+            if task_info:
+                status = str(task_info.get("status", TASK_STATUS_PENDING)).upper()
+                if status in self.TERMINAL_STATUSES:
+                    logger.info(
+                        "Ignoring stale terminal task %s (%s) for game %s",
+                        task_id,
+                        status,
+                        game_id,
+                    )
+                    self._clear_game_task_mapping(game_id)
+                    return None
+
+            logger.debug(f"Resolved active task ID {task_id} for game {game_id}")
+            return task_id
 
         except Exception as e:
             logger.error(f"Error in _get_task_id_for_game for game {game_id}: {str(e)}")

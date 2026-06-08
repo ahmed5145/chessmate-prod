@@ -16,6 +16,7 @@ import { parseSingleGameAnalysisSearch } from '../utils/singleGameAnalysisLinks'
 import { humanizeAnalysisStatusMessage } from '../utils/singleGameAnalysisStatus';
 import { trackSingleGameEvent } from '../utils/marketingAnalytics';
 import { UserContext } from '../contexts/UserContext';
+import api from '../services/api';
 import './SingleGameAnalysis.css';
 import { useTheme } from '../context/ThemeContext';
 import { FaInfoCircle, FaSpinner, FaExclamationTriangle, FaClock, FaCheckCircle } from 'react-icons/fa';
@@ -301,6 +302,23 @@ const SingleGameAnalysis = () => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [statusMessage, setStatusMessage] = useState("Initializing analysis...");
   const [overdueMessage, setOverdueMessage] = useState(null);
+  const [singleGameSendsEmail, setSingleGameSendsEmail] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/api/v1/public/site-config/')
+      .then((response) => {
+        if (!cancelled && response?.data) {
+          setSingleGameSendsEmail(response.data.single_game_sends_completion_email !== false);
+        }
+      })
+      .catch(() => {
+        /* keep default */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Use refs to keep track of intervals and state across renders
   const progressIntervalRef = useRef(null);
@@ -315,6 +333,7 @@ const SingleGameAnalysis = () => {
   const analysisErrorRef = useRef(false);
   const pollingTimeoutRef = useRef(null);
   const pollDelayRef = useRef(3000);
+  const activeTaskIdRef = useRef(null);
   const timeoutIds = useRef([]);
   const POLL_MIN_DELAY = 3000;
   const POLL_MAX_DELAY = 15000;
@@ -344,7 +363,9 @@ const SingleGameAnalysis = () => {
 
     try {
       setPollingFailed(false);
-      const statusResponse = await checkAnalysisStatus(gameId);
+      const statusResponse = await checkAnalysisStatus(gameId, {
+        taskId: activeTaskIdRef.current,
+      });
       console.log(`Analysis status for game ${gameId}:`, statusResponse);
       pollDelayRef.current = computeNextPollDelay({
         currentDelay: pollDelayRef.current,
@@ -638,6 +659,7 @@ const SingleGameAnalysis = () => {
       analysisCompleted.current = false;
       isFetchingAnalysisRef.current = false;
       pollDelayRef.current = POLL_MIN_DELAY;
+      activeTaskIdRef.current = null;
 
       // Clear all existing intervals and timeouts
       clearAllIntervals();
@@ -661,6 +683,9 @@ const SingleGameAnalysis = () => {
       console.log('Analysis started response:', response);
 
       if (response && response.success) {
+        if (response.task_id) {
+          activeTaskIdRef.current = response.task_id;
+        }
         setLoadingMessage('Queued or running — no need to keep this tab open. We will load results when ready.');
         setStatusMessage('Depth-20 review started');
 
@@ -888,7 +913,9 @@ const SingleGameAnalysis = () => {
               >
                 <p className="font-medium">Runs in the background</p>
                 <p className={`mt-1 ${isDarkMode ? 'text-indigo-200/90' : 'text-indigo-800'}`}>
-                  You do not need to wait here. Open Games to see progress, or return to this link when the review finishes.
+                  {singleGameSendsEmail
+                    ? 'You can close this tab — we\'ll email you when the depth-20 review is ready. Games also shows live progress and a toast when you\'re signed in.'
+                    : 'You do not need to wait here. Open Games to see progress, or return to this link when the review finishes.'}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
@@ -1007,6 +1034,7 @@ const SingleGameAnalysis = () => {
         creditsAvailable={credits}
         isReanalyze
         confirming={confirmingReanalyze}
+        sendsCompletionEmail={singleGameSendsEmail}
       />
     </div>
     );

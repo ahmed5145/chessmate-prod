@@ -1616,8 +1616,12 @@ def get_task_status(request, game_id=None):
     try:
         # If game_id is provided in the URL path, use that
         if game_id:
-            # Resolve by game ID, not positional task_id.
-            task_info = task_manager.get_task_status(game_id=game_id)
+            preferred_task_id = request.GET.get("task_id")
+            if preferred_task_id:
+                task_info = task_manager.get_task_status(task_id=preferred_task_id)
+            else:
+                # Resolve by game ID, not positional task_id.
+                task_info = task_manager.get_task_status(game_id=game_id)
 
             if not task_info:
                 # No task found for this game
@@ -1637,16 +1641,23 @@ def get_task_status(request, game_id=None):
             logger.debug("Raw task info for game %s: %s", game_id, task_info)
 
             # Otherwise wrap it in a response with a 'task' key for frontend compatibility
+            task_payload = {
+                "id": task_info.get("id") or task_info.get("task_id", ""),
+                "status": task_info.get("status", "UNKNOWN"),
+                "progress": task_info.get("progress", 0),
+                "message": task_info.get("message", "Analyzing game..."),
+                "error": task_info.get("error", None),
+            }
+            if (
+                str(task_payload["status"]).upper() in ("FAILURE", "FAILED", "ERROR")
+                and not task_payload["error"]
+            ):
+                task_payload["error"] = task_payload["message"] or "Analysis task failed"
+
             return JsonResponse(
                 {
                     "status": "success",
-                    "task": {
-                        "id": task_info.get("id") or task_info.get("task_id", ""),
-                        "status": task_info.get("status", "UNKNOWN"),
-                        "progress": task_info.get("progress", 0),
-                        "message": task_info.get("message", "Analyzing game..."),
-                        "error": task_info.get("error", None),
-                    },
+                    "task": task_payload,
                 }
             )
         else:

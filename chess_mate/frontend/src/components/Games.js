@@ -13,6 +13,8 @@ import GamePlatformBadge from './GamePlatformBadge';
 import AnalyzeGameConfirmDialog from './AnalyzeGameConfirmDialog';
 import { UserContext } from '../contexts/UserContext';
 import { qualifiesForFirstSingleGameFree } from '../utils/singleGameCredits';
+import { notifySingleGameAnalysisComplete } from '../utils/analysisNotifications';
+import api from '../services/api';
 
 const Games = () => {
   const [games, setGames] = useState([]);
@@ -34,6 +36,7 @@ const Games = () => {
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [confirmingAnalysis, setConfirmingAnalysis] = useState(false);
   const singleGameCredits = 1;
+  const [singleGameSendsEmail, setSingleGameSendsEmail] = useState(true);
 
   // Filter and sort games
   const filteredAndSortedGames = games
@@ -113,6 +116,22 @@ const Games = () => {
     loadGames();
   }, [location.key]);
 
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/api/v1/public/site-config/')
+      .then((response) => {
+        if (!cancelled && response?.data) {
+          setSingleGameSendsEmail(response.data.single_game_sends_completion_email !== false);
+        }
+      })
+      .catch(() => {
+        /* keep default */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Helper function to determine if a game should be polled
   const shouldPollGame = (game) => {
     if (!game.id || isGameAnalyzed(game)) {
@@ -181,7 +200,11 @@ const Games = () => {
             status.status === 'FAILED'
           ) {
             if (status.status === 'COMPLETED') {
-              toast.success(`Analysis completed for game ${parsedGameId}`);
+              const completedGame = gamesRef.current.find((g) => g.id === parsedGameId);
+              notifySingleGameAnalysisComplete(parsedGameId, {
+                opponent: completedGame?.opponent,
+                onOpen: () => navigate(`/game/${parsedGameId}/analysis`),
+              });
               setGames(prev => prev.map(g =>
                 g.id === parsedGameId ? { ...g, analysis_status: 'analyzed', analysis: status.analysis } : g
               ));
@@ -712,6 +735,7 @@ const Games = () => {
           isReanalyze: Boolean(confirmDialog?.isReanalyze),
         })}
         confirming={confirmingAnalysis}
+        sendsCompletionEmail={singleGameSendsEmail}
       />
     </div>
   );

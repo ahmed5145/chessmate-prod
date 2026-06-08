@@ -399,3 +399,38 @@ class TestTaskManager:
         task = self.task_manager.get_task(task_id)
         assert task["status"] == TaskManager.STATUS_RUNNING
         assert task["progress"] == 70
+
+    def test_get_task_id_for_game_ignores_stale_terminal_mapping(self):
+        """A failed task must not block status lookups for a new analysis."""
+        game_id = 168
+        stale_task_id = "771ccbd4-d369-4a46-8a4f-21f0c34248b2"
+
+        self.task_manager.register_task(
+            game_id=game_id,
+            task_id=stale_task_id,
+            task_type="analyze_game",
+        )
+        self.task_manager.update_task_status(
+            task_id=stale_task_id,
+            status=TaskManager.STATUS_FAILED,
+            progress=46,
+            message="Analyzing move 40/73",
+        )
+
+        assert self.task_manager._get_task_id_for_game(game_id) is None
+        assert str(game_id) not in self.task_manager.game_tasks
+
+    def test_update_task_status_clears_game_mapping_on_terminal(self):
+        """Terminal completion should drop game→task mapping for that task."""
+        game_id = 168
+        task_id = self.task_manager.create_task(game_id=game_id)
+
+        self.task_manager.update_task_status(
+            task_id=task_id,
+            status=TaskManager.STATUS_COMPLETED,
+            progress=100,
+            message="done",
+        )
+
+        assert self.task_manager._get_task_id_for_game(game_id) is None
+        assert str(game_id) not in self.task_manager.game_tasks
