@@ -145,24 +145,15 @@ const AchievementsSection = ({ achievements }) => {
             <div className="sm:flex sm:items-start">
               <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
                 <div className="flex justify-between items-center mb-4 gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {selectedCategory ? (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedCategory(null)}
-                        className={`inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium shrink-0 ${
-                          isDarkMode
-                            ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                        }`}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                        All categories
-                      </button>
-                    ) : null}
+                  <div className="min-w-0">
                     <h3 className={`text-lg leading-6 font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                       {selectedCategory ? categories[selectedCategory].title : 'All Achievements'}
                     </h3>
+                    {selectedCategory ? (
+                      <p className={`text-sm mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {categories[selectedCategory].items.length} achievements in this category
+                      </p>
+                    ) : null}
                   </div>
                   <button
                     onClick={() => {
@@ -181,7 +172,20 @@ const AchievementsSection = ({ achievements }) => {
 
                 <div className="mt-4 space-y-4">
                   {selectedCategory ? (
-                    categories[selectedCategory].items.map((achievement, index) => (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCategory(null)}
+                        className={`w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                          isDarkMode
+                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                        }`}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Back to all achievements
+                      </button>
+                      {categories[selectedCategory].items.map((achievement, index) => (
                       <div
                         key={index}
                         className={`p-4 rounded-lg ${
@@ -225,7 +229,8 @@ const AchievementsSection = ({ achievements }) => {
                           </div>
                         </div>
                       </div>
-                    ))
+                    ))}
+                    </>
                   ) : (
                     Object.entries(categories).map(([key, category]) => (
                       <button

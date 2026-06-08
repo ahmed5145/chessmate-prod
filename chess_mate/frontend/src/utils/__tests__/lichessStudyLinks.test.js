@@ -64,6 +64,32 @@ describe('resolvePriorityLichessLink', () => {
     expect(link.label).toBe('Study on Lichess');
   });
 
+  it('ignores generic opening repertoire phrasing and uses batch repertoire gaps', () => {
+    const link = resolvePriorityLichessLink(
+      {
+        title: 'Study Opening Theory on Your Opening Repertoire',
+        why_it_matters: 'You leaked points in familiar lines.',
+        how_to_fix: 'Review your opening repertoire and prep before the next batch.',
+        specific_drill: 'Pick one line from this batch and study it for 15 minutes.',
+      },
+      {
+        batch_summary: {
+          repertoire_gaps: [
+            {
+              opening_name: "Queen's Pawn Game: London System",
+              eco_code: 'D02',
+              player_color: 'white',
+            },
+          ],
+        },
+      }
+    );
+
+    expect(link.kind).toBe('opening');
+    expect(link.url).toContain('London');
+    expect(link.url).not.toContain('opening+repertoire');
+  });
+
   it('uses batch repertoire gaps when opening priority has no explicit line name', () => {
     const link = resolvePriorityLichessLink(
       {
@@ -87,6 +113,30 @@ describe('resolvePriorityLichessLink', () => {
     expect(link.kind).toBe('opening');
     expect(link.url).toContain('lichess.org/study/search');
     expect(link.url).toContain('London');
+    expect(link.url).not.toContain('opening+repertoire');
+  });
+
+  it('falls back to linked game opening before generic repertoire wording', () => {
+    const link = resolvePriorityLichessLink(
+      {
+        title: 'Study Opening Theory',
+        why_it_matters: 'Opening prep was inconsistent.',
+        how_to_fix: 'Review your opening repertoire and prep before the next batch.',
+        specific_drill: 'Replay game_0 moves 1-12.',
+      },
+      {
+        per_game_results: [
+          {
+            game_id: 'game_0',
+            opening_name: 'Sicilian Defense: Najdorf Variation',
+            eco_code: 'B90',
+            player_color: 'black',
+          },
+        ],
+      }
+    );
+
+    expect(link.url).toContain('Najdorf');
     expect(link.url).not.toContain('opening+repertoire');
   });
 

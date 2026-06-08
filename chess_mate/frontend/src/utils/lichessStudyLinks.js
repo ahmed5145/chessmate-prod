@@ -8,6 +8,21 @@ import { buildOpeningStudyQuery, compactOpeningName } from './openingNameCompact
 
 const UNKNOWN_OPENING_LABELS = new Set(['unknown', 'unknown opening', '?']);
 
+const GENERIC_OPENING_LABELS = new Set([
+  'opening repertoire',
+  'your repertoire',
+  'the repertoire',
+  'your opening repertoire',
+  'the opening repertoire',
+  'opening theory',
+  'study opening theory',
+  'your opening',
+  'the opening',
+  'repertoire',
+]);
+
+const SPECIFIC_OPENING_HINT_RE = /sicilian|london|french|caro|italian|ruy|queen'?s|king'?s|slav|indian|najdorf|dragon|catalan|nimzo|grünfeld|grunfeld|scandinavian|gambit|defense|defence|system|attack|variation|pawn game|gambit declined|opening:/i;
+
 const PUZZLE_THEME_SLUGS = {
   fork: 'fork',
   pin: 'pin',
@@ -92,10 +107,20 @@ const inferPriorityThemeKey = (priority = {}) => {
   return 'missed_tactic';
 };
 
+const normalizeOpeningLabel = (name) => (
+  String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^(?:the|your)\s+/, '')
+    .trim()
+);
+
 const cleanExtractedOpeningName = (name) => {
   const compacted = compactOpeningName(name);
   return compacted || String(name || '').trim() || null;
 };
+
+const hasSpecificOpeningFamily = (name) => SPECIFIC_OPENING_HINT_RE.test(String(name || ''));
 
 const extractGameIdsFromPriority = (priority = {}) => {
   const text = [priority.title, priority.why_it_matters, priority.how_to_fix, priority.specific_drill]
@@ -114,7 +139,13 @@ const isRecognizedOpeningName = (name) => {
   if (/^game_\d+$/i.test(normalized) || /\bgame_\d+\b/i.test(normalized)) {
     return false;
   }
-  if (normalized === 'opening repertoire' || normalized === 'your repertoire' || normalized === 'the repertoire') {
+  if (GENERIC_OPENING_LABELS.has(normalized) || GENERIC_OPENING_LABELS.has(normalizeOpeningLabel(compacted))) {
+    return false;
+  }
+  if (/\brepertoire\b/i.test(compacted) && !hasSpecificOpeningFamily(compacted)) {
+    return false;
+  }
+  if (/\bopening theory\b/i.test(compacted) && !hasSpecificOpeningFamily(compacted)) {
     return false;
   }
   return true;
@@ -273,15 +304,17 @@ export const resolveOpeningStudyTarget = (priority, context = {}) => {
     return linkedGameTarget;
   }
 
+  const batchTarget = resolveOpeningStudyTargetFromBatchSummary(batchSummary);
+  if (batchTarget) {
+    return batchTarget;
+  }
+
   const extractedName = extractOpeningNameFromPriority(priority);
   if (extractedName) {
     return openingStudyTargetFromName(extractedName);
   }
 
-  return (
-    resolveOpeningStudyTargetFromBatchSummary(batchSummary)
-    || resolveOpeningStudyTargetFromPerGameResults(perGameResults)
-  );
+  return resolveOpeningStudyTargetFromPerGameResults(perGameResults);
 };
 
 const isEndgamePriority = (priority = {}) => {
