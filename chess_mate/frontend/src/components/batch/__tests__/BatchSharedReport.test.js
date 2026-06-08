@@ -63,7 +63,11 @@ describe('BatchSharedReport', () => {
     expect(screen.getByText(/Shared coaching report \(read-only\)/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Get your own batch report/i })).toHaveAttribute(
       'href',
-      '/register'
+      '/register?from=shared-report'
+    );
+    expect(screen.getByRole('link', { name: /See example report/i })).toHaveAttribute(
+      'href',
+      '/example/batch-report'
     );
     expect(screen.getByRole('link', { name: /See how it works/i })).toHaveAttribute(
       'href',

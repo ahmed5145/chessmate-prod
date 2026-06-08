@@ -4,6 +4,9 @@ import { ArrowRight, Brain, Crown, Download, Layers, FileText } from 'lucide-rea
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import api from '../services/api';
+import BatchReportPreview from './marketing/BatchReportPreview';
+import { buildLoginHref, buildRegisterHref, MARKETING_SOURCES } from '../utils/marketingLinks';
+import { trackMarketingEvent } from '../utils/marketingAnalytics';
 
 const Step = ({ number, title, description, isDarkMode }) => (
   <div className={`p-6 rounded-xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
@@ -75,13 +78,17 @@ const LandingPage = () => {
           {!user ? (
             <div className="flex flex-col sm:flex-row justify-center gap-4">
               <Link
-                to="/register"
+                to={buildRegisterHref(MARKETING_SOURCES.LANDING_HERO)}
+                onClick={() => trackMarketingEvent('cta_click', {
+                  location: 'landing_hero',
+                  source: MARKETING_SOURCES.LANDING_HERO,
+                })}
                 className="inline-flex items-center justify-center px-8 py-4 text-lg font-medium rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg"
               >
                 Get started free
               </Link>
               <Link
-                to="/login"
+                to={buildLoginHref(MARKETING_SOURCES.LANDING_HERO)}
                 className={`inline-flex items-center justify-center px-8 py-4 text-lg font-medium rounded-xl border shadow-lg ${
                   isDarkMode
                     ? 'border-gray-600 text-white hover:bg-gray-800'
@@ -99,6 +106,20 @@ const LandingPage = () => {
               Go to dashboard
             </Link>
           )}
+        </div>
+      </div>
+
+      <div className={`py-16 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className={`text-2xl sm:text-3xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              See a real Batch Coach report
+            </h2>
+            <p className={`text-sm max-w-lg mx-auto ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Priorities, phase breakdown, opening gaps, and drills — from 8 anonymized games.
+            </p>
+          </div>
+          <BatchReportPreview />
         </div>
       </div>
 
@@ -172,7 +193,11 @@ const LandingPage = () => {
             Feedback welcome — we&apos;re actively improving the beta.
           </p>
           <Link
-            to="/register"
+            to={buildRegisterHref(MARKETING_SOURCES.LANDING_EXAMPLE)}
+            onClick={() => trackMarketingEvent('cta_click', {
+              location: 'landing_footer',
+              source: MARKETING_SOURCES.LANDING_EXAMPLE,
+            })}
             className="inline-flex items-center px-8 py-4 text-lg font-medium rounded-xl text-white bg-indigo-600 hover:bg-indigo-700"
           >
             Try Batch Coach free

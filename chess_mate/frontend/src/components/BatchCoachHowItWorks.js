@@ -13,6 +13,8 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import api from '../services/api';
+import BatchReportPreview from './marketing/BatchReportPreview';
+import { buildRegisterHref, MARKETING_SOURCES } from '../utils/marketingLinks';
 
 const Feature = ({ icon: Icon, title, description, isDarkMode }) => (
   <div
@@ -86,7 +88,7 @@ const BatchCoachHowItWorks = () => {
           {!user ? (
             <div className="flex flex-col sm:flex-row justify-center gap-3">
               <Link
-                to="/register"
+                to={buildRegisterHref(MARKETING_SOURCES.HOW_IT_WORKS)}
                 className="inline-flex items-center justify-center px-8 py-3.5 text-base font-semibold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg"
               >
                 Get your own report — free
@@ -114,6 +116,18 @@ const BatchCoachHowItWorks = () => {
             New accounts get <strong>{signupBonus} free {creditLabel}</strong> — enough for about{' '}
             {sampleReports} batch report{sampleReports === 1 ? '' : 's'} at 10 games each.
           </p>
+        </div>
+      </section>
+
+      <section className={`py-14 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className={`text-2xl font-bold text-center mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Example report preview
+          </h2>
+          <p className={`text-center text-sm mb-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Same sections you get on your own batch — anonymized demo data.
+          </p>
+          <BatchReportPreview />
         </div>
       </section>
 
@@ -212,7 +226,7 @@ const BatchCoachHowItWorks = () => {
           </p>
           {!user ? (
             <Link
-              to="/register"
+              to={buildRegisterHref(MARKETING_SOURCES.HOW_IT_WORKS)}
               className="inline-flex items-center px-8 py-4 text-lg font-semibold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg"
             >
               Create free account

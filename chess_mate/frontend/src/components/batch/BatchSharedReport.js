@@ -7,6 +7,7 @@ import { useParams, Link as RouterLink } from 'react-router-dom';
 import { Alert, Box, Button, Container, Paper, Typography } from '@mui/material';
 import BatchReportSections from './BatchReportSections';
 import { getPublicBatchReport } from '../../services/apiRequests';
+import { buildRegisterHref, MARKETING_SOURCES } from '../../utils/marketingLinks';
 
 const BatchSharedReport = () => {
   const { shareToken } = useParams();
@@ -108,7 +109,7 @@ const BatchSharedReport = () => {
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             <Button
               component={RouterLink}
-              to="/register"
+              to={buildRegisterHref(MARKETING_SOURCES.SHARED_REPORT)}
               variant="contained"
               size="small"
               sx={{
@@ -120,6 +121,24 @@ const BatchSharedReport = () => {
               }}
             >
               Get your own batch report
+            </Button>
+            <Button
+              component={RouterLink}
+              to="/example/batch-report"
+              variant="outlined"
+              size="small"
+              sx={(theme) => ({
+                textTransform: 'none',
+                fontWeight: 600,
+                borderColor: theme.palette.mode === 'dark' ? 'grey.600' : 'grey.400',
+                color: theme.palette.mode === 'dark' ? 'grey.200' : 'grey.800',
+                '&:hover': {
+                  borderColor: theme.palette.mode === 'dark' ? 'grey.500' : 'grey.600',
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                },
+              })}
+            >
+              See example report
             </Button>
             <Button
               component={RouterLink}

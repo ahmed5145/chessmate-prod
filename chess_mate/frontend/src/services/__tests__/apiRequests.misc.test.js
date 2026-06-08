@@ -77,19 +77,49 @@ describe('apiRequests misc API', () => {
     it('normalizes nested dashboard payload', async () => {
       api.get.mockResolvedValue({
         data: {
-          game_stats: { total: 12, win_rate: 55 },
+          game_stats: { total: 12, win_rate: 55, analyzed: 6 },
+          analyzed_games: 6,
           user: { credits: 7 },
           insights: [{ opponent: 'Rival', mistake_count: 3, summary: 'Missed forks' }],
+          next_action: {
+            type: 'start_batch_coach',
+            title: 'Run Batch Coach',
+            description: 'Ready for coaching.',
+            cta_label: 'Start',
+            cta_to: '/batch-analysis',
+            secondary_links: [{ label: 'Games', to: '/games' }],
+          },
+          focus_insight: {
+            type: 'warning',
+            text: 'Top focus area: tactics',
+            href: '/batch-report/2',
+            action_label: 'Open report',
+          },
+          hero_metrics: [{ label: 'Analyzed', value: '6 / 12' }],
+          since_last_visit: {
+            has_previous_visit: true,
+            show_banner: true,
+            games_imported: 2,
+            games_analyzed: 1,
+            batch_reports: 0,
+            summary_lines: ['1 game analyzed', '2 games imported'],
+          },
         },
       });
 
       const data = await fetchDashboardData();
 
       expect(data.total_games).toBe(12);
+      expect(data.analyzed_games).toBe(6);
       expect(data.win_rate).toBe(55);
       expect(data.credits).toBe(7);
       expect(data.insights[0].type).toBe('warning');
       expect(data.insights[0].text).toContain('Missed forks');
+      expect(data.nextAction.ctaTo).toBe('/batch-analysis');
+      expect(data.focusInsight.href).toBe('/batch-report/2');
+      expect(data.heroMetrics[0].value).toBe('6 / 12');
+      expect(data.sinceLastVisit.showBanner).toBe(true);
+      expect(data.sinceLastVisit.summaryLines).toHaveLength(2);
     });
   });
 
