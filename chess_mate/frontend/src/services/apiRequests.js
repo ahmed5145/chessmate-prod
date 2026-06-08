@@ -253,17 +253,90 @@ const normalizeDashboardInsights = (insights) => {
     });
 };
 
+const normalizeDashboardNextAction = (action) => {
+    if (!action || typeof action !== 'object') {
+        return null;
+    }
+    return {
+        type: action.type || null,
+        title: action.title,
+        description: action.description,
+        ctaLabel: action.cta_label,
+        ctaTo: action.cta_to,
+        secondaryLinks: Array.isArray(action.secondary_links)
+            ? action.secondary_links.map((link) => ({
+                label: link.label,
+                to: link.to,
+            }))
+            : [],
+    };
+};
+
+const normalizeDashboardFocusInsight = (focus) => {
+    if (!focus || typeof focus !== 'object') {
+        return null;
+    }
+    return {
+        type: focus.type || 'success',
+        text: focus.text,
+        href: focus.href || null,
+        actionLabel: focus.action_label || null,
+        meta: focus.meta || null,
+    };
+};
+
+const normalizeDashboardHeroMetrics = (metrics) => {
+    if (!Array.isArray(metrics)) {
+        return null;
+    }
+    return metrics
+        .filter((metric) => metric?.label && metric?.value)
+        .map((metric) => ({ label: metric.label, value: String(metric.value) }));
+};
+
+const normalizeSinceLastVisit = (sinceLastVisit) => {
+    if (!sinceLastVisit || typeof sinceLastVisit !== 'object') {
+        return {
+            hasPreviousVisit: false,
+            showBanner: false,
+            gamesImported: 0,
+            gamesAnalyzed: 0,
+            batchReports: 0,
+            summaryLines: [],
+        };
+    }
+    return {
+        hasPreviousVisit: Boolean(sinceLastVisit.has_previous_visit),
+        showBanner: Boolean(sinceLastVisit.show_banner),
+        gamesImported: Number(sinceLastVisit.games_imported) || 0,
+        gamesAnalyzed: Number(sinceLastVisit.games_analyzed) || 0,
+        batchReports: Number(sinceLastVisit.batch_reports) || 0,
+        summaryLines: Array.isArray(sinceLastVisit.summary_lines)
+            ? sinceLastVisit.summary_lines
+            : [],
+    };
+};
+
 const normalizeDashboardData = (raw) => {
     const gameStats = raw?.game_stats || {};
     const user = raw?.user || {};
+    const analyzedGames = raw?.analyzed_games
+        ?? gameStats.analyzed_games
+        ?? gameStats.analyzed
+        ?? 0;
 
     return {
         ...raw,
         total_games: raw?.total_games ?? gameStats.total ?? gameStats.total_games ?? 0,
+        analyzed_games: analyzedGames,
         win_rate: raw?.win_rate ?? gameStats.win_rate ?? 0,
         average_accuracy: raw?.average_accuracy ?? 0,
         credits: raw?.credits ?? user.credits ?? 0,
         insights: normalizeDashboardInsights(raw?.insights || raw?.analysis_insights || []),
+        nextAction: normalizeDashboardNextAction(raw?.next_action),
+        focusInsight: normalizeDashboardFocusInsight(raw?.focus_insight),
+        heroMetrics: normalizeDashboardHeroMetrics(raw?.hero_metrics),
+        sinceLastVisit: normalizeSinceLastVisit(raw?.since_last_visit),
     };
 };
 

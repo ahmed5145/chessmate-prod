@@ -25,8 +25,14 @@ from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 from .serializers_batches import _coaching_summary_snippet
 from .stats_helpers import (
     ANALYZED_GAME_Q,
+    build_dashboard_focus_insight,
+    build_dashboard_hero_metrics,
+    build_dashboard_next_action,
+    build_dashboard_since_last_visit,
     compute_user_average_accuracy,
     format_dashboard_insights,
+    mark_dashboard_visit,
+    parse_last_dashboard_visit,
     resolve_game_opponent_display,
 )
 
@@ -56,6 +62,15 @@ class _CacheManager:
 cache_manager = _CacheManager()
 
 
+def _finalize_dashboard_response(dashboard_data, user, profile):
+    """Attach visit-aware summary and record this dashboard view."""
+    payload = dict(dashboard_data)
+    since = parse_last_dashboard_visit(getattr(profile, "preferences", None))
+    payload["since_last_visit"] = build_dashboard_since_last_visit(user, since)
+    mark_dashboard_visit(profile)
+    return payload
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_view(request):
@@ -66,17 +81,16 @@ def dashboard_view(request):
     try:
         user = request.user
 
-        # Check cache first
-        cache_key = generate_cache_key("dashboard_data", user.id)
-        cached_data = cache_manager.get(cache_key)
-        if cached_data:
-            return Response(cached_data, status=status.HTTP_200_OK)
-
-        # Get user's profile with a single query
         try:
             profile = Profile.objects.select_related("user").get(user=user)  # type: ignore[attr-defined]
         except Profile.DoesNotExist:  # type: ignore[attr-defined]
             return Response({"error": "User profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check cache first (since_last_visit is always computed fresh per request)
+        cache_key = generate_cache_key("dashboard_data", user.id)
+        cached_data = cache_manager.get(cache_key)
+        if cached_data:
+            return Response(_finalize_dashboard_response(cached_data, user, profile), status=status.HTTP_200_OK)
 
         # Get recent games with optimized query - limit select fields
         recent_games = [
@@ -290,11 +304,31 @@ def dashboard_view(request):
             latest_batch_coach=latest_batch_coach,
             latest_batch_summary=latest_batch_summary,
         )
+        dashboard_data["analyzed_games"] = analysis_count
+        dashboard_data["next_action"] = build_dashboard_next_action(
+            total_games=total_games,
+            analyzed_games=analysis_count,
+            recent_games=recent_games,
+            latest_batch_coach=latest_batch_coach,
+        )
+        dashboard_data["focus_insight"] = build_dashboard_focus_insight(
+            insights=dashboard_data["insights"],
+            analysis_insights=analysis_insights,
+            latest_batch_coach=latest_batch_coach,
+            total_games=total_games,
+            hero_action_type=dashboard_data["next_action"].get("type"),
+        )
+        dashboard_data["hero_metrics"] = build_dashboard_hero_metrics(
+            total_games=total_games,
+            analyzed_games=analysis_count,
+            average_accuracy=average_accuracy,
+            win_rate=round(win_rate, 1),
+        )
 
-        # Cache the dashboard data
+        # Cache without visit-specific fields (recomputed on every request)
         cache_manager.set(cache_key, dashboard_data, timeout=300)  # Cache for 5 minutes
 
-        return Response(dashboard_data, status=status.HTTP_200_OK)
+        return Response(_finalize_dashboard_response(dashboard_data, user, profile), status=status.HTTP_200_OK)
 
     except DASHBOARD_EXCEPTIONS as e:
         logger.error("Error in dashboard view: %s", e, exc_info=True)

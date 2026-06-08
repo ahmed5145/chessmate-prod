@@ -4,9 +4,11 @@ Shared helpers for dashboard and profile statistics.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from django.db.models import Case, Count, IntegerField, Q, When
+from django.utils import timezone
 
 from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 
@@ -334,7 +336,10 @@ def format_dashboard_insights(
         else:
             text = f"vs {opponent}: {mistake_count} mistake{'s' if mistake_count != 1 else ''} in recent analysis"
 
-        formatted.append({"type": insight_type, "text": text[:240]})
+        entry: Dict[str, Any] = {"type": insight_type, "text": text[:240]}
+        if item.get("game_id"):
+            entry["game_id"] = item["game_id"]
+        formatted.append(entry)
 
     if not formatted and (total_games > 0 or latest_batch_coach):
         batch_insights = _batch_dashboard_insights(latest_batch_coach, latest_batch_summary)
@@ -396,6 +401,302 @@ def _batch_dashboard_insights(
         insights.append({"type": "success", "text": coach_summary[:240]})
 
     return insights[:3]
+
+
+GENERIC_DASHBOARD_INSIGHT_PATTERNS = (
+    "import and analyze games",
+    "run batch coach or analyze",
+    "unlock personalized",
+    "unlock more personalized",
+)
+
+
+def _is_generic_dashboard_insight(text: str) -> bool:
+    lowered = (text or "").lower()
+    return any(pattern in lowered for pattern in GENERIC_DASHBOARD_INSIGHT_PATTERNS)
+
+
+def _is_recent_game_analyzed(game: Dict[str, Any]) -> bool:
+    status_value = str(game.get("analysis_status") or game.get("status") or "").lower()
+    return status_value in ("analyzed", "completed") or bool(game.get("analysis"))
+
+
+def build_dashboard_next_action(
+    *,
+    total_games: int,
+    analyzed_games: int,
+    recent_games: Optional[List[Dict[str, Any]]] = None,
+    latest_batch_coach: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Single primary CTA for the dashboard hero."""
+    recent = recent_games or []
+    first_unanalyzed = next((game for game in recent if not _is_recent_game_analyzed(game)), None)
+    coach = latest_batch_coach if isinstance(latest_batch_coach, dict) else {}
+
+    if total_games <= 0:
+        return {
+            "type": "import_games",
+            "title": "Import games to get started",
+            "description": "Pull games from Chess.com or Lichess to unlock analysis and coaching.",
+            "cta_label": "Import games",
+            "cta_to": "/fetch-games",
+            "secondary_links": [{"label": "Credits & pricing", "to": "/credits"}],
+        }
+
+    if analyzed_games <= 0:
+        if first_unanalyzed and first_unanalyzed.get("id"):
+            game_id = first_unanalyzed["id"]
+            return {
+                "type": "analyze_game",
+                "title": "Analyze your latest game",
+                "description": "See accuracy, mistakes, and engine feedback for your most recent game.",
+                "cta_label": "Analyze game",
+                "cta_to": f"/game/{game_id}/analysis",
+                "secondary_links": [{"label": "All games", "to": "/games"}],
+            }
+        return {
+            "type": "analyze_game",
+            "title": "Analyze a game",
+            "description": "Pick a game from your library to run your first analysis.",
+            "cta_label": "View games",
+            "cta_to": "/games",
+            "secondary_links": [{"label": "Import more", "to": "/fetch-games"}],
+        }
+
+    if analyzed_games < 5:
+        remaining = 5 - analyzed_games
+        plural = "" if remaining == 1 else "s"
+        return {
+            "type": "reach_batch_threshold",
+            "title": f"Analyze {remaining} more game{plural} for Batch Coach",
+            "description": "Batch Coach finds patterns across 5–30 games. You are almost there.",
+            "cta_label": "View games",
+            "cta_to": "/games",
+            "secondary_links": [{"label": "Import games", "to": "/fetch-games"}],
+        }
+
+    if not (coach.get("summary") or "").strip():
+        return {
+            "type": "start_batch_coach",
+            "title": "Run Batch Coach on your games",
+            "description": f"You have {analyzed_games} analyzed games ready for a coaching report.",
+            "cta_label": "Start Batch Coach",
+            "cta_to": "/batch-analysis",
+            "secondary_links": [{"label": "View games", "to": "/games"}],
+        }
+
+    summary_preview = str(coach.get("summary") or "").strip()
+    if len(summary_preview) > 180:
+        summary_preview = f"{summary_preview[:180]}…"
+    batch_id = coach.get("batch_id")
+    return {
+        "type": "open_batch_report",
+        "title": "Pick up your latest coach report",
+        "description": summary_preview,
+        "cta_label": "Open report",
+        "cta_to": f"/batch-report/{batch_id}",
+        "secondary_links": [
+            {"label": "Run new batch", "to": "/batch-analysis"},
+            {"label": "View games", "to": "/games"},
+        ],
+    }
+
+
+def _is_batch_accuracy_insight(text: str) -> bool:
+    lowered = (text or "").lower()
+    return "latest batch coach" in lowered and "accuracy" in lowered
+
+
+def build_dashboard_focus_insight(
+    *,
+    insights: Optional[List[Dict[str, Any]]] = None,
+    analysis_insights: Optional[List[Dict[str, Any]]] = None,
+    latest_batch_coach: Optional[Dict[str, Any]] = None,
+    total_games: int = 0,
+    hero_action_type: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Primary coaching insight for the dashboard focus card."""
+    formatted = insights or []
+    raw_items = analysis_insights or []
+    coach = latest_batch_coach if isinstance(latest_batch_coach, dict) else {}
+    batch_id = coach.get("batch_id")
+
+    meaningful = [
+        item for item in formatted if (item.get("text") or "").strip() and not _is_generic_dashboard_insight(item["text"])
+    ]
+
+    priority = next(
+        (
+            item
+            for item in meaningful
+            if any(token in item["text"].lower() for token in ("top focus", "opening to review", "weakest", "priority"))
+        ),
+        None,
+    )
+    if priority and batch_id:
+        return {
+            "type": priority.get("type") or "warning",
+            "text": priority["text"],
+            "href": f"/batch-report/{batch_id}",
+            "action_label": "Open report",
+        }
+
+    if meaningful:
+        first = next((item for item in meaningful if not _is_batch_accuracy_insight(item.get("text", ""))), None)
+        if first:
+            linked = next((item for item in raw_items if item.get("game_id")), None)
+            game_id = first.get("game_id") or (linked or {}).get("game_id")
+            href = f"/game/{game_id}/analysis" if game_id else None
+            if not href and batch_id and hero_action_type == "open_batch_report":
+                href = f"/batch-report/{batch_id}"
+            return {
+                "type": first.get("type") or "success",
+                "text": first["text"],
+                "href": href,
+                "action_label": "View game" if game_id else ("Open report" if href else None),
+            }
+
+    coach_summary = (coach.get("summary") or "").strip()
+    if coach_summary and batch_id and hero_action_type != "open_batch_report":
+        meta_parts = []
+        if coach.get("games_count"):
+            meta_parts.append(f"{coach['games_count']} games")
+        accuracy = coach.get("overall_accuracy_pct")
+        if accuracy is not None:
+            try:
+                meta_parts.append(f"{float(accuracy):.1f}% accuracy")
+            except (TypeError, ValueError):
+                pass
+        return {
+            "type": "success",
+            "text": coach_summary,
+            "href": f"/batch-report/{batch_id}",
+            "action_label": "Open full report",
+            "meta": " · ".join(meta_parts),
+        }
+
+    if hero_action_type == "open_batch_report" and batch_id:
+        return {
+            "type": "success",
+            "text": "Your report includes game-by-game breakdowns, priorities, and practice links.",
+            "href": f"/batch-report/{batch_id}",
+            "action_label": "View breakdown",
+        }
+
+    if total_games > 0:
+        return {
+            "type": "success",
+            "text": "Analyze more games or run Batch Coach to surface your top improvement areas.",
+            "href": "/games",
+            "action_label": "View games",
+        }
+
+    return {
+        "type": "success",
+        "text": "Import and analyze games to unlock personalized coaching.",
+        "href": "/fetch-games",
+        "action_label": "Import games",
+    }
+
+
+def parse_last_dashboard_visit(preferences: Optional[Dict[str, Any]]) -> Optional[datetime]:
+    """Parse stored dashboard visit timestamp from profile preferences."""
+    if not isinstance(preferences, dict):
+        return None
+    raw = preferences.get("last_dashboard_visit_at")
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        if timezone.is_naive(parsed):
+            return timezone.make_aware(parsed)
+        return parsed
+    except (ValueError, TypeError):
+        return None
+
+
+def _pluralize(count: int, singular: str, plural: str) -> str:
+    return singular if count == 1 else plural
+
+
+def build_dashboard_since_last_visit(user, since: Optional[datetime]) -> Dict[str, Any]:
+    """Summarize activity since the user's previous dashboard visit."""
+    if since is None:
+        return {
+            "has_previous_visit": False,
+            "show_banner": False,
+            "games_imported": 0,
+            "games_analyzed": 0,
+            "batch_reports": 0,
+            "summary_lines": [],
+        }
+
+    games_imported = Game.objects.filter(user=user, created_at__gt=since).count()  # type: ignore[attr-defined]
+    games_analyzed = Game.objects.filter(user=user, analysis_completed_at__gt=since).count()  # type: ignore[attr-defined]
+    if games_analyzed == 0:
+        games_analyzed = (
+            Game.objects.filter(user=user)  # type: ignore[attr-defined]
+            .filter(ANALYZED_GAME_Q)
+            .filter(updated_at__gt=since)
+            .count()
+        )
+
+    batch_reports = (
+        BatchAnalysisReport.objects.filter(  # type: ignore[attr-defined]
+            user=user,
+            status__in=["completed", "partial"],
+            created_at__gt=since,
+        ).count()
+    )
+
+    summary_lines: List[str] = []
+    if games_analyzed:
+        summary_lines.append(
+            f"{games_analyzed} {_pluralize(games_analyzed, 'game', 'games')} analyzed"
+        )
+    if batch_reports:
+        summary_lines.append(
+            f"{batch_reports} coach {_pluralize(batch_reports, 'report', 'reports')} ready"
+        )
+    if games_imported and not games_analyzed:
+        summary_lines.append(
+            f"{games_imported} {_pluralize(games_imported, 'game', 'games')} imported"
+        )
+
+    return {
+        "has_previous_visit": True,
+        "show_banner": bool(summary_lines),
+        "games_imported": games_imported,
+        "games_analyzed": games_analyzed,
+        "batch_reports": batch_reports,
+        "summary_lines": summary_lines,
+    }
+
+
+def mark_dashboard_visit(profile: Profile) -> None:
+    """Record the current time as the user's latest dashboard visit."""
+    prefs = dict(profile.preferences) if isinstance(profile.preferences, dict) else {}
+    prefs["last_dashboard_visit_at"] = timezone.now().isoformat()
+    profile.preferences = prefs
+    profile.save(update_fields=["preferences"])
+
+
+def build_dashboard_hero_metrics(
+    *,
+    total_games: int,
+    analyzed_games: int,
+    average_accuracy: float,
+    win_rate: float,
+) -> List[Dict[str, str]]:
+    """Compact hero metric chips for the dashboard."""
+    metrics: List[Dict[str, str]] = []
+    if total_games > 0:
+        metrics.append({"label": "Analyzed", "value": f"{analyzed_games} / {total_games}"})
+    if analyzed_games >= 3 and average_accuracy > 0:
+        metrics.append({"label": "Avg accuracy", "value": f"{average_accuracy}%"})
+    if total_games >= 10 and win_rate >= 0:
+        metrics.append({"label": "Win rate", "value": f"{win_rate}%"})
+    return metrics
 
 
 def compute_user_achievements(profile: Profile, game_counts: Optional[Dict[str, int]] = None) -> List[Dict[str, Any]]:

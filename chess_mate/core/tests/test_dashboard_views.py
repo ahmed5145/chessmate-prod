@@ -205,6 +205,13 @@ class TestDashboardViews:
                 assert isinstance(response.data["insights"], list)
                 assert "type" in response.data["insights"][0]
                 assert "text" in response.data["insights"][0]
+                assert "next_action" in response.data
+                assert response.data["next_action"]["cta_to"]
+                assert "focus_insight" in response.data
+                assert response.data["focus_insight"]["text"]
+                assert "hero_metrics" in response.data
+                assert isinstance(response.data["hero_metrics"], list)
+                assert response.data["analyzed_games"] >= 0
 
                 recent = response.data.get("recent_games") or []
                 assert recent
@@ -228,7 +235,10 @@ class TestDashboardViews:
             response = authenticated_client.get(url)
 
             assert response.status_code == status.HTTP_200_OK
-            assert response.data == mock_data
+            assert response.data["user"] == mock_data["user"]
+            assert response.data["game_stats"] == mock_data["game_stats"]
+            assert "since_last_visit" in response.data
+            assert "show_banner" in response.data["since_last_visit"]
 
     def test_refresh_dashboard(self, authenticated_client, test_user):
         # Mock the cache to delete
