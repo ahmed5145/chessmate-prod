@@ -15,6 +15,7 @@ import { useUser } from '../contexts/UserContext';
 import api from '../services/api';
 import BatchReportPreview from './marketing/BatchReportPreview';
 import { buildRegisterHref, MARKETING_SOURCES } from '../utils/marketingLinks';
+import { PAGE_META, usePageMeta } from '../utils/pageMeta';
 
 const Feature = ({ icon: Icon, title, description, isDarkMode }) => (
   <div
@@ -34,6 +35,8 @@ const BatchCoachHowItWorks = () => {
   const { isDarkMode } = useTheme();
   const { user } = useUser();
   const [signupBonus, setSignupBonus] = useState(15);
+
+  usePageMeta(PAGE_META.howItWorks);
 
   useEffect(() => {
     let cancelled = false;

@@ -708,6 +708,8 @@ PAYMENT_CANCEL_URL = env("PAYMENT_CANCEL_URL", default="")
 
 # Beta launch — free credits on signup (1 credit = 1 imported game; batch coach included)
 SIGNUP_BONUS_CREDITS = env.int("SIGNUP_BONUS_CREDITS", default=15)
+# Optional public share token for /example/batch-report (live demo; falls back to static fixture)
+DEMO_BATCH_SHARE_TOKEN = env("DEMO_BATCH_SHARE_TOKEN", default="").strip()
 SINGLE_GAME_ANALYSIS_CREDITS = env.int("SINGLE_GAME_ANALYSIS_CREDITS", default=1)
 
 # Legal pages — set LEGAL_ENTITY_NAME when incorporated (e.g. "ChessMate Inc.")

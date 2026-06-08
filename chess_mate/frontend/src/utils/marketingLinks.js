@@ -13,3 +13,12 @@ export const buildRegisterHref = (source = MARKETING_SOURCES.LANDING_EXAMPLE) =>
 export const buildLoginHref = (source = MARKETING_SOURCES.LANDING_EXAMPLE) => (
   `/login?from=${encodeURIComponent(source)}`
 );
+
+export const getMarketingSourceFromSearch = (search = '') => {
+  if (!search) {
+    return null;
+  }
+  const params = new URLSearchParams(search.startsWith('?') ? search : `?${search}`);
+  const from = params.get('from');
+  return from?.trim() || null;
+};

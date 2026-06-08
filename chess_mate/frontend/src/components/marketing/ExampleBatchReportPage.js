@@ -1,45 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Container,
   Paper,
   Typography,
 } from '@mui/material';
 import BatchReportSections from '../batch/BatchReportSections';
-import { getDemoBatchReport } from '../../content/demoBatchReport';
+import useExampleBatchReport from '../../hooks/useExampleBatchReport';
 import { buildRegisterHref, MARKETING_SOURCES } from '../../utils/marketingLinks';
 import { trackMarketingEvent } from '../../utils/marketingAnalytics';
-import api from '../../services/api';
+import { PAGE_META, usePageMeta } from '../../utils/pageMeta';
 
 const ExampleBatchReportPage = () => {
-  const [signupBonus, setSignupBonus] = useState(15);
-  const batchReport = getDemoBatchReport();
+  const { batchReport, reportSource, loading, signupBonus } = useExampleBatchReport();
+
+  usePageMeta(PAGE_META.exampleBatchReport);
 
   useEffect(() => {
     trackMarketingEvent('full_example_page_view', { source: MARKETING_SOURCES.EXAMPLE_PAGE });
-
-    let cancelled = false;
-    const configRequest = api.get?.('/api/v1/public/site-config/');
-    if (!configRequest?.then) {
-      return undefined;
-    }
-    configRequest
-      .then((response) => {
-        if (!cancelled && response.data?.signup_bonus_credits) {
-          setSignupBonus(response.data.signup_bonus_credits);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const creditLabel = signupBonus === 1 ? 'credit' : 'credits';
   const registerHref = buildRegisterHref(MARKETING_SOURCES.EXAMPLE_PAGE);
+  const isLiveDemo = reportSource === 'live';
+  const gamesCount = batchReport?.games_count || batchReport?.batch_summary?.games_analyzed;
 
   return (
     <Box
@@ -66,14 +54,17 @@ const ExampleBatchReportPage = () => {
             Example Batch Coach report
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5, mb: 1 }}>
-            See what you get after analyzing 8 games
+            See what you get after analyzing {gamesCount || 8} games
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 720 }}>
-            This is a read-only demo with anonymized players. Sign up to run Batch Coach on your own
-            Chess.com or Lichess games — priorities, opening gaps, drills, and a training plan.
+            {isLiveDemo
+              ? 'This is a real shared Batch Coach report (read-only). Sign up to run the same analysis on your Chess.com or Lichess games.'
+              : 'This is a read-only demo with anonymized players. Sign up to run Batch Coach on your own games — priorities, opening gaps, drills, and a training plan.'}
           </Typography>
           <Alert severity="info" sx={{ mb: 2 }}>
-            Example only · anonymized games · your real report stays private unless you share it
+            {isLiveDemo
+              ? 'Live example · read-only · your real report stays private unless you share it'
+              : 'Example only · anonymized games · your real report stays private unless you share it'}
           </Alert>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             <Button
@@ -99,11 +90,17 @@ const ExampleBatchReportPage = () => {
           </Box>
         </Paper>
 
-        <BatchReportSections
-          batchReport={batchReport}
-          status={batchReport.status}
-          readOnly
-        />
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <BatchReportSections
+            batchReport={batchReport}
+            status={batchReport?.status || 'completed'}
+            readOnly
+          />
+        )}
       </Container>
 
       <Box
@@ -129,6 +126,7 @@ const ExampleBatchReportPage = () => {
           to={registerHref}
           variant="contained"
           size="large"
+          disabled={loading}
           onClick={() => trackMarketingEvent('cta_click', {
             location: 'example_page_sticky',
             source: MARKETING_SOURCES.EXAMPLE_PAGE,
