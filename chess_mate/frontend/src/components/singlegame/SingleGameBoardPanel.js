@@ -18,8 +18,20 @@ const classificationClass = (classification, isDarkMode) => {
   return isDarkMode ? 'text-gray-300' : 'text-gray-600';
 };
 
+const chipClass = (active, isDarkMode) => {
+  if (active) {
+    return isDarkMode
+      ? 'bg-indigo-800 text-white border-indigo-600'
+      : 'bg-indigo-600 text-white border-indigo-600';
+  }
+  return isDarkMode
+    ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600'
+    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50';
+};
+
 const SingleGameBoardPanel = ({
   moves = [],
+  momentChips = [],
   initialMoveNumber = null,
   playerColor = 'white',
   onMoveIndexChange,
@@ -47,11 +59,43 @@ const SingleGameBoardPanel = ({
     return null;
   }
 
+  const chips = momentChips.length
+    ? momentChips
+    : moves.filter((move) => move.isCritical).map((move) => ({
+      moveNumber: move.moveNumber,
+      label: `${move.moveNumber}. ${move.san}`,
+      classification: move.classification,
+    }));
+
   return (
     <div className={`mb-8 rounded-lg border p-4 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
       <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
         Position review
       </h3>
+
+      {chips.length > 0 ? (
+        <div className="single-game-no-print md:hidden sticky top-0 z-10 -mx-1 mb-4 pb-2 bg-inherit">
+          <div className="flex gap-2 overflow-x-auto px-1 py-1 snap-x snap-mandatory">
+            {chips.map((chip) => {
+              const index = moves.findIndex((move) => move.moveNumber === chip.moveNumber);
+              if (index < 0) {
+                return null;
+              }
+              return (
+                <button
+                  key={`chip-${chip.moveNumber}`}
+                  type="button"
+                  onClick={() => handleSelect(index)}
+                  className={`shrink-0 snap-start rounded-full border px-3 py-1 text-xs font-semibold ${chipClass(index === selectedIndex, isDarkMode)}`}
+                >
+                  {chip.label || `Move ${chip.moveNumber}`}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           {selectedMove.fen ? (

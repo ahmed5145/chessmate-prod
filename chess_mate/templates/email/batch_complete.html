@@ -35,6 +35,13 @@
             <p style="text-align:center;">
                 <a href="{{ report_url }}" class="button">View your report</a>
             </p>
+            {% if deep_review_url %}
+            <p>Your batch flagged a critical moment{% if worst_moment_move %} at move {{ worst_moment_move }}{% endif %}{% if worst_moment_played %} ({{ worst_moment_played }}){% endif %} — open a depth-20 drill-down:</p>
+            <p style="text-align:center;">
+                <a href="{{ deep_review_url }}" class="button" style="background:#312e81;">Review worst moment</a>
+            </p>
+            <p style="word-break:break-all;font-size:13px;color:#666;">{{ deep_review_url }}</p>
+            {% endif %}
             <p style="word-break:break-all;font-size:13px;color:#666;">{{ report_url }}</p>
         </div>
         <div class="footer">

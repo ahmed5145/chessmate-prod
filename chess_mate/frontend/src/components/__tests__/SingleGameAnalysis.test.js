@@ -44,6 +44,22 @@ jest.mock('../../context/ThemeContext', () => ({
   useTheme: () => ({ isDarkMode: false }),
 }));
 
+jest.mock('../../contexts/UserContext', () => ({
+  UserContext: require('react').createContext({ credits: 5 }),
+}));
+
+jest.mock('../../utils/marketingAnalytics', () => ({
+  trackSingleGameEvent: jest.fn(),
+}));
+
+jest.mock('../AnalyzeGameConfirmDialog', () => function MockAnalyzeGameConfirmDialog() {
+  return null;
+});
+
+jest.mock('../singlegame/SingleGameReportActions', () => function MockSingleGameReportActions() {
+  return null;
+});
+
 // Mock chart.js to avoid canvas errors
 jest.mock('react-chartjs-2', () => ({
   Line: () => null,

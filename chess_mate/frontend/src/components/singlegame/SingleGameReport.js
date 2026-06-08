@@ -16,6 +16,9 @@ import {
 } from '../../utils/singleGameBatchAlign';
 import PhaseStrip from './PhaseStrip';
 import TrainingBlockSection from './TrainingBlockSection';
+import SingleGameReportActions from './SingleGameReportActions';
+import { trackSingleGameEvent } from '../../utils/marketingAnalytics';
+import './singleGamePrint.css';
 
 const StatItem = ({ label, value, icon: Icon, isDarkMode }) => (
   <div className={`flex items-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
@@ -85,6 +88,9 @@ const SingleGameReport = ({
   analysis,
   batchId = null,
   initialMoveNumber = null,
+  gameId = null,
+  priority = null,
+  onReanalyze = null,
 }) => {
   const { isDarkMode } = useTheme();
   const [focusMoveNumber, setFocusMoveNumber] = useState(initialMoveNumber);
@@ -209,9 +215,23 @@ const SingleGameReport = ({
     );
   }
 
+  const momentChips = criticalMoments.map((moment) => ({
+    moveNumber: moment.move_number,
+    label: `Move ${moment.move_number}`,
+    classification: moment.type,
+  }));
+
   return (
-    <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
+    <div className={`single-game-print-root p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
       <SingleGameHeader gameContext={gameContext} />
+
+      <SingleGameReportActions
+        gameId={gameId || gameContext?.game_id}
+        batchId={batchId || batchContext?.batch_id}
+        move={focusMoveNumber ?? initialMoveNumber}
+        priority={priority}
+        onReanalyze={onReanalyze}
+      />
 
       {engineMeta.classification_note ? (
         <p className={`mb-4 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
@@ -235,12 +255,18 @@ const SingleGameReport = ({
             label={drillLink.label}
             url={drillLink.url}
             kind={drillLink.kind}
+            onClick={() => trackSingleGameEvent('single_game_drill_click', {
+              game_id: gameId || gameContext?.game_id,
+              batch_id: batchId || batchContext?.batch_id,
+              drill_kind: drillLink.kind,
+            })}
           />
         </div>
       ) : null}
 
       <SingleGameBoardPanel
         moves={tableMoves}
+        momentChips={momentChips}
         initialMoveNumber={focusMoveNumber ?? initialMoveNumber}
         playerColor={playerColor}
         onMoveIndexChange={(index) => {

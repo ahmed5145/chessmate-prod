@@ -68,11 +68,8 @@ from .error_handling import (
 
 # Local application imports
 from .models import BatchAnalysisReport, Game, GameAnalysis, Player, Profile, User
-from .analysis.single_game_context import (
-    game_qualifies_for_batch_waiver,
-    resolve_batch_context_for_game,
-)
-from .single_game_credits import mark_single_game_credit_charged
+from .analysis.single_game_context import resolve_batch_context_for_game
+from .single_game_credits import charge_single_game_credit, resolve_single_game_credit_waiver
 from .stats_helpers import build_single_game_context
 from .serializers import GameSerializer
 from .task_manager import TaskManager
@@ -761,20 +758,50 @@ class GameViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     @invalidates_cache("game_analysis")
     def analyze(self, request, pk=None) -> Any:  # pylint: disable=unused-argument
-        """Start game analysis."""
+        """Start game analysis (same credit rules as POST /games/{id}/analyze/)."""
         try:
             if pk is not None:
                 logger.debug("Analyze action requested for pk %s", pk)
-            # Using select_related to fetch user in the same query
             game = self.get_object()
-            depth = int(request.data.get("depth", 20))
-            use_ai = bool(request.data.get("use_ai", True))
+            data = request.data if isinstance(request.data, dict) else {}
+            depth = int(data.get("depth", 20))
+            use_ai = bool(data.get("use_ai", True))
+            force_reanalyze = bool(data.get("force_reanalyze") or data.get("force_restart", False))
+
+            profile = Profile.objects.filter(user=request.user).first()
+            credit_waiver = resolve_single_game_credit_waiver(
+                request.user,
+                game.id,
+                profile,
+                from_batch=bool(data.get("from_batch", False)),
+                batch_id=data.get("batch_id") or data.get("batch"),
+                force_reanalyze=force_reanalyze,
+            )
+            if (
+                not request.user.is_staff
+                and not credit_waiver
+                and (profile is None or profile.credits < 1)
+            ):
+                return Response(
+                    {
+                        "status": "error",
+                        "error": "Insufficient credits",
+                        "credits_required": 1,
+                        "credits_available": 0 if profile is None else profile.credits,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            analysis_allowed, analysis_info = check_single_analysis_allowed(request.user)
+            if not analysis_allowed:
+                return single_analysis_limit_response(analysis_info)
 
             enqueue_result = _enqueue_analysis_task(
                 game_id=game.id,
                 user_id=request.user.id,
                 depth=depth,
                 use_ai=use_ai,
+                force_reanalyze=force_reanalyze,
                 analysis_task=analyze_game_task,
                 managers=[task_manager],
                 legacy_register_signature=False,
@@ -789,11 +816,27 @@ class GameViewSet(viewsets.ModelViewSet):
                     }
                 )
 
+            record_single_analysis(request.user)
+            try:
+                credits_charged = charge_single_game_credit(
+                    request.user,
+                    game.id,
+                    profile,
+                    waiver=credit_waiver,
+                )
+            except Profile.DoesNotExist:
+                credits_charged = 0
+
+            game.analysis_status = "analyzing"
+            game.save(update_fields=["analysis_status"])
+
             return Response(
                 {
                     "status": "success",
                     "message": "Analysis started",
                     "task_id": enqueue_result["task_id"],
+                    "credits_charged": credits_charged,
+                    "credit_waiver": credit_waiver or None,
                 }
             )
 
@@ -1255,7 +1298,7 @@ def analyze_game(request, game_id=None):
         # Get analysis parameters
         depth = data.get("depth", DEFAULT_ANALYSIS_DEPTH)
         use_ai = data.get("use_ai", DEFAULT_USE_AI)
-        force_reanalyze = bool(data.get("force_reanalyze", True))
+        force_reanalyze = bool(data.get("force_reanalyze") or data.get("force_restart", False))
         batch_id = data.get("batch_id") or data.get("batch")
         from_batch = bool(data.get("from_batch", False))
         cited_move = data.get("move") or data.get("cited_move")
@@ -1270,17 +1313,21 @@ def analyze_game(request, game_id=None):
         except (TypeError, ValueError):
             priority_index_int = None
 
-        free_from_batch = (
-            from_batch
-            and batch_id not in (None, "")
-            and getattr(settings, "SINGLE_GAME_FREE_FROM_BATCH", True)
-            and game_qualifies_for_batch_waiver(request.user, game.id, batch_id)
-        )
-
         profile = Profile.objects.filter(user=request.user).first()
+        credit_waiver = resolve_single_game_credit_waiver(
+            request.user,
+            game.id,
+            profile,
+            from_batch=from_batch,
+            batch_id=batch_id,
+            force_reanalyze=force_reanalyze,
+        )
+        free_from_batch = credit_waiver == "batch"
+        free_first_game = credit_waiver == "first_free"
+
         if (
             not request.user.is_staff
-            and not free_from_batch
+            and not credit_waiver
             and (profile is None or profile.credits < 1)
         ):
             return Response(
@@ -1328,17 +1375,15 @@ def analyze_game(request, game_id=None):
 
         record_single_analysis(request.user)
 
-        credits_charged = 0
-        if not free_from_batch and not request.user.is_staff:
-            try:
-                if profile is None:
-                    profile = Profile.objects.get(user=request.user)
-                profile.credits = max(0, profile.credits - 1)
-                profile.save(update_fields=["credits"])
-                credits_charged = 1
-                mark_single_game_credit_charged(request.user.id, game.id)
-            except Profile.DoesNotExist:
-                pass
+        try:
+            credits_charged = charge_single_game_credit(
+                request.user,
+                game.id,
+                profile,
+                waiver=credit_waiver,
+            )
+        except Profile.DoesNotExist:
+            credits_charged = 0
 
         game.analysis_status = "analyzing"
         game.save(update_fields=["analysis_status"])
@@ -1351,6 +1396,8 @@ def analyze_game(request, game_id=None):
                 "game_id": game.id,
                 "credits_charged": credits_charged,
                 "free_from_batch": free_from_batch,
+                "free_first_game": free_first_game,
+                "credit_waiver": credit_waiver or None,
             },
             status=status.HTTP_202_ACCEPTED,
         )

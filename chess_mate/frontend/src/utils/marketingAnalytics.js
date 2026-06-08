@@ -42,3 +42,8 @@ export const trackMarketingEvent = (event, detail = {}) => {
     detail: payload,
   }));
 };
+
+/** Product analytics for single-game analysis funnel. */
+export const trackSingleGameEvent = (event, detail = {}) => {
+  trackMarketingEvent(event, { surface: 'single_game', ...detail });
+};

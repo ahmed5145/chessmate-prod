@@ -15,7 +15,7 @@ const KIND_META = {
   endgame: { icon: FlagIcon, color: 'warning', defaultLabel: 'Practice on Lichess' },
 };
 
-const LichessActionButton = ({ label, url, kind = 'puzzle', size = 'small' }) => {
+const LichessActionButton = ({ label, url, kind = 'puzzle', size = 'small', onClick }) => {
   if (!url) {
     return null;
   }
@@ -31,6 +31,7 @@ const LichessActionButton = ({ label, url, kind = 'puzzle', size = 'small' }) =>
       href={url}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={onClick}
       startIcon={<Icon fontSize="small" />}
       endIcon={<OpenInNewIcon fontSize="small" />}
       sx={{

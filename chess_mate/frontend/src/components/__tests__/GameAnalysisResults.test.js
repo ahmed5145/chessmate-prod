@@ -22,6 +22,14 @@ jest.mock('../singlegame/SingleGameFooterCta', () => function MockSingleGameFoot
   return <div data-testid="single-game-footer-cta" />;
 });
 
+jest.mock('../singlegame/SingleGameReportActions', () => function MockSingleGameReportActions() {
+  return null;
+});
+
+jest.mock('../../utils/marketingAnalytics', () => ({
+  trackSingleGameEvent: jest.fn(),
+}));
+
 describe('GameAnalysisResults', () => {
   it('renders coaching hero when coaching payload is present', () => {
     render(

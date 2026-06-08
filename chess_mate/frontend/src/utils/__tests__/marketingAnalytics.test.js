@@ -1,4 +1,4 @@
-import { initMarketingAnalytics, trackMarketingEvent } from '../marketingAnalytics';
+import { initMarketingAnalytics, trackMarketingEvent, trackSingleGameEvent } from '../marketingAnalytics';
 
 describe('marketingAnalytics', () => {
   beforeEach(() => {
@@ -14,6 +14,16 @@ describe('marketingAnalytics', () => {
       event: 'chessmate_preview_visible',
       chessmate_event: 'preview_visible',
       source: 'landing-example',
+    });
+  });
+
+  it('tags single-game events with surface metadata', () => {
+    trackSingleGameEvent('single_game_view', { game_id: '42' });
+
+    expect(window.dataLayer[0]).toMatchObject({
+      chessmate_event: 'single_game_view',
+      surface: 'single_game',
+      game_id: '42',
     });
   });
 

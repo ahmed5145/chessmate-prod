@@ -1,6 +1,6 @@
 # Single-Game Analysis — Implementation Plan
 
-**Status:** Phase 2 complete — ready for smoke test (2026-06-01)  
+**Status:** Phase 3 complete — ready for smoke test (2026-06-01)  
 **Date:** 2026-06-01  
 **Scope:** Supplementary drill-down at `/game/:gameId/analysis` — batch-connected, coaching-oriented, better than free per-game tools without competing with Batch Coach as the flagship.  
 **Related:** [PRODUCT_CONTRACT.md](./PRODUCT_CONTRACT.md), [DIFFERENTIATION_MATRIX.md](./DIFFERENTIATION_MATRIX.md), [BATCH_REPORT_UX_PLAN.md](./BATCH_REPORT_UX_PLAN.md), [PRD.md](./PRD.md)

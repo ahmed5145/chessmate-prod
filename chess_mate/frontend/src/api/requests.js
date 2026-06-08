@@ -151,6 +151,7 @@ export const fetchGameAnalysis = async (gameId) => {
     }
 };
 
+/** @deprecated Use fetchGameAnalysis from gameAnalysisService instead. */
 export const fetchGameFeedback = async (gameId) => {
     try {
         const response = await api.get(`/api/feedback/${gameId}/`);

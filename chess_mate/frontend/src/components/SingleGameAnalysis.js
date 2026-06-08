@@ -11,7 +11,10 @@ import {
 } from '../services/gameAnalysisService';
 import GameAnalysisResults from './GameAnalysisResults';
 import BatchContextBanner from './singlegame/BatchContextBanner';
+import AnalyzeGameConfirmDialog from './AnalyzeGameConfirmDialog';
 import { parseSingleGameAnalysisSearch } from '../utils/singleGameAnalysisLinks';
+import { trackSingleGameEvent } from '../utils/marketingAnalytics';
+import { UserContext } from '../contexts/UserContext';
 import './SingleGameAnalysis.css';
 import { useTheme } from '../context/ThemeContext';
 import { FaInfoCircle, FaSpinner, FaExclamationTriangle, FaClock, FaCheckCircle } from 'react-icons/fa';
@@ -267,7 +270,11 @@ const SingleGameAnalysis = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDarkMode } = useTheme();
+  const { credits } = React.useContext(UserContext);
   const { batchId, move, priority } = parseSingleGameAnalysisSearch(location.search);
+  const [showReanalyzeConfirm, setShowReanalyzeConfirm] = useState(false);
+  const [confirmingReanalyze, setConfirmingReanalyze] = useState(false);
+  const trackedViewRef = useRef(false);
 
   // State variables
   const [analysisData, setAnalysisData] = useState(null);
@@ -583,8 +590,20 @@ const SingleGameAnalysis = () => {
     }
   };
 
-  // Start the analysis process
-  const startAnalysis = async () => {
+  useEffect(() => {
+    if (!analysisData || loading || trackedViewRef.current) {
+      return;
+    }
+    trackedViewRef.current = true;
+    trackSingleGameEvent(batchId ? 'single_game_from_batch' : 'single_game_view', {
+      game_id: gameId,
+      batch_id: batchId,
+      move,
+      priority,
+    });
+  }, [analysisData, loading, batchId, gameId, move, priority]);
+
+  const startAnalysis = async ({ forceReanalyze = false } = {}) => {
     try {
       setLoading(true);
       setProgress(0);
@@ -618,10 +637,11 @@ const SingleGameAnalysis = () => {
 
       console.log(`Starting analysis for game ${gameId}`);
       const response = await analyzeSpecificGame(gameId, {
-        batchId,
+        batchId: forceReanalyze ? null : batchId,
         move,
         priority,
-        fromBatch: Boolean(batchId),
+        fromBatch: Boolean(batchId) && !forceReanalyze,
+        forceReanalyze,
       });
       console.log('Analysis started response:', response);
 
@@ -762,8 +782,22 @@ const SingleGameAnalysis = () => {
     setPollingFailed(false);
     setProgress(0);
 
-    // Start fresh analysis
     startAnalysis();
+  };
+
+  const handleRequestReanalyze = () => {
+    setShowReanalyzeConfirm(true);
+  };
+
+  const handleConfirmReanalyze = async () => {
+    setConfirmingReanalyze(true);
+    setShowReanalyzeConfirm(false);
+    trackedViewRef.current = false;
+    try {
+      await startAnalysis({ forceReanalyze: true });
+    } finally {
+      setConfirmingReanalyze(false);
+    }
   };
 
   // If there's an error, display it
@@ -890,6 +924,9 @@ const SingleGameAnalysis = () => {
             analysisData={analysisData}
             batchId={batchId}
             initialMoveNumber={move}
+            gameId={gameId}
+            priority={priority}
+            onReanalyze={handleRequestReanalyze}
           />
         ) : (
           <NoDataError
@@ -899,7 +936,17 @@ const SingleGameAnalysis = () => {
           />
         )}
       </div>
-        </div>
+
+      <AnalyzeGameConfirmDialog
+        open={showReanalyzeConfirm}
+        onClose={() => setShowReanalyzeConfirm(false)}
+        onConfirm={handleConfirmReanalyze}
+        creditsRequired={1}
+        creditsAvailable={credits}
+        isReanalyze
+        confirming={confirmingReanalyze}
+      />
+    </div>
     );
 };
 

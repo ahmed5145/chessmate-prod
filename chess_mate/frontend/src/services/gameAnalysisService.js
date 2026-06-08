@@ -112,6 +112,9 @@ export const analyzeSpecificGame = async (gameId, options = {}) => {
             if (options.priority != null) {
                 body.priority = options.priority;
             }
+            if (options.forceReanalyze) {
+                body.force_reanalyze = true;
+            }
 
             const response = await api.post(`/api/v1/games/${gameId}/analyze/`, body);
             console.log('Analysis started response:', response.data);
@@ -658,7 +661,8 @@ export const restartAnalysis = async (gameId) => {
 
         // Start a new analysis
         const response = await api.post(`/api/v1/games/${gameId}/analyze/`, {
-            force_restart: true
+            force_reanalyze: true,
+            force_restart: true,
         });
 
         console.log('Analysis restart response:', response.data);

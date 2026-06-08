@@ -1,0 +1,31 @@
+@media print {
+  @page {
+    margin: 12mm;
+    size: auto;
+  }
+
+  nav,
+  .single-game-no-print,
+  .batch-report-no-print {
+    display: none !important;
+  }
+
+  .single-game-print-root,
+  .single-game-print-root * {
+    color: #111 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .single-game-print-root details > summary {
+    display: none !important;
+  }
+
+  .single-game-print-root details {
+    display: block !important;
+  }
+
+  .single-game-print-root details > *:not(summary) {
+    display: block !important;
+  }
+}
