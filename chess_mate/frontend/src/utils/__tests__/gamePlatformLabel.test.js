@@ -1,4 +1,4 @@
-import { formatGamePlatformLabel } from '../gamePlatformLabel';
+import { formatGamePlatformLabel } from '../gamePlatform';
 
 describe('formatGamePlatformLabel', () => {
   it('maps known platform ids', () => {

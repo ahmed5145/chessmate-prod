@@ -3,8 +3,7 @@
 from datetime import timedelta
 
 import pytest
-from django.utils import timezone
-
+from core.models import Game
 from core.stats_helpers import (
     build_dashboard_focus_insight,
     build_dashboard_hero_metrics,
@@ -15,7 +14,7 @@ from core.stats_helpers import (
     parse_last_dashboard_visit,
     resolve_game_opponent_display,
 )
-from core.models import Game
+from django.utils import timezone
 
 
 class _ProfileStub:

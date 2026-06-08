@@ -63,7 +63,8 @@ class TestAuthViews:
         assert response.data["username"] == test_user.username
 
     def test_login_remember_me_controls_refresh_lifetime(self, api_client, test_user, settings):
-        from datetime import datetime, timezone as dt_timezone
+        from datetime import datetime
+        from datetime import timezone as dt_timezone
 
         from rest_framework_simplejwt.backends import TokenBackend
 

@@ -122,9 +122,7 @@ def aggregate_batch(per_game_results: List[Dict[str, Any]], pgn_list: Optional[L
     # Drop opening praise when batch-level signals say opening needs work (avoids contradicting rating-band copy).
     if worst_phase == "opening" or repertoire_gaps:
         strength_patterns = [
-            pattern
-            for pattern in strength_patterns
-            if pattern.get("pattern") != "opening_preparation"
+            pattern for pattern in strength_patterns if pattern.get("pattern") != "opening_preparation"
         ]
 
     top_critical_moments = _top_critical_moments(per_game_results, limit=3)

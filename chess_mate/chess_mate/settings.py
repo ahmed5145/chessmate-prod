@@ -645,12 +645,8 @@ CORS_ALLOW_METHODS = [
 ]
 
 # JWT refresh lifetimes for login "remember me" (session vs persistent)
-JWT_REFRESH_TOKEN_LIFETIME_REMEMBER = timedelta(
-    days=int(os.getenv("JWT_REFRESH_REMEMBER_DAYS", "30"))
-)
-JWT_REFRESH_TOKEN_LIFETIME_SESSION = timedelta(
-    hours=int(os.getenv("JWT_REFRESH_SESSION_HOURS", "12"))
-)
+JWT_REFRESH_TOKEN_LIFETIME_REMEMBER = timedelta(days=int(os.getenv("JWT_REFRESH_REMEMBER_DAYS", "30")))
+JWT_REFRESH_TOKEN_LIFETIME_SESSION = timedelta(hours=int(os.getenv("JWT_REFRESH_SESSION_HOURS", "12")))
 
 # JWT Settings (with improved security and compatibility)
 SIMPLE_JWT = {

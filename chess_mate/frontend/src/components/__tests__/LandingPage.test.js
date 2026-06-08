@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import api from '../../services/api';
 import LandingPage from '../LandingPage';
 
 jest.mock('../../context/ThemeContext', () => ({
@@ -10,8 +11,6 @@ jest.mock('../../context/ThemeContext', () => ({
 jest.mock('../../contexts/UserContext', () => ({
   useUser: () => ({ user: null }),
 }));
-
-import api from '../../services/api';
 
 jest.mock('../../services/api', () => ({
   get: jest.fn(),

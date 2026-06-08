@@ -522,7 +522,9 @@ def build_dashboard_focus_insight(
     batch_id = coach.get("batch_id")
 
     meaningful = [
-        item for item in formatted if (item.get("text") or "").strip() and not _is_generic_dashboard_insight(item["text"])
+        item
+        for item in formatted
+        if (item.get("text") or "").strip() and not _is_generic_dashboard_insight(item["text"])
     ]
 
     priority = next(
@@ -641,27 +643,19 @@ def build_dashboard_since_last_visit(user, since: Optional[datetime]) -> Dict[st
             .count()
         )
 
-    batch_reports = (
-        BatchAnalysisReport.objects.filter(  # type: ignore[attr-defined]
-            user=user,
-            status__in=["completed", "partial"],
-            created_at__gt=since,
-        ).count()
-    )
+    batch_reports = BatchAnalysisReport.objects.filter(  # type: ignore[attr-defined]
+        user=user,
+        status__in=["completed", "partial"],
+        created_at__gt=since,
+    ).count()
 
     summary_lines: List[str] = []
     if games_analyzed:
-        summary_lines.append(
-            f"{games_analyzed} {_pluralize(games_analyzed, 'game', 'games')} analyzed"
-        )
+        summary_lines.append(f"{games_analyzed} {_pluralize(games_analyzed, 'game', 'games')} analyzed")
     if batch_reports:
-        summary_lines.append(
-            f"{batch_reports} coach {_pluralize(batch_reports, 'report', 'reports')} ready"
-        )
+        summary_lines.append(f"{batch_reports} coach {_pluralize(batch_reports, 'report', 'reports')} ready")
     if games_imported and not games_analyzed:
-        summary_lines.append(
-            f"{games_imported} {_pluralize(games_imported, 'game', 'games')} imported"
-        )
+        summary_lines.append(f"{games_imported} {_pluralize(games_imported, 'game', 'games')} imported")
 
     return {
         "has_previous_visit": True,

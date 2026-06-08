@@ -12,8 +12,8 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
 
-from .batch_labels import BATCH_COACH_ACTIVE_LIMIT
 from .admin_security import get_client_ip
+from .batch_labels import BATCH_COACH_ACTIVE_LIMIT
 from .cache import cache_get, cache_set
 from .models import BatchAnalysisReport, Game
 
