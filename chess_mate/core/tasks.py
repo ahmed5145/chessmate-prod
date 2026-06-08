@@ -100,7 +100,17 @@ class BaseAnalysisTask(Task):
 
 
 @shared_task(bind=True, name="chess_mate.core.tasks.analyze_game_task")
-def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_reanalyze=False):
+def analyze_game_task(
+    self,
+    game_id,
+    user_id=None,
+    depth=20,
+    use_ai=True,
+    force_reanalyze=False,
+    batch_id=None,
+    cited_move=None,
+    priority_index=None,
+):
     """
     Analyze a chess game in a background Celery task.
 
@@ -378,6 +388,24 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
         # Update progress to indicate we're starting
         update_progress(5, "Starting analysis...")
 
+        batch_context = None
+        if user_id and batch_id:
+            from django.contrib.auth.models import User
+
+            from .analysis.single_game_context import resolve_batch_context_for_analysis
+
+            try:
+                user = User.objects.get(id=user_id)
+                batch_context = resolve_batch_context_for_analysis(
+                    user,
+                    int(game_id),
+                    batch_id=batch_id,
+                    move_number=cited_move,
+                    priority_index=priority_index,
+                )
+            except Exception:
+                _log_ignored_exception(f"Ignoring batch context lookup for game {game_id}")
+
         # Run the analysis
         logger.info(f"[{task_id}] Running analysis with progress callback")
         analysis_result = game_analyzer.analyze_game(
@@ -387,6 +415,7 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
             progress_callback=update_progress,
             task_id=task_id,
             force_reanalyze=force_reanalyze,
+            batch_context=batch_context,
         )
 
         # Ensure we have valid results

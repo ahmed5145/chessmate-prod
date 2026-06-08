@@ -357,6 +357,7 @@ class GameAnalyzer:
         progress_callback=None,
         task_id=None,
         force_reanalyze=False,
+        batch_context=None,
     ):
         """
         Analyze a chess game and save the results.
@@ -576,6 +577,7 @@ class GameAnalyzer:
                 critical_moments=critical_moments,
                 game_context=game_context,
                 existing_feedback=feedback if isinstance(feedback, dict) else None,
+                batch_context=batch_context if isinstance(batch_context, dict) else None,
             )
 
             # Save the analysis data

@@ -16,6 +16,7 @@ def _template_coaching(
     critical_moments: List[Dict[str, Any]],
     metrics_summary: Dict[str, Any],
     game_context: Optional[Dict[str, Any]] = None,
+    batch_context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     overall = metrics_summary.get("overall", {}) if isinstance(metrics_summary.get("overall"), dict) else {}
     phases = metrics_summary.get("phases", {}) if isinstance(metrics_summary.get("phases", {}), dict) else {}
@@ -24,6 +25,9 @@ def _template_coaching(
 
     worst = critical_moments[0] if critical_moments else None
     opening_name = (game_context or {}).get("opening_name") or "this game"
+
+    priority = (batch_context or {}).get("priority") if isinstance((batch_context or {}).get("priority"), dict) else None
+    priority_title = str(priority.get("title") or "").strip() if priority else ""
 
     if worst:
         takeaway = (
@@ -37,6 +41,11 @@ def _template_coaching(
     else:
         takeaway = f"Focus on reducing mistakes ({mistakes} flagged) while keeping accuracy near {accuracy}%."
         do_today = "Review your two slowest decisions and write one-line plans before each move."
+
+    if priority_title:
+        takeaway = f"{takeaway} This ties to your batch priority: {priority_title[:120]}."
+        if priority.get("specific_drill"):
+            do_today = str(priority.get("specific_drill"))[:240]
 
     phase_notes: Dict[str, str] = {}
     for phase_name in ("opening", "middlegame", "endgame"):
@@ -62,6 +71,7 @@ def generate_single_game_coaching(
     critical_moments: List[Dict[str, Any]],
     game_context: Optional[Dict[str, Any]] = None,
     existing_feedback: Optional[Dict[str, Any]] = None,
+    batch_context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Produce structured coaching JSON for single-game UI.
@@ -71,6 +81,7 @@ def generate_single_game_coaching(
         critical_moments=critical_moments,
         metrics_summary=metrics_summary,
         game_context=game_context,
+        batch_context=batch_context,
     )
 
     api_key = getattr(settings, "OPENAI_API_KEY", None)
@@ -95,6 +106,7 @@ def generate_single_game_coaching(
 
         payload = {
             "game_context": game_context or {},
+            "batch_context": batch_context or {},
             "metrics": {
                 "overall": metrics_summary.get("overall", {}),
                 "phases": metrics_summary.get("phases", {}),
@@ -116,6 +128,7 @@ def generate_single_game_coaching(
 
         system_prompt = (
             "You are a chess coach writing a single-game review. Use ONLY supplied JSON facts. "
+            "When batch_context.priority is present, reference that batch priority in takeaway. "
             "Return JSON: "
             '{"takeaway":"one sentence","do_today":"one concrete action",'
             '"phase_notes":{"opening":"...","middlegame":"...","endgame":"..."},'

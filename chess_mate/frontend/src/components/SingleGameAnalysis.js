@@ -535,7 +535,11 @@ const SingleGameAnalysis = () => {
     isFetchingAnalysisRef.current = true;
     setLoadingMessage('Retrieving analysis results...');
     try {
-      const data = await fetchGameAnalysis(gameId);
+      const data = await fetchGameAnalysis(gameId, 0, {
+        batchId,
+        move,
+        priority,
+      });
 
       // Check for error message in the data itself
       if (data.error) {
@@ -613,7 +617,12 @@ const SingleGameAnalysis = () => {
       setAnalysisStartTime(Date.now());
 
       console.log(`Starting analysis for game ${gameId}`);
-      const response = await analyzeSpecificGame(gameId);
+      const response = await analyzeSpecificGame(gameId, {
+        batchId,
+        move,
+        priority,
+        fromBatch: Boolean(batchId),
+      });
       console.log('Analysis started response:', response);
 
       if (response && response.success) {
@@ -865,7 +874,12 @@ const SingleGameAnalysis = () => {
           <h1 className="text-2xl font-bold">Game Analysis Results</h1>
         </div>
 
-        <BatchContextBanner batchId={batchId} move={move} priority={priority} />
+        <BatchContextBanner
+          batchId={batchId}
+          batchContext={analysisData?.batch_context}
+          move={move}
+          priority={priority}
+        />
 
         {analysisData && (
           (analysisData.moves && analysisData.moves.length > 0) ||

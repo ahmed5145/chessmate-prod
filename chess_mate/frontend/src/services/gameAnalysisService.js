@@ -74,11 +74,16 @@ export const normalizeAnalysisResponsePayload = (rawPayload) => {
         moves: unwrapped.moves || unwrapped.movesAnalysis || normalizedAnalysisResults.moves || [],
         feedback: extractedFeedback,
         ai_feedback: extractedFeedback,
-        game_context: payload.game_context || unwrapped.game_context || {}
+        game_context: payload.game_context || unwrapped.game_context || {},
+        coaching: payload.coaching || unwrapped.coaching || extractedFeedback.coaching || {},
+        critical_moments: payload.critical_moments || unwrapped.critical_moments || [],
+        batch_context: payload.batch_context || unwrapped.batch_context || null,
+        training_block: payload.training_block || extractedFeedback.training_block || unwrapped.training_block || null,
+        engine_meta: payload.engine_meta || unwrapped.engine_meta || {},
     };
 };
 
-export const analyzeSpecificGame = async (gameId) => {
+export const analyzeSpecificGame = async (gameId, options = {}) => {
     const numericGameId = Number(gameId);
     const dedupKey = Number.isFinite(numericGameId) ? String(numericGameId) : String(gameId);
     const now = Date.now();
@@ -96,7 +101,19 @@ export const analyzeSpecificGame = async (gameId) => {
 
     const requestPromise = (async () => {
         try {
-            const response = await api.post(`/api/v1/games/${gameId}/analyze/`);
+            const body = {};
+            if (options.batchId) {
+                body.batch_id = options.batchId;
+                body.from_batch = options.fromBatch !== false;
+            }
+            if (options.move != null) {
+                body.move = options.move;
+            }
+            if (options.priority != null) {
+                body.priority = options.priority;
+            }
+
+            const response = await api.post(`/api/v1/games/${gameId}/analyze/`, body);
             console.log('Analysis started response:', response.data);
 
             const normalizedResponse = {
@@ -303,7 +320,7 @@ const simulateProgressResponse = (gameId) => {
     };
 }
 
-export const fetchGameAnalysis = async (gameId, retry = 0) => {
+export const fetchGameAnalysis = async (gameId, retry = 0, options = {}) => {
     const dedupKey = String(gameId);
     if (inFlightAnalysisFetches.has(dedupKey)) {
         return inFlightAnalysisFetches.get(dedupKey);
@@ -331,7 +348,21 @@ export const fetchGameAnalysis = async (gameId, retry = 0) => {
 
     try {
         console.log(`Fetching analysis for game ${gameId}`);
-        const response = await api.get(`/api/v1/games/${gameId}/analysis/`);
+        const params = new URLSearchParams();
+        if (options.batchId) {
+            params.set('batch', String(options.batchId));
+        }
+        if (options.move != null) {
+            params.set('move', String(options.move));
+        }
+        if (options.priority != null) {
+            params.set('priority', String(options.priority));
+        }
+        const query = params.toString();
+        const url = query
+            ? `/api/v1/games/${gameId}/analysis/?${query}`
+            : `/api/v1/games/${gameId}/analysis/`;
+        const response = await api.get(url);
 
         // Check if we got a valid response with data
         if (response.data && Object.keys(response.data).length > 0) {

@@ -10,6 +10,12 @@ import CriticalMomentsSection from './CriticalMomentsSection';
 import LichessActionButton from '../batch/LichessActionButton';
 import { normalizeSingleGameMoves } from '../../utils/singleGameMoves';
 import { resolveSingleGameDrillLink } from '../../utils/singleGameDrillLinks';
+import {
+  alignMomentsWithBatchContext,
+  alignMovesWithBatchContext,
+} from '../../utils/singleGameBatchAlign';
+import PhaseStrip from './PhaseStrip';
+import TrainingBlockSection from './TrainingBlockSection';
 
 const StatItem = ({ label, value, icon: Icon, isDarkMode }) => (
   <div className={`flex items-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
@@ -93,6 +99,9 @@ const SingleGameReport = ({
     tableMoves,
     drillLink,
     playerColor,
+    batchContext,
+    trainingBlock,
+    phaseData,
   } = useMemo(() => {
     if (!resolvedAnalysisData) {
       return {};
@@ -158,24 +167,32 @@ const SingleGameReport = ({
       timePressure = 'N/A';
     }
 
-    const normalizedMoves = normalizeSingleGameMoves(rawMoves);
-    const worstMoment = moments[0] || null;
+    const batchCtx = resolvedAnalysisData.batch_context || null;
+    const normalizedMoves = alignMovesWithBatchContext(
+      normalizeSingleGameMoves(rawMoves),
+      batchCtx,
+    );
+    const alignedMoments = alignMomentsWithBatchContext(moments, batchCtx);
+    const worstMoment = alignedMoments[0] || null;
     const drill = resolveSingleGameDrillLink({ moment: worstMoment, gameContext: context });
+    const training = resolvedAnalysisData.training_block
+      || feedback.training_block
+      || {};
 
     return {
       gameContext: context,
       engineMeta: meta,
       coaching: coach,
-      criticalMoments: moments,
-      summary: metricsData,
-      phases: phaseData,
+      criticalMoments: alignedMoments,
+      batchContext: batchCtx,
+      trainingBlock: training,
+      phaseData,
       displayMetrics: {
         accuracy: accuracy === 'N/A' ? 'N/A' : `${accuracy}%`,
         mistakes,
         timeManagement: timeMgmt === 'N/A' ? 'N/A' : `${timeMgmt}%`,
         timePressure: timePressure === 'N/A' ? 'N/A' : `${timePressure}%`,
       },
-      isAnalysisUnavailable: unavailable,
       tableMoves: normalizedMoves,
       drillLink: drill,
       playerColor: context.player_color || 'white',
@@ -192,8 +209,6 @@ const SingleGameReport = ({
     );
   }
 
-  const phaseNotes = coaching.phase_notes || {};
-
   return (
     <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
       <SingleGameHeader gameContext={gameContext} />
@@ -205,6 +220,14 @@ const SingleGameReport = ({
       ) : null}
 
       <SingleGameHero coaching={coaching} />
+
+      <PhaseStrip
+        phases={phaseData}
+        phaseNotes={coaching.phase_notes || {}}
+        batchPhasePerformance={batchContext?.batch_phase_performance}
+      />
+
+      <TrainingBlockSection trainingBlock={trainingBlock} />
 
       {drillLink?.url ? (
         <div className="mb-6">
@@ -240,19 +263,6 @@ const SingleGameReport = ({
         <StatItem label="Time Management" value={displayMetrics.timeManagement} icon={FaClock} isDarkMode={isDarkMode} />
         <StatItem label="Time Pressure" value={displayMetrics.timePressure} icon={FaHourglassHalf} isDarkMode={isDarkMode} />
       </div>
-
-      {Object.keys(phaseNotes).length > 0 ? (
-        <div className={`mb-8 rounded-lg border p-4 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-          <h3 className="text-lg font-semibold mb-2">Phase notes</h3>
-          <ul className={`space-y-1 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            {Object.entries(phaseNotes).map(([phase, note]) => (
-              <li key={phase}>
-                <span className="font-medium capitalize">{phase}:</span> {note}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
       {tableMoves.length > 0 ? (
         <details className={`mb-8 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>

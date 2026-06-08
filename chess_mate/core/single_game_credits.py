@@ -13,14 +13,30 @@ from .models import Profile
 logger = logging.getLogger(__name__)
 
 _REFUND_CACHE_TTL = 60 * 60 * 24 * 7
+_CHARGE_CACHE_TTL = 60 * 60 * 24 * 7
 
 
 def _refund_cache_key(user_id: int, game_id: int) -> str:
     return f"single_game_credit_refund:{user_id}:{game_id}"
 
 
+def _charge_cache_key(user_id: int, game_id: int) -> str:
+    return f"single_game_credit_charged:{user_id}:{game_id}"
+
+
 def single_game_credits_amount() -> int:
     return int(getattr(settings, "SINGLE_GAME_ANALYSIS_CREDITS", 1))
+
+
+def mark_single_game_credit_charged(user_id: int, game_id: int) -> None:
+    if user_id and game_id:
+        cache.set(_charge_cache_key(user_id, game_id), True, _CHARGE_CACHE_TTL)
+
+
+def was_single_game_credit_charged(user_id: int, game_id: int) -> bool:
+    if not user_id or not game_id:
+        return False
+    return bool(cache.get(_charge_cache_key(user_id, game_id)))
 
 
 def refund_single_game_credit_on_fail(user_id: int, game_id: int) -> int:
@@ -29,6 +45,9 @@ def refund_single_game_credit_on_fail(user_id: int, game_id: int) -> int:
     Idempotent per user/game for one week.
     """
     if not user_id or not game_id:
+        return 0
+
+    if not was_single_game_credit_charged(user_id, game_id):
         return 0
 
     cache_key = _refund_cache_key(user_id, game_id)

@@ -66,6 +66,21 @@ export const DEMO_BATCH_REPORT = {
     date_range: 'Apr 2025',
     overall_accuracy_pct: 71.4,
     worst_phase: 'opening',
+    top_critical_moments: [
+      {
+        move_number: 18,
+        type: 'blunder',
+        fen: 'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 5',
+        played_move: 'Qh5',
+        best_move: 'O-O',
+        eval_swing: 2.8,
+        explanation: 'A premature queen sortie allowed a counterattack on the kingside.',
+        played_move_uci: 'd1h5',
+        best_move_uci: 'e1g1',
+        game_id: 'game_0',
+        saved_game_id: null,
+      },
+    ],
     phase_performance: {
       opening: { score: 0.58, trend: 'weak' },
       middlegame: { score: 0.74, trend: 'inconsistent' },

@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 
-from core.single_game_credits import refund_single_game_credit_on_fail
+from core.single_game_credits import mark_single_game_credit_charged, refund_single_game_credit_on_fail
 from core.tests.profile_helpers import ensure_profile
 
 
@@ -29,6 +29,7 @@ class TestSingleGameCreditRefund(TestCase):
     def test_refund_restores_one_credit(self):
         self.profile.credits = 9
         self.profile.save(update_fields=["credits"])
+        mark_single_game_credit_charged(self.user.id, self.game_id)
 
         refunded = refund_single_game_credit_on_fail(self.user.id, self.game_id)
 
@@ -39,6 +40,7 @@ class TestSingleGameCreditRefund(TestCase):
     def test_refund_is_idempotent(self):
         self.profile.credits = 9
         self.profile.save(update_fields=["credits"])
+        mark_single_game_credit_charged(self.user.id, self.game_id)
 
         assert refund_single_game_credit_on_fail(self.user.id, self.game_id) == 1
         assert refund_single_game_credit_on_fail(self.user.id, self.game_id) == 0
@@ -49,3 +51,11 @@ class TestSingleGameCreditRefund(TestCase):
     def test_refund_skips_invalid_ids(self):
         assert refund_single_game_credit_on_fail(0, self.game_id) == 0
         assert refund_single_game_credit_on_fail(self.user.id, 0) == 0
+
+    def test_refund_skips_when_credit_was_not_charged(self):
+        self.profile.credits = 9
+        self.profile.save(update_fields=["credits"])
+
+        assert refund_single_game_credit_on_fail(self.user.id, self.game_id) == 0
+        self.profile.refresh_from_db()
+        assert self.profile.credits == 9

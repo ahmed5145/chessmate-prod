@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 from celery.result import AsyncResult  # type: ignore
 
 # Django imports
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError, OperationalError, transaction
 from django.db.models import Q
@@ -67,6 +68,11 @@ from .error_handling import (
 
 # Local application imports
 from .models import BatchAnalysisReport, Game, GameAnalysis, Player, Profile, User
+from .analysis.single_game_context import (
+    game_qualifies_for_batch_waiver,
+    resolve_batch_context_for_game,
+)
+from .single_game_credits import mark_single_game_credit_charged
 from .stats_helpers import build_single_game_context
 from .serializers import GameSerializer
 from .task_manager import TaskManager
@@ -153,6 +159,9 @@ def _enqueue_analysis_task(
     analysis_task: Any,
     managers: List[Any],
     legacy_register_signature: bool = False,
+    batch_id: Any = None,
+    cited_move: Optional[int] = None,
+    priority_index: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Enqueue a single-game analysis with lock + active-task dedup."""
     lock = None
@@ -189,13 +198,20 @@ def _enqueue_analysis_task(
                 "game_id": game_id,
             }
 
-        task = analysis_task.delay(
-            game_id,
-            user_id=user_id,
-            depth=depth,
-            use_ai=use_ai,
-            force_reanalyze=force_reanalyze,
-        )
+        task_kwargs: Dict[str, Any] = {
+            "user_id": user_id,
+            "depth": depth,
+            "use_ai": use_ai,
+            "force_reanalyze": force_reanalyze,
+        }
+        if batch_id not in (None, ""):
+            task_kwargs["batch_id"] = batch_id
+        if cited_move is not None:
+            task_kwargs["cited_move"] = cited_move
+        if priority_index is not None:
+            task_kwargs["priority_index"] = priority_index
+
+        task = analysis_task.delay(game_id, **task_kwargs)
 
         for manager in managers:
             try:
@@ -1240,9 +1256,33 @@ def analyze_game(request, game_id=None):
         depth = data.get("depth", DEFAULT_ANALYSIS_DEPTH)
         use_ai = data.get("use_ai", DEFAULT_USE_AI)
         force_reanalyze = bool(data.get("force_reanalyze", True))
+        batch_id = data.get("batch_id") or data.get("batch")
+        from_batch = bool(data.get("from_batch", False))
+        cited_move = data.get("move") or data.get("cited_move")
+        priority_index = data.get("priority") or data.get("priority_index")
+
+        try:
+            cited_move_int = int(cited_move) if cited_move not in (None, "") else None
+        except (TypeError, ValueError):
+            cited_move_int = None
+        try:
+            priority_index_int = int(priority_index) if priority_index not in (None, "") else None
+        except (TypeError, ValueError):
+            priority_index_int = None
+
+        free_from_batch = (
+            from_batch
+            and batch_id not in (None, "")
+            and getattr(settings, "SINGLE_GAME_FREE_FROM_BATCH", True)
+            and game_qualifies_for_batch_waiver(request.user, game.id, batch_id)
+        )
 
         profile = Profile.objects.filter(user=request.user).first()
-        if not request.user.is_staff and (profile is None or profile.credits < 1):
+        if (
+            not request.user.is_staff
+            and not free_from_batch
+            and (profile is None or profile.credits < 1)
+        ):
             return Response(
                 {
                     "status": "error",
@@ -1270,6 +1310,9 @@ def analyze_game(request, game_id=None):
             analysis_task=compat_task,
             managers=compat_task_managers,
             legacy_register_signature=True,
+            batch_id=batch_id,
+            cited_move=cited_move_int,
+            priority_index=priority_index_int,
         )
 
         if enqueue_result["status"] == "already_running":
@@ -1285,14 +1328,17 @@ def analyze_game(request, game_id=None):
 
         record_single_analysis(request.user)
 
-        # Deduct one credit for analysis when possible.
-        try:
-            if profile is None:
-                profile = Profile.objects.get(user=request.user)
-            profile.credits = max(0, profile.credits - 1)
-            profile.save(update_fields=["credits"])
-        except Profile.DoesNotExist:
-            pass
+        credits_charged = 0
+        if not free_from_batch and not request.user.is_staff:
+            try:
+                if profile is None:
+                    profile = Profile.objects.get(user=request.user)
+                profile.credits = max(0, profile.credits - 1)
+                profile.save(update_fields=["credits"])
+                credits_charged = 1
+                mark_single_game_credit_charged(request.user.id, game.id)
+            except Profile.DoesNotExist:
+                pass
 
         game.analysis_status = "analyzing"
         game.save(update_fields=["analysis_status"])
@@ -1303,6 +1349,8 @@ def analyze_game(request, game_id=None):
                 "message": "Analysis started",
                 "task_id": enqueue_result["task_id"],
                 "game_id": game.id,
+                "credits_charged": credits_charged,
+                "free_from_batch": free_from_batch,
             },
             status=status.HTTP_202_ACCEPTED,
         )
@@ -2175,6 +2223,33 @@ def get_game_analysis(request, game_id):
             if not isinstance(critical_moments, list):
                 critical_moments = coaching_payload.get("critical_moments") or []
 
+            batch_id_param = request.GET.get("batch_id") or request.GET.get("batch")
+            move_param = request.GET.get("move")
+            priority_param = request.GET.get("priority")
+            try:
+                move_number = int(move_param) if move_param not in (None, "") else None
+            except (TypeError, ValueError):
+                move_number = None
+            try:
+                priority_index = int(priority_param) if priority_param not in (None, "") else None
+            except (TypeError, ValueError):
+                priority_index = None
+
+            batch_context = None
+            if batch_id_param:
+                batch_context = resolve_batch_context_for_game(
+                    request.user,
+                    int(game_id),
+                    batch_id=batch_id_param,
+                    move_number=move_number,
+                    priority_index=priority_index,
+                    single_game_moments=critical_moments,
+                )
+
+            training_block = feedback_payload.get("training_block")
+            if not isinstance(training_block, dict):
+                training_block = payload.get("training_block") if isinstance(payload.get("training_block"), dict) else {}
+
             response_payload = {
                 "analysis_data": payload,
                 **payload,
@@ -2182,6 +2257,8 @@ def get_game_analysis(request, game_id):
                 "game_context": game_context,
                 "coaching": coaching_payload,
                 "critical_moments": critical_moments,
+                "batch_context": batch_context,
+                "training_block": training_block,
                 "engine_meta": {
                     "depth": getattr(analysis, "depth", 20) or 20,
                     "classification_note": (
@@ -2198,13 +2275,42 @@ def get_game_analysis(request, game_id):
                 game_context = build_single_game_context(game, profile)
                 coaching_payload = payload.get("coaching") if isinstance(payload.get("coaching"), dict) else {}
                 critical_moments = payload.get("critical_moments") or coaching_payload.get("critical_moments") or []
+                batch_id_param = request.GET.get("batch_id") or request.GET.get("batch")
+                move_param = request.GET.get("move")
+                priority_param = request.GET.get("priority")
+                try:
+                    move_number = int(move_param) if move_param not in (None, "") else None
+                except (TypeError, ValueError):
+                    move_number = None
+                try:
+                    priority_index = int(priority_param) if priority_param not in (None, "") else None
+                except (TypeError, ValueError):
+                    priority_index = None
+                batch_context = None
+                if batch_id_param:
+                    batch_context = resolve_batch_context_for_game(
+                        request.user,
+                        int(game_id),
+                        batch_id=batch_id_param,
+                        move_number=move_number,
+                        priority_index=priority_index,
+                        single_game_moments=critical_moments,
+                    )
+                legacy_feedback = payload.get("feedback", {})
+                training_block = (
+                    legacy_feedback.get("training_block")
+                    if isinstance(legacy_feedback, dict)
+                    else {}
+                )
                 response_payload = {
                     "analysis_data": payload,
                     **payload,
-                    "feedback": payload.get("feedback", {}),
+                    "feedback": legacy_feedback,
                     "game_context": game_context,
                     "coaching": coaching_payload,
                     "critical_moments": critical_moments,
+                    "batch_context": batch_context,
+                    "training_block": training_block if isinstance(training_block, dict) else {},
                     "engine_meta": {
                         "depth": 20,
                         "classification_note": (

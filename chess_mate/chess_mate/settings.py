@@ -708,6 +708,7 @@ SIGNUP_BONUS_CREDITS = env.int("SIGNUP_BONUS_CREDITS", default=15)
 # Optional public share token for /example/batch-report (live demo; falls back to static fixture)
 DEMO_BATCH_SHARE_TOKEN = env("DEMO_BATCH_SHARE_TOKEN", default="").strip()
 SINGLE_GAME_ANALYSIS_CREDITS = env.int("SINGLE_GAME_ANALYSIS_CREDITS", default=1)
+SINGLE_GAME_FREE_FROM_BATCH = env.bool("SINGLE_GAME_FREE_FROM_BATCH", default=True)
 
 # Legal pages — set LEGAL_ENTITY_NAME when incorporated (e.g. "ChessMate Inc.")
 LEGAL_ENTITY_NAME = env("LEGAL_ENTITY_NAME", default="").strip()

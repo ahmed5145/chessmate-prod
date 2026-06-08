@@ -158,6 +158,18 @@ const BatchReportPreview = () => {
           />
         </Box>
       </div>
+
+      <p className={`mt-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        From batch citation → depth-20 drill-down on the cited move (board, eval, coaching).
+        {' '}
+        <Link
+          to="/example/batch-report"
+          onClick={() => trackMarketingEvent('preview_deep_review_cta', { source: MARKETING_SOURCES.LANDING_EXAMPLE })}
+          className={`font-semibold underline ${isDarkMode ? 'text-indigo-300' : 'text-indigo-600'}`}
+        >
+          Open full example → move 18 drill-down
+        </Link>
+      </p>
     </section>
   );
 };
