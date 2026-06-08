@@ -395,6 +395,8 @@ RATE_LIMIT = {
     "BATCH_OPS": {"MAX_REQUESTS": 3, "TIME_WINDOW": 300, "BACKEND": "default"},
     "PUBLIC": {"MAX_REQUESTS": 60, "TIME_WINDOW": 60, "BACKEND": "default"},
     "GAMES": {"MAX_REQUESTS": 40, "TIME_WINDOW": 60, "BACKEND": "default"},
+    # Status polling during long single-game reviews (separate from GAMES read budget).
+    "POLLING": {"MAX_REQUESTS": 180, "TIME_WINDOW": 60, "BACKEND": "default"},
 }
 
 RATE_LIMIT_BACKEND = "default"  # Use Redis cache for rate limiting
@@ -433,10 +435,14 @@ RATE_LIMIT_ENDPOINT_PATTERNS = {
         r"^/api(?:/v1)?/public/",
         r"^/api(?:/v1)?/batches/public/",
     ],
+    "POLLING": [
+        r"^/api(?:/v1)?/games/\d+/analysis/status/?$",
+        r"^/api(?:/v1)?/games/batch-status/?$",
+    ],
     "GAMES": [
         r"^/api(?:/v1)?/games/user/?$",
-        r"^/api(?:/v1)?/games/\d+/(?:analysis|analysis/status)/?$",
-        r"^/api(?:/v1)?/games/batch-(?:status|reports)/",
+        r"^/api(?:/v1)?/games/\d+/analysis/?$",
+        r"^/api(?:/v1)?/games/batch-reports/",
     ],
     "DEFAULT": [r"^/api/"],
 }

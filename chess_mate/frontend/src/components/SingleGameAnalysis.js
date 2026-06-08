@@ -334,11 +334,11 @@ const SingleGameAnalysis = () => {
   const analysisCompleted = useRef(false);
   const analysisErrorRef = useRef(false);
   const pollingTimeoutRef = useRef(null);
-  const pollDelayRef = useRef(3000);
+  const pollDelayRef = useRef(5000);
   const activeTaskIdRef = useRef(null);
   const timeoutIds = useRef([]);
-  const POLL_MIN_DELAY = 3000;
-  const POLL_MAX_DELAY = 15000;
+  const POLL_MIN_DELAY = 5000;
+  const POLL_MAX_DELAY = 30000;
 
   const scheduleStatusPoll = (delay = POLL_MIN_DELAY) => {
     if (analysisCompleted.current || isFetchingAnalysisRef.current || analysisErrorRef.current) {
