@@ -826,7 +826,7 @@ class GameViewSet(viewsets.ModelViewSet):
             return Response(
                 {
                     "status": "success",
-                    "message": "Batch analysis started",
+                    "message": "Batch Coach started",
                     "task_id": task.id,
                 }
             )
@@ -1787,7 +1787,7 @@ def check_batch_analysis_status(request, task_id):
             "current": current,
             "total": total,
             "progress": progress,
-            "message": task_meta.get("message") or result_payload.get("message") or "Batch analysis in progress",
+            "message": task_meta.get("message") or result_payload.get("message") or "Batch Coach in progress",
             "error": task_meta.get("error") or result_payload.get("error"),
         },
         "completed_games": completed_games,
@@ -1959,7 +1959,7 @@ def batch_analyze_games(request):
         return Response(
             {
                 "status": "success",
-                "message": "Batch analysis started",
+                "message": "Batch Coach started",
                 "task_id": task.id,
                 "games_count": len(game_ids),
                 "total_games": len(game_ids),

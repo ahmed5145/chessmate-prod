@@ -19,7 +19,7 @@ const FALLBACK_PACKAGES = [
       'One-time purchase (not a subscription)',
       '50 game imports (1 credit per game)',
       'Credits never expire',
-      '~5 batch coach reports (10 games each)',
+      '~5 Batch Coach reports (10 games each)',
     ]
   },
   {
@@ -27,13 +27,13 @@ const FALLBACK_PACKAGES = [
     name: 'Coach Plus',
     credits: 100,
     price_display: '$17.99',
-    description: 'Buy credits once for regular batch coach analysis',
+    description: 'Buy credits once for regular Batch Coach',
     popular: true,
     features: [
       'One-time purchase (not a subscription)',
       '100 game imports',
       'Credits never expire',
-      '~10 batch coach reports (10 games each)',
+      '~10 Batch Coach reports (10 games each)',
     ]
   },
   {
@@ -47,7 +47,7 @@ const FALLBACK_PACKAGES = [
       'One-time purchase (not a subscription)',
       '250 game imports',
       'Credits never expire',
-      '~25 batch coach reports (10 games each)',
+      '~25 Batch Coach reports (10 games each)',
     ]
   }
 ];
@@ -61,7 +61,7 @@ const DEFAULT_CREDIT_MODEL = {
   batch_included: true,
   summary_points: [
     '1 credit per game import from Chess.com or Lichess',
-    'Batch Coach analysis is included once games are on your account',
+    'Batch Coach is included once games are on your account',
     'New accounts receive 15 free credits',
     'Optional single-game deep analysis costs 1 credit per game',
     'Credits are sold as one-time packs — not a subscription',
@@ -193,7 +193,7 @@ const Credits = () => {
           Not a subscription — credits never expire
         </p>
         <p className={`mt-3 text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-500'} sm:text-center`}>
-          Credits import games from Chess.com or Lichess. Batch coach analysis is included once games are on your account.
+          Credits import games from Chess.com or Lichess. Batch Coach is included once games are on your account.
         </p>
         <div className="mt-4 text-center">
           <span className={`inline-flex items-center px-4 py-2 rounded-md ${

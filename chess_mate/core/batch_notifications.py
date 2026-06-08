@@ -7,6 +7,7 @@ from django.core import mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
+from .batch_labels import BATCH_COACH_EMAIL_SUBJECT
 from .email_utils import get_frontend_base_url, is_email_configured
 
 logger = logging.getLogger(__name__)
@@ -52,11 +53,11 @@ def send_batch_complete_email(user, batch_report) -> bool:
     except Exception as exc:
         logger.warning("Batch complete template render failed: %s", exc)
         html_body = (
-            f"Your ChessMate batch analysis ({batch_report.games_count} games) is ready.\n"
+            f"Your ChessMate Batch Coach report ({batch_report.games_count} games) is ready.\n"
             f"View report: {report_url}\n"
         )
 
-    subject = "Your ChessMate batch coach report is ready"
+    subject = BATCH_COACH_EMAIL_SUBJECT
     try:
         mail.send_mail(
             subject=subject,

@@ -24,7 +24,7 @@ const BatchLegacyRedirect = () => {
       return;
     }
 
-    toast.error('This report link is outdated. Open your report from Batch Analysis history.');
+    toast.error('This report link is outdated. Open your report from Batch Coach history.');
     window.location.replace('/batch-analysis');
   }, [raw, navigate]);
 

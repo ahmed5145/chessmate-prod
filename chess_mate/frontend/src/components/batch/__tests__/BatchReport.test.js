@@ -86,7 +86,7 @@ describe('BatchReport', () => {
 
     expect(await screen.findByTestId('batch-report-sections')).toBeInTheDocument();
     expect(screen.getByTestId('batch-report-sticky-actions')).toBeInTheDocument();
-    expect(screen.queryByText(/Building your batch coach report/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Building your Batch Coach report/i)).not.toBeInTheDocument();
   });
 
   it('renders partial report with coaching unavailable', async () => {

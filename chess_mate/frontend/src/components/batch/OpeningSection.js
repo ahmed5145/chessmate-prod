@@ -67,7 +67,7 @@ const OpeningSection = ({ batch_summary, per_game_results = [] }) => {
         <Alert severity="info" variant="outlined">
           <Typography variant="body2">
             No recognizable opening data in this batch. Import games with ECO or opening tags, then
-            re-run batch analysis.
+            re-run Batch Coach to refresh opening insights.
           </Typography>
         </Alert>
       </ReportSectionShell>

@@ -30,7 +30,7 @@ const BatchUpload = () => {
       const response = await createBatch({ gameIds: selectedGameIds });
       navigate(`/batch-report/${response.batch_id}`);
     } catch (submitError) {
-      const message = submitError?.message || submitError?.detail || 'Failed to start batch analysis.';
+      const message = submitError?.message || submitError?.detail || 'Failed to start Batch Coach.';
       setError(message);
       setIsLoading(false);
     }

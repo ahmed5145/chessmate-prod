@@ -33,7 +33,7 @@ const RepertoireGaps = ({ batch_summary, per_game_results = [] }) => {
         <Alert severity="info" variant="outlined">
           <Typography variant="body2">
             No recognizable opening data in this batch. Import games with ECO/opening tags or run a
-            new batch analysis to see repertoire feedback.
+            new Batch Coach report to see repertoire feedback.
           </Typography>
         </Alert>
       </Container>

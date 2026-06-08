@@ -171,7 +171,7 @@ describe('BatchAnalysisResults (PRD batch API)', () => {
       </MemoryRouter>
     );
 
-    await screen.findByText('Batch Analysis Results');
+    await screen.findByText('Batch Coach report');
     expect(screen.queryByRole('button', { name: /Regenerate Coaching Report/i })).not.toBeInTheDocument();
   });
 

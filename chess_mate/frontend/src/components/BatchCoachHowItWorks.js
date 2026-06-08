@@ -161,7 +161,7 @@ const BatchCoachHowItWorks = () => {
               {
                 icon: Download,
                 title: 'Import from Chess.com or Lichess',
-                body: 'Link your account and pull recent games. Import uses credits; batch analysis is included once games are in your library.',
+                body: 'Link your account and pull recent games. Import uses credits; Batch Coach is included once games are in your library.',
               },
               {
                 icon: Layers,

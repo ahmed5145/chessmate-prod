@@ -26,7 +26,7 @@ CREDIT_PACKAGES: Dict[str, Dict[str, Any]] = {
         "features": [
             "One-time purchase (not a subscription)",
             "50 game imports (1 credit per game)",
-            "~5 batch coach reports (10 games each)",
+            "~5 Batch Coach reports (10 games each)",
             "Full Stockfish + AI coaching per batch",
             "Credits never expire",
         ],
@@ -37,11 +37,11 @@ CREDIT_PACKAGES: Dict[str, Dict[str, Any]] = {
         "credits": 100,
         "price_cents": 1799,
         "popular": True,
-        "description": "Buy credits once for regular batch coach analysis",
+        "description": "Buy credits once for regular Batch Coach",
         "features": [
             "One-time purchase (not a subscription)",
             "100 game imports",
-            "~10 batch coach reports (10 games each)",
+            "~10 Batch Coach reports (10 games each)",
             "Compare batches over time",
             "Credits never expire",
         ],
@@ -55,7 +55,7 @@ CREDIT_PACKAGES: Dict[str, Dict[str, Any]] = {
         "features": [
             "One-time purchase (not a subscription)",
             "250 game imports",
-            "~25 batch coach reports (10 games each)",
+            "~25 Batch Coach reports (10 games each)",
             "Best value per batch report",
             "Credits never expire",
         ],
@@ -87,7 +87,7 @@ def credit_model_for_api() -> Dict[str, Any]:
         "summary_points": [
             "1 credit per game import from Chess.com or Lichess",
             (
-                "Batch Coach analysis is included once games are on your account"
+                "Batch Coach is included once games are on your account"
                 if batch_per_game == 0
                 else f"Batch Coach costs {batch_per_game} credit(s) per game in the batch"
             ),

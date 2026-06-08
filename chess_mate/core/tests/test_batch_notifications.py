@@ -74,7 +74,7 @@ def test_template_render_failure_uses_plaintext_fallback(
 
     assert send_batch_complete_email(user, _batch_report()) is True
     plain = mock_send_mail.call_args.kwargs["message"]
-    assert "batch analysis" in plain.lower()
+    assert "batch coach report" in plain.lower()
     assert "https://chessmate.test/batch-report/42" in plain
 
 

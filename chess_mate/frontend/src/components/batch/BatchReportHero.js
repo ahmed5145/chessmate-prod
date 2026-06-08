@@ -51,7 +51,7 @@ const BatchReportHero = ({
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, mb: 1 }}>
           <CheckCircleOutlineIcon color="primary" fontSize="small" />
           <Typography variant="overline" sx={{ fontWeight: 700, letterSpacing: '0.06em' }}>
-            Your batch coach report is ready
+            Your Batch Coach report is ready
           </Typography>
           {isPartial ? (
             <Chip size="small" label="Partial batch" color="warning" variant="outlined" />

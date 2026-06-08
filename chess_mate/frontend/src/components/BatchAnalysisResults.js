@@ -1227,7 +1227,7 @@ const BatchAnalysisResults = () => {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ p: 3 }}>
         <Typography variant="h4" gutterBottom>
-          Batch Analysis Results
+          Batch Coach report
         </Typography>
         <Typography variant="subtitle1" gutterBottom>
           {results.length} games analyzed • {failedGames.length} failed

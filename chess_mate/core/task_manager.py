@@ -300,7 +300,7 @@ class TaskManager:
             "game_ids": game_ids,
             "games_count": len(game_ids),
             "completed_games": 0,
-            "message": "Batch analysis pending",
+            "message": "Batch Coach pending",
         }
 
         # Store in memory

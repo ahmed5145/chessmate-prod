@@ -150,7 +150,7 @@ describe('apiRequests legacy batch API', () => {
     it('throws when server omits task id', async () => {
       api.post.mockResolvedValue({ data: { total_games: 5 } });
 
-      await expect(analyzeBatchGames(5)).rejects.toThrow('Failed to start batch analysis');
+      await expect(analyzeBatchGames(5)).rejects.toThrow('Failed to start Batch Coach');
     });
   });
 

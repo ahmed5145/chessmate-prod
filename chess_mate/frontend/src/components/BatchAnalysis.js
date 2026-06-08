@@ -22,6 +22,17 @@ import {
 } from '../utils/batchTimeEstimate';
 import api from '../services/api';
 import { formatListOpeningLabel } from '../utils/formatListOpeningLabel';
+import {
+  BATCH_COACH,
+  BATCH_COACH_FAILED,
+  BATCH_COACH_INCLUDED,
+  BATCH_COACH_NO_SAVED,
+  BATCH_COACH_START_BUTTON,
+  BATCH_COACH_TAGLINE,
+  SAVED_BATCH_COACH_REPORTS,
+  batchCoachMaxGamesToast,
+  batchCoachRequiresMinGames,
+} from '../utils/batchCoachLabels';
 
 const BATCH_SIZE_OPTIONS = [5, 10, 15, 20, 25, 30];
 const ACTIVE_BATCH_STATUSES = new Set(['pending', 'in_progress']);
@@ -204,7 +215,7 @@ const BatchAnalysis = () => {
             setCurrentProgress(completed);
             setTotalGames(total);
             if (toastId) toast.dismiss(toastId);
-            toast.error(errors[0]?.message || 'Batch analysis failed');
+            toast.error(errors[0]?.message || BATCH_COACH_FAILED);
             navigateReliably(`/batch-report/${batchId}`, { replace: true });
             return true;
 
@@ -302,12 +313,12 @@ const BatchAnalysis = () => {
     }
 
     if (gamesToAnalyze.length < 5) {
-      toast.error('Batch analysis requires at least 5 games');
+      toast.error(batchCoachRequiresMinGames());
       return;
     }
 
     if (gamesToAnalyze.length > 30) {
-      toast.error('Maximum number of games for batch analysis is 30');
+      toast.error(batchCoachMaxGamesToast());
       return;
     }
 
@@ -328,7 +339,7 @@ const BatchAnalysis = () => {
         toast.success(
           batchSendsEmail
             ? `Analysis started (${etaLabel}). You can close this page — we'll email you when it's ready.`
-            : `Analysis started (${etaLabel}). You can leave this page and check Saved Batch Reports later.`,
+            : `Analysis started (${etaLabel}). You can leave this page and check ${SAVED_BATCH_COACH_REPORTS} later.`,
           { duration: 6000 }
         );
       } else {
@@ -414,7 +425,7 @@ const BatchAnalysis = () => {
         return prev.filter((id) => id !== gameId);
       }
       if (prev.length >= 30) {
-        toast.error('Maximum number of games for batch analysis is 30');
+        toast.error(batchCoachMaxGamesToast());
         return prev;
       }
       return [...prev, gameId];
@@ -455,10 +466,10 @@ const BatchAnalysis = () => {
         {/* Header Section */}
         <div className="mb-8">
           <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Batch Analysis
+            {BATCH_COACH}
           </h1>
           <p className={`mt-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-            Batch coach analysis finds patterns across your recent games (default 10, min 5, max 30).
+            {BATCH_COACH_TAGLINE}
           </p>
         </div>
 
@@ -469,13 +480,13 @@ const BatchAnalysis = () => {
             What to expect
           </h2>
           <ul className={`text-sm space-y-1 list-disc pl-5 ${isDarkMode ? 'text-gray-300' : 'text-indigo-900'}`}>
-            <li>Batch coach analysis is included for games already on your account (credits are used when you import games).</li>
+            <li>{BATCH_COACH_INCLUDED}</li>
             <li>Engine depth is fixed internally (depth 14) for consistent metrics — not configurable.</li>
             <li>Typical runtime: about 3–5 minutes per game, analyzed one at a time; larger batches can take 30+ minutes.</li>
             <li>
               {batchSendsEmail
                 ? 'After you start, you can close this tab — we\'ll email you when your report is ready.'
-                : 'After you start, you can leave this page and open the report from Saved Batch Reports.'}
+                : `After you start, you can leave this page and open the report from ${SAVED_BATCH_COACH_REPORTS}.`}
             </li>
             <li>At least 5 games must analyze successfully or the batch fails.</li>
           </ul>
@@ -676,12 +687,12 @@ const BatchAnalysis = () => {
           {/* Saved Reports */}
           <div className="mt-8">
             <h3 className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              Saved Batch Reports
+              {SAVED_BATCH_COACH_REPORTS}
             </h3>
             <div className={`rounded-md border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               {reportHistory.length === 0 ? (
                 <div className={`p-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  No saved reports yet. Run a batch analysis to create your first report.
+                  {BATCH_COACH_NO_SAVED}
                 </div>
               ) : (
                 reportHistory.map((report) => {
@@ -775,12 +786,12 @@ const BatchAnalysis = () => {
               {batchSendsEmail ? (
                 <>
                   After you start, you can <strong>close this tab</strong>. We&apos;ll email you when your
-                  coach report is ready, and it will appear under <strong>Saved Batch Reports</strong>.
+                  Batch Coach report is ready, and it will appear under <strong>{SAVED_BATCH_COACH_REPORTS}</strong>.
                 </>
               ) : (
                 <>
                   You can leave this page after starting and open your report later from{' '}
-                  <strong>Saved Batch Reports</strong>.
+                  <strong>{SAVED_BATCH_COACH_REPORTS}</strong>.
                 </>
               )}
             </p>
@@ -869,7 +880,7 @@ const BatchAnalysis = () => {
                   </>
                 ) : (
                   <>
-                    <strong>You can leave this page.</strong> Check <strong>Saved Batch Reports</strong> for
+                    <strong>You can leave this page.</strong> Check <strong>{SAVED_BATCH_COACH_REPORTS}</strong> for
                     status. Each game may take several minutes to analyze.
                   </>
                 )}
@@ -918,7 +929,7 @@ const BatchAnalysis = () => {
               ) : activeBatchReport ? (
                 'Batch already in progress'
               ) : (
-                'Start Batch Analysis'
+                BATCH_COACH_START_BUTTON
               )}
             </button>
           </>

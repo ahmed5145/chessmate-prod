@@ -95,13 +95,13 @@ const BatchUploadForm = ({ onSubmit, isLoading }) => {
     const count = pgnList.length;
 
     if (count < 5) {
-      setValidationError('Batch analysis requires at least 5 games to detect patterns.');
+      setValidationError('Batch Coach requires at least 5 games to detect patterns.');
       setGameCount(count);
       return;
     }
 
     if (count > 30) {
-      setValidationError('Batch analysis supports a maximum of 30 games.');
+      setValidationError('Batch Coach supports a maximum of 30 games.');
       setGameCount(count);
       return;
     }

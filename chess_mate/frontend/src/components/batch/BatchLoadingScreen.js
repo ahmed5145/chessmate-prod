@@ -17,6 +17,13 @@ import {
 } from '@mui/material';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import { formatBatchDurationRange } from '../../utils/batchTimeEstimate';
+import {
+  BATCH_COACH_BUILDING_TITLE,
+  BATCH_COACH_NAV_LABEL,
+  BATCH_COACH_PREPARING,
+  BATCH_COACH_SAVED_BREADCRUMB,
+  SAVED_BATCH_COACH_REPORTS,
+} from '../../utils/batchCoachLabels';
 
 const NAVBAR_HEIGHT_PX = 64;
 
@@ -68,7 +75,7 @@ const BatchLoadingScreen = ({
         <CircularProgress size={64} color="primary" />
 
         <Typography variant="h6" sx={{ color: 'common.white', fontWeight: 700 }}>
-          Building your batch coach report
+          {BATCH_COACH_BUILDING_TITLE}
         </Typography>
 
         <Typography variant="body2" sx={{ color: 'grey.300', maxWidth: 420 }}>
@@ -78,7 +85,7 @@ const BatchLoadingScreen = ({
               (depth 14, one game at a time). Typical total time: <strong>{durationLabel}</strong>.
             </>
           ) : (
-            <>Preparing your batch analysis. This usually takes several minutes.</>
+            <>{BATCH_COACH_PREPARING}</>
           )}
         </Typography>
 
@@ -119,12 +126,12 @@ const BatchLoadingScreen = ({
           {sendsCompletionEmail ? (
             <>
               <strong>You can close this tab.</strong> We&apos;ll email you when your report is ready.
-              You can also find it later under <strong>Batch Analysis → Saved Batch Reports</strong>.
+              You can also find it later under <strong>{BATCH_COACH_SAVED_BREADCRUMB}</strong>.
             </>
           ) : (
             <>
-              <strong>You can leave this page</strong> and return via <strong>Saved Batch Reports</strong>
-              on the Batch Analysis screen. Keep this tab open if you want to jump to the report automatically.
+              <strong>You can leave this page</strong> and return via <strong>{SAVED_BATCH_COACH_REPORTS}</strong>
+              on the {BATCH_COACH_NAV_LABEL} screen. Keep this tab open if you want to jump to the report automatically.
             </>
           )}
         </Alert>
@@ -146,7 +153,7 @@ const BatchLoadingScreen = ({
             size="small"
             sx={{ color: 'grey.100', borderColor: 'grey.500', flex: 1 }}
           >
-            Batch analysis
+            {BATCH_COACH_NAV_LABEL}
           </Button>
         </Stack>
       </Box>

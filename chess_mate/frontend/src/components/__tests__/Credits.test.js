@@ -47,7 +47,7 @@ describe('Credits Component', () => {
         packages: [],
         summary_points: [
           '1 credit per game import from Chess.com or Lichess',
-          'Batch Coach analysis is included once games are on your account',
+          'Batch Coach is included once games are on your account',
         ],
         batch_included: true,
         batch_games_recommended: 10,

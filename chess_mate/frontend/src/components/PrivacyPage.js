@@ -51,14 +51,14 @@ const PrivacyPage = () => {
       <ul className="list-disc pl-6 space-y-2">
         <li><strong>Account data:</strong> email, username, password (stored hashed), and profile preferences.</li>
         <li><strong>Platform links:</strong> Chess.com and/or Lichess usernames you choose to connect for game import.</li>
-        <li><strong>Game data:</strong> PGNs, results, dates, openings, engine analysis, and batch coaching outputs.</li>
+        <li><strong>Game data:</strong> PGNs, results, dates, openings, engine analysis, and Batch Coach outputs.</li>
         <li><strong>Payment data:</strong> Stripe checkout metadata (we do not store full card numbers).</li>
         <li><strong>Technical data:</strong> session/authentication cookies, security logs, and basic usage needed to operate the service.</li>
       </ul>
 
       <h2 className="text-xl font-semibold mt-6 mb-2">How we use information</h2>
       <ul className="list-disc pl-6 space-y-2">
-        <li>Authenticate you and operate credits, imports, and batch analysis.</li>
+        <li>Authenticate you and operate credits, imports, and Batch Coach.</li>
         <li>Send transactional email (verification, password reset, batch completion when enabled).</li>
         <li>Generate coaching narratives from your analyzed game summaries.</li>
         <li>Maintain reliability, prevent abuse, and improve the product.</li>
@@ -69,7 +69,7 @@ const PrivacyPage = () => {
       <ul className="list-disc pl-6 space-y-2">
         <li><strong>AWS</strong> — application hosting and data storage.</li>
         <li><strong>Stripe</strong> — payment processing.</li>
-        <li><strong>OpenAI</strong> — generating batch coaching text from structured game analysis (not your password).</li>
+        <li><strong>OpenAI</strong> — generating Batch Coach narrative from structured game analysis (not your password).</li>
         <li><strong>Email delivery</strong> — transactional messages to your registered address.</li>
       </ul>
       <p>We do not sell your personal information.</p>

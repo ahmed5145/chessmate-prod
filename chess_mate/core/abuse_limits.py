@@ -12,6 +12,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
 
+from .batch_labels import BATCH_COACH_ACTIVE_LIMIT
 from .admin_security import get_client_ip
 from .cache import cache_get, cache_set
 from .models import BatchAnalysisReport, Game
@@ -249,7 +250,7 @@ def batch_daily_limit_response(info: Dict[str, Any]) -> Response:
     if info.get("active_batch"):
         return abuse_limit_response(
             code="BATCH_002",
-            message="You already have a batch analysis running. Wait for it to finish or check Saved Batch Reports.",
+            message=BATCH_COACH_ACTIVE_LIMIT,
             error="Active batch in progress",
             detail=info,
         )

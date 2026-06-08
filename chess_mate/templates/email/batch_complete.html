@@ -15,10 +15,10 @@
 </head>
 <body>
     <div class="container">
-        <div class="header"><h1 style="margin:0;">Batch report ready</h1></div>
+        <div class="header"><h1 style="margin:0;">Batch Coach report ready</h1></div>
         <div class="content">
             <p>Hello {{ user.username }},</p>
-            <p>Your batch coach analysis of <strong>{{ games_count }} games</strong> has finished (status: {{ status }}).</p>
+            <p>Your Batch Coach report of <strong>{{ games_count }} games</strong> has finished (status: {{ status }}).</p>
             {% if coach_snippet %}
             <p style="font-size:15px;color:#333;"><em>{{ coach_snippet }}{% if coach_snippet|length >= 220 %}…{% endif %}</em></p>
             {% endif %}
@@ -38,7 +38,7 @@
             <p style="word-break:break-all;font-size:13px;color:#666;">{{ report_url }}</p>
         </div>
         <div class="footer">
-            <p>ChessMate — batch coach analysis</p>
+            <p>ChessMate — Batch Coach</p>
         </div>
     </div>
 </body>

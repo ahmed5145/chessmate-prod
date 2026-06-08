@@ -28,7 +28,7 @@ describe('BatchLoadingScreen', () => {
       completed_games: 0,
     });
 
-    expect(screen.getByText(/Building your batch coach report/i)).toBeInTheDocument();
+    expect(screen.getByText(/Building your Batch Coach report/i)).toBeInTheDocument();
     expect(screen.getByText(/Waiting to start/i)).toBeInTheDocument();
     expect(screen.getByText(/Analyzing/)).toBeInTheDocument();
     expect(screen.queryByText(/games analyzed/i)).not.toBeInTheDocument();
@@ -69,6 +69,6 @@ describe('BatchLoadingScreen', () => {
 
     expect(screen.getByText(/You can leave this page/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Back to dashboard/i })).toHaveAttribute('href', '/dashboard');
-    expect(screen.getByRole('link', { name: /Batch analysis/i })).toHaveAttribute('href', '/batch-analysis');
+    expect(screen.getByRole('link', { name: /Batch Coach/i })).toHaveAttribute('href', '/batch-analysis');
   });
 });

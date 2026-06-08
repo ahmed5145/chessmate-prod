@@ -17,7 +17,7 @@ const Home = () => {
       action: () => navigate('/games'),
     },
     {
-      title: 'Batch Analysis',
+      title: 'Batch Coach',
       icon: <BarChart className="h-6 w-6 text-violet-500" />,
       description: 'Analyze multiple games for patterns and trends',
       action: () => navigate('/batch-analysis'),

@@ -134,7 +134,7 @@ const LandingPage = () => {
             <Step
               number="2"
               title="Pick a batch"
-              description="Select 5–10 games — your last blitz week, or a manual mix. Batch coach analysis is included."
+              description="Select 5–10 games — your last blitz week, or a manual mix. Batch Coach is included."
               isDarkMode={isDarkMode}
             />
             <Step
@@ -175,7 +175,7 @@ const LandingPage = () => {
             to="/register"
             className="inline-flex items-center px-8 py-4 text-lg font-medium rounded-xl text-white bg-indigo-600 hover:bg-indigo-700"
           >
-            Try batch coach free
+            Try Batch Coach free
           </Link>
         </div>
       )}

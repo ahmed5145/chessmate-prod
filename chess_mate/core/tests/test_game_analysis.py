@@ -198,7 +198,7 @@ class TestGameAnalysis:
         assert response.status_code == status.HTTP_202_ACCEPTED
         assert isinstance(response.data, dict)
         assert response.data["status"] == "success"
-        assert response.data["message"] == "Batch analysis started"
+        assert response.data["message"] == "Batch Coach started"
         assert response.data["task_id"] == "mock-batch-task-id"
         assert response.data["games_count"] == 1
         assert response.data["total_games"] == 1

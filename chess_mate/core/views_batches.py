@@ -285,7 +285,7 @@ def batch_regenerate_coaching_view(request, batch_id):
 
     if batch_report.status not in ("completed", "partial"):
         return Response(
-            {"detail": "Batch analysis must finish before regenerating coaching."},
+            {"detail": "Batch Coach must finish before regenerating coaching."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

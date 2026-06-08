@@ -27,7 +27,7 @@ def regenerate_batch_coaching(batch_report: BatchAnalysisReport) -> Tuple[bool, 
     Returns (success, message).
     """
     if batch_report.status not in ("completed", "partial"):
-        return False, "Batch analysis must finish before regenerating coaching."
+        return False, "Batch Coach must finish before regenerating coaching."
 
     batch_summary = batch_report.batch_summary
     per_game_results: List[Dict[str, Any]] = list(batch_report.per_game_results or [])

@@ -2,7 +2,7 @@ import { BarChart } from 'lucide-react';
 
 const getNavigation = (pathname = '') => [
   {
-    name: 'Batch Analysis',
+    name: 'Batch Coach',
     href: '/batch-analysis',
     icon: BarChart,
     current: pathname === '/batch-analysis',

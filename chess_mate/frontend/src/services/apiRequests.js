@@ -431,7 +431,7 @@ export const analyzeBatchGames = async (
         };
     } catch (error) {
         console.error('Error starting batch analysis:', error);
-        throw error.response?.data || new Error("Failed to start batch analysis");
+        throw error.response?.data || new Error("Failed to start Batch Coach");
     }
 };
 
@@ -499,11 +499,11 @@ export const checkBatchAnalysisStatus = async (taskId) => {
         return {
             state: 'FAILURE',
             meta: {
-                error: error.message || 'Failed to check batch analysis status',
+                error: error.message || 'Failed to check Batch Coach status',
                 current: 0,
                 total: 0,
                 progress: 0,
-                message: error.message || 'Failed to check batch analysis status'
+                message: error.message || 'Failed to check Batch Coach status'
             },
             completed_games: [],
             failed_games: [],

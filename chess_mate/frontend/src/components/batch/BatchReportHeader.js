@@ -24,7 +24,7 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
     <Box sx={{ py: 2 }}>
       <Paper sx={{ p: 3, border: '1px solid', borderColor: 'divider' }}>
         <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-          Batch analysis · {analyzed} games
+          Batch Coach · {analyzed} games
           {dateRange ? ` · ${dateRange}` : ''}
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>

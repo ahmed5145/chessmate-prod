@@ -51,7 +51,7 @@ const TermsPage = () => {
       <h2 className="text-xl font-semibold mt-6 mb-2">The service</h2>
       <p>
         ChessMate imports chess games from platforms you connect (e.g. Chess.com, Lichess), runs Stockfish engine
-        analysis, and may generate AI-assisted batch coaching reports. Analysis and coaching are automated
+        analysis, and may generate AI-assisted Batch Coach reports. Analysis and coaching are automated
         estimates — not human coaching and not guaranteed to be complete or error-free.
       </p>
 
@@ -68,13 +68,13 @@ const TermsPage = () => {
           Credits are sold as <strong>one-time packs</strong>, not subscriptions. Purchased credits do not expire
           while your account remains active unless stated otherwise at checkout.
         </li>
-        <li>Importing a game typically costs <strong>1 credit</strong>. Batch Coach analysis is included once games are on your account.</li>
+        <li>Importing a game typically costs <strong>1 credit</strong>. Batch Coach is included once games are on your account.</li>
         <li>Payments are processed by Stripe. Refunds follow our refund policy and applicable law.</li>
       </ul>
 
       <h2 className="text-xl font-semibold mt-6 mb-2">Shared reports</h2>
       <p>
-        You may generate a public link to a batch coaching report. Anyone with that link can view the shared content
+        You may generate a public link to a Batch Coach report. Anyone with that link can view the shared content
         until you revoke sharing. You are responsible for who you share links with.
       </p>
 

@@ -20,7 +20,7 @@ describe('BatchReportHero', () => {
       />
     );
 
-    expect(screen.getByText(/batch coach report is ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/Batch Coach report is ready/i)).toBeInTheDocument();
     expect(screen.getByText(/10 games analyzed/i)).toBeInTheDocument();
     expect(screen.getByText(/leak material in the middlegame/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Start with priority #1/i })).toBeInTheDocument();
