@@ -6,6 +6,14 @@ jest.mock('../../context/ThemeContext', () => ({
   useTheme: () => ({ isDarkMode: false }),
 }));
 
+jest.mock('../batch/FenBoardImage', () => function MockFenBoard() {
+  return <div data-testid="fen-board" />;
+});
+
+jest.mock('react-chartjs-2', () => ({
+  Line: () => null,
+}));
+
 describe('GameAnalysisResults', () => {
   it('renders coaching hero when coaching payload is present', () => {
     render(
