@@ -1,156 +1,50 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ChevronRight,
-  PieChart,
-  Target,
-  Award,
-  TrendingUp,
-  Brain,
   AlertTriangle,
+  ArrowRight,
+  Brain,
   CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Sparkles,
   XCircle,
-  BookOpen,
-  BarChart,
-  Layout,
-  Trophy,
-  Coins
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { formatDate } from '../utils/dateUtils';
 import { fetchDashboardData, refreshDashboardCache } from '../services/apiRequests';
+import {
+  buildHeroMetrics,
+  formatTimeControlLabel,
+  isGameRowAnalyzed,
+  resolveFocusInsight,
+  resolveNextAction,
+  shouldShowFocusCard,
+} from '../utils/dashboardFocus';
 import LoadingSpinner from './LoadingSpinner';
 import WelcomeGuide from './WelcomeGuide';
 import GamePlatformBadge from './GamePlatformBadge';
 
-const StatCard = ({ title, value, icon: Icon, trend, color = 'indigo' }) => {
-  const { isDarkMode } = useTheme();
-  const trendColor = trend > 0 ? 'text-green-500' : trend < 0 ? 'text-red-500' : 'text-gray-500';
-
-  return (
-    <div className={`p-4 rounded-xl transition-all duration-200 hover:scale-[1.02] ${
-      isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-    } shadow-lg h-full`}>
-      <div className="flex items-center justify-between">
-        <div className={`p-2 rounded-lg ${isDarkMode ? `bg-${color}-900/30` : `bg-${color}-100`}`}>
-          <Icon className={`h-5 w-5 ${isDarkMode ? `text-${color}-400` : `text-${color}-600`}`} />
-        </div>
-        {trend !== undefined && (
-          <div className={`flex items-center ${trendColor}`}>
-            <TrendingUp className={`h-4 w-4 ${trend > 0 ? '' : 'rotate-180'} mr-1`} />
-            <span className="text-sm font-medium">{Math.abs(trend)}%</span>
-          </div>
-        )}
-      </div>
-      <div className="mt-3">
-        <h3 className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{value}</h3>
-        <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{title}</p>
-      </div>
-    </div>
-  );
+const formatResultLabel = (result) => {
+  const normalized = String(result || '').toLowerCase();
+  if (normalized === 'win') return 'Win';
+  if (normalized === 'loss') return 'Loss';
+  if (normalized === 'draw') return 'Draw';
+  return normalized ? normalized.toUpperCase() : '—';
 };
 
-const QuickAction = ({ title, icon: Icon, description, to, color }) => {
-  const { isDarkMode } = useTheme();
-
-  return (
-    <Link
-      to={to}
-      className={`block p-4 rounded-xl transition-all duration-200 hover:scale-[1.02] ${
-        isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-      } shadow-lg h-full`}
-    >
-      <div className="flex items-center space-x-4">
-        <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-          <Icon className={`h-5 w-5 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            {title}
-          </h3>
-          <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            {description}
-          </p>
-        </div>
-        <ChevronRight className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-      </div>
-    </Link>
-  );
+const INSIGHT_ICONS = {
+  success: CheckCircle,
+  warning: AlertTriangle,
+  error: XCircle,
 };
 
-const LatestBatchCoachCard = ({ coach, isDarkMode }) => {
-  if (!coach?.summary) {
-    return null;
-  }
-
-  const created = coach.created_at ? formatDate(coach.created_at) : null;
-
-  return (
-    <div className={`p-4 rounded-xl mb-4 ${isDarkMode ? 'bg-indigo-950/40 border border-indigo-800' : 'bg-indigo-50 border border-indigo-200'}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-indigo-200' : 'text-indigo-900'}`}>
-            Latest coach insight
-          </h3>
-          <p className={`text-xs mt-1 ${isDarkMode ? 'text-indigo-300/80' : 'text-indigo-700'}`}>
-            Batch #{coach.batch_id}
-            {coach.games_count ? ` · ${coach.games_count} games` : ''}
-            {coach.overall_accuracy_pct != null ? ` · ${Number(coach.overall_accuracy_pct).toFixed(1)}% accuracy` : ''}
-            {created ? ` · ${created}` : ''}
-          </p>
-          <p className={`text-sm mt-2 line-clamp-3 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-            {coach.summary}
-          </p>
-        </div>
-        <Link
-          to={`/batch-report/${coach.batch_id}`}
-          className={`shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg ${
-            isDarkMode
-              ? 'bg-indigo-800 text-indigo-100 hover:bg-indigo-700'
-              : 'bg-indigo-600 text-white hover:bg-indigo-700'
-          }`}
-        >
-          Open report
-        </Link>
-      </div>
-    </div>
-  );
-};
-
-const InsightCard = ({ title, insights, icon: Icon }) => {
-  const { isDarkMode } = useTheme();
-
-  return (
-    <div className={`p-6 rounded-xl ${
-      isDarkMode ? 'bg-gray-800' : 'bg-white'
-    } shadow-lg`}>
-      <div className="flex items-center gap-3 mb-4">
-        <Icon className={`h-5 w-5 ${
-          isDarkMode ? 'text-indigo-400' : 'text-indigo-600'
-        }`} />
-        <h3 className={`font-semibold ${
-          isDarkMode ? 'text-white' : 'text-gray-900'
-        }`}>{title}</h3>
-      </div>
-      <ul className="space-y-3">
-        {insights.map((insight, index) => (
-          <li key={index} className="flex items-start gap-2">
-            {insight.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-            ) : insight.type === 'warning' ? (
-              <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
-            ) : (
-              <XCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
-            )}
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-600'
-            }`}>{insight.text}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+const INSIGHT_COLORS = {
+  success: 'text-green-500',
+  warning: 'text-amber-500',
+  error: 'text-red-500',
 };
 
 const resolveDashboardOpponent = (game, user) => {
@@ -176,114 +70,325 @@ const resolveDashboardOpponent = (game, user) => {
   return game.white || game.black || 'Unknown';
 };
 
-const RecentGameCard = ({ game }) => {
+const DashboardSinceLastVisit = ({ sinceLastVisit }) => {
   const { isDarkMode } = useTheme();
-  const { user } = useUser();
+
+  if (!sinceLastVisit?.showBanner || !sinceLastVisit.summaryLines?.length) {
+    return null;
+  }
+
+  return (
+    <section
+      className={`mb-6 flex items-start gap-3 rounded-xl border px-4 py-3 ${
+        isDarkMode
+          ? 'bg-indigo-950/30 border-indigo-800/60'
+          : 'bg-indigo-50 border-indigo-200'
+      }`}
+    >
+      <Clock className={`h-4 w-4 mt-0.5 shrink-0 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-600'}`} />
+      <div>
+        <p className={`text-xs font-semibold uppercase tracking-wide ${
+          isDarkMode ? 'text-indigo-200' : 'text-indigo-800'
+        }`}>
+          Since your last visit
+        </p>
+        <p className={`text-sm mt-0.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+          {sinceLastVisit.summaryLines.join(' · ')}
+        </p>
+      </div>
+    </section>
+  );
+};
+
+const DashboardHero = ({ dashboardData, username }) => {
+  const { isDarkMode } = useTheme();
+  const action = resolveNextAction(dashboardData);
+  const metrics = buildHeroMetrics(dashboardData);
+
+  return (
+    <section
+      className={`rounded-2xl p-6 sm:p-8 mb-8 border ${
+        isDarkMode
+          ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700'
+          : 'bg-gradient-to-br from-white to-indigo-50/60 border-gray-200'
+      } shadow-lg`}
+    >
+      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        Welcome back, {username}
+      </p>
+      <h1 className={`mt-1 text-2xl sm:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+        {action.title}
+      </h1>
+      <p className={`mt-2 max-w-2xl text-sm sm:text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+        {action.description}
+      </p>
+
+      {metrics.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {metrics.map((metric) => (
+            <span
+              key={metric.label}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+                isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-white text-gray-700 border border-gray-200'
+              }`}
+            >
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>{metric.label}</span>
+              <span>{metric.value}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
+        <Link
+          to={action.ctaTo}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
+        >
+          {action.ctaLabel}
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+        {(action.secondaryLinks || []).map((link) => (
+          <Link
+            key={link.to}
+            to={link.to}
+            className={`text-sm font-medium ${
+              isDarkMode ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-600 hover:text-indigo-700'
+            }`}
+          >
+            {link.label}
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+const DashboardFocusCard = ({ dashboardData }) => {
+  const { isDarkMode } = useTheme();
+  const focus = resolveFocusInsight(dashboardData);
+  const Icon = INSIGHT_ICONS[focus.type] || Sparkles;
+  const iconColor = INSIGHT_COLORS[focus.type] || 'text-indigo-500';
+
+  return (
+    <section
+      className={`rounded-xl p-5 sm:p-6 mb-8 border ${
+        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      } shadow-lg`}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <Brain className={`h-5 w-5 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`} />
+        <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          Your focus
+        </h2>
+      </div>
+
+      <div className="flex items-start gap-3">
+        <Icon className={`h-5 w-5 mt-0.5 shrink-0 ${iconColor}`} />
+        <div className="min-w-0 flex-1">
+          {focus.meta ? (
+            <p className={`text-xs mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              {focus.meta}
+            </p>
+          ) : null}
+          <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+            {focus.text}
+          </p>
+          {focus.href && focus.actionLabel ? (
+            <Link
+              to={focus.href}
+              className={`inline-flex items-center gap-1 mt-3 text-sm font-medium ${
+                isDarkMode ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-600 hover:text-indigo-700'
+              }`}
+            >
+              {focus.actionLabel}
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const RecentActivityRow = ({ game, user }) => {
+  const { isDarkMode } = useTheme();
   const opponent = resolveDashboardOpponent(game, user);
+  const analyzed = isGameRowAnalyzed(game);
 
   return (
     <Link
       to={`/game/${game.id}/analysis`}
-      className={`block p-4 rounded-xl transition-all duration-200 hover:scale-[1.01] ${
-        isDarkMode
-          ? 'bg-gray-700 hover:bg-gray-600'
-          : 'bg-gray-50 hover:bg-gray-100'
+      className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${
+        isDarkMode ? 'hover:bg-gray-700/80' : 'hover:bg-gray-50'
       }`}
     >
-      <div className="flex justify-between items-center">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              vs {opponent}
-            </h3>
-            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-              game.result === 'win'
-                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                : game.result === 'loss'
-                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-            }`}>
-              {game.result ? game.result.toUpperCase() : 'UNKNOWN'}
-            </span>
-            <GamePlatformBadge platform={game.platform} isDarkMode={isDarkMode} />
-          </div>
-          <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            {game.date_played ? (
-              <>
-                {formatDate(game.date_played)}
-                {game.analysis && (
-                  <span className="ml-2 text-xs">
-                    (Analyzed)
-                  </span>
-                )}
-              </>
-            ) : (
-              'Date not available'
-            )}
-          </p>
-          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            {game.opening_name || 'Unknown Opening'}
-          </p>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-sm font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            vs {opponent}
+          </span>
+          <GamePlatformBadge platform={game.platform} isDarkMode={isDarkMode} />
+          <span className={`text-xs font-medium uppercase ${
+            game.result === 'win'
+              ? 'text-green-600 dark:text-green-400'
+              : game.result === 'loss'
+                ? 'text-red-600 dark:text-red-400'
+                : isDarkMode ? 'text-gray-400' : 'text-gray-500'
+          }`}>
+            {formatResultLabel(game.result)}
+          </span>
         </div>
-        {game.analysis && (
-          <div className={`text-right ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            <p className="text-sm font-medium">
-              Accuracy: {typeof game.analysis.average_accuracy === 'number' ? (
-                <span className={
-                  game.analysis.average_accuracy >= 90 ? 'text-green-500' :
-                  game.analysis.average_accuracy >= 70 ? 'text-yellow-500' :
-                  'text-red-500'
-                }>
-                  {game.analysis.average_accuracy.toFixed(1)}%
-                </span>
-              ) : 'N/A'}
-            </p>
-            <p className="text-xs mt-1">
-              {typeof game.analysis.mistakes === 'number' && (
-                <span className="mr-2">
-                  {game.analysis.mistakes} mistake{game.analysis.mistakes !== 1 ? 's' : ''}
-                </span>
-              )}
-              {typeof game.analysis.blunders === 'number' && (
-                <span>
-                  {game.analysis.blunders} blunder{game.analysis.blunders !== 1 ? 's' : ''}
-                </span>
-              )}
-            </p>
-          </div>
-        )}
+        <p className={`text-xs mt-0.5 truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          {game.opening_name || 'Unknown opening'}
+          {game.date_played ? ` · ${formatDate(game.date_played)}` : ''}
+        </p>
       </div>
+      <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
+        analyzed
+          ? (isDarkMode ? 'bg-green-900/40 text-green-300' : 'bg-green-100 text-green-800')
+          : (isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600')
+      }`}>
+        {analyzed ? 'Analyzed' : 'Unanalyzed'}
+      </span>
     </Link>
   );
 };
 
-// Commenting out RatingsSection for now as ratings are not supported
-/*
-const RatingsSection = ({ ratings }) => {
+const DashboardRecentActivity = ({ games, user }) => {
   const { isDarkMode } = useTheme();
-
-  const ratingCards = [
-    { title: 'Bullet', value: ratings?.bullet || 1200, icon: Timer, color: 'red' },
-    { title: 'Blitz', value: ratings?.blitz || 1200, icon: Zap, color: 'orange' },
-    { title: 'Rapid', value: ratings?.rapid || 1200, icon: Clock, color: 'green' },
-    { title: 'Classical', value: ratings?.classical || 1200, icon: Brain, color: 'blue' }
-  ];
+  const recentGames = (Array.isArray(games) ? games : []).slice(0, 3);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {ratingCards.map(({ title, value, icon: Icon, color }) => (
-        <StatCard
-          key={title}
-          title={title}
-          value={value}
-          icon={Icon}
-          color={color}
-        />
-      ))}
-    </div>
+    <section
+      className={`rounded-xl border ${
+        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      } shadow-lg overflow-hidden`}
+    >
+      <div className={`flex items-center justify-between px-5 py-4 border-b ${
+        isDarkMode ? 'border-gray-700' : 'border-gray-100'
+      }`}>
+        <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          Recent games
+        </h2>
+        <Link
+          to="/games"
+          className={`text-sm font-medium ${
+            isDarkMode ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-600 hover:text-indigo-700'
+          }`}
+        >
+          View all
+        </Link>
+      </div>
+
+      {recentGames.length > 0 ? (
+        <div className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-100'}`}>
+          {recentGames.map((game, index) => (
+            <RecentActivityRow key={game.id || index} game={game} user={user} />
+          ))}
+        </div>
+      ) : (
+        <div className="px-5 py-8 text-center">
+          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            No games yet.{' '}
+            <Link to="/fetch-games" className="text-indigo-500 hover:text-indigo-400 font-medium">
+              Import your games
+            </Link>
+          </p>
+        </div>
+      )}
+    </section>
   );
 };
-*/
+
+const DashboardMoreStats = ({ dashboardData }) => {
+  const { isDarkMode } = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  const timeControls = dashboardData?.time_control_performance || dashboardData?.performance?.time_controls || {};
+  const platforms = dashboardData?.platform_stats || dashboardData?.performance?.platforms || {};
+  const timeControlEntries = Object.entries(timeControls).filter(([, data]) => Number(data?.total) > 0);
+  const platformEntries = Object.entries(platforms).filter(([, data]) => Number(data?.total) > 0);
+
+  if (timeControlEntries.length === 0 && platformEntries.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="mt-8">
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        className={`flex w-full items-center justify-between rounded-xl border px-5 py-4 text-left transition-colors ${
+          isDarkMode
+            ? 'bg-gray-800 border-gray-700 hover:bg-gray-700/80'
+            : 'bg-white border-gray-200 hover:bg-gray-50'
+        }`}
+      >
+        <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+          More stats
+        </span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''} ${
+          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+        }`} />
+      </button>
+
+      {expanded && (
+        <div className={`mt-3 grid grid-cols-1 md:grid-cols-2 gap-4`}>
+          {timeControlEntries.length > 0 && (
+            <div className={`rounded-xl border p-4 ${
+              isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <h3 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                By time control
+              </h3>
+              <ul className="space-y-2">
+                {timeControlEntries.map(([key, data]) => (
+                  <li key={key} className="flex justify-between text-sm">
+                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
+                      {formatTimeControlLabel(key)}
+                    </span>
+                    <span className={isDarkMode ? 'text-gray-200' : 'text-gray-800'}>
+                      {data.total} games · {data.win_rate}% wins
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {platformEntries.length > 0 && (
+            <div className={`rounded-xl border p-4 ${
+              isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <h3 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                By platform
+              </h3>
+              <ul className="space-y-2">
+                {platformEntries.map(([key, data]) => (
+                  <li key={key} className="flex justify-between text-sm">
+                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
+                      {key === 'chess.com' ? 'Chess.com' : key === 'lichess' ? 'Lichess' : key}
+                    </span>
+                    <span className={isDarkMode ? 'text-gray-200' : 'text-gray-800'}>
+                      {data.total} games · {data.win_rate}% wins
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                to="/profile"
+                className={`inline-block mt-3 text-xs font-medium ${
+                  isDarkMode ? 'text-indigo-300' : 'text-indigo-600'
+                }`}
+              >
+                Full stats on Profile →
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
 
 const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -302,8 +407,9 @@ const Dashboard = () => {
       setLoading(true);
       const data = await fetchDashboardData();
       setDashboardData(data);
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      setError(null);
+    } catch (loadError) {
+      console.error('Error loading dashboard data:', loadError);
       setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -315,7 +421,6 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    // Listen for game imports and credit updates
     const handleGameImported = async () => {
       await refreshDashboardCache();
       refreshDashboardData();
@@ -351,6 +456,7 @@ const Dashboard = () => {
             {error}
           </p>
           <button
+            type="button"
             onClick={loadDashboardData}
             className="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
           >
@@ -368,152 +474,14 @@ const Dashboard = () => {
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'} py-8`}>
       <WelcomeGuide />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Dashboard
-          </h1>
-          <p className={`mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Welcome back, {user?.username}! Here's your chess overview.
-          </p>
-        </div>
-
-        {/* Commenting out Ratings Section as it's not supported yet */}
-        {/*
-        <div className="mb-8">
-          <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Your Ratings
-          </h2>
-          <RatingsSection ratings={dashboardData?.current_ratings} />
-        </div>
-        */}
-
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <QuickAction
-              title="Import Games"
-              description="Import your games from Chess.com or Lichess"
-              icon={BookOpen}
-              to="/fetch-games"
-            />
-            <QuickAction
-              title="Batch Coach"
-              description="Run a 5–30 game coaching report"
-              icon={Brain}
-              to="/batch-analysis"
-            />
-            <QuickAction
-              title="Game Analysis"
-              description="Review your analyzed games"
-              icon={BarChart}
-              to="/games"
-            />
-            <QuickAction
-              title="Performance"
-              description="Check your detailed statistics"
-              icon={PieChart}
-              to="/profile"
-            />
-            <QuickAction
-              title="Achievements"
-              description="View your chess achievements"
-              icon={Award}
-              to="/profile"
-            />
-          </div>
-        </div>
-
-        {/* Stats Overview */}
-        <div className="mb-8">
-          <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Stats Overview
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              title="Total Games"
-              value={dashboardData?.total_games || 0}
-              icon={Layout}
-              color="purple"
-            />
-            <StatCard
-              title="Win Rate"
-              value={`${dashboardData?.win_rate || 0}%`}
-              icon={Trophy}
-              color="green"
-            />
-            <StatCard
-              title="Average Accuracy"
-              value={`${dashboardData?.average_accuracy || 0}%`}
-              icon={Target}
-              color="blue"
-            />
-            <StatCard
-              title="Credits"
-              value={dashboardData?.credits || 0}
-              icon={Coins}
-              color="yellow"
-            />
-          </div>
-        </div>
-
-        {/* Recent Games and Insights */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Games */}
-          <div>
-            <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Recent Games
-            </h2>
-            <div className="space-y-4">
-              {dashboardData?.recent_games?.length > 0 ? (
-                dashboardData.recent_games.map((game, index) => (
-                  <RecentGameCard key={game.id || index} game={game} />
-                ))
-              ) : (
-                <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} text-center`}>
-                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    No recent games found.{' '}
-                    <Link to="/fetch-games" className="text-indigo-500 hover:text-indigo-400">
-                      Import your games
-                    </Link>
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Insights */}
-          <div>
-            <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Insights
-            </h2>
-            <LatestBatchCoachCard
-              coach={dashboardData?.latest_batch_coach}
-              isDarkMode={isDarkMode}
-            />
-            <InsightCard
-              title="Performance Insights"
-              icon={PieChart}
-              insights={
-                dashboardData?.insights?.length
-                  ? dashboardData.insights
-                  : (dashboardData?.game_stats?.total_games || dashboardData?.total_games || 0) > 0
-                    ? [{
-                        type: 'success',
-                        text: 'Run Batch Coach or analyze individual games to unlock more personalized insights.',
-                      }]
-                    : [{
-                        type: 'success',
-                        text: 'Import and analyze games to unlock personalized performance insights.',
-                      }]
-              }
-            />
-          </div>
-        </div>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <DashboardSinceLastVisit sinceLastVisit={dashboardData.sinceLastVisit} />
+        <DashboardHero dashboardData={dashboardData} username={user?.username || 'there'} />
+        {shouldShowFocusCard(dashboardData, user) ? (
+          <DashboardFocusCard dashboardData={dashboardData} />
+        ) : null}
+        <DashboardRecentActivity games={dashboardData.recent_games} user={user} />
+        <DashboardMoreStats dashboardData={dashboardData} />
       </div>
     </div>
   );
