@@ -13,7 +13,11 @@ from typing import Any, Dict, List, Optional, Union
 
 import redis
 from celery import Task, chord, group, shared_task
-from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded, TimeLimitExceeded
+from celery.exceptions import (
+    MaxRetriesExceededError,
+    SoftTimeLimitExceeded,
+    TimeLimitExceeded,
+)
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.core.cache import cache
@@ -46,12 +50,12 @@ from .error_handling import (
     ValidationError,
 )
 from .game_analyzer import AnalysisError, GameAnalyzer
+from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 from .single_game_observability import (
     SingleGameAnalysisTimer,
     count_plies_in_pgn,
     is_celery_time_limit_error,
 )
-from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 from .task_manager import (
     TASK_STATUS_FAILURE,
     TASK_STATUS_PENDING,

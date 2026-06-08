@@ -3,7 +3,6 @@
 from unittest.mock import MagicMock
 
 from celery.exceptions import SoftTimeLimitExceeded
-
 from core.single_game_observability import (
     SingleGameAnalysisTimer,
     count_plies_in_pgn,

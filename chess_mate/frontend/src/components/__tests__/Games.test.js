@@ -43,6 +43,15 @@ jest.mock('../../services/authService', () => ({
   checkAuthStatus: jest.fn().mockReturnValue(true),
 }));
 
+jest.mock('../../services/api', () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn().mockResolvedValue({
+      data: { single_game_sends_completion_email: true },
+    }),
+  },
+}));
+
 // Mock useNavigate
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
@@ -83,7 +92,12 @@ describe('Games Component', () => {
     render(
       <ThemeProvider>
         <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <UserContext.Provider value={{ credits: 100 }}>
+          <UserContext.Provider
+            value={{
+              credits: 100,
+              user: { preferences: { single_game_free_used: true } },
+            }}
+          >
             <Games />
           </UserContext.Provider>
         </MemoryRouter>
