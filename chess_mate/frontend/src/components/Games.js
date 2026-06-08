@@ -8,6 +8,8 @@ import { useTheme } from '../context/ThemeContext';
 import { Box, CircularProgress } from '@mui/material';
 import { checkAuthStatus } from '../services/authService';
 import { formatListOpeningLabel } from '../utils/formatListOpeningLabel';
+import { getGameAnalysisStatusLabel, isGameAnalyzed } from '../utils/gameAnalysisStatus';
+import GamePlatformBadge from './GamePlatformBadge';
 
 const Games = () => {
   const [games, setGames] = useState([]);
@@ -464,6 +466,9 @@ const Games = () => {
                         Opponent
                       </th>
                       <th scope="col" className={`px-3 py-3.5 text-left text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                        Platform
+                      </th>
+                      <th scope="col" className={`px-3 py-3.5 text-left text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
                         Opening
                       </th>
                       <th scope="col" className={`px-3 py-3.5 text-left text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
@@ -486,6 +491,9 @@ const Games = () => {
                         <td className={`whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'} sm:pl-6`}>
                           {game.opponent}
                         </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                          <GamePlatformBadge platform={game.platform} isDarkMode={isDarkMode} />
+                        </td>
                         <td className={`whitespace-nowrap px-3 py-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
                           {formatListOpeningLabel(game)}
                         </td>
@@ -498,24 +506,20 @@ const Games = () => {
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm">
-                          {(game.status === 'analyzed' || game.analysis_status === 'analyzed') ? (
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                              ${isDarkMode ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800'}`}>
-                              Analyzed
-                            </span>
-                          ) : (
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                              ${isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'}`}>
-                              {game.analysis_status || game.status || 'Pending'}
-                            </span>
-                          )}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            isGameAnalyzed(game)
+                              ? (isDarkMode ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800')
+                              : (isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800')
+                          }`}>
+                            {getGameAnalysisStatusLabel(game)}
+                          </span>
                         </td>
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                           <button
                             onClick={() => handleAnalyzeGame(game.id)}
                             className={`text-indigo-600 hover:text-indigo-900 ${isDarkMode ? 'text-indigo-400 hover:text-indigo-300' : ''}`}
                           >
-                            {game.status === 'analyzed' ? 'Reanalyze' : 'Analyze'} Game
+                            {isGameAnalyzed(game) ? 'Reanalyze' : 'Analyze'} Game
                             <span className="sr-only">, game {game.id}</span>
                           </button>
                         </td>

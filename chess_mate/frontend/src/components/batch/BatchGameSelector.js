@@ -19,6 +19,7 @@ import {
   Typography
 } from '@mui/material';
 import { fetchUserGames } from '../../services/apiRequests';
+import { formatGamePlatformLabel } from '../../utils/gamePlatform';
 
 const timeControlOptions = [
   { value: 'all', label: 'All Time Controls' },
@@ -234,6 +235,13 @@ const BatchGameSelector = ({ onSubmit, isLoading }) => {
                             variant="outlined"
                             label={String(game.time_control || game.time_control_type || 'unknown').toUpperCase()}
                           />
+                          {formatGamePlatformLabel(game.platform) ? (
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label={formatGamePlatformLabel(game.platform)}
+                            />
+                          ) : null}
                         </Stack>
                       }
                       secondary={

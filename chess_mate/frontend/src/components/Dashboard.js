@@ -22,6 +22,7 @@ import { formatDate } from '../utils/dateUtils';
 import { fetchDashboardData, refreshDashboardCache } from '../services/apiRequests';
 import LoadingSpinner from './LoadingSpinner';
 import WelcomeGuide from './WelcomeGuide';
+import GamePlatformBadge from './GamePlatformBadge';
 
 const StatCard = ({ title, value, icon: Icon, trend, color = 'indigo' }) => {
   const { isDarkMode } = useTheme();
@@ -204,6 +205,7 @@ const RecentGameCard = ({ game }) => {
             }`}>
               {game.result ? game.result.toUpperCase() : 'UNKNOWN'}
             </span>
+            <GamePlatformBadge platform={game.platform} isDarkMode={isDarkMode} />
           </div>
           <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             {game.date_played ? (
