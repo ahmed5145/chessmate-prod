@@ -369,13 +369,29 @@ const SingleGameAnalysis = () => {
         taskId: activeTaskIdRef.current,
       });
       console.log(`Analysis status for game ${gameId}:`, statusResponse);
+
+      const isTransientPollingIssue = statusResponse.rateLimited
+        || statusResponse.status === 'RATE_LIMITED'
+        || statusResponse.status === 'POLLING_TRANSIENT';
+
       pollDelayRef.current = computeNextPollDelay({
         currentDelay: pollDelayRef.current,
         minDelay: POLL_MIN_DELAY,
         maxDelay: POLL_MAX_DELAY,
-        hadError: false,
+        hadError: statusResponse.status === 'POLLING_TRANSIENT',
+        retryAfterSeconds: statusResponse.retryAfterSeconds,
       });
 
+      if (isTransientPollingIssue) {
+        if (statusResponse.rateLimited || statusResponse.status === 'RATE_LIMITED') {
+          setLoadingMessage('Status checks paused briefly while the server catches up. Your review is still running.');
+        } else {
+          setLoadingMessage('Reconnecting to analysis status…');
+        }
+        return;
+      }
+
+      pollingErrorCount.current = 0;
       const classification = classifyAnalysisPollingStatus(statusResponse.status, statusResponse.progress);
 
       // If we have a complete analysis, fetch it

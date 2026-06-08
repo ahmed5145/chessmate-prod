@@ -3,7 +3,9 @@ import {
   computeNextPollDelay,
   hasRenderableAnalysisData,
   isAnalysisInFlight,
+  isRateLimitError,
   normalizeAnalysisResponsePayload,
+  parseRateLimitRetrySeconds,
   shouldPollStatus,
 } from '../gameAnalysisService';
 
@@ -83,6 +85,38 @@ describe('gameAnalysisService polling helpers', () => {
     expect(shouldPollStatus('IN_PROGRESS')).toBe(true);
     expect(shouldPollStatus('pending', 25)).toBe(true);
     expect(shouldPollStatus('unknown_status', 50)).toBe(true);
+  });
+
+  test('shouldPollStatus continues polling for transient transport issues', () => {
+    expect(shouldPollStatus('RATE_LIMITED')).toBe(true);
+    expect(shouldPollStatus('POLLING_TRANSIENT')).toBe(true);
+  });
+
+  test('detects rate limit errors and parses retry delay', () => {
+    const error = {
+      response: {
+        status: 429,
+        data: {
+          code: 'RATE_001',
+          details: { reset_time: 16, endpoint_type: 'GAMES' },
+        },
+      },
+    };
+
+    expect(isRateLimitError(error)).toBe(true);
+    expect(parseRateLimitRetrySeconds(error)).toBe(16);
+  });
+
+  test('computeNextPollDelay honors server retry-after for rate limits', () => {
+    expect(
+      computeNextPollDelay({
+        currentDelay: 5000,
+        minDelay: 5000,
+        maxDelay: 30000,
+        hadError: false,
+        retryAfterSeconds: 16,
+      })
+    ).toBe(16500);
   });
 
   test('normalizes wrapped analysis payload under analysis_data', () => {
