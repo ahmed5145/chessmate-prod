@@ -27,6 +27,13 @@ const StatItem = ({ label, value, icon: Icon, isDarkMode }) => (
 
 const getClassificationBadgeClass = (classification, isDarkMode) => {
   const value = String(classification || 'neutral').toLowerCase().replace(/_/g, ' ');
+
+  if (value === 'brilliant') {
+    return isDarkMode ? 'bg-cyan-900 text-cyan-300' : 'bg-cyan-100 text-cyan-700';
+  }
+  if (value === 'great' || value === 'great move') {
+    return isDarkMode ? 'bg-blue-950 text-blue-300' : 'bg-blue-900 text-blue-100';
+  }
   if (value === 'blunder' || value === 'mistake') {
     return isDarkMode ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-700';
   }
@@ -54,6 +61,19 @@ const pickNumber = (...values) => {
   return 0;
 };
 
+const pickAccuracy = (overallAccuracy, moveQualityAccuracy, ...fallbacks) => {
+  const overallParsed = Number(overallAccuracy);
+  const moveQualityParsed = Number(moveQualityAccuracy);
+
+  if (Number.isFinite(overallParsed) && overallParsed > 0) {
+    return overallParsed;
+  }
+  if (Number.isFinite(moveQualityParsed) && moveQualityParsed > 0) {
+    return moveQualityParsed;
+  }
+  return pickNumber(overallAccuracy, moveQualityAccuracy, ...fallbacks);
+};
+
 const SingleGameReport = ({
   analysisData,
   analysis,
@@ -69,10 +89,7 @@ const SingleGameReport = ({
     engineMeta,
     coaching,
     criticalMoments,
-    summary,
-    phases,
     displayMetrics,
-    isAnalysisUnavailable,
     tableMoves,
     drillLink,
     playerColor,
@@ -127,7 +144,9 @@ const SingleGameReport = ({
 
     const accuracy = unavailable
       ? 'N/A'
-      : formatNumber(pickNumber(overall.accuracy, moveQuality.accuracy, overall.accuracy_score, metricsData.accuracy));
+      : formatNumber(
+        pickAccuracy(overall.accuracy, moveQuality.accuracy, overall.accuracy_score, metricsData.accuracy)
+      );
     const mistakes = unavailable
       ? 'N/A'
       : formatNumber(pickNumber(overall.mistakes, overall.total_mistakes, pickNumber(overall.blunders, 0) + pickNumber(overall.mistakes, 0)));

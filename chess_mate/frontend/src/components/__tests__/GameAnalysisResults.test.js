@@ -14,6 +14,14 @@ jest.mock('react-chartjs-2', () => ({
   Line: () => null,
 }));
 
+jest.mock('../batch/LichessActionButton', () => function MockLichessActionButton({ label }) {
+  return <a href="https://lichess.org/training">{label}</a>;
+});
+
+jest.mock('../singlegame/SingleGameFooterCta', () => function MockSingleGameFooterCta() {
+  return <div data-testid="single-game-footer-cta" />;
+});
+
 describe('GameAnalysisResults', () => {
   it('renders coaching hero when coaching payload is present', () => {
     render(
@@ -67,10 +75,10 @@ describe('GameAnalysisResults', () => {
     expect(screen.getByText('Overall Accuracy')).toBeInTheDocument();
     expect(screen.getByText('88.5%')).toBeInTheDocument();
     expect(screen.getByText(/All moves/i)).toBeInTheDocument();
-    expect(screen.getByText('e4')).toBeInTheDocument();
-    expect(screen.getByText('Nf3')).toBeInTheDocument();
-    expect(screen.getByText('Good')).toBeInTheDocument();
-    expect(screen.getByText('Best')).toBeInTheDocument();
+    expect(screen.getAllByText('e4').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Nf3').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Good').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Best').length).toBeGreaterThan(0);
   });
 
   it('renders move insights from legacy movesAnalysis shape', () => {
@@ -93,7 +101,7 @@ describe('GameAnalysisResults', () => {
     render(<GameAnalysisResults analysisData={analysisData} />);
 
     expect(screen.getByText(/All moves/i)).toBeInTheDocument();
-    expect(screen.getByText('Qh5')).toBeInTheDocument();
+    expect(screen.getAllByText('Qh5').length).toBeGreaterThan(0);
     expect(screen.getByText('Mistake')).toBeInTheDocument();
   });
 
