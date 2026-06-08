@@ -63,7 +63,7 @@ describe('apiRequests misc API', () => {
         opponent: 'Alice',
         analysis_status: 'analyzed',
       });
-      expect(data.results[1].analysis_status).toBe('pending');
+      expect(data.results[1].analysis_status).toBe('unanalyzed');
     });
 
     it('maps 401 to login message', async () => {

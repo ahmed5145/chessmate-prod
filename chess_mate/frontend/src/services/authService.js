@@ -1,4 +1,12 @@
 import { API_URL } from '../config';
+import {
+  clearAllTokenStorage,
+  getRememberMePreference,
+  readAccessToken,
+  readRefreshToken,
+  writeAccessToken,
+  writeTokens,
+} from '../utils/tokenStorage';
 
 const buildApiUrl = (path) => {
     const base = (API_URL || '').replace(/\/$/, '');
@@ -6,81 +14,26 @@ const buildApiUrl = (path) => {
     return `${base}${suffix}`;
 };
 
-const parseLegacyTokens = () => {
-    try {
-        return JSON.parse(localStorage.getItem('tokens') || '{}');
-    } catch (e) {
-        console.error('Error parsing tokens from localStorage:', e);
-        return {};
-    }
-};
-
 // Token storage helper functions
-export const getAccessToken = () => {
-    const directToken =
-        localStorage.getItem('access_token') ||
-        localStorage.getItem('accessToken');
+export const getAccessToken = () => readAccessToken();
 
-    if (directToken) {
-        return directToken;
-    }
+export const getRefreshToken = () => readRefreshToken();
 
-    const tokens = parseLegacyTokens();
-    return tokens.access || null;
-};
-
-export const getRefreshToken = () => {
-    const directToken =
-        localStorage.getItem('refresh_token') ||
-        localStorage.getItem('refreshToken');
-
-    if (directToken) {
-        return directToken;
-    }
-
-    const tokens = parseLegacyTokens();
-    return tokens.refresh || null;
-};
-
-export const setTokens = (accessToken, refreshToken) => {
-    // Store in both formats for backward compatibility.
-    if (accessToken) {
-        localStorage.setItem('access_token', accessToken);
-        localStorage.setItem('accessToken', accessToken);
-    } else {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('accessToken');
-    }
-
-    if (refreshToken) {
-        localStorage.setItem('refresh_token', refreshToken);
-        localStorage.setItem('refreshToken', refreshToken);
-    } else {
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('refreshToken');
-    }
-
-    // Also update old format
-    const tokensObj = {
+export const setTokens = (accessToken, refreshToken, options = {}) => {
+    const rememberMe = options.rememberMe !== false;
+    writeTokens(accessToken, refreshToken, rememberMe);
+    return {
         access: accessToken || null,
-        refresh: refreshToken || null
+        refresh: refreshToken || null,
     };
+};
 
-    if (accessToken || refreshToken) {
-        localStorage.setItem('tokens', JSON.stringify(tokensObj));
-    } else {
-        localStorage.removeItem('tokens');
-    }
-
-    return tokensObj;
+export const setAccessToken = (accessToken) => {
+    writeAccessToken(accessToken);
 };
 
 export const clearTokens = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('tokens');
+    clearAllTokenStorage();
 };
 
 export const refreshTokens = async () => {
@@ -108,8 +61,9 @@ export const refreshTokens = async () => {
         const data = await response.json();
 
         if (data && data.access) {
-            // Store the new tokens
-            setTokens(data.access, data.refresh || refreshToken);
+            setTokens(data.access, data.refresh || refreshToken, {
+                rememberMe: getRememberMePreference(),
+            });
             return data;
         }
 
@@ -148,7 +102,6 @@ export const resetPassword = async (uid, token, newPassword) => {
 
 export const checkAuthStatus = async () => {
     try {
-        // Get tokens using helper functions
         const accessToken = getAccessToken();
         const refreshToken = getRefreshToken();
 
@@ -156,10 +109,8 @@ export const checkAuthStatus = async () => {
             return false;
         }
 
-        // If we have an access token, verify it's not expired
         if (accessToken) {
             try {
-                // Parse the JWT to check expiration
                 const base64Url = accessToken.split('.')[1];
                 const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
                 const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
@@ -168,7 +119,6 @@ export const checkAuthStatus = async () => {
 
                 const { exp } = JSON.parse(jsonPayload);
 
-                // If token is not expired, user is authenticated
                 if (exp * 1000 > Date.now()) {
                     return true;
                 }
@@ -177,7 +127,6 @@ export const checkAuthStatus = async () => {
             }
         }
 
-        // If access token is expired but we have refresh token, try to refresh
         if (refreshToken) {
             try {
                 const response = await refreshTokens();

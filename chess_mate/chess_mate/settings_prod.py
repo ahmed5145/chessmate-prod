@@ -229,10 +229,18 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_IMPORTS = ("core.tasks",)
 
+# JWT refresh lifetimes for login "remember me" (session vs persistent)
+JWT_REFRESH_TOKEN_LIFETIME_REMEMBER = timedelta(
+    days=int(os.getenv("JWT_REFRESH_REMEMBER_DAYS", "30"))
+)
+JWT_REFRESH_TOKEN_LIFETIME_SESSION = timedelta(
+    hours=int(os.getenv("JWT_REFRESH_SESSION_HOURS", "12"))
+)
+
 # JWT settings
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "REFRESH_TOKEN_LIFETIME": JWT_REFRESH_TOKEN_LIFETIME_REMEMBER,
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": True,

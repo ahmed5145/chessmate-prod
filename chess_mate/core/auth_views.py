@@ -133,6 +133,15 @@ class EmailVerificationToken:
             return False, "Error validating token"
 
 
+def _parse_remember_me(value) -> bool:
+    """Interpret remember_me from JSON body (defaults to True)."""
+    if value is None:
+        return True
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() not in ("false", "0", "no", "off")
+
+
 def _requires_email_verification() -> bool:
     return bool(getattr(settings, "REQUIRE_EMAIL_VERIFICATION", not settings.DEBUG))
 
@@ -443,8 +452,16 @@ def login_view(request):
                 "Email not verified. Please check your inbox or use " "“Resend verification email” on the login page."
             )
 
-        # Generate tokens
+        remember_me = _parse_remember_me(request.data.get("remember_me", True))
+
+        # Generate tokens with refresh lifetime tied to remember-me choice
         refresh = RefreshToken.for_user(user)
+        refresh_lifetime = (
+            getattr(settings, "JWT_REFRESH_TOKEN_LIFETIME_REMEMBER", settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"])
+            if remember_me
+            else getattr(settings, "JWT_REFRESH_TOKEN_LIFETIME_SESSION", timedelta(hours=12))
+        )
+        refresh.set_exp(lifetime=refresh_lifetime)
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 

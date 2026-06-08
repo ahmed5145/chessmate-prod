@@ -9,9 +9,13 @@ import {
 } from './gameAnalysisService';
 
 // Authentication functions
-export const loginUser = async (email, password) => {
+export const loginUser = async (email, password, rememberMe = true) => {
     try {
-        const response = await api.post("/api/v1/auth/login/", { email, password });
+        const response = await api.post("/api/v1/auth/login/", {
+            email,
+            password,
+            remember_me: rememberMe,
+        });
 
         // Check the response structure
         if (!response.data) {
@@ -43,7 +47,7 @@ export const loginUser = async (email, password) => {
         }
 
         // Persist tokens through shared helper to keep all key formats in sync.
-        setTokens(accessToken, refreshToken);
+        setTokens(accessToken, refreshToken, { rememberMe });
 
         // Set default Authorization header
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
@@ -137,12 +141,21 @@ const extractGamesFromPage = (data) => {
 };
 
 const normalizeGameRow = (game) => {
-    const normalizedAnalysisStatus =
-        game.analysis_status || game.status || (game.analysis ? 'analyzed' : 'pending');
+    const rawStatus = String(game.analysis_status || game.status || '').toLowerCase();
     const isAnalyzed =
-        normalizedAnalysisStatus === 'analyzed' ||
-        normalizedAnalysisStatus === 'completed' ||
+        rawStatus === 'analyzed' ||
+        rawStatus === 'completed' ||
         !!game.analysis;
+    let normalizedAnalysisStatus;
+    if (isAnalyzed) {
+        normalizedAnalysisStatus = 'analyzed';
+    } else if (rawStatus === 'analyzing') {
+        normalizedAnalysisStatus = 'analyzing';
+    } else if (rawStatus === 'failed' || rawStatus === 'error') {
+        normalizedAnalysisStatus = rawStatus;
+    } else {
+        normalizedAnalysisStatus = 'unanalyzed';
+    }
     return {
         id: game.id,
         opponent: game.opponent || 'Unknown',

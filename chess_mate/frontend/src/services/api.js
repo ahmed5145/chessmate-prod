@@ -2,6 +2,13 @@ import axios from 'axios';
 import { jwtDecode } from "jwt-decode";
 import { toast } from 'react-hot-toast';
 import { API_URL } from '../config';
+import {
+    clearTokens,
+    getAccessToken,
+    getRefreshToken,
+    setTokens,
+} from './authService';
+import { getRememberMePreference } from '../utils/tokenStorage';
 
 // Same-origin deploy: empty base; paths already start with /api/v1/
 const getBaseUrl = () => (API_URL || '').replace(/\/$/, '');
@@ -98,59 +105,6 @@ const requiresCsrf = (url, method) => {
     return true;
 };
 
-// Unified function to get and set the access token
-const getAccessToken = () => {
-    // Try all possible storage locations
-    const accessToken = localStorage.getItem('access_token') || localStorage.getItem('accessToken');
-
-    // Check old format
-    const oldTokens = localStorage.getItem('tokens');
-    if (!accessToken && oldTokens) {
-        try {
-            const { access } = JSON.parse(oldTokens);
-            return access;
-        } catch (e) {
-            console.error('Error parsing old tokens format:', e);
-        }
-    }
-
-    return accessToken;
-};
-
-// Set access token with consistent key name
-const setAccessToken = (token) => {
-    localStorage.setItem('access_token', token);
-    // Also update old format for backward compatibility
-    const oldTokens = localStorage.getItem('tokens');
-    if (oldTokens) {
-        try {
-            const tokens = JSON.parse(oldTokens);
-            tokens.access = token;
-            localStorage.setItem('tokens', JSON.stringify(tokens));
-        } catch (e) {
-            console.error('Error updating old tokens format:', e);
-        }
-    }
-};
-
-// Get refresh token from any storage location
-const getRefreshToken = () => {
-    const refreshToken = localStorage.getItem('refresh_token') || localStorage.getItem('refreshToken');
-
-    // Check old format
-    const oldTokens = localStorage.getItem('tokens');
-    if (!refreshToken && oldTokens) {
-        try {
-            const { refresh } = JSON.parse(oldTokens);
-            return refresh;
-        } catch (e) {
-            console.error('Error parsing old tokens format:', e);
-        }
-    }
-
-    return refreshToken;
-};
-
 // Unified token refresh function that returns a promise
 const refreshTokenAsync = async () => {
     // Use existing promise if already refreshing
@@ -171,17 +125,18 @@ const refreshTokenAsync = async () => {
     })
     .then(response => {
         if (response.data && response.data.access) {
-            setAccessToken(response.data.access);
+            setTokens(
+                response.data.access,
+                response.data.refresh || getRefreshToken(),
+                { rememberMe: getRememberMePreference() },
+            );
             return response.data.access;
         }
         throw new Error('Invalid token refresh response');
     })
     .catch(error => {
         console.error('Token refresh failed:', error);
-        // Clear tokens on refresh failure
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('tokens');
+        clearTokens();
         throw error;
     })
     .finally(() => {

@@ -45,8 +45,9 @@ describe('apiRequests auth API', () => {
       expect(api.post).toHaveBeenCalledWith('/api/v1/auth/login/', {
         email: 'player@example.com',
         password: 'secret',
+        remember_me: true,
       });
-      expect(setTokens).toHaveBeenCalledWith('access-1', 'refresh-1');
+      expect(setTokens).toHaveBeenCalledWith('access-1', 'refresh-1', { rememberMe: true });
       expect(api.defaults.headers.common.Authorization).toBe('Bearer access-1');
       expect(result).toEqual({
         success: true,
@@ -63,9 +64,9 @@ describe('apiRequests auth API', () => {
         },
       });
 
-      await loginUser('a@b.com', 'pw');
+      await loginUser('a@b.com', 'pw', false);
 
-      expect(setTokens).toHaveBeenCalledWith('access-2', 'refresh-2');
+      expect(setTokens).toHaveBeenCalledWith('access-2', 'refresh-2', { rememberMe: false });
     });
 
     it('throws when tokens are missing from response', async () => {

@@ -108,12 +108,18 @@ const Games = () => {
 
   // Helper function to determine if a game should be polled
   const shouldPollGame = (game) => {
-    // Don't poll if we don't have a game ID
-    if (!game.id) return false;
+    if (!game.id || isGameAnalyzed(game)) {
+      return false;
+    }
 
-    // Use the shared helper to check if we should continue polling
-    // Prioritize analysis_status over status
-    const statusToCheck = game.analysis_status || game.status;
+    const statusToCheck = String(game.analysis_status || game.status || '').toLowerCase();
+    if (statusToCheck === 'analyzing') {
+      return true;
+    }
+    if (['unanalyzed', 'not_analyzed', 'pending', 'failed', 'error'].includes(statusToCheck)) {
+      return false;
+    }
+
     return shouldPollStatus(statusToCheck);
   };
 

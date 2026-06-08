@@ -62,6 +62,39 @@ class TestAuthViews:
         assert response.data["email"] == test_user.email
         assert response.data["username"] == test_user.username
 
+    def test_login_remember_me_controls_refresh_lifetime(self, api_client, test_user, settings):
+        from datetime import datetime, timezone as dt_timezone
+
+        from rest_framework_simplejwt.backends import TokenBackend
+
+        url = reverse("login")
+        backend = TokenBackend(
+            algorithm=settings.SIMPLE_JWT["ALGORITHM"],
+            signing_key=settings.SIMPLE_JWT["SIGNING_KEY"],
+        )
+
+        remember_response = api_client.post(
+            url,
+            {"email": "test@example.com", "password": "testpassword123", "remember_me": True},
+            format="json",
+        )
+        session_response = api_client.post(
+            url,
+            {"email": "test@example.com", "password": "testpassword123", "remember_me": False},
+            format="json",
+        )
+
+        remember_exp = backend.decode(remember_response.data["refresh"], verify=False)["exp"]
+        session_exp = backend.decode(session_response.data["refresh"], verify=False)["exp"]
+        now = datetime.now(dt_timezone.utc).timestamp()
+
+        remember_days = (remember_exp - now) / 86400
+        session_hours = (session_exp - now) / 3600
+
+        assert remember_days > 20
+        assert session_hours < 24
+        assert remember_exp > session_exp
+
     def test_login_invalid_credentials(self, api_client):
         url = reverse("login")
         data = {"email": "nonexistent@example.com", "password": "wrongpassword"}

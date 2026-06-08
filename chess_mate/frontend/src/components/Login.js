@@ -6,12 +6,14 @@ import { toast } from "react-hot-toast";
 import { useTheme } from "../context/ThemeContext";
 import { useUser } from '../contexts/UserContext';
 import { extractApiError } from '../utils/apiErrors';
+import { getRememberMePreference } from '../utils/tokenStorage';
 
 const Login = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState(location.state?.email || "");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(getRememberMePreference);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [showUnverifiedHelp, setShowUnverifiedHelp] = useState(false);
@@ -69,7 +71,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const result = await loginUser(email, password);
+      const result = await loginUser(email, password, rememberMe);
 
       if (result.success) {
         setUser(result.user);
@@ -162,6 +164,24 @@ const Login = () => {
             </div>
 
             <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(event) => setRememberMe(event.target.checked)}
+                  disabled={loading}
+                  className={`h-4 w-4 rounded border ${
+                    isDarkMode
+                      ? 'border-gray-500 bg-gray-700 text-indigo-500 focus:ring-indigo-500'
+                      : 'border-gray-300 text-indigo-600 focus:ring-indigo-500'
+                  }`}
+                />
+                <span className={isDarkMode ? 'text-gray-200' : 'text-gray-700'}>
+                  Remember me
+                </span>
+              </label>
               <div className="text-sm">
                 <Link
                   to="/forgot-password"

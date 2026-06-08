@@ -22,6 +22,10 @@ jest.mock('../../contexts/UserContext', () => ({
   useUser: () => ({ setUser: mockSetUser }),
 }));
 
+jest.mock('../../utils/tokenStorage', () => ({
+  getRememberMePreference: jest.fn(() => true),
+}));
+
 // Mock useNavigate
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
@@ -68,7 +72,7 @@ describe('Login Component', () => {
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { state: { showWelcome: true } })
     );
-    expect(loginUser).toHaveBeenCalledWith('test@example.com', 'testpass');
+    expect(loginUser).toHaveBeenCalledWith('test@example.com', 'testpass', true);
     expect(mockSetUser).toHaveBeenCalledWith({ id: 1, email: 'test@example.com' });
     expect(toast.success).toHaveBeenCalledWith('Login successful!', { id: 'login-success' });
   });
