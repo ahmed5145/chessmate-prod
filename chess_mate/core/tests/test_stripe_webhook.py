@@ -125,6 +125,7 @@ def test_public_site_config():
     assert "demo_batch_share_token" in response.data
     assert response.data["demo_batch_share_token"] is None
     assert response.data["batch_sends_completion_email"] is True
+    assert response.data["single_game_sends_completion_email"] is True
     assert response.data["batch_eta_minutes_per_game_low"] >= 2
     assert "legal_governing_law" in response.data
     assert response.data["legal_entity_incorporated"] is False

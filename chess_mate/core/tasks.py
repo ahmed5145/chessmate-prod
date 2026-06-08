@@ -464,6 +464,22 @@ def analyze_game_task(
         game.analysis_status = "completed"
         game.save(update_fields=["analysis_status"])
 
+        if user_id and getattr(settings, "SINGLE_GAME_SEND_COMPLETE_EMAIL", True):
+            try:
+                from django.contrib.auth.models import User
+
+                from .single_game_notifications import send_single_game_complete_email
+
+                notify_user = User.objects.select_related("profile").get(id=user_id)
+                send_single_game_complete_email(notify_user, game, analysis_result)
+            except Exception as email_exc:
+                logger.warning(
+                    "[%s] Single-game complete email failed for game %s: %s",
+                    task_id,
+                    game_id,
+                    email_exc,
+                )
+
         # Return success response
         logger.info(f"[{task_id}] Analysis for game {game_id} completed successfully")
         return {

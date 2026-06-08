@@ -512,4 +512,61 @@ Rollout: staging → internal dogfood → 10% prod → 100% after metrics stable
 
 ---
 
+## 14. Completion notifications (batch parity)
+
+**Status:** Implemented (2026-06-01)
+
+### Problem
+
+Batch Coach emails on completion and tells users they can close the tab. Single-game relied on Games polling + toast only — easy to miss when the user navigates away.
+
+### Target parity
+
+| Capability | Batch Coach | Single-game (target) |
+|------------|-------------|----------------------|
+| Start job | `POST` batch analyze | `POST /games/{id}/analyze/` |
+| Progress | Poll batch status + loading UI | Poll `analysis/status/?task_id=` + Games row status |
+| One job at a time | `batchStartBlocked` + server daily limits | Per-game `already_running` + `get_active_tasks_for_game` |
+| Email on success | `send_batch_complete_email` | `send_single_game_complete_email` |
+| In-app when signed in | Toast on batch page | Toast on Games + optional browser notification (tab hidden) |
+| User opt-out | Profile `emailNotifications` / `notifications_enabled` | Same shared helper |
+| Ops kill-switch | `BATCH_SEND_COMPLETE_EMAIL` | `SINGLE_GAME_SEND_COMPLETE_EMAIL` |
+| UI copy | “We'll email you…” | Confirm dialog + loading panel + site-config flag |
+
+### Architecture
+
+```
+analyze_game_task (SUCCESS)
+  → send_single_game_complete_email(user, game, GameAnalysis)
+      → notification_preferences.user_wants_analysis_completion_email
+      → templates/email/single_game_complete.html
+      → link: /game/{id}/analysis[?move=N]
+
+Games.js (background poll)
+  → notifySingleGameAnalysisComplete (toast + Notification API if permitted)
+
+GET /api/v1/public/site-config/
+  → single_game_sends_completion_email
+```
+
+### Deferred (not MVP)
+
+- **Web Push (service worker):** requires subscription storage + VAPID keys — use email + in-tab/browser notification for now.
+- **Failure email:** batch does not send on hard fail; single-game matches that behavior.
+- **Per-user concurrent cap:** only per-game dedup today; daily cap via `MAX_SINGLE_ANALYSES_PER_USER_PER_DAY`.
+
+### Tickets
+
+| ID | Item | Status |
+|----|------|--------|
+| SGA-N-01 | `single_game_notifications.py` + template | Done |
+| SGA-N-02 | Hook in `analyze_game_task` on SUCCESS | Done |
+| SGA-N-03 | `notification_preferences.py` (batch + single) | Done |
+| SGA-N-04 | `single_game_sends_completion_email` in site-config | Done |
+| SGA-N-05 | FE copy (confirm, loading, Games toast) | Done |
+| SGA-N-06 | Browser notification when tab hidden (permission granted) | Done |
+| SGA-N-07 | Web Push service worker | Deferred |
+
+---
+
 *This plan is the engineering execution companion to the strategic audit. Update status tickets in Linear/GitHub Issues using IDs `SGA-{phase}-{BE|FE}-{nn}`.*

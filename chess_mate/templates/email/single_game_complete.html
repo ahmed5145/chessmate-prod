@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Game review ready - ChessMate</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1a1a1a; background: #f5f5f5; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { background: #312e81; color: #fff; text-align: center; padding: 28px 20px; }
+        .content { padding: 30px; }
+        .button { display: inline-block; padding: 12px 24px; background: #4F46E5; color: #fff !important; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 16px 0; }
+        .stats { background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0; }
+        .footer { font-size: 12px; color: #6c757d; text-align: center; padding: 20px; background: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"><h1 style="margin:0;">Depth-20 game review ready</h1></div>
+        <div class="content">
+            <p>Hello {{ user.username }},</p>
+            <p>
+                Your single-game coach review
+                {% if game_context.opponent %}vs <strong>{{ game_context.opponent }}</strong>{% endif %}
+                {% if game_context.result %} ({{ game_context.result }}){% endif %}
+                has finished.
+            </p>
+            {% if game_context.opening_name %}
+            <p style="font-size:14px;color:#555;">Opening: {{ game_context.opening_name }}</p>
+            {% endif %}
+            {% if coach_snippet %}
+            <p style="font-size:15px;color:#333;"><em>{{ coach_snippet }}{% if coach_snippet|length >= 220 %}…{% endif %}</em></p>
+            {% endif %}
+            {% if accuracy_pct %}
+            <div class="stats">
+                <p style="margin:4px 0;">Your accuracy: {{ accuracy_pct|floatformat:1 }}%</p>
+            </div>
+            {% endif %}
+            <p style="text-align:center;">
+                <a href="{{ report_url }}" class="button">View your review</a>
+            </p>
+            {% if worst_moment_move %}
+            <p>We flagged a critical moment at move {{ worst_moment_move }}{% if worst_moment_played %} ({{ worst_moment_played }}){% endif %}:</p>
+            <p style="text-align:center;">
+                <a href="{{ deep_review_url }}" class="button" style="background:#312e81;">Jump to critical moment</a>
+            </p>
+            {% endif %}
+            <p style="word-break:break-all;font-size:13px;color:#666;">{{ report_url }}</p>
+        </div>
+        <div class="footer">
+            <p>ChessMate — Single-game depth-20 review</p>
+        </div>
+    </div>
+</body>
+</html>

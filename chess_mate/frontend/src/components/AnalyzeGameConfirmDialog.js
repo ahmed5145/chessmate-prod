@@ -12,6 +12,7 @@ const AnalyzeGameConfirmDialog = ({
   firstReviewFree = false,
   fromBatch = false,
   confirming = false,
+  sendsCompletionEmail = true,
 }) => {
   const { isDarkMode } = useTheme();
 
@@ -66,7 +67,13 @@ const AnalyzeGameConfirmDialog = ({
             <strong>Your balance:</strong> {creditsAvailable} credit{Number(creditsAvailable) === 1 ? '' : 's'}
           </li>
           <li>Engine depth 20 · coach-style feedback · move-by-move breakdown</li>
-          <li>Runs in the background — you can leave and check Games when ready</li>
+          <li>
+            Runs in the background — you can leave this page
+            {sendsCompletionEmail
+              ? ' and we\'ll email you when the review is ready (plus a toast on Games if you stay signed in).'
+              : ' and check progress on Games when ready.'}
+          </li>
+          <li>Only one analysis per game at a time — starting again while one is running returns the in-progress job.</li>
         </ul>
 
         {!hasEnoughCredits ? (

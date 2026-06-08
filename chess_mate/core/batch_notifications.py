@@ -10,6 +10,7 @@ from django.utils.html import strip_tags
 from .batch_deep_links import build_worst_moment_deep_review_url, worst_moment_summary
 from .batch_labels import BATCH_COACH_EMAIL_SUBJECT
 from .email_utils import get_frontend_base_url, is_email_configured
+from .notification_preferences import user_wants_analysis_completion_email
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,10 @@ def send_batch_complete_email(user, batch_report) -> bool:
     """
     if not is_email_configured():
         logger.info("Batch complete email skipped: SMTP not configured")
+        return False
+
+    if not user_wants_analysis_completion_email(user):
+        logger.info("Batch complete email skipped: user opted out")
         return False
 
     email = getattr(user, "email", None)
