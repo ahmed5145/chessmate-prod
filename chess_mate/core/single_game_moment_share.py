@@ -6,10 +6,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-from django.conf import settings
-
 from core.models import Game, GameAnalysis
 from core.stats_helpers import build_single_game_context
+from django.conf import settings
 
 SHARE_META_KEY = "moment_share"
 
@@ -65,9 +64,7 @@ def find_analysis_by_share_token(share_token: str) -> Optional[GameAnalysis]:
     if not share_token:
         return None
     return (
-        GameAnalysis.objects.select_related("game")
-        .filter(analysis_data__moment_share__token=str(share_token))
-        .first()
+        GameAnalysis.objects.select_related("game").filter(analysis_data__moment_share__token=str(share_token)).first()
     )
 
 
@@ -102,9 +99,7 @@ def build_public_moment_payload(analysis: GameAnalysis, move_number: Optional[in
     coaching_payload = payload.get("coaching")
     if not isinstance(coaching_payload, dict):
         coaching_payload = (
-            feedback_payload.get("coaching")
-            if isinstance(feedback_payload.get("coaching"), dict)
-            else {}
+            feedback_payload.get("coaching") if isinstance(feedback_payload.get("coaching"), dict) else {}
         )
 
     critical_moments = payload.get("critical_moments")
@@ -132,8 +127,6 @@ def build_public_moment_payload(analysis: GameAnalysis, move_number: Optional[in
         "moment": moment,
         "engine_meta": {
             "depth": getattr(analysis, "depth", 20) or 20,
-            "classification_note": (
-                "Single-game uses depth-20 coach model; batch report uses depth-14."
-            ),
+            "classification_note": ("Single-game uses depth-20 coach model; batch report uses depth-14."),
         },
     }

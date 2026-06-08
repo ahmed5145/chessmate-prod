@@ -47,6 +47,7 @@ from .abuse_limits import (
     single_analysis_limit_response,
 )
 from .analysis.feedback_generator import FeedbackGenerator as CoachingFeedbackGenerator
+from .analysis.single_game_context import resolve_batch_context_for_game
 from .cache import cache_get, cache_set
 from .cache_invalidation import invalidate_cache, invalidates_cache
 from .chess_services import ChessComService, LichessService, save_game
@@ -68,8 +69,11 @@ from .error_handling import (
 
 # Local application imports
 from .models import BatchAnalysisReport, Game, GameAnalysis, Player, Profile, User
-from .analysis.single_game_context import resolve_batch_context_for_game
-from .single_game_credits import charge_single_game_credit, resolve_single_game_credit_waiver
+from .serializers import GameSerializer
+from .single_game_credits import (
+    charge_single_game_credit,
+    resolve_single_game_credit_waiver,
+)
 from .single_game_moment_share import (
     build_moment_share_url,
     build_public_moment_payload,
@@ -77,7 +81,6 @@ from .single_game_moment_share import (
     get_or_create_moment_share,
 )
 from .stats_helpers import build_single_game_context
-from .serializers import GameSerializer
 from .task_manager import TaskManager
 from .tasks import analyze_batch_games_task, analyze_game_task, batch_analyze_games_task
 
@@ -783,11 +786,7 @@ class GameViewSet(viewsets.ModelViewSet):
                 batch_id=data.get("batch_id") or data.get("batch"),
                 force_reanalyze=force_reanalyze,
             )
-            if (
-                not request.user.is_staff
-                and not credit_waiver
-                and (profile is None or profile.credits < 1)
-            ):
+            if not request.user.is_staff and not credit_waiver and (profile is None or profile.credits < 1):
                 return Response(
                     {
                         "status": "error",
@@ -1331,11 +1330,7 @@ def analyze_game(request, game_id=None):
         free_from_batch = credit_waiver == "batch"
         free_first_game = credit_waiver == "first_free"
 
-        if (
-            not request.user.is_staff
-            and not credit_waiver
-            and (profile is None or profile.credits < 1)
-        ):
+        if not request.user.is_staff and not credit_waiver and (profile is None or profile.credits < 1):
             return Response(
                 {
                     "status": "error",
@@ -2268,9 +2263,7 @@ def get_game_analysis(request, game_id):
             coaching_payload = payload.get("coaching")
             if not isinstance(coaching_payload, dict):
                 coaching_payload = (
-                    feedback_payload.get("coaching")
-                    if isinstance(feedback_payload.get("coaching"), dict)
-                    else {}
+                    feedback_payload.get("coaching") if isinstance(feedback_payload.get("coaching"), dict) else {}
                 )
             critical_moments = payload.get("critical_moments")
             if not isinstance(critical_moments, list):
@@ -2301,7 +2294,9 @@ def get_game_analysis(request, game_id):
 
             training_block = feedback_payload.get("training_block")
             if not isinstance(training_block, dict):
-                training_block = payload.get("training_block") if isinstance(payload.get("training_block"), dict) else {}
+                training_block = (
+                    payload.get("training_block") if isinstance(payload.get("training_block"), dict) else {}
+                )
 
             response_payload = {
                 "analysis_data": payload,
@@ -2314,9 +2309,7 @@ def get_game_analysis(request, game_id):
                 "training_block": training_block,
                 "engine_meta": {
                     "depth": getattr(analysis, "depth", 20) or 20,
-                    "classification_note": (
-                        "Single-game uses depth-20 coach model; batch report uses depth-14."
-                    ),
+                    "classification_note": ("Single-game uses depth-20 coach model; batch report uses depth-14."),
                 },
             }
             return Response(response_payload, status=status.HTTP_200_OK)
@@ -2350,11 +2343,7 @@ def get_game_analysis(request, game_id):
                         single_game_moments=critical_moments,
                     )
                 legacy_feedback = payload.get("feedback", {})
-                training_block = (
-                    legacy_feedback.get("training_block")
-                    if isinstance(legacy_feedback, dict)
-                    else {}
-                )
+                training_block = legacy_feedback.get("training_block") if isinstance(legacy_feedback, dict) else {}
                 response_payload = {
                     "analysis_data": payload,
                     **payload,
@@ -2366,9 +2355,7 @@ def get_game_analysis(request, game_id):
                     "training_block": training_block if isinstance(training_block, dict) else {},
                     "engine_meta": {
                         "depth": 20,
-                        "classification_note": (
-                            "Single-game uses depth-20 coach model; batch report uses depth-14."
-                        ),
+                        "classification_note": ("Single-game uses depth-20 coach model; batch report uses depth-14."),
                     },
                 }
                 return Response(response_payload, status=status.HTTP_200_OK)

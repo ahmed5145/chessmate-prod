@@ -26,7 +26,9 @@ def _template_coaching(
     worst = critical_moments[0] if critical_moments else None
     opening_name = (game_context or {}).get("opening_name") or "this game"
 
-    priority = (batch_context or {}).get("priority") if isinstance((batch_context or {}).get("priority"), dict) else None
+    priority = (
+        (batch_context or {}).get("priority") if isinstance((batch_context or {}).get("priority"), dict) else None
+    )
     priority_title = str(priority.get("title") or "").strip() if priority else ""
 
     if worst:
@@ -98,7 +100,8 @@ def generate_single_game_coaching(
             [
                 m
                 for m in analyzed_moves
-                if isinstance(m, dict) and str(m.get("classification", "")).lower() in {"blunder", "mistake", "inaccuracy"}
+                if isinstance(m, dict)
+                and str(m.get("classification", "")).lower() in {"blunder", "mistake", "inaccuracy"}
             ],
             key=lambda item: abs(float(item.get("eval_change") or 0)),
             reverse=True,

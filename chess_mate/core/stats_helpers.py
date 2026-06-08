@@ -529,9 +529,7 @@ def build_dashboard_next_action(
     return {
         "type": "import_for_batch",
         "title": f"Import {remaining} more game{plural} for Batch Coach",
-        "description": (
-            "Batch Coach needs at least 5 games. Optional: run a depth-20 review on one game (+1 credit)."
-        ),
+        "description": ("Batch Coach needs at least 5 games. Optional: run a depth-20 review on one game (+1 credit)."),
         "cta_label": "Import games",
         "cta_to": "/fetch-games",
         "secondary_links": secondary_links,
@@ -625,8 +623,7 @@ def build_dashboard_focus_insight(
         return {
             "type": "success",
             "text": (
-                "Run Batch Coach to surface patterns across your games — "
-                "or try an optional deep review on one game."
+                "Run Batch Coach to surface patterns across your games — " "or try an optional deep review on one game."
             ),
             "href": "/batch-analysis",
             "action_label": "Start Batch Coach",

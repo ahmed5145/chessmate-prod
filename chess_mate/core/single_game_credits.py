@@ -78,11 +78,7 @@ def resolve_single_game_credit_waiver(
     if force_reanalyze:
         return ""
 
-    if (
-        from_batch
-        and batch_id not in (None, "")
-        and getattr(settings, "SINGLE_GAME_FREE_FROM_BATCH", True)
-    ):
+    if from_batch and batch_id not in (None, "") and getattr(settings, "SINGLE_GAME_FREE_FROM_BATCH", True):
         from .analysis.single_game_context import game_qualifies_for_batch_waiver
 
         if game_qualifies_for_batch_waiver(user, game_id, batch_id):

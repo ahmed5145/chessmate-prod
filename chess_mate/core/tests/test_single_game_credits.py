@@ -1,9 +1,5 @@
 """Tests for single-game analysis credit refunds on hard failure."""
 
-from django.contrib.auth.models import User
-from django.core.cache import cache
-from django.test import TestCase, override_settings
-
 from core.single_game_credits import (
     charge_single_game_credit,
     mark_single_game_credit_charged,
@@ -12,7 +8,9 @@ from core.single_game_credits import (
     resolve_single_game_credit_waiver,
 )
 from core.tests.profile_helpers import ensure_profile
-
+from django.contrib.auth.models import User
+from django.core.cache import cache
+from django.test import TestCase, override_settings
 
 LOC_MEM_CACHES = {
     "default": {

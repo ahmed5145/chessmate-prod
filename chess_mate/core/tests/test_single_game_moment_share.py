@@ -1,9 +1,8 @@
 """Tests for public single-game moment share links."""
 
-from django.urls import reverse
-
 from core.models import GameAnalysis
 from core.single_game_moment_share import get_or_create_moment_share
+from django.urls import reverse
 
 
 def test_create_and_fetch_public_moment_share(authenticated_client, test_user, test_game):

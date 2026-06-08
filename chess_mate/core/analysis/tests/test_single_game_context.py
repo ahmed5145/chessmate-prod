@@ -1,13 +1,12 @@
 """Tests for batch context resolution on single-game drill-down."""
 
-from django.contrib.auth.models import User
-
 from core.analysis.single_game_context import (
     game_qualifies_for_batch_waiver,
     resolve_batch_context_for_game,
 )
 from core.models import BatchAnalysisReport
 from core.tests.profile_helpers import ensure_profile
+from django.contrib.auth.models import User
 
 
 def test_resolve_batch_context_links_moment_and_priority(test_user):
