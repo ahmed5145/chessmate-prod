@@ -1648,10 +1648,7 @@ def get_task_status(request, game_id=None):
                 "message": task_info.get("message", "Analyzing game..."),
                 "error": task_info.get("error", None),
             }
-            if (
-                str(task_payload["status"]).upper() in ("FAILURE", "FAILED", "ERROR")
-                and not task_payload["error"]
-            ):
+            if str(task_payload["status"]).upper() in ("FAILURE", "FAILED", "ERROR") and not task_payload["error"]:
                 task_payload["error"] = task_payload["message"] or "Analysis task failed"
 
             return JsonResponse(
