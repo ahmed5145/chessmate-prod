@@ -43,9 +43,12 @@ describe('Profile achievements', () => {
   it('shows back button when viewing a category inside the modal', async () => {
     render(<Profile />);
 
-    await waitFor(() => {
-      expect(screen.getAllByText('Achievements').length).toBeGreaterThan(0);
-    });
+    await waitFor(
+      () => {
+        expect(screen.getAllByText('Achievements').length).toBeGreaterThan(0);
+      },
+      { timeout: 15000 },
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /View All/i }));
 

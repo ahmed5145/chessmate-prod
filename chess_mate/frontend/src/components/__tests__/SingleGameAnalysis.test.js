@@ -107,7 +107,11 @@ describe('SingleGameAnalysis', () => {
       expect(screen.getByText('Game Analysis Results')).toBeInTheDocument();
     });
 
-    expect(fetchGameAnalysis).toHaveBeenCalledWith('1');
+    expect(fetchGameAnalysis).toHaveBeenCalledWith('1', 0, {
+      batchId: null,
+      move: null,
+      priority: null,
+    });
   });
 
   it('renders error state when API call fails', async () => {
