@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import Login from '../Login';
 import { toast } from 'react-hot-toast';
 import { loginUser } from '../../services/apiRequests';
+import { getRememberMePreference } from '../../utils/tokenStorage';
 
 // Mock react-hot-toast
 jest.mock('react-hot-toast');
@@ -36,6 +37,7 @@ jest.mock('react-router-dom', () => ({
 describe('Login Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    getRememberMePreference.mockReturnValue(true);
   });
 
   const renderWithRouter = () =>

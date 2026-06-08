@@ -13,7 +13,7 @@ const Login = () => {
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState(location.state?.email || "");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(getRememberMePreference);
+  const [rememberMe, setRememberMe] = useState(() => getRememberMePreference());
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [showUnverifiedHelp, setShowUnverifiedHelp] = useState(false);
