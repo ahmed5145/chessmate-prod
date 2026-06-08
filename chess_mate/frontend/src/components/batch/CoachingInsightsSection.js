@@ -36,11 +36,26 @@ const InsightCard = ({ icon: Icon, title, children, accent = 'primary' }) => (
   </Paper>
 );
 
+const filterStrengthPatterns = (patterns, batchSummary) => {
+  const worstPhase = batchSummary?.worst_phase;
+  const hasRepertoireGaps = Array.isArray(batchSummary?.repertoire_gaps)
+    && batchSummary.repertoire_gaps.length > 0;
+
+  if (worstPhase !== 'opening' && !hasRepertoireGaps) {
+    return patterns;
+  }
+
+  return patterns.filter((item) => item.pattern !== 'opening_preparation');
+};
+
 const CoachingInsightsSection = ({ batch_summary, coaching_report }) => {
   const band = batch_summary?.rating_band_coaching;
-  const strengths = Array.isArray(batch_summary?.strength_patterns)
-    ? batch_summary.strength_patterns
-    : [];
+  const strengths = filterStrengthPatterns(
+    Array.isArray(batch_summary?.strength_patterns)
+      ? batch_summary.strength_patterns
+      : [],
+    batch_summary
+  );
   const narrative = coaching_report?.coaching_narrative;
   const phases = narrative && typeof narrative === 'object'
     ? [

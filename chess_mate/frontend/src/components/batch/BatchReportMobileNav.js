@@ -2,9 +2,9 @@
  * Horizontal section pills for mobile / narrow viewports (desktop uses BatchReportToc).
  */
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Box, Chip } from '@mui/material';
-import { scrollToBatchSection } from '../../utils/batchReportScroll';
+import { scrollToBatchSection, useBatchReportSectionSpy } from '../../utils/batchReportScroll';
 import {
   BATCH_REPORT_MOBILE_NAV_TOP,
   BATCH_REPORT_PAGE_GUTTER_SX,
@@ -13,32 +13,7 @@ import {
 const INDIGO = '#4f46e5';
 
 const BatchReportMobileNav = ({ sections = [] }) => {
-  const [activeId, setActiveId] = useState(sections[0]?.id || null);
-
-  useEffect(() => {
-    const elements = sections
-      .map((section) => document.getElementById(section.id))
-      .filter(Boolean);
-
-    if (elements.length === 0) {
-      return undefined;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible[0]?.target?.id) {
-          setActiveId(visible[0].target.id);
-        }
-      },
-      { rootMargin: '-24% 0px -50% 0px', threshold: [0.1, 0.35, 0.6] }
-    );
-
-    elements.forEach((element) => observer.observe(element));
-    return () => observer.disconnect();
-  }, [sections]);
+  const activeId = useBatchReportSectionSpy(sections);
 
   if (!sections.length) {
     return null;
@@ -85,10 +60,7 @@ const BatchReportMobileNav = ({ sections = [] }) => {
               label={section.label}
               size="small"
               clickable
-              onClick={() => {
-                scrollToBatchSection(section.id);
-                setActiveId(section.id);
-              }}
+              onClick={() => scrollToBatchSection(section.id)}
               sx={{
                 flexShrink: 0,
                 fontWeight: isActive ? 700 : 500,

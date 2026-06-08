@@ -60,4 +60,30 @@ describe('CoachingInsightsSection', () => {
     expect(screen.getByText(/You rarely fell behind/i)).toBeInTheDocument();
     expect(screen.getByText(/Seen in 4 games/i)).toBeInTheDocument();
   });
+
+  it('hides opening preparation strength when opening is the weakest phase', () => {
+    render(
+      <CoachingInsightsSection
+        batch_summary={{
+          worst_phase: 'opening',
+          strength_patterns: [
+            {
+              pattern: 'opening_preparation',
+              detail: 'Opening phase averaged 78% accuracy across 8 games.',
+              frequency: '5/8 games',
+            },
+            {
+              pattern: 'endgame_technique',
+              detail: 'Converted rook endings cleanly.',
+              frequency: '3/8 games',
+            },
+          ],
+        }}
+        coaching_report={{}}
+      />
+    );
+
+    expect(screen.queryByText(/Opening Preparation/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Endgame Technique/i)).toBeInTheDocument();
+  });
 });

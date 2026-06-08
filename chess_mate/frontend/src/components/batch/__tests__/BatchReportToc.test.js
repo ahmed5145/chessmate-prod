@@ -13,11 +13,13 @@ describe('BATCH_REPORT_SECTIONS order', () => {
     const prioritiesIdx = ids.indexOf('batch-section-priorities');
     const criticalIdx = ids.indexOf('batch-section-critical-moments');
     const trainingIdx = ids.indexOf('batch-section-training');
+    const gamesIdx = ids.indexOf('batch-section-games');
 
     expect(summaryIdx).toBeGreaterThanOrEqual(0);
     expect(prioritiesIdx).toBeGreaterThan(summaryIdx);
     expect(criticalIdx).toBeGreaterThan(prioritiesIdx);
-    expect(trainingIdx).toBe(ids.length - 1);
+    expect(trainingIdx).toBeGreaterThan(criticalIdx);
+    expect(gamesIdx).toBe(ids.length - 1);
   });
 });
 

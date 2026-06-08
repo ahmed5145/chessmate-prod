@@ -2,10 +2,10 @@
  * Sticky section navigation for batch coach reports.
  */
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Box, List, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
 import { getRemainingStudyDrillLinks } from '../../utils/practiceNextLinks';
-import { scrollToBatchSection } from '../../utils/batchReportScroll';
+import { scrollToBatchSection, useBatchReportSectionSpy } from '../../utils/batchReportScroll';
 
 export const BATCH_REPORT_SECTIONS = [
   { id: 'batch-section-summary', label: 'Executive summary' },
@@ -64,36 +64,10 @@ export const buildBatchReportTocSections = (
 const INDIGO = '#4f46e5';
 
 const BatchReportToc = ({ sections = BATCH_REPORT_SECTIONS }) => {
-  const [activeId, setActiveId] = useState(sections[0]?.id || null);
-
-  useEffect(() => {
-    const elements = sections
-      .map((section) => document.getElementById(section.id))
-      .filter(Boolean);
-
-    if (elements.length === 0) {
-      return undefined;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible[0]?.target?.id) {
-          setActiveId(visible[0].target.id);
-        }
-      },
-      { rootMargin: '-20% 0px -55% 0px', threshold: [0.1, 0.35, 0.6] }
-    );
-
-    elements.forEach((element) => observer.observe(element));
-    return () => observer.disconnect();
-  }, [sections]);
+  const activeId = useBatchReportSectionSpy(sections);
 
   const handleSectionClick = (sectionId) => {
     scrollToBatchSection(sectionId);
-    setActiveId(sectionId);
   };
 
   return (

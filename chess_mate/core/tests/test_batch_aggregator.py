@@ -281,6 +281,27 @@ def test_batch_aggregator_data_consistency():
         assert pattern["detail"].strip() != ""
 
 
+def test_strength_patterns_omit_opening_prep_when_opening_is_worst_phase():
+    """Per-game opening scores can look fine while batch phase average still flags opening as weakest."""
+    games = []
+    for index in range(6):
+        opening_drop = 0.55 if index < 2 else 0.15
+        game = _make_game_result(f"g-{index}", "1-0", "Italian Game", opening_drop, 0.08, "pin", "C50")
+        game["phase_breakdown"]["middlegame"] = {
+            "moves": 12,
+            "avg_eval_drop": 0.1,
+            "blunders": 0,
+            "mistakes": 0,
+        }
+        games.append(game)
+
+    batch_summary = aggregate_batch(games, ['[Date "2026.05.01"]'] * 6)
+
+    assert batch_summary["worst_phase"] == "opening"
+    patterns = {pattern["pattern"] for pattern in batch_summary["strength_patterns"]}
+    assert "opening_preparation" not in patterns
+
+
 def test_count_results_from_player_perspective():
     """M3: 0-1 is a win for Black, loss for White."""
     games = [
