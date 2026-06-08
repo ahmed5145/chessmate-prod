@@ -16,10 +16,7 @@ def test_is_celery_time_limit_error():
 
 
 def test_count_plies_in_pgn():
-    pgn = (
-        '[Event "Test"]\n\n'
-        "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *\n"
-    )
+    pgn = '[Event "Test"]\n\n' "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *\n"
     assert count_plies_in_pgn(pgn) == 6
 
 

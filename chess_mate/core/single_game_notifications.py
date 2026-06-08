@@ -135,10 +135,7 @@ def send_single_game_complete_email(user, game, analysis_model) -> bool:
     except Exception as exc:
         logger.warning("Single-game complete template render failed: %s", exc)
         opponent = game_context.get("opponent") or "your opponent"
-        html_body = (
-            f"Your ChessMate depth-20 review vs {opponent} is ready.\n"
-            f"View report: {report_url}\n"
-        )
+        html_body = f"Your ChessMate depth-20 review vs {opponent} is ready.\n" f"View report: {report_url}\n"
 
     try:
         mail.send_mail(

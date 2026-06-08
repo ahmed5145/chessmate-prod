@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import { fetchUserGames } from '../../services/apiRequests';
 import { checkAuthStatus } from '../../services/authService';
 import { analyzeSpecificGame } from '../../services/gameAnalysisService';
+import api from '../../services/api';
 
 // Mock react-hot-toast
 jest.mock('react-hot-toast');
@@ -86,6 +87,9 @@ describe('Games Component', () => {
     fetchUserGames.mockResolvedValue(mockGames);
     checkAuthStatus.mockResolvedValue(true);
     analyzeSpecificGame.mockResolvedValue({ status: 'success' });
+    api.get.mockResolvedValue({
+      data: { single_game_sends_completion_email: true },
+    });
   });
 
   const renderWithProviders = () =>

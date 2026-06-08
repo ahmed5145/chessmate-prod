@@ -66,8 +66,7 @@ class SingleGameAnalysisTimer:
         total_seconds = time.monotonic() - self._started
         payload = " ".join(f"{key}={value}" for key, value in extra.items() if value is not None)
         logger.info(
-            "single_game_analysis COMPLETE task_id=%s game_id=%s depth=%s plies=%s "
-            "total_seconds=%.2f phases=%s%s%s",
+            "single_game_analysis COMPLETE task_id=%s game_id=%s depth=%s plies=%s " "total_seconds=%.2f phases=%s%s%s",
             self.task_id,
             self.game_id,
             self.depth,
