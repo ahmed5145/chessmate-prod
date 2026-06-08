@@ -56,7 +56,11 @@ const BatchReportPreview = () => {
   const priority = report.coaching_report?.top_3_priorities?.[0];
 
   return (
-    <section ref={containerRef} className="mb-4">
+    <section
+      ref={containerRef}
+      className="mb-4"
+      aria-label="Example Batch Coach report preview"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div>
           <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${
@@ -87,6 +91,7 @@ const BatchReportPreview = () => {
           value={activeTab}
           onChange={handleTabChange}
           variant="fullWidth"
+          aria-label="Example report sections"
           sx={{
             borderBottom: 1,
             borderColor: isDarkMode ? 'divider' : 'grey.200',
@@ -95,17 +100,23 @@ const BatchReportPreview = () => {
           }}
         >
           {PREVIEW_TABS.map((tab) => (
-            <Tab key={tab.id} label={tab.label} />
+            <Tab key={tab.id} label={tab.label} id={`preview-tab-${tab.id}`} aria-controls={`preview-panel-${tab.id}`} />
           ))}
         </Tabs>
 
         <Box
+          role="tabpanel"
+          id={`preview-panel-${PREVIEW_TABS[activeTab]?.id}`}
+          aria-labelledby={`preview-tab-${PREVIEW_TABS[activeTab]?.id}`}
           sx={{
             position: 'relative',
             maxHeight: { xs: 360, sm: 400 },
             overflow: 'hidden',
             p: { xs: 1.5, sm: 2 },
             pointerEvents: 'none',
+            '@media (prefers-reduced-motion: reduce)': {
+              scrollBehavior: 'auto',
+            },
             '& a, & button': { pointerEvents: 'none' },
           }}
         >

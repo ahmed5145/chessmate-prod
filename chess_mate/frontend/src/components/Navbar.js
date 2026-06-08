@@ -57,6 +57,7 @@ const Navbar = () => {
     { to: '/batch-analysis', icon: <LineChart size={20} />, text: 'Batch Coach' },
     { to: '/profile', icon: <User size={20} />, text: 'Profile' },
   ] : [
+    { to: '/example/batch-report', icon: <LineChart size={20} />, text: 'Example report' },
     { to: '/login', icon: <LogIn size={20} />, text: 'Login' },
     { to: '/register', icon: <UserPlus size={20} />, text: 'Sign Up', highlight: true },
   ];

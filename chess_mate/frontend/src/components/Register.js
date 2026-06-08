@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { registerUser } from "../services/apiRequests";
 import { KeyRound, Mail, User } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useTheme } from "../context/ThemeContext";
 import { extractApiError } from "../utils/apiErrors";
+import { getMarketingSourceFromSearch } from "../utils/marketingLinks";
+import { trackMarketingEvent } from "../utils/marketingAnalytics";
 
 const validatePassword = (password) => {
   const errors = [];
@@ -37,7 +39,9 @@ const Register = () => {
   const [validationErrors, setValidationErrors] = useState([]);
   const [passwordsMatch, setPasswordsMatch] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
   const { isDarkMode } = useTheme();
+  const marketingSource = getMarketingSourceFromSearch(location.search);
 
   // Check password validation on change
   useEffect(() => {
@@ -81,6 +85,10 @@ const Register = () => {
       const response = await registerUser({ username, email, password });
 
       if (response.status === 'success' && response.requires_email_verification) {
+        trackMarketingEvent('register_complete', {
+          source: marketingSource || 'direct',
+          requires_verification: true,
+        });
         toast.success(
           response.message || 'Account created. Check your inbox to verify your email.',
           { id: 'registration-verify' }
@@ -93,6 +101,10 @@ const Register = () => {
 
       const tokenPayload = response.data || response;
       if (response.status === 'success' && tokenPayload?.access && tokenPayload?.refresh) {
+        trackMarketingEvent('register_complete', {
+          source: marketingSource || 'direct',
+          requires_verification: false,
+        });
         localStorage.setItem('tokens', JSON.stringify({
           access: tokenPayload.access,
           refresh: tokenPayload.refresh,
