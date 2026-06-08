@@ -581,14 +581,24 @@ const SingleGameAnalysis = () => {
         batchId,
         move,
         priority,
+        ignoreStoredError: Boolean(activeTaskIdRef.current),
       });
 
       // Check for error message in the data itself
       if (data.error) {
         console.warn('Error returned in analysis data:', data.error);
+        // While the current task is still queued or running, keep polling — don't surface stale errors.
+        const inFlight = data.status === 'PENDING'
+          || data.status === 'STARTED'
+          || data.status === 'PROCESSING'
+          || data.status === 'PROGRESS'
+          || data.status === 'IN_PROGRESS';
+        if (inFlight && activeTaskIdRef.current) {
+          isFetchingAnalysisRef.current = false;
+          return false;
+        }
         setAnalysisError(data.error);
-                setLoading(false);
-        // Remove from localStorage to prevent future false "completed" states
+        setLoading(false);
         localStorage.removeItem(`analysis_complete_${gameId}`);
         isFetchingAnalysisRef.current = false;
         return false;
@@ -666,6 +676,7 @@ const SingleGameAnalysis = () => {
 
       // Reset localStorage flags
       localStorage.removeItem(`analysis_complete_${gameId}`);
+      localStorage.removeItem(`analysis_error_${gameId}`);
       localStorage.removeItem(`last_known_progress_${gameId}`);
       localStorage.removeItem(`last_progress_update_${gameId}`);
 
@@ -801,17 +812,6 @@ const SingleGameAnalysis = () => {
     }
   }, [authError, navigate]);
 
-  // Update the component to handle error states
-  useEffect(() => {
-    // If the page is loaded directly and we have an error from localStorage,
-    // we should clear it and try again
-    const storedError = localStorage.getItem(`analysis_error_${gameId}`);
-    if (storedError) {
-      setAnalysisError(storedError);
-      // Only remove the error when user manually retries
-    }
-  }, [gameId]);
-
   // Function to handle retry
   const handleRetry = () => {
     // Clear any stored error state
@@ -845,8 +845,8 @@ const SingleGameAnalysis = () => {
     }
   };
 
-  // If there's an error, display it
-  if (analysisError) {
+  // Prefer the loading UI while a fresh analysis is running (ignore stale error state).
+  if (analysisError && !loading) {
     return (
       <ErrorWithRetry
         error={analysisError}

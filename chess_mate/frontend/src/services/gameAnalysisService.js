@@ -387,7 +387,7 @@ export const fetchGameAnalysis = async (gameId, retry = 0, options = {}) => {
     const requestPromise = (async () => {
     // Check if we have a stored error for this game analysis
     const storedError = localStorage.getItem(`analysis_error_${gameId}`);
-    if (storedError && retry === 0) {
+    if (storedError && retry === 0 && !options.ignoreStoredError) {
         console.error(`Analysis error found for game ${gameId}:`, storedError);
         return {
             error: storedError,

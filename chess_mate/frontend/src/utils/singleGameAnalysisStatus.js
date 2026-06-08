@@ -19,7 +19,7 @@ export const humanizeAnalysisStatusMessage = (message, progress = 0) => {
     return {
       status: 'Queued — starting soon',
       detail:
-        'Your depth-20 review is in line. This usually begins within a minute. You can leave this page — check Games for progress, or come back here when ready.',
+        'Your depth-20 review is in line for the background worker. If this lasts more than 2–3 minutes, the analysis worker may be busy or offline — try again shortly or check Games for progress.',
       queued: true,
     };
   }

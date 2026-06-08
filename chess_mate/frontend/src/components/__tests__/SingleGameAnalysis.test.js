@@ -104,6 +104,31 @@ describe('SingleGameAnalysis', () => {
     expect(screen.getByText('Analysis in Progress')).toBeInTheDocument();
   });
 
+  it('does not show a stale localStorage error while a new analysis starts', async () => {
+    localStorage.setItem('analysis_error_168', 'Analysis task failed');
+    analyzeSpecificGame.mockResolvedValue({
+      success: true,
+      task_id: 'fresh-task-id',
+      status: 'success',
+      message: 'Analysis started',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/analysis/168']}>
+        <Routes>
+          <Route path="/analysis/:gameId" element={<SingleGameAnalysis />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(analyzeSpecificGame).toHaveBeenCalled();
+    });
+
+    expect(screen.queryByText(/We couldn't complete the analysis of your game/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Analysis in Progress')).toBeInTheDocument();
+  });
+
   it('renders analysis data when loaded', async () => {
     localStorage.setItem('analysis_complete_1', 'true');
     fetchGameAnalysis.mockResolvedValue({
@@ -127,6 +152,7 @@ describe('SingleGameAnalysis', () => {
       batchId: null,
       move: null,
       priority: null,
+      ignoreStoredError: false,
     });
   });
 
@@ -160,6 +186,7 @@ describe('SingleGameAnalysis', () => {
       batchId: '5',
       move: 12,
       priority: 1,
+      ignoreStoredError: false,
     });
   });
 

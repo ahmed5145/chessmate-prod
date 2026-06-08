@@ -5,7 +5,7 @@ describe('humanizeAnalysisStatusMessage', () => {
     const result = humanizeAnalysisStatusMessage('Task queued, waiting for worker availability', 0);
 
     expect(result.status).toMatch(/queued/i);
-    expect(result.detail).toMatch(/leave this page/i);
+    expect(result.detail).toMatch(/background worker/i);
     expect(result.queued).toBe(true);
   });
 
