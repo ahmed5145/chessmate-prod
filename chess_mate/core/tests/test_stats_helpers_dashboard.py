@@ -9,6 +9,7 @@ from core.stats_helpers import (
     build_dashboard_hero_metrics,
     build_dashboard_next_action,
     build_dashboard_since_last_visit,
+    build_single_game_context,
     format_dashboard_insights,
     mark_dashboard_visit,
     parse_last_dashboard_visit,
@@ -39,6 +40,27 @@ def test_resolve_opponent_uses_platform_username_when_stored_opponent_missing():
         "opponent": "",
     }
     assert resolve_game_opponent_display(row, profile) == "StellarOstrich"
+
+
+@pytest.mark.django_db
+def test_build_single_game_context_includes_platform_and_opponent(test_user):
+    game = Game.objects.create(
+        user=test_user,
+        platform="lichess",
+        game_id="ctx-1",
+        pgn="1. e4 e5",
+        white="testuser",
+        black="rival",
+        result="win",
+        opponent="rival",
+        opening_name="Sicilian Defense",
+        game_url="https://lichess.org/abc",
+    )
+    context = build_single_game_context(game, test_user.profile)
+    assert context["opponent"] == "rival"
+    assert context["platform"] == "lichess"
+    assert context["platform_game_url"] == "https://lichess.org/abc"
+    assert context["opening_name"] == "Sicilian Defense"
 
 
 def test_resolve_opponent_prefers_stored_opponent_field():
@@ -81,6 +103,27 @@ def test_build_dashboard_next_action_open_batch_report():
     )
     assert action["type"] == "open_batch_report"
     assert action["cta_to"] == "/batch-report/9"
+
+
+def test_build_dashboard_next_action_batch_coach_without_single_game_prereq():
+    action = build_dashboard_next_action(
+        total_games=10,
+        analyzed_games=0,
+        latest_batch_coach=None,
+    )
+    assert action["type"] == "start_batch_coach"
+    assert action["cta_to"] == "/batch-analysis"
+
+
+def test_build_dashboard_next_action_import_when_under_five_games():
+    action = build_dashboard_next_action(
+        total_games=3,
+        analyzed_games=0,
+        recent_games=[{"id": 5, "status": "pending"}],
+    )
+    assert action["type"] == "import_for_batch"
+    assert action["cta_to"] == "/fetch-games"
+    assert any(link["to"] == "/game/5/analysis" for link in action["secondary_links"])
 
 
 def test_build_dashboard_focus_insight_prefers_priority():

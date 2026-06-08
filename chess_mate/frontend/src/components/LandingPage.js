@@ -107,8 +107,11 @@ const LandingPage = () => {
             openings, blunders, drills, and a coach-style action plan.
           </p>
 
-          <p className={`text-base mb-8 max-w-xl mx-auto font-medium ${isDarkMode ? 'text-indigo-200' : 'text-indigo-700'}`}>
+          <p className={`text-base mb-4 max-w-xl mx-auto font-medium ${isDarkMode ? 'text-indigo-200' : 'text-indigo-700'}`}>
             Not engine lines per move — patterns across your games.
+          </p>
+          <p className={`text-sm mb-8 max-w-lg mx-auto ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            Drill into any cited game with an optional depth-20 review — proof for your coaching plan.
           </p>
 
           <p className={`text-sm mb-10 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>

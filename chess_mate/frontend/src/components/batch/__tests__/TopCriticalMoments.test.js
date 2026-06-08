@@ -80,9 +80,34 @@ describe('TopCriticalMoments', () => {
     expect(screen.getByTestId('fen-board')).toBeInTheDocument();
     expect(screen.getByText(/You played Qh5/i)).toBeInTheDocument();
     expect(screen.getByText(/You hung the queen on move 18/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Saved game analysis/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Deep review this game/i })).toHaveAttribute(
       'href',
-      '/game/42/analysis'
+      '/game/42/analysis?move=18'
+    );
+  });
+
+  it('includes batch and move in deep review link when batchId provided', () => {
+    renderMoments({
+      batchId: 9,
+      batch_summary: {
+        top_critical_moments: [
+          {
+            game_id: 'game_0',
+            move_number: 18,
+            type: 'blunder',
+            fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR',
+            played_move: 'Qh5',
+            best_move: 'Nf3',
+            eval_swing: 3.25,
+            saved_game_id: 42,
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByRole('link', { name: /Deep review this game/i })).toHaveAttribute(
+      'href',
+      '/game/42/analysis?batch=9&move=18'
     );
   });
 
@@ -94,9 +119,9 @@ describe('TopCriticalMoments', () => {
       'href',
       'https://lichess.org/xyz'
     );
-    expect(screen.getByRole('link', { name: /Saved game analysis/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Deep review this game/i })).toHaveAttribute(
       'href',
-      '/game/42/analysis'
+      '/game/42/analysis?move=18'
     );
   });
 
@@ -111,6 +136,6 @@ describe('TopCriticalMoments', () => {
   it('hides saved game link in read-only mode', () => {
     renderMoments({ batch_summary: {}, readOnly: true });
 
-    expect(screen.queryByRole('link', { name: /Saved game analysis/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Deep review this game/i })).not.toBeInTheDocument();
   });
 });

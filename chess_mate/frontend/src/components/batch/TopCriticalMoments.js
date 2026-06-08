@@ -23,6 +23,7 @@ import {
   getGamePlatformUrl,
   scrollToBatchGame,
 } from '../../utils/batchGameLinks';
+import { buildSingleGameAnalysisLink } from '../../utils/singleGameAnalysisLinks';
 
 const momentSeverityColor = (type) => {
   if (type === 'blunder') return 'error';
@@ -40,7 +41,7 @@ const enrichMoment = (moment, per_game_results) => {
   };
 };
 
-const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false }) => {
+const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false, batchId = null }) => {
   let moments = Array.isArray(batch_summary?.top_critical_moments)
     ? [...batch_summary.top_critical_moments]
     : [];
@@ -138,9 +139,13 @@ const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false 
                       size="small"
                       variant="text"
                       component={RouterLink}
-                      to={`/game/${moment.saved_game_id}/analysis`}
+                      to={buildSingleGameAnalysisLink({
+                        gameId: moment.saved_game_id,
+                        batchId,
+                        move: moment.move_number,
+                      })}
                     >
-                      Saved game analysis
+                      Deep review this game
                     </Button>
                   ) : null}
                 </Box>

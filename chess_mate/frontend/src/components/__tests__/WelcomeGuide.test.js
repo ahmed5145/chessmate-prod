@@ -56,6 +56,7 @@ describe('WelcomeGuide', () => {
     expect(await screen.findByText('Welcome to ChessMate')).toBeInTheDocument();
     expect(screen.getByText(/15 free credits to get started/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /import games/i })).toHaveAttribute('href', '/fetch-games');
+    expect(screen.getByText(/Batch Coach is included after that/i)).toBeInTheDocument();
   });
 
   it('dismisses and persists welcome_guide_seen', async () => {

@@ -125,11 +125,24 @@ describe('Games Component', () => {
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
   });
 
-  test('handles analyze game click', async () => {
+  test('shows credit confirm dialog before analyzing', async () => {
     renderWithProviders();
 
-    const analyzeButtons = await screen.findAllByRole('button', { name: /analyze/i });
+    const analyzeButtons = await screen.findAllByRole('button', { name: /deep review/i });
     fireEvent.click(analyzeButtons[0]);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(/Cost:\s*1 credit/i);
+  });
+
+  test('starts analysis after confirm', async () => {
+    renderWithProviders();
+
+    const analyzeButtons = await screen.findAllByRole('button', { name: /deep review/i });
+    fireEvent.click(analyzeButtons[0]);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Analyze \(1 credit\)/i }));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/game/2/analysis'));
   });
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   analyzeSpecificGame,
   checkAnalysisStatus,
@@ -10,6 +10,8 @@ import {
   shouldPollStatus,
 } from '../services/gameAnalysisService';
 import GameAnalysisResults from './GameAnalysisResults';
+import BatchContextBanner from './singlegame/BatchContextBanner';
+import { parseSingleGameAnalysisSearch } from '../utils/singleGameAnalysisLinks';
 import './SingleGameAnalysis.css';
 import { useTheme } from '../context/ThemeContext';
 import { FaInfoCircle, FaSpinner, FaExclamationTriangle, FaClock, FaCheckCircle } from 'react-icons/fa';
@@ -262,8 +264,10 @@ const NoDataError = ({ gameId, onRetry, onBack }) => (
 
 const SingleGameAnalysis = () => {
   const { gameId } = useParams();
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { isDarkMode } = useTheme();
+  const { batchId, move, priority } = parseSingleGameAnalysisSearch(location.search);
 
   // State variables
   const [analysisData, setAnalysisData] = useState(null);
@@ -272,7 +276,6 @@ const SingleGameAnalysis = () => {
   const [authError, setAuthError] = useState(false);
   const [progress, setProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('Starting analysis...');
-  const [progressStatus, setProgressStatus] = useState('starting'); // starting, analyzing, complete
   const [pollingFailed, setPollingFailed] = useState(false);
   const [analysisStartTime, setAnalysisStartTime] = useState(Date.now());
   const isCeleryRunning = true;
@@ -336,7 +339,6 @@ const SingleGameAnalysis = () => {
       // If we have a complete analysis, fetch it
       if (classification.isSuccess) {
         clearAllIntervals();
-        setProgressStatus('complete');
         setLoadingMessage('Analysis complete! Loading results...');
         analysisCompleted.current = true;
         await fetchAnalysisData();
@@ -512,7 +514,6 @@ const SingleGameAnalysis = () => {
         pollDelayRef.current = POLL_MIN_DELAY;
 
         // Start polling again
-        setProgressStatus('analyzing');
         scheduleStatusPoll(POLL_MIN_DELAY);
       } else {
         setAnalysisError('Failed to restart analysis. Please try again.');
@@ -588,7 +589,6 @@ const SingleGameAnalysis = () => {
       analysisErrorRef.current = false;
       setAuthError(false);
       setPollingFailed(false);
-      setProgressStatus('starting');
       setLoadingMessage('Starting analysis...');
       setStatusMessage('Initializing analysis...');
 
@@ -617,7 +617,6 @@ const SingleGameAnalysis = () => {
       console.log('Analysis started response:', response);
 
       if (response && response.success) {
-        setProgressStatus('analyzing');
         setLoadingMessage('Analysis has started. Initializing...');
 
         // Set an initial delay before polling to give task time to register
@@ -814,8 +813,7 @@ const SingleGameAnalysis = () => {
               <h3 className="font-semibold">{statusMessage}</h3>
             </div>
             <div className={`ml-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              <p>Current step: {loadingMessage}</p>
-              <p>Progress state: {progressStatus}</p>
+              <p>{loadingMessage}</p>
               <p>Time elapsed: {formatTime(elapsedTime)}</p>
               {overdueMessage && (
                 <div className={`mt-4 p-3 rounded-md ${
@@ -867,12 +865,18 @@ const SingleGameAnalysis = () => {
           <h1 className="text-2xl font-bold">Game Analysis Results</h1>
         </div>
 
+        <BatchContextBanner batchId={batchId} move={move} priority={priority} />
+
         {analysisData && (
           (analysisData.moves && analysisData.moves.length > 0) ||
           (analysisData.positions && analysisData.positions.length > 0) ||
           (analysisData.metrics && Object.keys(analysisData.metrics).length > 0)
         ) ? (
-          <GameAnalysisResults analysisData={analysisData} isDarkMode={isDarkMode} />
+          <GameAnalysisResults
+            analysisData={analysisData}
+            batchId={batchId}
+            initialMoveNumber={move}
+          />
         ) : (
           <NoDataError
             gameId={gameId}

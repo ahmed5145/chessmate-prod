@@ -43,10 +43,6 @@ export const resolveNextAction = (dashboardData = {}) => {
   }
 
   const totalGames = Number(dashboardData.total_games) || 0;
-  const analyzedGames = Number(
-    dashboardData.game_stats?.analyzed_games
-    ?? dashboardData.game_stats?.analyzed
-  ) || 0;
   const batchCoach = dashboardData.latest_batch_coach;
   const recentGames = Array.isArray(dashboardData.recent_games) ? dashboardData.recent_games : [];
   const firstUnanalyzed = recentGames.find((game) => !isGameRowAnalyzed(game));
@@ -61,56 +57,59 @@ export const resolveNextAction = (dashboardData = {}) => {
     };
   }
 
-  if (analyzedGames === 0) {
-    if (firstUnanalyzed?.id) {
-      return {
-        title: 'Analyze your latest game',
-        description: 'See accuracy, mistakes, and engine feedback for your most recent game.',
-        ctaLabel: 'Analyze game',
-        ctaTo: `/game/${firstUnanalyzed.id}/analysis`,
-        secondaryLinks: [{ label: 'All games', to: '/games' }],
-      };
-    }
+  if (batchCoach?.summary && batchCoach?.batch_id) {
+    const summaryPreview = String(batchCoach.summary).trim();
     return {
-      title: 'Analyze a game',
-      description: 'Pick a game from your library to run your first analysis.',
-      ctaLabel: 'View games',
-      ctaTo: '/games',
-      secondaryLinks: [{ label: 'Import more', to: '/fetch-games' }],
+      title: 'Pick up your latest coach report',
+      description: summaryPreview.length > 180 ? `${summaryPreview.slice(0, 180)}…` : summaryPreview,
+      ctaLabel: 'Open report',
+      ctaTo: `/batch-report/${batchCoach.batch_id}`,
+      secondaryLinks: [
+        { label: 'Run new batch', to: '/batch-analysis' },
+        { label: 'View games', to: '/games' },
+      ],
     };
   }
 
-  if (analyzedGames < 5) {
-    const remaining = 5 - analyzedGames;
-    return {
-      title: `Analyze ${remaining} more game${remaining === 1 ? '' : 's'} for Batch Coach`,
-      description: 'Batch Coach finds patterns across 5–30 games. You are almost there.',
-      ctaLabel: 'View games',
-      ctaTo: '/games',
-      secondaryLinks: [{ label: 'Import games', to: '/fetch-games' }],
-    };
-  }
-
-  if (!batchCoach?.summary) {
+  if (totalGames >= 5) {
     return {
       title: 'Run Batch Coach on your games',
-      description: `You have ${analyzedGames} analyzed games ready for a coaching report.`,
+      description: 'Batch Coach analyzes 5–30 imported games and finds cross-game patterns — no need to run single-game review first.',
       ctaLabel: 'Start Batch Coach',
       ctaTo: '/batch-analysis',
-      secondaryLinks: [{ label: 'View games', to: '/games' }],
+      secondaryLinks: [
+        { label: 'View games', to: '/games' },
+        ...(firstUnanalyzed?.id
+          ? [{ label: 'Optional: deep review one game', to: `/game/${firstUnanalyzed.id}/analysis` }]
+          : []),
+      ],
     };
   }
 
-  const summaryPreview = String(batchCoach.summary).trim();
+  const remaining = 5 - totalGames;
+  const tryGameLink = firstUnanalyzed?.id
+    ? [{ label: 'Optional: try deep review', to: `/game/${firstUnanalyzed.id}/analysis` }]
+    : [];
+
+  if (totalGames > 0) {
+    return {
+      title: `Import ${remaining} more game${remaining === 1 ? '' : 's'} for Batch Coach`,
+      description: 'Batch Coach needs at least 5 games. Optional: run a depth-20 review on one game (+1 credit).',
+      ctaLabel: 'Import games',
+      ctaTo: '/fetch-games',
+      secondaryLinks: [
+        { label: 'View games', to: '/games' },
+        ...tryGameLink,
+      ],
+    };
+  }
+
   return {
-    title: 'Pick up your latest coach report',
-    description: summaryPreview.length > 180 ? `${summaryPreview.slice(0, 180)}…` : summaryPreview,
-    ctaLabel: 'Open report',
-    ctaTo: `/batch-report/${batchCoach.batch_id}`,
-    secondaryLinks: [
-      { label: 'Run new batch', to: '/batch-analysis' },
-      { label: 'View games', to: '/games' },
-    ],
+    title: 'Import games to get started',
+    description: 'Pull games from Chess.com or Lichess to unlock Batch Coach.',
+    ctaLabel: 'Import games',
+    ctaTo: '/fetch-games',
+    secondaryLinks: [{ label: 'Credits & pricing', to: '/credits' }],
   };
 };
 
@@ -170,8 +169,8 @@ export const resolveFocusInsight = (dashboardData = {}) => {
   return {
     type: 'success',
     text: totalGames > 0
-      ? 'Analyze more games or run Batch Coach to surface your top improvement areas.'
-      : 'Import and analyze games to unlock personalized coaching.',
+      ? 'Run Batch Coach to surface patterns across your games — or try an optional deep review on one game.'
+      : 'Import games to unlock Batch Coach and personalized coaching.',
     href: totalGames > 0 ? '/games' : '/fetch-games',
     actionLabel: totalGames > 0 ? 'View games' : 'Import games',
   };

@@ -67,6 +67,7 @@ from .error_handling import (
 
 # Local application imports
 from .models import BatchAnalysisReport, Game, GameAnalysis, Player, Profile, User
+from .stats_helpers import build_single_game_context
 from .serializers import GameSerializer
 from .task_manager import TaskManager
 from .tasks import analyze_batch_games_task, analyze_game_task, batch_analyze_games_task
@@ -2161,15 +2162,31 @@ def get_game_analysis(request, game_id):
 
             payload = analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
             feedback_payload = analysis.feedback if isinstance(analysis.feedback, dict) else {}
+            profile = Profile.objects.filter(user=request.user).first()
+            game_context = build_single_game_context(game, profile)
+            coaching_payload = payload.get("coaching")
+            if not isinstance(coaching_payload, dict):
+                coaching_payload = (
+                    feedback_payload.get("coaching")
+                    if isinstance(feedback_payload.get("coaching"), dict)
+                    else {}
+                )
+            critical_moments = payload.get("critical_moments")
+            if not isinstance(critical_moments, list):
+                critical_moments = coaching_payload.get("critical_moments") or []
+
             response_payload = {
                 "analysis_data": payload,
                 **payload,
                 "feedback": feedback_payload,
-                "game_context": {
-                    "opening_name": game.opening_name,
-                    "white": game.white,
-                    "black": game.black,
-                    "result": game.result,
+                "game_context": game_context,
+                "coaching": coaching_payload,
+                "critical_moments": critical_moments,
+                "engine_meta": {
+                    "depth": getattr(analysis, "depth", 20) or 20,
+                    "classification_note": (
+                        "Single-game uses depth-20 coach model; batch report uses depth-14."
+                    ),
                 },
             }
             return Response(response_payload, status=status.HTTP_200_OK)
@@ -2177,15 +2194,22 @@ def get_game_analysis(request, game_id):
         except GameAnalysis.DoesNotExist:
             if game.analysis:
                 payload = game.analysis if isinstance(game.analysis, dict) else {}
+                profile = Profile.objects.filter(user=request.user).first()
+                game_context = build_single_game_context(game, profile)
+                coaching_payload = payload.get("coaching") if isinstance(payload.get("coaching"), dict) else {}
+                critical_moments = payload.get("critical_moments") or coaching_payload.get("critical_moments") or []
                 response_payload = {
                     "analysis_data": payload,
                     **payload,
                     "feedback": payload.get("feedback", {}),
-                    "game_context": {
-                        "opening_name": game.opening_name,
-                        "white": game.white,
-                        "black": game.black,
-                        "result": game.result,
+                    "game_context": game_context,
+                    "coaching": coaching_payload,
+                    "critical_moments": critical_moments,
+                    "engine_meta": {
+                        "depth": 20,
+                        "classification_note": (
+                            "Single-game uses depth-20 coach model; batch report uses depth-14."
+                        ),
                     },
                 }
                 return Response(response_payload, status=status.HTTP_200_OK)

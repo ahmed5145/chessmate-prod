@@ -392,6 +392,10 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
         # Ensure we have valid results
         if not analysis_result or not hasattr(analysis_result, "id"):
             logger.error(f"[{task_id}] Analysis failed: No valid results returned")
+            if user_id:
+                from .single_game_credits import refund_single_game_credit_on_fail
+
+                refund_single_game_credit_on_fail(user_id, game_id)
             # Update task status to failure
             task_manager.update_task_status(
                 **status_target,
@@ -445,6 +449,11 @@ def analyze_game_task(self, game_id, user_id=None, depth=20, use_ai=True, force_
 
         error_message = str(e)
         error_type = type(e).__name__
+
+        if user_id:
+            from .single_game_credits import refund_single_game_credit_on_fail
+
+            refund_single_game_credit_on_fail(user_id, game_id)
 
         # Update task status to failure
         task_manager.update_task_status(

@@ -27,6 +27,8 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .analysis.feedback_generator import FeedbackGenerator
 from .analysis.metrics_calculator import MetricsCalculator, MetricsError
+from .analysis.single_game_coach_generator import generate_single_game_coaching
+from .analysis.single_game_moments import extract_critical_moments
 from .analysis.stockfish_analyzer import StockfishAnalyzer
 from .cache import CACHE_BACKEND_REDIS, cache_delete, cache_get, cache_set
 from .error_handling import (
@@ -37,7 +39,8 @@ from .error_handling import (
     TaskError,
     ValidationError,
 )
-from .models import Game, GameAnalysis
+from .models import Game, GameAnalysis, Profile
+from .stats_helpers import build_single_game_context
 from .task_manager import TASK_STATUS_FAILURE, TASK_STATUS_SUCCESS, TaskManager
 
 # Configure logging
@@ -561,13 +564,31 @@ class GameAnalyzer:
                     message="Saving analysis results",
                 )
 
+            profile = Profile.objects.filter(user_id=game.user_id).first()
+            game_context = build_single_game_context(game, profile)
+            critical_moments = extract_critical_moments(
+                analyzed_moves,
+                player_color=game_context.get("player_color"),
+            )
+            coaching = generate_single_game_coaching(
+                analyzed_moves=analyzed_moves,
+                metrics_summary=metrics,
+                critical_moments=critical_moments,
+                game_context=game_context,
+                existing_feedback=feedback if isinstance(feedback, dict) else None,
+            )
+
             # Save the analysis data
             analysis_data = analysis_result.analysis_data
             analysis_data["metrics"] = metrics
+            analysis_data["critical_moments"] = critical_moments
+            analysis_data["coaching"] = coaching
+            analysis_data["game_context"] = game_context
             analysis_data["status"] = "complete"
             analysis_data["completed_at"] = timezone.now().isoformat()
             analysis_data["engine_version"] = self.engine.get_engine_version()
             if isinstance(feedback, dict):
+                feedback = {**feedback, "coaching": coaching, "critical_moments_structured": critical_moments}
                 analysis_data["feedback"] = feedback
 
             analysis_result.analysis_data = analysis_data

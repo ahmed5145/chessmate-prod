@@ -17,19 +17,20 @@ describe('dashboardFocus', () => {
     expect(action.ctaTo).toBe('/fetch-games');
   });
 
-  it('suggests analyzing latest game when none analyzed', () => {
+  it('suggests import when fewer than 5 games imported', () => {
     const action = resolveNextAction({
       total_games: 4,
       game_stats: { analyzed_games: 0 },
       recent_games: [{ id: 9, status: 'pending' }],
     });
-    expect(action.ctaTo).toBe('/game/9/analysis');
+    expect(action.ctaTo).toBe('/fetch-games');
+    expect(action.secondaryLinks.some((link) => link.to === '/game/9/analysis')).toBe(true);
   });
 
-  it('suggests batch coach when enough games analyzed', () => {
+  it('suggests batch coach when at least 5 games imported', () => {
     const action = resolveNextAction({
       total_games: 12,
-      game_stats: { analyzed_games: 8 },
+      game_stats: { analyzed_games: 0 },
       latest_batch_coach: null,
     });
     expect(action.ctaTo).toBe('/batch-analysis');

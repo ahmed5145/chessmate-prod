@@ -21,6 +21,7 @@ import FenBoardImage from './FenBoardImage';
 import ReportSectionShell from './ReportSectionShell';
 import { formatGameLabel, humanizeGameIdInText } from '../../utils/formatGameLabel';
 import { BATCH_GAME_FOCUS_EVENT, getGamePlatformLabel } from '../../utils/batchGameLinks';
+import { buildSingleGameAnalysisLink } from '../../utils/singleGameAnalysisLinks';
 import { formatNumber } from '../../utils/formatNumber';
 import { sanitizeReportFloats } from '../../utils/sanitizeReportText';
 
@@ -48,7 +49,7 @@ const buildDefaultExpandedIds = (games = []) => {
   return ids;
 };
 
-const GameAccordion = ({ per_game_results, readOnly = false }) => {
+const GameAccordion = ({ per_game_results, readOnly = false, batchId = null }) => {
   const [expandedIds, setExpandedIds] = useState(() => buildDefaultExpandedIds(per_game_results));
   const [highlightedId, setHighlightedId] = useState(null);
 
@@ -252,11 +253,14 @@ const GameAccordion = ({ per_game_results, readOnly = false }) => {
                   {!readOnly && game.saved_game_id ? (
                     <Link
                       component={RouterLink}
-                      to={`/game/${game.saved_game_id}/analysis`}
+                      to={buildSingleGameAnalysisLink({
+                        gameId: game.saved_game_id,
+                        batchId,
+                      })}
                       variant="caption"
                       sx={{ ml: { sm: 'auto' } }}
                     >
-                      Saved game analysis
+                      Deep review this game
                     </Link>
                   ) : null}
                 </Box>

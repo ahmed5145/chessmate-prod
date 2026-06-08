@@ -177,6 +177,7 @@ const BatchReportSections = ({
               batch_summary={batchReport.batch_summary}
               per_game_results={batchReport.per_game_results}
               readOnly={readOnly}
+              batchId={batchId}
             />
           </SectionWrap>
 
@@ -191,7 +192,11 @@ const BatchReportSections = ({
           </SectionWrap>
 
           <SectionWrap id="batch-section-games">
-            <GameAccordion per_game_results={batchReport.per_game_results} readOnly={readOnly} />
+            <GameAccordion
+              per_game_results={batchReport.per_game_results}
+              readOnly={readOnly}
+              batchId={batchId}
+            />
           </SectionWrap>
         </Box>
       </Box>

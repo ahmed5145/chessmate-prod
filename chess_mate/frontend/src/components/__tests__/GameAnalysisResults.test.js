@@ -7,6 +7,23 @@ jest.mock('../../context/ThemeContext', () => ({
 }));
 
 describe('GameAnalysisResults', () => {
+  it('renders coaching hero when coaching payload is present', () => {
+    render(
+      <GameAnalysisResults
+        analysisData={{
+          coaching: {
+            takeaway: 'Your biggest swing was on move 12.',
+            do_today: 'Replay that position for five minutes.',
+          },
+          moves: [{ move_number: 1, san: 'e4', position: 'fen', eval_after: 0.2, is_white: true }],
+        }}
+      />
+    );
+
+    expect(screen.getByText(/Your biggest swing was on move 12/i)).toBeInTheDocument();
+    expect(screen.getByText(/Replay that position/i)).toBeInTheDocument();
+  });
+
   it('renders metrics and move insights from metrics+moves payload shape', () => {
     const analysisData = {
       metrics: {
@@ -41,7 +58,7 @@ describe('GameAnalysisResults', () => {
 
     expect(screen.getByText('Overall Accuracy')).toBeInTheDocument();
     expect(screen.getByText('88.5%')).toBeInTheDocument();
-    expect(screen.getByText('Move Insights')).toBeInTheDocument();
+    expect(screen.getByText(/All moves/i)).toBeInTheDocument();
     expect(screen.getByText('e4')).toBeInTheDocument();
     expect(screen.getByText('Nf3')).toBeInTheDocument();
     expect(screen.getByText('Good')).toBeInTheDocument();
@@ -67,7 +84,7 @@ describe('GameAnalysisResults', () => {
 
     render(<GameAnalysisResults analysisData={analysisData} />);
 
-    expect(screen.getByText('Move Insights')).toBeInTheDocument();
+    expect(screen.getByText(/All moves/i)).toBeInTheDocument();
     expect(screen.getByText('Qh5')).toBeInTheDocument();
     expect(screen.getByText('Mistake')).toBeInTheDocument();
   });

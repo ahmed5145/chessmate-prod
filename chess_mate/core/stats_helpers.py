@@ -107,6 +107,40 @@ def _is_user_white(game, profile: Optional[Profile]) -> Optional[bool]:
     return None
 
 
+def build_single_game_context(game: Game, profile: Optional[Profile] = None) -> Dict[str, Any]:
+    """Rich header context for single-game analysis UI."""
+    is_white = _is_user_white(game, profile)
+    player_color: Optional[str]
+    if is_white is True:
+        player_color = "white"
+    elif is_white is False:
+        player_color = "black"
+    else:
+        player_color = None
+
+    date_played = None
+    if getattr(game, "date_played", None):
+        date_played = game.date_played.isoformat()
+
+    opening_name = (getattr(game, "opening_name", None) or "").strip()
+    if not opening_name or opening_name.lower() == "unknown opening":
+        opening_name = (getattr(game, "opening_played", None) or "").strip() or opening_name
+
+    return {
+        "id": game.id,
+        "white": game.white,
+        "black": game.black,
+        "opponent": resolve_game_opponent_display(game, profile),
+        "player_color": player_color,
+        "result": game.result,
+        "opening_name": opening_name,
+        "eco": getattr(game, "eco_code", None),
+        "platform": game.platform,
+        "platform_game_url": game.game_url,
+        "date_played": date_played,
+    }
+
+
 def _normalize_accuracy_value(raw: Any) -> Optional[float]:
     if raw is None:
         return None
@@ -443,62 +477,64 @@ def build_dashboard_next_action(
             "secondary_links": [{"label": "Credits & pricing", "to": "/credits"}],
         }
 
-    if analyzed_games <= 0:
+    coach_summary = (coach.get("summary") or "").strip()
+    batch_id = coach.get("batch_id")
+    if coach_summary and batch_id:
+        summary_preview = coach_summary
+        if len(summary_preview) > 180:
+            summary_preview = f"{summary_preview[:180]}…"
+        return {
+            "type": "open_batch_report",
+            "title": "Pick up your latest coach report",
+            "description": summary_preview,
+            "cta_label": "Open report",
+            "cta_to": f"/batch-report/{batch_id}",
+            "secondary_links": [
+                {"label": "Run new batch", "to": "/batch-analysis"},
+                {"label": "View games", "to": "/games"},
+            ],
+        }
+
+    if total_games >= 5:
+        secondary_links = [{"label": "View games", "to": "/games"}]
         if first_unanalyzed and first_unanalyzed.get("id"):
-            game_id = first_unanalyzed["id"]
-            return {
-                "type": "analyze_game",
-                "title": "Analyze your latest game",
-                "description": "See accuracy, mistakes, and engine feedback for your most recent game.",
-                "cta_label": "Analyze game",
-                "cta_to": f"/game/{game_id}/analysis",
-                "secondary_links": [{"label": "All games", "to": "/games"}],
-            }
-        return {
-            "type": "analyze_game",
-            "title": "Analyze a game",
-            "description": "Pick a game from your library to run your first analysis.",
-            "cta_label": "View games",
-            "cta_to": "/games",
-            "secondary_links": [{"label": "Import more", "to": "/fetch-games"}],
-        }
-
-    if analyzed_games < 5:
-        remaining = 5 - analyzed_games
-        plural = "" if remaining == 1 else "s"
-        return {
-            "type": "reach_batch_threshold",
-            "title": f"Analyze {remaining} more game{plural} for Batch Coach",
-            "description": "Batch Coach finds patterns across 5–30 games. You are almost there.",
-            "cta_label": "View games",
-            "cta_to": "/games",
-            "secondary_links": [{"label": "Import games", "to": "/fetch-games"}],
-        }
-
-    if not (coach.get("summary") or "").strip():
+            secondary_links.append(
+                {
+                    "label": "Optional: deep review one game",
+                    "to": f"/game/{first_unanalyzed['id']}/analysis",
+                }
+            )
         return {
             "type": "start_batch_coach",
             "title": "Run Batch Coach on your games",
-            "description": f"You have {analyzed_games} analyzed games ready for a coaching report.",
+            "description": (
+                "Batch Coach analyzes 5–30 imported games and finds cross-game patterns — "
+                "no need to run single-game review first."
+            ),
             "cta_label": "Start Batch Coach",
             "cta_to": "/batch-analysis",
-            "secondary_links": [{"label": "View games", "to": "/games"}],
+            "secondary_links": secondary_links,
         }
 
-    summary_preview = str(coach.get("summary") or "").strip()
-    if len(summary_preview) > 180:
-        summary_preview = f"{summary_preview[:180]}…"
-    batch_id = coach.get("batch_id")
+    remaining = 5 - total_games
+    plural = "" if remaining == 1 else "s"
+    secondary_links = [{"label": "View games", "to": "/games"}]
+    if first_unanalyzed and first_unanalyzed.get("id"):
+        secondary_links.append(
+            {
+                "label": "Optional: try deep review",
+                "to": f"/game/{first_unanalyzed['id']}/analysis",
+            }
+        )
     return {
-        "type": "open_batch_report",
-        "title": "Pick up your latest coach report",
-        "description": summary_preview,
-        "cta_label": "Open report",
-        "cta_to": f"/batch-report/{batch_id}",
-        "secondary_links": [
-            {"label": "Run new batch", "to": "/batch-analysis"},
-            {"label": "View games", "to": "/games"},
-        ],
+        "type": "import_for_batch",
+        "title": f"Import {remaining} more game{plural} for Batch Coach",
+        "description": (
+            "Batch Coach needs at least 5 games. Optional: run a depth-20 review on one game (+1 credit)."
+        ),
+        "cta_label": "Import games",
+        "cta_to": "/fetch-games",
+        "secondary_links": secondary_links,
     }
 
 
@@ -588,14 +624,17 @@ def build_dashboard_focus_insight(
     if total_games > 0:
         return {
             "type": "success",
-            "text": "Analyze more games or run Batch Coach to surface your top improvement areas.",
-            "href": "/games",
-            "action_label": "View games",
+            "text": (
+                "Run Batch Coach to surface patterns across your games — "
+                "or try an optional deep review on one game."
+            ),
+            "href": "/batch-analysis",
+            "action_label": "Start Batch Coach",
         }
 
     return {
         "type": "success",
-        "text": "Import and analyze games to unlock personalized coaching.",
+        "text": "Import games to unlock Batch Coach and personalized coaching.",
         "href": "/fetch-games",
         "action_label": "Import games",
     }

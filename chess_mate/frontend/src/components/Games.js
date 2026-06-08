@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Filter, Search, ChevronLeft, ChevronRight, Swords, CheckCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -10,6 +10,8 @@ import { checkAuthStatus } from '../services/authService';
 import { formatListOpeningLabel } from '../utils/formatListOpeningLabel';
 import { getGameAnalysisStatusLabel, isGameAnalyzed } from '../utils/gameAnalysisStatus';
 import GamePlatformBadge from './GamePlatformBadge';
+import AnalyzeGameConfirmDialog from './AnalyzeGameConfirmDialog';
+import { UserContext } from '../contexts/UserContext';
 
 const Games = () => {
   const [games, setGames] = useState([]);
@@ -27,6 +29,10 @@ const Games = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const { credits = 0 } = useContext(UserContext) || {};
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [confirmingAnalysis, setConfirmingAnalysis] = useState(false);
+  const singleGameCredits = 1;
 
   // Filter and sort games
   const filteredAndSortedGames = games
@@ -249,7 +255,14 @@ const Games = () => {
     }
   };
 
-  const handleAnalyzeGame = async (gameId) => {
+  const openAnalyzeConfirm = (game) => {
+    setConfirmDialog({
+      gameId: game.id,
+      isReanalyze: isGameAnalyzed(game),
+    });
+  };
+
+  const handleAnalyzeGame = async (gameId, { isReanalyze = false } = {}) => {
     try {
       // Check authentication
       const isLoggedIn = await checkAuthStatus();
@@ -259,11 +272,16 @@ const Games = () => {
         return;
       }
 
+      if (Number(credits) < singleGameCredits) {
+        toast.error('Insufficient credits for deep game review.');
+        return;
+      }
+
       // Create unique toast ID for this analysis
       const toastId = `analyze-game-${gameId}`;
 
       // Show loading toast with more descriptive message
-      toast.loading('Starting game analysis...', {
+      toast.loading(isReanalyze ? 'Starting re-analysis...' : 'Starting deep game review...', {
         id: toastId,
         position: 'top-center',
         closeOnClick: false,
@@ -307,6 +325,20 @@ const Games = () => {
     } catch (error) {
       console.error('Error in handleAnalyzeGame:', error);
       toast.error('An unexpected error occurred. Please try again.');
+    }
+  };
+
+  const handleConfirmAnalyze = async () => {
+    if (!confirmDialog?.gameId) {
+      return;
+    }
+    setConfirmingAnalysis(true);
+    const { gameId, isReanalyze } = confirmDialog;
+    setConfirmDialog(null);
+    try {
+      await handleAnalyzeGame(gameId, { isReanalyze });
+    } finally {
+      setConfirmingAnalysis(false);
     }
   };
 
@@ -522,10 +554,11 @@ const Games = () => {
                         </td>
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                           <button
-                            onClick={() => handleAnalyzeGame(game.id)}
+                            onClick={() => openAnalyzeConfirm(game)}
                             className={`text-indigo-600 hover:text-indigo-900 ${isDarkMode ? 'text-indigo-400 hover:text-indigo-300' : ''}`}
                           >
-                            {isGameAnalyzed(game) ? 'Reanalyze' : 'Analyze'} Game
+                            {isGameAnalyzed(game) ? 'Reanalyze' : 'Deep review'}
+                            {!isGameAnalyzed(game) ? ' (1 credit)' : ''}
                             <span className="sr-only">, game {game.id}</span>
                           </button>
                         </td>
@@ -665,6 +698,16 @@ const Games = () => {
           </div>
         </div>
       </div>
+
+      <AnalyzeGameConfirmDialog
+        open={Boolean(confirmDialog)}
+        onClose={() => setConfirmDialog(null)}
+        onConfirm={handleConfirmAnalyze}
+        creditsRequired={singleGameCredits}
+        creditsAvailable={credits}
+        isReanalyze={Boolean(confirmDialog?.isReanalyze)}
+        confirming={confirmingAnalysis}
+      />
     </div>
   );
 };
