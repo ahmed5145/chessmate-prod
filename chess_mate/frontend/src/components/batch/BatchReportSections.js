@@ -166,6 +166,7 @@ const BatchReportSections = ({
             <OpeningSection
               batch_summary={batchReport.batch_summary}
               per_game_results={batchReport.per_game_results}
+              batchId={batchId}
             />
           </SectionWrap>
 

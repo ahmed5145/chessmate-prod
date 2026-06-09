@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import OpeningSection from '../OpeningSection';
 
 jest.mock('../LichessActionButton', () => function MockLichessButton({ label }) {
@@ -9,10 +10,12 @@ jest.mock('../LichessActionButton', () => function MockLichessButton({ label }) 
 const perGameResults = [
   {
     game_id: 'game_0',
+    saved_game_id: 101,
     result: '0-1',
     player_color: 'white',
     opening_name: "Queen's Pawn Game",
     eco_code: 'D00',
+    opponent: 'RivalPlayer',
     platform: 'lichess',
     platform_game_url: 'https://lichess.org/abc',
     phase_breakdown: { opening: { moves: 8, avg_eval_drop: 0.3 } },
@@ -34,26 +37,34 @@ describe('OpeningSection', () => {
     expect(screen.getByText(/No recognizable opening data/i)).toBeInTheDocument();
   });
 
-  it('renders repertoire gaps and example game link', () => {
+  it('renders repertoire gaps with lost-game review links', () => {
     render(
-      <OpeningSection
-        batch_summary={{
-          repertoire_gaps: [
-            {
-              opening_name: "Queen's Pawn Game",
-              eco_code: 'D00',
-              player_color: 'white',
-              record: '0W-1L-0D',
-              summary: 'This line needs review.',
-            },
-          ],
-        }}
-        per_game_results={perGameResults}
-      />
+      <MemoryRouter>
+        <OpeningSection
+          batchId={55}
+          batch_summary={{
+            repertoire_gaps: [
+              {
+                opening_name: "Queen's Pawn Game",
+                eco_code: 'D00',
+                player_color: 'white',
+                record: '0W-1L-0D',
+                summary: 'This line needs review.',
+              },
+            ],
+          }}
+          per_game_results={perGameResults}
+        />
+      </MemoryRouter>
     );
 
     expect(screen.getByText(/Lines to review/i)).toBeInTheDocument();
     expect(screen.getByText(/This line needs review/i)).toBeInTheDocument();
+    expect(screen.getByText(/You lost 1 game in this line/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Review in ChessMate/i })).toHaveAttribute(
+      'href',
+      '/game/101/analysis?mode=review&batch=55'
+    );
     expect(screen.getByRole('link', { name: /View game on lichess/i })).toHaveAttribute(
       'href',
       'https://lichess.org/abc'

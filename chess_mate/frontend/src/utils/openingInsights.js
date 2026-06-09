@@ -249,3 +249,79 @@ export const resolveRepertoireGaps = (batchSummary, perGameResults = []) => {
 
   return rawGaps.filter((gap) => !isUnknownOpening(gap?.opening_name));
 };
+
+const gameMatchesGap = (game, gap) => {
+  if (gap.player_color && game.player_color !== gap.player_color) {
+    return false;
+  }
+  const gapName = String(gap.opening_name || '').trim();
+  const gameName = String(game.opening_name || '').trim();
+  const ecoMatch = gap.eco_code && game.eco_code && gap.eco_code === game.eco_code;
+  const nameMatch = gameName === gapName || gameName.startsWith(`${gapName}:`);
+  return nameMatch || ecoMatch;
+};
+
+export const collectLostGamesForGap = (gap, perGameResults = [], batchId = null) => {
+  if (!Array.isArray(perGameResults)) {
+    return [];
+  }
+
+  return perGameResults
+    .filter((game) => gameMatchesGap(game, gap) && playerOutcome(game) === 'loss')
+    .map((game) => {
+      const openingMoment = (game.critical_moments || []).find(
+        (moment) => moment?.phase === 'opening' && moment?.fen
+      );
+      const fallbackMoment = (game.critical_moments || []).find((moment) => moment?.fen);
+      const moment = openingMoment || fallbackMoment;
+      const savedGameId = game.saved_game_id;
+      const moveNumber = moment?.move_number ?? null;
+      const params = new URLSearchParams({ mode: 'review' });
+      if (batchId != null && batchId !== '') {
+        params.set('batch', String(batchId));
+      }
+      if (moveNumber != null && moveNumber !== '') {
+        params.set('move', String(moveNumber));
+      }
+      const href = savedGameId
+        ? `/game/${savedGameId}/analysis?${params.toString()}`
+        : null;
+
+      return {
+        game_id: game.game_id,
+        saved_game_id: savedGameId,
+        opponent: game.opponent,
+        date_played: game.date_played,
+        opening_name: game.opening_name,
+        eco_code: game.eco_code,
+        platform: game.platform,
+        platform_game_url: game.platform_game_url,
+        opening_fen: moment?.fen || null,
+        move_number: moveNumber,
+        href,
+        game_label: formatGameLabel(game),
+      };
+    })
+    .filter((row) => row.saved_game_id != null);
+};
+
+export const enrichRepertoireGapsWithLostGames = (
+  gaps = [],
+  perGameResults = [],
+  batchId = null
+) => (
+  gaps.map((gap) => {
+    const lostGames = Array.isArray(gap.lost_games) && gap.lost_games.length > 0
+      ? gap.lost_games
+      : collectLostGamesForGap(gap, perGameResults, batchId);
+    const lossCount = lostGames.length;
+    return {
+      ...gap,
+      lost_games: lostGames,
+      loss_count: lossCount,
+      loss_copy: lossCount > 0
+        ? `You lost ${lossCount} game${lossCount === 1 ? '' : 's'} in this line`
+        : null,
+    };
+  })
+);

@@ -1041,7 +1041,7 @@ flowchart TD
 - [ ] **SRG-15** Opt in digest → **one** mail in 7 days; opt out → zero.
 - [ ] **SRG-13** Spaced mail **not** same week as digest (mutual exclusion).
 - [ ] **SRG-18** Phase heatmap cell → example game opens free review (`mode=review`); hidden under 5 analyzed games.
-- [ ] **SRG-21** *(not shipped)* Opening gap → lost games list.
+- [ ] **SRG-21** Opening gap → “You lost N games” + ChessMate review links per loss.
 
 ### Smoke 3 — Growth (P5)
 
@@ -1125,7 +1125,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-19 | ✅ Done | Auto-pick proof games + proof_label in inbox |
 | SRG-11 | ✅ Done | Coach alignment score on batch-linked single-game |
 | SRG-20 | ✅ Done | Batch A vs B moment diff with swing sparklines |
-| SRG-21 | ⬜ Not started | Opening gaps → games |
+| SRG-21 | ✅ Done | Lost games per repertoire gap + review deep links |
 | SRG-22 | ✅ Done | Verify email + one-time welcome after confirm |
 | SRG-23 | ⬜ Not started | First-batch celebration |
 | SRG-24 | ⬜ Not started | Referral credits |

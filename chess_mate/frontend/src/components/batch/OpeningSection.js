@@ -16,26 +16,19 @@ import ReportSectionShell, { ReportSubsection } from './ReportSectionShell';
 import LichessActionButton from './LichessActionButton';
 import { lichessOpeningSearchUrl } from '../../utils/lichessStudyLinks';
 import {
+  enrichRepertoireGapsWithLostGames,
   resolveOpeningInsights,
   resolveRepertoireGaps,
 } from '../../utils/openingInsights';
+import OpeningGapsGames from './OpeningGapsGames';
 
-const findExampleGame = (gap, perGameResults) => {
-  if (!Array.isArray(perGameResults)) {
-    return null;
-  }
-  return perGameResults.find(
-    (game) =>
-      (game.opening_name === gap.opening_name
-        || String(game.opening_name || '').startsWith(`${gap.opening_name}:`))
-      && game.player_color === gap.player_color
-      && game.platform_game_url
-  );
-};
-
-const OpeningSection = ({ batch_summary, per_game_results = [] }) => {
+const OpeningSection = ({ batch_summary, per_game_results = [], batchId = null }) => {
   const openingInsights = resolveOpeningInsights(batch_summary, per_game_results);
-  const gaps = resolveRepertoireGaps(batch_summary, per_game_results);
+  const gaps = enrichRepertoireGapsWithLostGames(
+    resolveRepertoireGaps(batch_summary, per_game_results),
+    per_game_results,
+    batchId
+  );
 
   if (openingInsights.length === 0) {
     return (
@@ -60,7 +53,8 @@ const OpeningSection = ({ batch_summary, per_game_results = [] }) => {
         <ReportSubsection title="Lines to review">
           <List dense disablePadding>
             {gaps.map((gap) => {
-              const linkedGame = findExampleGame(gap, per_game_results);
+              const linkedGame = (gap.lost_games || []).find((game) => game.platform_game_url)
+                || null;
               return (
                 <ListItem
                   key={`gap-${gap.opening_name}-${gap.player_color}`}
@@ -81,14 +75,17 @@ const OpeningSection = ({ batch_summary, per_game_results = [] }) => {
                     {gap.player_color ? ` · as ${gap.player_color}` : ''}
                     {gap.record ? ` · ${gap.record}` : ''}
                   </Typography>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    {gap.summary || (
-                      <>
-                        Review <strong>{gap.opening_name}</strong> as {gap.player_color || 'your color'}.
-                      </>
-                    )}
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                  {gap.summary ? (
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      {gap.summary}
+                    </Typography>
+                  ) : !gap.loss_copy ? (
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      Review <strong>{gap.opening_name}</strong> as {gap.player_color || 'your color'}.
+                    </Typography>
+                  ) : null}
+                  <OpeningGapsGames gap={gap} batchId={batchId} />
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mt: 1 }}>
                     <LichessActionButton
                       label="Study on Lichess"
                       url={lichessOpeningSearchUrl(gap.opening_name, {

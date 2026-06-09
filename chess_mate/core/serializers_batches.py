@@ -12,6 +12,7 @@ from rest_framework import serializers
 from .batch_labels import BATCH_COACH_MAX_GAMES, BATCH_COACH_REQUIRES_MIN
 from .batch_moment_diff import build_batch_moment_diff
 from .fix_rate import build_fix_rate_payload
+from .opening_gaps_games import enrich_batch_summary_opening_gaps
 from .models import BatchAnalysisReport, Game
 
 
@@ -316,6 +317,14 @@ class BatchAnalysisReportSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance: BatchAnalysisReport) -> Dict[str, Any]:
         data = super().to_representation(instance)
+        batch_summary = data.get("batch_summary")
+        per_game_results = data.get("per_game_results")
+        if isinstance(batch_summary, dict):
+            data["batch_summary"] = enrich_batch_summary_opening_gaps(
+                batch_summary,
+                per_game_results if isinstance(per_game_results, list) else [],
+                batch_id=instance.id,
+            )
         request = self.context.get("request")
         if request and getattr(request, "user", None):
             profile = getattr(request.user, "profile", None)
