@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { FaChevronLeft, FaChevronRight, FaCompress, FaExpand } from 'react-icons/fa';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { FaChevronLeft, FaChevronRight, FaCompress, FaExpand, FaVolumeMute, FaVolumeUp } from 'react-icons/fa';
 import FenBoardImage from '../batch/FenBoardImage';
 import EvalChart from '../analysis/EvalChart';
 import { useTheme } from '../../context/ThemeContext';
@@ -13,6 +13,11 @@ import {
   pickEvalSeries,
 } from '../../utils/singleGameMoves';
 import { formatReviewPositionEvalVerbose } from '../../utils/singleGameClassification';
+import {
+  emitMoveNavigationFeedback,
+  readSoundEnabled,
+  writeSoundEnabled,
+} from '../../utils/singleGameMoveSound';
 import MoveClassificationBadge from './MoveClassificationBadge';
 import PositionEvalBar from './PositionEvalBar';
 
@@ -111,6 +116,8 @@ const SingleGameBoardPanel = ({
     resolveIndex(initialMoveNumber)
   );
   const [isExpanded, setIsExpanded] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => readSoundEnabled());
+  const isFirstNavigationRef = useRef(true);
 
   useEffect(() => {
     setSelectedIndex(resolveIndex(initialMoveNumber, initialMoveIsWhite));
@@ -123,11 +130,26 @@ const SingleGameBoardPanel = ({
   const canGoForward = selectedIndex < moves.length - 1;
 
   const handleSelect = useCallback((index) => {
+    const previousIndex = selectedIndex;
     setSelectedIndex(index);
     if (onMoveIndexChange) {
       onMoveIndexChange(index);
     }
-  }, [onMoveIndexChange]);
+    if (!isFirstNavigationRef.current && index !== previousIndex) {
+      const move = moves[index];
+      emitMoveNavigationFeedback(move?.displayClassification || move?.classification);
+    }
+    isFirstNavigationRef.current = false;
+  }, [moves, onMoveIndexChange, selectedIndex]);
+
+  const toggleSound = useCallback(() => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    writeSoundEnabled(next);
+    if (next) {
+      emitMoveNavigationFeedback('neutral');
+    }
+  }, [soundEnabled]);
 
   const goToPrevious = useCallback(() => {
     if (selectedIndex > 0) {
@@ -181,15 +203,28 @@ const SingleGameBoardPanel = ({
       classification: move.classification,
     }));
 
+  const headerActionClass = isDarkMode
+    ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
+    : 'border-gray-300 text-gray-700 hover:bg-gray-50';
+
+  const soundToggleButton = (
+    <button
+      type="button"
+      onClick={toggleSound}
+      className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition ${headerActionClass}`}
+      aria-label={soundEnabled ? 'Mute move sounds' : 'Enable move sounds'}
+      aria-pressed={soundEnabled}
+    >
+      {soundEnabled ? <FaVolumeUp aria-hidden="true" /> : <FaVolumeMute aria-hidden="true" />}
+      {soundEnabled ? 'Sound on' : 'Sound off'}
+    </button>
+  );
+
   const expandButton = (
     <button
       type="button"
       onClick={() => setIsExpanded(true)}
-      className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition ${
-        isDarkMode
-          ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
-          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-      }`}
+      className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition ${headerActionClass}`}
       aria-label="Expand position review"
     >
       <FaExpand aria-hidden="true" />
@@ -204,7 +239,10 @@ const SingleGameBoardPanel = ({
           <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Position review
           </h3>
-          {expandButton}
+          <div className="flex flex-wrap items-center gap-2">
+            {soundToggleButton}
+            {expandButton}
+          </div>
         </div>
 
         {chips.length > 0 ? (
@@ -309,15 +347,18 @@ const SingleGameBoardPanel = ({
                   {formatMoveLabel(selectedMove)} · {countFullMoves(moves)} moves · Arrow keys to step · Esc to close
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsExpanded(false)}
-                className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition ${panelButtonClass(isDarkMode)}`}
-                aria-label="Close expanded position review"
-              >
-                <FaCompress aria-hidden="true" />
-                Close
-              </button>
+              <div className="flex items-center gap-2">
+                {soundToggleButton}
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded(false)}
+                  className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition ${panelButtonClass(isDarkMode)}`}
+                  aria-label="Close expanded position review"
+                >
+                  <FaCompress aria-hidden="true" />
+                  Close
+                </button>
+              </div>
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-4 py-6">

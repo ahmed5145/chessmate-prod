@@ -314,10 +314,11 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Mute toggle in position review.
-- [ ] No sound when reduced-motion preferred.
+- [x] Mute toggle in position review.
+- [x] No sound when reduced-motion preferred.
+- [x] Tests: `singleGameMoveSound.test.js` (§8).
 
-**Primary files:** `SingleGameBoardPanel.js`, new `moveFeedbackAudio.js`
+**Primary files:** `SingleGameBoardPanel.js`, `singleGameMoveSound.js`
 
 ---
 
@@ -1001,7 +1002,8 @@ flowchart TD
 - [ ] **SRG-4** Opening drill button mentions ECO + opening inaccuracies when present.
 - [ ] **SRG-2** After two clean depth-20 reviews, report + Games header show streak chip.
 - [ ] **SRG-6** *(not shipped)* Drill checklist persists after refresh (`localStorage`).
-- [ ] **SRG-7** *(not shipped)* Move nav plays sound once (if enabled).
+- [ ] **SRG-5** Critical moment shows ChessMate benchmark range when rating known.
+- [ ] **SRG-7** Enable sound → move nav plays tone once per step; blunder vibrates on mobile.
 
 ### Smoke 2 — Coach loop & hub (P3–P4)
 
@@ -1050,7 +1052,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | **SRG-4** | — | `singleGameDrillLinks.test.js`, `singleGameBatchCta.test.js` | ECO + mistake context |
 | **SRG-5** | `test_rating_band_coaching.py` | `CriticalMomentsSection.test.js` | Benchmark ranges on moments |
 | **SRG-6** | — | `singleGameDrillChecklist.test.js`, `DrillChecklistSection.test.js` | `localStorage` persistence |
-| **SRG-7** | — | `singleGameMoveSound.test.js` *(add)* | Classification → sound map |
+| **SRG-7** | — | `singleGameMoveSound.test.js` | Classification → sound map |
 | **SRG-8** | — | `SingleGameReportActions.test.js` | No print handler |
 | **SRG-9** | `test_priority_inbox.py` *(add)* | `PriorityInbox.test.js` *(add)* | Ownership + reviewed state |
 | **SRG-10** | `test_moment_timeline.py` *(add)* | `MomentTimeline.test.js` *(add)* | Cross-batch counts |
@@ -1089,7 +1091,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-4 | ✅ Done | Opening study label with ECO + mistake count |
 | SRG-5 | ✅ Done | Rating-band benchmark on critical moments + tests |
 | SRG-6 | ✅ Done | 5-min drill checklist + localStorage + tests |
-| SRG-7 | ⬜ Not started | |
+| SRG-7 | ✅ Done | Move nav sound/haptic + mute toggle |
 | SRG-8 | ✅ Done | Print removed; tests in matrix §8 |
 | SRG-9 | ⬜ Not started | Priority inbox |
 | SRG-10 | ⬜ Not started | Moment timeline |
@@ -1126,6 +1128,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-08 | Shipped SRG-3 batch pattern CTA + SRG-4 opening study drill labels |
 | 2026-06-08 | Shipped SRG-2 blunder-free streak (profile-backed) |
 | 2026-06-08 | Shipped SRG-5 rating-band benchmark copy on critical moments |
+| 2026-06-08 | Shipped SRG-7 move navigation sound/haptic with mute toggle |
 
 ---
 
