@@ -3,13 +3,10 @@
 from datetime import timedelta
 
 import pytest
-from core.email_send_log import (
-    MAX_COACHING_EMAILS_PER_7_DAYS,
-    coaching_email_budget_exceeded,
-    coaching_emails_in_last_days,
-    log_email_send,
-    user_active_within_hours,
-)
+from core.email_send_log import (MAX_COACHING_EMAILS_PER_7_DAYS,
+                                 coaching_email_budget_exceeded,
+                                 coaching_emails_in_last_days, log_email_send,
+                                 user_active_within_hours)
 from core.models import EmailSendLog
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -40,7 +37,9 @@ def test_coaching_email_budget_exceeded_at_cap(mail_user):
 
 
 def test_coaching_email_budget_allows_under_cap(mail_user):
-    log_email_send(mail_user, EmailSendLog.TYPE_ANALYSIS_COMPLETION, meta={"game_id": 1})
+    log_email_send(
+        mail_user, EmailSendLog.TYPE_ANALYSIS_COMPLETION, meta={"game_id": 1}
+    )
     assert coaching_email_budget_exceeded(mail_user) is False
     assert coaching_emails_in_last_days(mail_user) == 1
 

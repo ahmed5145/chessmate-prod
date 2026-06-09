@@ -5,12 +5,11 @@ from unittest.mock import patch
 
 import pytest
 from core.email_send_log import log_email_send
-from core.models import EmailSendLog, Game, GameAnalysis, Profile, SpacedReminderLog
+from core.models import (EmailSendLog, Game, GameAnalysis, Profile,
+                         SpacedReminderLog)
 from core.notification_preferences import WANTS_SPACED_REPETITION_KEY
-from core.spaced_repetition_email import (
-    moment_key,
-    send_spaced_repetition_for_user,
-)
+from core.spaced_repetition_email import (moment_key,
+                                          send_spaced_repetition_for_user)
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
@@ -36,7 +35,7 @@ def stale_moment_game(spaced_user):
         user=spaced_user,
         platform="lichess",
         game_id="spaced-test-1",
-        pgn="[Event \"test\"]",
+        pgn='[Event "test"]',
         result="loss",
         white="spaced_user",
         black="rival",
@@ -88,7 +87,9 @@ def test_skips_when_digest_sent_this_week(spaced_user, stale_moment_game):
         EmailSendLog.TYPE_WEEKLY_DIGEST,
         week_key="2026-W23",
     )
-    with patch("core.spaced_repetition_email.digest_already_sent_this_week", return_value=True):
+    with patch(
+        "core.spaced_repetition_email.digest_already_sent_this_week", return_value=True
+    ):
         with patch("core.spaced_repetition_email.send_coaching_email") as mock_send:
             assert send_spaced_repetition_for_user(spaced_user) is False
             mock_send.assert_not_called()

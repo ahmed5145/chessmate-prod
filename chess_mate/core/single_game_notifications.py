@@ -10,7 +10,8 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
 from .email_send_log import coaching_email_budget_exceeded, log_email_send
-from .email_utils import get_frontend_base_url, is_email_configured, send_coaching_email
+from .email_utils import (get_frontend_base_url, is_email_configured,
+                          send_coaching_email)
 from .models import EmailSendLog
 from .notification_preferences import user_wants_analysis_completion_email
 from .stats_helpers import build_single_game_context
@@ -76,22 +77,40 @@ def _build_review_urls(game_id: int, move_number: Optional[int]) -> Dict[str, st
     return {"report_url": base, "deep_review_url": deep_review_url}
 
 
-def _player_accuracy(analysis_model: Any, game_context: Dict[str, Any]) -> Optional[float]:
+def _player_accuracy(
+    analysis_model: Any, game_context: Dict[str, Any]
+) -> Optional[float]:
     metrics = {}
     if hasattr(analysis_model, "metrics"):
         metrics = analysis_model.metrics or {}
     if not metrics and hasattr(analysis_model, "analysis_data"):
-        data = analysis_model.analysis_data if isinstance(analysis_model.analysis_data, dict) else {}
-        metrics = data.get("metrics", {}) if isinstance(data.get("metrics"), dict) else {}
+        data = (
+            analysis_model.analysis_data
+            if isinstance(analysis_model.analysis_data, dict)
+            else {}
+        )
+        metrics = (
+            data.get("metrics", {}) if isinstance(data.get("metrics"), dict) else {}
+        )
 
     summary = metrics.get("summary", metrics) if isinstance(metrics, dict) else {}
-    overall = summary.get("overall", {}) if isinstance(summary.get("overall"), dict) else {}
+    overall = (
+        summary.get("overall", {}) if isinstance(summary.get("overall"), dict) else {}
+    )
     accuracy = overall.get("accuracy")
 
     player_color = game_context.get("player_color")
-    if accuracy is None and player_color == "white" and getattr(analysis_model, "accuracy_white", None) is not None:
+    if (
+        accuracy is None
+        and player_color == "white"
+        and getattr(analysis_model, "accuracy_white", None) is not None
+    ):
         accuracy = analysis_model.accuracy_white
-    if accuracy is None and player_color == "black" and getattr(analysis_model, "accuracy_black", None) is not None:
+    if (
+        accuracy is None
+        and player_color == "black"
+        and getattr(analysis_model, "accuracy_black", None) is not None
+    ):
         accuracy = analysis_model.accuracy_black
 
     if accuracy is None:
@@ -105,7 +124,9 @@ def _player_accuracy(analysis_model: Any, game_context: Dict[str, Any]) -> Optio
     return round(value, 1)
 
 
-def _critical_moments(feedback: Any, analysis_data: Any, coaching: Dict[str, Any]) -> list:
+def _critical_moments(
+    feedback: Any, analysis_data: Any, coaching: Dict[str, Any]
+) -> list:
     moments = coaching.get("critical_moments") or []
     if not moments and isinstance(analysis_data, dict):
         moments = analysis_data.get("critical_moments") or []
@@ -118,7 +139,9 @@ def _critical_moments(feedback: Any, analysis_data: Any, coaching: Dict[str, Any
     return moments if isinstance(moments, list) else []
 
 
-def _worst_moment(feedback: Any, analysis_data: Any, coaching: Dict[str, Any]) -> Dict[str, Any]:
+def _worst_moment(
+    feedback: Any, analysis_data: Any, coaching: Dict[str, Any]
+) -> Dict[str, Any]:
     moments = _critical_moments(feedback, analysis_data, coaching)
     if not moments:
         return {}
@@ -138,7 +161,9 @@ def send_single_game_complete_email(user, game, analysis_model) -> bool:
     Returns True if sent, False if skipped or failed.
     """
     if not getattr(settings, "SINGLE_GAME_SEND_COMPLETE_EMAIL", True):
-        logger.info("Single-game complete email skipped: SINGLE_GAME_SEND_COMPLETE_EMAIL disabled")
+        logger.info(
+            "Single-game complete email skipped: SINGLE_GAME_SEND_COMPLETE_EMAIL disabled"
+        )
         return False
 
     if not is_email_configured():
@@ -150,7 +175,9 @@ def send_single_game_complete_email(user, game, analysis_model) -> bool:
         return False
 
     if coaching_email_budget_exceeded(user):
-        logger.info("Single-game complete email skipped: weekly coaching email budget reached")
+        logger.info(
+            "Single-game complete email skipped: weekly coaching email budget reached"
+        )
         return False
 
     email = getattr(user, "email", None)
@@ -194,7 +221,10 @@ def send_single_game_complete_email(user, game, analysis_model) -> bool:
     except Exception as exc:
         logger.warning("Single-game complete template render failed: %s", exc)
         opponent = game_context.get("opponent") or "your opponent"
-        html_body = f"Your ChessMate depth-20 review vs {opponent} is ready.\n" f"View report: {report_url}\n"
+        html_body = (
+            f"Your ChessMate depth-20 review vs {opponent} is ready.\n"
+            f"View report: {report_url}\n"
+        )
 
     base = get_frontend_base_url()
     try:
@@ -213,5 +243,7 @@ def send_single_game_complete_email(user, game, analysis_model) -> bool:
         logger.info("Single-game complete email sent to %s for game %s", email, game.id)
         return True
     except Exception as exc:
-        logger.error("Failed to send single-game complete email: %s", exc, exc_info=True)
+        logger.error(
+            "Failed to send single-game complete email: %s", exc, exc_info=True
+        )
         return False

@@ -4,13 +4,12 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
-from core.email_send_log import digest_already_sent_this_week, iso_week_key, log_email_send
+from core.email_send_log import (digest_already_sent_this_week, iso_week_key,
+                                 log_email_send)
 from core.models import EmailSendLog, Profile, UserNotification
 from core.notification_preferences import WANTS_WEEKLY_DIGEST_KEY
-from core.weekly_digest_email import (
-    build_weekly_digest_payload,
-    send_weekly_digest_for_user,
-)
+from core.weekly_digest_email import (build_weekly_digest_payload,
+                                      send_weekly_digest_for_user)
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
@@ -31,7 +30,8 @@ def digest_user(db):
 
 
 def test_iso_week_key_format():
-    from datetime import datetime, timezone as dt_timezone
+    from datetime import datetime
+    from datetime import timezone as dt_timezone
 
     key = iso_week_key(datetime(2026, 6, 8, tzinfo=dt_timezone.utc))
     assert key.startswith("2026-W")
@@ -108,7 +108,9 @@ def test_skips_when_completion_notification_today(
         "one_thing_today": {},
         "pending_inbox_count": 1,
     }
-    with patch("core.weekly_digest_email.build_weekly_digest_payload", return_value=payload):
+    with patch(
+        "core.weekly_digest_email.build_weekly_digest_payload", return_value=payload
+    ):
         assert send_weekly_digest_for_user(digest_user) is False
         mock_send.assert_not_called()
 

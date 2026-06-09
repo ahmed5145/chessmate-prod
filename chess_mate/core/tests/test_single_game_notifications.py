@@ -3,10 +3,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from core.single_game_notifications import (
-    _email_subject,
-    send_single_game_complete_email,
-)
+from core.single_game_notifications import (_email_subject,
+                                            send_single_game_complete_email)
 from django.template.loader import render_to_string
 from django.test import override_settings
 
@@ -71,10 +69,15 @@ def test_skips_when_user_opted_out(_mock_email_configured):
 
 
 @patch("core.single_game_notifications.log_email_send")
-@patch("core.single_game_notifications.coaching_email_budget_exceeded", return_value=False)
+@patch(
+    "core.single_game_notifications.coaching_email_budget_exceeded", return_value=False
+)
 @patch("core.single_game_notifications.send_coaching_email", return_value=1)
 @patch("core.single_game_notifications.render_to_string", return_value="<p>Ready</p>")
-@patch("core.single_game_notifications.get_frontend_base_url", return_value="https://chessmate.test")
+@patch(
+    "core.single_game_notifications.get_frontend_base_url",
+    return_value="https://chessmate.test",
+)
 @patch("core.single_game_notifications.is_email_configured", return_value=True)
 def test_sends_email_on_completed_single_game(
     _mock_email_configured,
@@ -93,16 +96,27 @@ def test_sends_email_on_completed_single_game(
     assert kwargs["recipient_list"] == ["player@example.com"]
 
     render_context = _mock_render.call_args[0][1]
-    assert render_context["report_url"] == "https://chessmate.test/game/168/analysis?mode=review"
-    assert render_context["deep_review_url"] == "https://chessmate.test/game/168/analysis?mode=review&move=18"
+    assert (
+        render_context["report_url"]
+        == "https://chessmate.test/game/168/analysis?mode=review"
+    )
+    assert (
+        render_context["deep_review_url"]
+        == "https://chessmate.test/game/168/analysis?mode=review&move=18"
+    )
     assert kwargs["subject"] == "Move 18 swung your game"
 
 
 @patch("core.single_game_notifications.log_email_send")
-@patch("core.single_game_notifications.coaching_email_budget_exceeded", return_value=False)
+@patch(
+    "core.single_game_notifications.coaching_email_budget_exceeded", return_value=False
+)
 @patch("core.single_game_notifications.send_coaching_email", return_value=1)
 @patch("core.single_game_notifications.render_to_string", return_value="<p>Ready</p>")
-@patch("core.single_game_notifications.get_frontend_base_url", return_value="https://chessmate.test")
+@patch(
+    "core.single_game_notifications.get_frontend_base_url",
+    return_value="https://chessmate.test",
+)
 @patch("core.single_game_notifications.is_email_configured", return_value=True)
 def test_uses_coaching_headline_as_subject(
     _mock_email_configured,
@@ -118,7 +132,9 @@ def test_uses_coaching_headline_as_subject(
                 "headline": "You dropped the initiative on move 18",
                 "takeaway": "The knight retreat let White take over.",
             },
-            "critical_moments": [{"move_number": 18, "played_move": "Nf3", "best_move": "Nd2"}],
+            "critical_moments": [
+                {"move_number": 18, "played_move": "Nf3", "best_move": "Nd2"}
+            ],
         },
     )
 
@@ -143,7 +159,11 @@ def test_template_renders_headline_and_review_links():
         {
             "user": MagicMock(username="player"),
             "game_id": 5,
-            "game_context": {"opponent": "Rival", "result": "loss", "opening_name": "French"},
+            "game_context": {
+                "opponent": "Rival",
+                "result": "loss",
+                "opening_name": "French",
+            },
             "report_url": "https://chessmate.test/game/5/analysis?mode=review",
             "deep_review_url": "https://chessmate.test/game/5/analysis?mode=review&move=14",
             "coach_snippet": "The pawn push was too early.",
@@ -163,11 +183,16 @@ def test_template_renders_headline_and_review_links():
 
 
 @patch("core.single_game_notifications.log_email_send")
-@patch("core.single_game_notifications.coaching_email_budget_exceeded", return_value=False)
-@patch("core.single_game_notifications.send_coaching_email", side_effect=RuntimeError("SMTP down"))
+@patch(
+    "core.single_game_notifications.coaching_email_budget_exceeded", return_value=False
+)
+@patch(
+    "core.single_game_notifications.send_coaching_email",
+    side_effect=RuntimeError("SMTP down"),
+)
 @patch("core.single_game_notifications.render_to_string", return_value="<p>Ready</p>")
 @patch("core.single_game_notifications.is_email_configured", return_value=True)
 def test_returns_false_when_send_mail_fails(
-    _mock_email_configured, _mock_render, _mock_send_mail, _mock_budget
+    _mock_email_configured, _mock_render, _mock_send_mail, _mock_budget, _mock_log
 ):
     assert send_single_game_complete_email(_user(), _game(), _analysis()) is False
