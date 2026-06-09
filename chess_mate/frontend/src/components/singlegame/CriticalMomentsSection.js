@@ -9,6 +9,7 @@ import {
   getMoveArrowStyle,
 } from '../../utils/singleGameClassification';
 import MoveClassificationBadge from './MoveClassificationBadge';
+import MomentTimelineStrip from '../shared/MomentTimelineStrip';
 
 const formatMomentBestMove = (moment) => {
   if (moment?.best_move && !/^[a-h][1-8][a-h][1-8]/i.test(moment.best_move)) {
@@ -102,6 +103,7 @@ const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectM
                 {moment.rating_benchmark.copy}
               </p>
             ) : null}
+            <MomentTimelineStrip variant="tailwind" timeline={moment.timeline} />
           </div>
           );
         })}

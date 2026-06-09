@@ -69,6 +69,7 @@ from .error_handling import (
 
 # Local application imports
 from .models import BatchAnalysisReport, Game, GameAnalysis, Player, Profile, User
+from .moment_timeline import attach_timelines_to_moments
 from .rating_band_coaching import attach_moment_benchmarks, resolve_rating_band
 from .serializers import GameSerializer
 from .single_game_analysis_cache import (
@@ -2643,6 +2644,12 @@ def get_game_analysis(request, game_id):
                 critical_moments = coaching_payload.get("critical_moments") or []
             player_rating = game_context.get("player_rating")
             critical_moments = attach_moment_benchmarks(critical_moments, player_rating)
+            if profile:
+                critical_moments = attach_timelines_to_moments(
+                    profile,
+                    critical_moments,
+                    opening_eco=game_context.get("eco"),
+                )
             rating_context = resolve_rating_band(player_rating)
 
             batch_id_param = request.GET.get("batch_id") or request.GET.get("batch")
@@ -2726,6 +2733,12 @@ def get_game_analysis(request, game_id):
                 critical_moments = attach_moment_benchmarks(
                     critical_moments, player_rating
                 )
+                if profile:
+                    critical_moments = attach_timelines_to_moments(
+                        profile,
+                        critical_moments,
+                        opening_eco=game_context.get("eco"),
+                    )
                 rating_context = resolve_rating_band(player_rating)
                 batch_id_param = request.GET.get("batch_id") or request.GET.get("batch")
                 move_param = request.GET.get("move")

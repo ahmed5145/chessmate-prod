@@ -1034,8 +1034,8 @@ flowchart TD
 - [ ] **SRG-16** Mark 2 inbox items on **consecutive days** → dashboard shows `🔥 2-day coach streak`.
 - [ ] **SRG-16** Second review **same day** does not increment streak again.
 - [ ] **SRG-16** Batch-linked single-game report shows streak banner when ≥2 days.
-- [ ] **SRG-10** *(not shipped)* Moment timeline shows batch run count.
-- [ ] **SRG-17** *(not shipped)* Fix-rate on 2nd batch reflects improved patterns.
+- [ ] **SRG-10** Moment timeline shows batch run count when pattern seen in ≥2 batches; hidden on first sighting.
+- [ ] **SRG-17** Fix-rate on 2nd batch reflects improved/absent patterns; hidden on first batch.
 - [ ] **SRG-14** Bell shows completion + inbox; mark read works.
 - [ ] **SRG-15** Opt in digest → **one** mail in 7 days; opt out → zero.
 - [ ] **SRG-13** Spaced mail **not** same week as digest (mutual exclusion).
@@ -1113,13 +1113,13 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-7 | ✅ Done | Move nav sound/haptic + mute toggle |
 | SRG-8 | ✅ Done | Print removed; tests in matrix §8 |
 | SRG-9 | ✅ Done | Inbox seed on batch complete/regenerate; dashboard card; mark reviewed |
-| SRG-10 | ⬜ Not started | Moment timeline |
+| SRG-10 | ✅ Done | Moment timeline — cross-batch pattern recurrence on moments + weaknesses |
 | SRG-12 | ✅ Done | One thing today card + snooze + server selection |
 | SRG-13 | ⬜ Not started | Spaced email — ship after digest |
 | SRG-14 | ⬜ Not started | Notification center |
 | SRG-15 | ⬜ Not started | Weekly digest |
 | SRG-16 | ✅ Done | Inbox review streak chip + milestones |
-| SRG-17 | ⬜ Not started | Fix-rate score |
+| SRG-17 | ✅ Done | Fix-rate score on batch report + dashboard |
 | SRG-18 | ⬜ Not started | Phase heatmap |
 | SRG-19 | ✅ Done | Auto-pick proof games + proof_label in inbox |
 | SRG-11 | ✅ Done | Coach alignment score on batch-linked single-game |

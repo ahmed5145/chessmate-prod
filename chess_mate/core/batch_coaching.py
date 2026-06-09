@@ -77,4 +77,14 @@ def regenerate_batch_coaching(batch_report: BatchAnalysisReport) -> Tuple[bool, 
             batch_report.id,
             exc,
         )
+    try:
+        from .moment_timeline import record_batch_timeline_events
+
+        record_batch_timeline_events(batch_report)
+    except Exception as exc:
+        logger.warning(
+            "Moment timeline seed failed after coaching regenerate for batch %s: %s",
+            batch_report.id,
+            exc,
+        )
     return True, "Coaching regenerated successfully."

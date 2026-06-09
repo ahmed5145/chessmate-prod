@@ -329,7 +329,9 @@ def batch_report_view(request, batch_id):
 
     # If analysis is completed or partial, return full report
     if batch_report.status in ["completed", "partial"]:
-        serializer = BatchAnalysisReportSerializer(batch_report)
+        serializer = BatchAnalysisReportSerializer(
+            batch_report, context={"request": request}
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     # Fallback (should not reach here)
@@ -378,7 +380,9 @@ def batch_regenerate_coaching_view(request, batch_id):
 
     record_coaching_regenerate(request.user, batch_report.id)
 
-    serializer = BatchAnalysisReportSerializer(batch_report)
+    serializer = BatchAnalysisReportSerializer(
+        batch_report, context={"request": request}
+    )
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 

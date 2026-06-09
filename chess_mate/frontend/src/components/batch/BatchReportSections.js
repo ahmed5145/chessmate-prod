@@ -111,6 +111,8 @@ const BatchReportSections = ({
           <BatchReportHeader
             batch_summary={batchReport.batch_summary}
             games_count={batchReport.games_count}
+            fix_rate={batchReport.fix_rate}
+            batchId={batchId}
           />
 
           <SectionWrap id="batch-section-summary">

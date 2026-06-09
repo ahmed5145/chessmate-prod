@@ -567,6 +567,15 @@ def analyze_game_task(
                         analysis_data=analysis_payload,
                         player_color=player_color,
                     )
+                    from .moment_timeline import (
+                        extract_critical_moments_from_analysis,
+                        record_single_game_timeline_events,
+                    )
+
+                    moments = extract_critical_moments_from_analysis(analysis_result)
+                    record_single_game_timeline_events(
+                        streak_profile, game, moments
+                    )
             except Exception as streak_exc:
                 logger.warning(
                     "[%s] Single-game streak update failed for game %s: %s",
@@ -1673,6 +1682,16 @@ def aggregate_and_report_task(
             except Exception as inbox_exc:
                 logger.warning(
                     "Priority inbox seed failed for %s: %s", batch_id, inbox_exc
+                )
+
+        if batch_report.status in ("completed", "partial"):
+            try:
+                from .moment_timeline import record_batch_timeline_events
+
+                record_batch_timeline_events(batch_report)
+            except Exception as timeline_exc:
+                logger.warning(
+                    "Moment timeline seed failed for %s: %s", batch_id, timeline_exc
                 )
 
         return {

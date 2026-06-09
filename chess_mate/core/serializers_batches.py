@@ -10,6 +10,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from .batch_labels import BATCH_COACH_MAX_GAMES, BATCH_COACH_REQUIRES_MIN
+from .fix_rate import build_fix_rate_payload
 from .models import BatchAnalysisReport, Game
 
 
@@ -311,3 +312,28 @@ class BatchAnalysisReportSerializer(serializers.ModelSerializer):
 
     def get_errors(self, obj: BatchAnalysisReport) -> List[Dict[str, Any]]:
         return failed_games_to_errors(obj.failed_games or [])
+
+    def to_representation(self, instance: BatchAnalysisReport) -> Dict[str, Any]:
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if request and getattr(request, "user", None):
+            profile = getattr(request.user, "profile", None)
+            if profile is not None:
+                from .moment_timeline import enrich_batch_report_payload
+
+                data = enrich_batch_report_payload(data, profile)
+
+            previous = (
+                BatchAnalysisReport.objects.filter(
+                    user=request.user,
+                    status__in=["completed", "partial"],
+                    pk__lt=instance.pk,
+                )
+                .order_by("-pk")
+                .first()
+            )
+            if previous:
+                data["fix_rate"] = build_fix_rate_payload(instance, previous)
+            else:
+                data["fix_rate"] = {"show": False}
+        return data

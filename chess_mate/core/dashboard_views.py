@@ -60,6 +60,7 @@ cache_manager = _CacheManager()
 
 def _finalize_dashboard_response(dashboard_data, user, profile):
     """Attach visit-aware summary and record this dashboard view."""
+    from .fix_rate import build_dashboard_fix_rate
     from .priority_inbox import get_priority_inbox_payload
 
     payload = dict(dashboard_data)
@@ -79,6 +80,7 @@ def _finalize_dashboard_response(dashboard_data, user, profile):
         latest_batch_moment=payload.get("latest_batch_moment"),
         latest_single_moment=payload.get("latest_single_moment"),
     )
+    payload["fix_rate"] = build_dashboard_fix_rate(user)
     mark_dashboard_visit(profile)
     return payload
 

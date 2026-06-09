@@ -17,6 +17,7 @@ import { formatGameLabelById } from '../../utils/formatGameLabel';
 import { formatNumber } from '../../utils/formatNumber';
 import ReportSectionShell, { ReportSubsection } from './ReportSectionShell';
 import GameExampleActions from './GameExampleActions';
+import MomentTimelineStrip from '../shared/MomentTimelineStrip';
 
 const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
   if (!batch_summary) {
@@ -131,6 +132,7 @@ const RecurringPatterns = ({ batch_summary, per_game_results = [] }) => {
                   primary={item.detail || `Avg eval swing: ${formatNumber(item.avg_eval_swing, 2)}`}
                   primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
                 />
+                <MomentTimelineStrip timeline={item.timeline} />
                 {Array.isArray(item.example_game_ids) && item.example_game_ids.length > 0 ? (
                   <Box sx={{ mt: 0.5 }}>
                     {item.example_game_ids.slice(0, 2).map((gameId) => (

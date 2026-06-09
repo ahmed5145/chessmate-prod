@@ -24,6 +24,7 @@ import {
   scrollToBatchGame,
 } from '../../utils/batchGameLinks';
 import { buildSingleGameAnalysisLink } from '../../utils/singleGameAnalysisLinks';
+import MomentTimelineStrip from '../shared/MomentTimelineStrip';
 
 const momentSeverityColor = (type) => {
   if (type === 'blunder') return 'error';
@@ -112,6 +113,7 @@ const TopCriticalMoments = ({ batch_summary, per_game_results, readOnly = false,
                     {sanitizeReportFloats(moment.explanation)}
                   </Typography>
                 )}
+                <MomentTimelineStrip timeline={moment.timeline} />
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
                   {moment.game_id ? (
                     <Button

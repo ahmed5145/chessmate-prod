@@ -5,8 +5,9 @@
 import React from 'react';
 import { Box, Chip, Grid, Paper, Tooltip, Typography } from '@mui/material';
 import { toTitleCase } from '../../utils/formatLabel';
+import FixRateCard from './FixRateCard';
 
-const BatchReportHeader = ({ batch_summary, games_count }) => {
+const BatchReportHeader = ({ batch_summary, games_count, fix_rate: fixRate, batchId = null }) => {
   if (!batch_summary) {
     return null;
   }
@@ -22,6 +23,7 @@ const BatchReportHeader = ({ batch_summary, games_count }) => {
 
   return (
     <Box sx={{ py: 2 }}>
+      <FixRateCard fixRate={fixRate} batchId={batchId} />
       <Paper sx={{ p: 3, border: '1px solid', borderColor: 'divider' }}>
         <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
           Batch Coach · {analyzed} games
