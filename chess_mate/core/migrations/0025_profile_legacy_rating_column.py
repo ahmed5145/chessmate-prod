@@ -39,9 +39,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.SeparateDatabaseAndState(
             database_operations=[
-                migrations.RunPython(
-                    fix_legacy_rating_column, migrations.RunPython.noop
-                ),
+                migrations.RunPython(fix_legacy_rating_column, migrations.RunPython.noop),
             ],
             state_operations=[
                 migrations.AddField(

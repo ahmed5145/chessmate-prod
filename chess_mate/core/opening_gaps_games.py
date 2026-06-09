@@ -39,9 +39,7 @@ def _opening_matches_gap(game: Dict[str, Any], gap: Dict[str, Any]) -> bool:
     return False
 
 
-def _review_href(
-    saved_game_id: int, batch_id: Optional[int], move_number: Optional[int]
-) -> str:
+def _review_href(saved_game_id: int, batch_id: Optional[int], move_number: Optional[int]) -> str:
     href = f"/game/{saved_game_id}/analysis?mode=review"
     if batch_id is not None:
         href = f"{href}&batch={batch_id}"
@@ -72,10 +70,7 @@ def _opening_moment_move(game: Dict[str, Any]) -> Optional[int]:
     for moment in moments:
         if not isinstance(moment, dict):
             continue
-        if (
-            moment.get("phase") == PHASES_OPENING
-            and moment.get("move_number") is not None
-        ):
+        if moment.get("phase") == PHASES_OPENING and moment.get("move_number") is not None:
             try:
                 return int(moment["move_number"])
             except (TypeError, ValueError):
