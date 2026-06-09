@@ -6,12 +6,11 @@ import logging
 from typing import Any, Dict, Optional
 
 from django.conf import settings
-from django.core import mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
-from .email_send_log import log_email_send
-from .email_utils import get_frontend_base_url, is_email_configured
+from .email_send_log import coaching_email_budget_exceeded, log_email_send
+from .email_utils import get_frontend_base_url, is_email_configured, send_coaching_email
 from .models import EmailSendLog
 from .notification_preferences import user_wants_analysis_completion_email
 from .stats_helpers import build_single_game_context
@@ -150,6 +149,10 @@ def send_single_game_complete_email(user, game, analysis_model) -> bool:
         logger.info("Single-game complete email skipped: user opted out")
         return False
 
+    if coaching_email_budget_exceeded(user):
+        logger.info("Single-game complete email skipped: weekly coaching email budget reached")
+        return False
+
     email = getattr(user, "email", None)
     if not email:
         return False
@@ -193,13 +196,14 @@ def send_single_game_complete_email(user, game, analysis_model) -> bool:
         opponent = game_context.get("opponent") or "your opponent"
         html_body = f"Your ChessMate depth-20 review vs {opponent} is ready.\n" f"View report: {report_url}\n"
 
+    base = get_frontend_base_url()
     try:
-        mail.send_mail(
+        send_coaching_email(
             subject=email_subject,
             message=strip_tags(str(html_body)),
-            from_email=None,
             recipient_list=[email],
             html_message=str(html_body),
+            preferences_url=f"{base}/profile",
         )
         log_email_send(
             user,

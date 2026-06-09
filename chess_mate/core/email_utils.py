@@ -73,3 +73,37 @@ def build_verification_url(uidb64: str, token: str, request=None) -> str:
 
 def verification_email_unavailable_message() -> str:
     return "Verification email is temporarily unavailable. " "Please try again later or contact support."
+
+
+def coaching_email_headers(preferences_url: str | None = None) -> dict[str, str]:
+    """List-Unsubscribe headers for opt-in coaching mail (SRG-13/15)."""
+    if not preferences_url:
+        return {}
+    return {
+        "List-Unsubscribe": f"<{preferences_url}>",
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    }
+
+
+def send_coaching_email(
+    *,
+    subject: str,
+    message: str,
+    recipient_list: list[str],
+    html_message: str | None = None,
+    preferences_url: str | None = None,
+) -> int:
+    """Send coaching email with optional HTML body and unsubscribe headers."""
+    from django.core.mail import EmailMultiAlternatives
+
+    headers = coaching_email_headers(preferences_url)
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body=message,
+        from_email=None,
+        to=recipient_list,
+        headers=headers,
+    )
+    if html_message:
+        email.attach_alternative(html_message, "text/html")
+    return email.send()

@@ -70,7 +70,9 @@ def test_skips_when_user_opted_out(_mock_email_configured):
     assert send_single_game_complete_email(user, _game(), _analysis()) is False
 
 
-@patch("core.single_game_notifications.mail.send_mail", return_value=1)
+@patch("core.single_game_notifications.log_email_send")
+@patch("core.single_game_notifications.coaching_email_budget_exceeded", return_value=False)
+@patch("core.single_game_notifications.send_coaching_email", return_value=1)
 @patch("core.single_game_notifications.render_to_string", return_value="<p>Ready</p>")
 @patch("core.single_game_notifications.get_frontend_base_url", return_value="https://chessmate.test")
 @patch("core.single_game_notifications.is_email_configured", return_value=True)
@@ -79,6 +81,8 @@ def test_sends_email_on_completed_single_game(
     _mock_frontend_url,
     _mock_render,
     mock_send_mail,
+    _mock_budget,
+    _mock_log,
 ):
     user = _user()
     game = _game(id=168)
@@ -94,7 +98,9 @@ def test_sends_email_on_completed_single_game(
     assert kwargs["subject"] == "Move 18 swung your game"
 
 
-@patch("core.single_game_notifications.mail.send_mail", return_value=1)
+@patch("core.single_game_notifications.log_email_send")
+@patch("core.single_game_notifications.coaching_email_budget_exceeded", return_value=False)
+@patch("core.single_game_notifications.send_coaching_email", return_value=1)
 @patch("core.single_game_notifications.render_to_string", return_value="<p>Ready</p>")
 @patch("core.single_game_notifications.get_frontend_base_url", return_value="https://chessmate.test")
 @patch("core.single_game_notifications.is_email_configured", return_value=True)
@@ -103,6 +109,8 @@ def test_uses_coaching_headline_as_subject(
     _mock_frontend_url,
     _mock_render,
     mock_send_mail,
+    _mock_budget,
+    _mock_log,
 ):
     analysis = _analysis(
         feedback={
@@ -154,8 +162,12 @@ def test_template_renders_headline_and_review_links():
     assert "d5" in html
 
 
-@patch("core.single_game_notifications.mail.send_mail", side_effect=RuntimeError("SMTP down"))
+@patch("core.single_game_notifications.log_email_send")
+@patch("core.single_game_notifications.coaching_email_budget_exceeded", return_value=False)
+@patch("core.single_game_notifications.send_coaching_email", side_effect=RuntimeError("SMTP down"))
 @patch("core.single_game_notifications.render_to_string", return_value="<p>Ready</p>")
 @patch("core.single_game_notifications.is_email_configured", return_value=True)
-def test_returns_false_when_send_mail_fails(_mock_email_configured, _mock_render, _mock_send_mail):
+def test_returns_false_when_send_mail_fails(
+    _mock_email_configured, _mock_render, _mock_send_mail, _mock_budget
+):
     assert send_single_game_complete_email(_user(), _game(), _analysis()) is False

@@ -435,10 +435,10 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] User with 3 eligible moments receives **at most 1** email in 7 days.
-- [ ] Re-clicking link does not schedule another email for same moment within 30 days.
-- [ ] Opt-out stops all spaced emails; completion emails unchanged.
-- [ ] Tests: idempotency, 48h SRG-1 collision skip, 7-day user cap.
+- [x] User with 3 eligible moments receives **at most 1** email in 7 days.
+- [x] Re-clicking link does not schedule another email for same moment within 30 days.
+- [x] Opt-out stops all spaced emails; completion emails unchanged.
+- [x] Tests: idempotency, 48h SRG-1 collision skip, 7-day user cap.
 
 **Primary files:** new `spaced_repetition_email.py`, `notification_preferences.py`, Celery beat schedule, migration `SpacedReminderLog`
 
@@ -446,10 +446,11 @@ flowchart LR
 
 **Anti-spam checklist (mandatory before ship)**
 
-- [ ] Default opt-in **off**; explicit toggle in account settings with copy explaining frequency  
-- [ ] List-Unsubscribe header + one-click  
-- [ ] No email if user logged in and reviewed moment in last 72h (activity skip)  
-- [ ] Monitor bounce/complaint rate; auto-pause spaced job if complaint rate &gt; 0.1%  
+- [x] Default opt-in **off**; explicit toggle in account settings with copy explaining frequency  
+- [x] List-Unsubscribe header + one-click (`send_coaching_email` on digest/spaced/completion)  
+- [x] No spaced email if user logged in within last 72h (`user_active_within_hours`)  
+- [ ] Monitor bounce/complaint rate; auto-pause spaced job if complaint rate &gt; 0.1% — **deferred** (ops/Sentry; not launch-blocking)  
+- [ ] Global send rate limit 500/hour — **deferred** (Celery batch size + provider limits sufficient for launch)  
 
 ---
 
@@ -1060,7 +1061,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | ID | Backend tests | Frontend tests | Notes |
 |----|---------------|----------------|-------|
 | **SRG-0** | `test_single_game_analysis_cache.py`, `test_game_views.py` (cached POST), `test_single_game_credits.py` | `SingleGameAnalysis.test.js`, `Games.test.js`, `singleGameAnalysisLinks.test.js` | Cache hit = 0 credits |
-| **SRG-1** | `test_single_game_notifications.py`, `test_analysis_tasks.py` (email on SUCCESS only) | — | Assert headline, `mode=review` URLs |
+| **SRG-1** | `test_single_game_notifications.py`, `test_game_views.py` (cached POST skips task) | — | Assert headline, `mode=review` URLs |
 | **SRG-2** | `test_single_game_streak.py` | `singleGameStreak.test.js`, `SingleGameStreakCard.test.js` | Streak rules unit-tested |
 | **SRG-3** | `test_single_game_context.py` (pattern counts) | `singleGameBatchCta.test.js`, `SingleGameFooterCta.test.js` | Batch link + analytics |
 | **SRG-4** | — | `singleGameDrillLinks.test.js`, `singleGameBatchCta.test.js` | ECO + mistake context |
@@ -1069,28 +1070,28 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | **SRG-7** | — | `singleGameMoveSound.test.js` | Classification → sound map |
 | **SRG-8** | — | `SingleGameReportActions.test.js` | No print handler |
 | **SRG-9** | `test_priority_inbox.py` | `CoachInboxCard.test.js`, `BatchContextBanner.test.js` | Ownership + reviewed state |
-| **SRG-10** | `test_moment_timeline.py` *(add)* | `MomentTimeline.test.js` *(add)* | Cross-batch counts |
+| **SRG-10** | `test_moment_timeline.py` | `MomentTimeline.test.js` | Cross-batch counts |
 | **SRG-11** | `test_alignment_score.py` | `BatchContextBanner.test.js` | Batch vs single match |
 | **SRG-12** | `test_dashboard_one_thing.py` | `oneThingToday.test.js` | Inbox → batch → single priority |
-| **SRG-13** | `test_spaced_moment_email.py` *(add)* | — | 7d cap + digest exclusion |
-| **SRG-14** | `test_notification_center.py` *(add)* | `NotificationCenter.test.js` *(add)* | Bell + read state |
-| **SRG-15** | `test_weekly_digest_email.py` *(add)* | — | `EmailSendLog` weekly cap |
+| **SRG-13** | `test_spaced_moment_email.py` | — | 7d cap + digest exclusion + 48h completion skip |
+| **SRG-14** | `test_notification_center.py` | `NotificationCenter.test.js` | Bell + read state |
+| **SRG-15** | `test_weekly_digest_email.py` | — | `EmailSendLog` weekly cap |
 | **SRG-16** | `test_inbox_streak.py` | `InboxStreak.test.js` | Streak increment rules |
-| **SRG-17** | `test_fix_rate.py` *(add)* | `FixRateCard.test.js` *(add)* | Batch-over-batch patterns |
-| **SRG-18** | `test_phase_heatmap.py` *(add)* | `PhaseHeatmap.test.js` *(add)* | Cell → game links |
+| **SRG-17** | `test_fix_rate.py` | `FixRateCard.test.js` | Batch-over-batch patterns |
+| **SRG-18** | `test_phase_heatmap.py` | `PhaseHeatmap.test.js` | Cell → game links |
 | **SRG-19** | `test_proof_games_inbox.py` | `CoachInboxCard.test.js` | Post-batch proof links + labels |
-| **SRG-20** | `test_batch_moment_diff.py` *(add)* | `BatchMomentDiff.test.js` *(add)* | A vs B swing trend |
-| **SRG-21** | `test_opening_gaps_games.py` *(add)* | `OpeningGapsGames.test.js` *(add)* | Gap → lost games |
+| **SRG-20** | `test_batch_moment_diff.py` | `BatchMomentDiff.test.js` | A vs B swing trend |
+| **SRG-21** | `test_opening_gaps_games.py` | `OpeningGapsGames.test.js` | Gap → lost games |
 | **SRG-22** | `test_welcome_email.py` | — | Confirm + welcome once each |
-| **SRG-23** | `test_first_batch_celebration.py` *(add)* | `FirstBatchModal.test.js` *(add)* | Show once only |
-| **SRG-24** | `test_referral_credits.py` *(add)* | `ReferralCredits.test.js` *(add)* | 5+5 on first batch; caps |
+| **SRG-23** | `test_first_batch_celebration.py` | `FirstBatchModal.test.js` | Show once only |
+| **SRG-24** | `test_referral_credits.py` | `ReferralCredits.test.js` | 5+5 on first batch; monthly cap |
 | **SRG-25** | `test_inbox_streak_freeze.py` | `InboxStreak.test.js` | 1× per calendar month |
 | **SRG-26** | `test_coach_persona.py` | `CoachPersonaSettings.test.js` | Prompt modifier only |
 | **SRG-27** | `test_reactivation_email.py` | — | 30d cap + opt-in |
-| **SRG-28** | — | `PwaInstallPrompt.test.js` *(add)* | Mobile gate; desktop hidden |
+| **SRG-28** | — | `PwaInstallPrompt.test.js` | Mobile gate; desktop hidden |
 | **SRG-29** | — | `SharedGameMomentPage.test.js`, `pageMeta.test.js` | Text OG; no `og:image` |
 
-**Global gates (CI):** Existing batch invariants + `EmailSendLog` budget tests when SRG-13/15/27 land.
+**Global gates (CI):** Existing batch invariants + `test_email_send_log.py` (max 2 coaching emails / 7 days; enforced in digest, spaced, completion senders).
 
 ---
 
@@ -1140,6 +1141,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-08 | Scope revision — promoted SRG-28 (PWA mobile-only, not first visit), SRG-29 (text OG; DX-02b image deferred); SRG-24 rewards → referrer 5 + referee +5 on signup stack; DX-03 `.ics` deferred |
 | 2026-06-08 | Added §7 manual smoke plan (3 sessions) + §8 automated test matrix per SRG |
 | 2026-06-08 | Shipped SRG-25…27; merged Smoke 2 + Smoke 3 into one P3–P5 session (2 smokes total) |
+| 2026-06-08 | Audit: wired `coaching_email_budget_exceeded` + `test_email_send_log.py`; ReferralCredits test + monthly cap test; SRG-13 48h/7d/72h tests |
 | 2026-06-08 | Shipped SRG-3 batch pattern CTA + SRG-4 opening study drill labels |
 | 2026-06-08 | Shipped SRG-2 blunder-free streak (profile-backed) |
 | 2026-06-08 | Shipped SRG-5 rating-band benchmark copy on critical moments |

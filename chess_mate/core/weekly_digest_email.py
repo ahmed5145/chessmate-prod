@@ -7,19 +7,19 @@ from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import User
-from django.core import mail
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.html import strip_tags
 
 from .email_send_log import (
+    coaching_email_budget_exceeded,
     digest_already_sent_this_week,
     iso_week_key,
     log_email_send,
     received_coaching_touchpoint_today,
 )
-from .email_utils import get_frontend_base_url, is_email_configured
+from .email_utils import get_frontend_base_url, is_email_configured, send_coaching_email
 from .fix_rate import build_dashboard_fix_rate
 from .inbox_streak import get_inbox_streak_payload
 from .models import BatchAnalysisReport, EmailSendLog, Game, Profile, UserNotification
@@ -178,6 +178,9 @@ def send_weekly_digest_for_user(user: User, *, force: bool = False) -> bool:
     if digest_already_sent_this_week(user) and not force:
         return False
 
+    if coaching_email_budget_exceeded(user) and not force:
+        return False
+
     if received_coaching_touchpoint_today(user) and not force:
         return False
 
@@ -222,12 +225,12 @@ def send_weekly_digest_for_user(user: User, *, force: bool = False) -> bool:
             lines.append(f"\n{context['cta_label']}: {cta_url}")
             html_body = "\n".join(lines)
 
-        mail.send_mail(
+        send_coaching_email(
             subject=DIGEST_SUBJECT,
             message=strip_tags(str(html_body)),
-            from_email=None,
             recipient_list=[user.email],
             html_message=str(html_body),
+            preferences_url=context["preferences_url"],
         )
         log_email_send(
             user,

@@ -17,6 +17,9 @@ COACHING_EMAIL_TYPES = {
     EmailSendLog.TYPE_ANALYSIS_COMPLETION,
 }
 
+MAX_COACHING_EMAILS_PER_7_DAYS = 2
+COACHING_EMAIL_WINDOW_DAYS = 7
+
 COMPLETION_NOTIFICATION_TYPES = {
     UserNotification.TYPE_SINGLE_COMPLETE,
     UserNotification.TYPE_BATCH_COMPLETE,
@@ -47,13 +50,30 @@ def spaced_sent_in_last_days(user: User, days: int = 7) -> bool:
     ).exists()
 
 
-def coaching_emails_in_last_days(user: User, days: int = 7) -> int:
+def coaching_emails_in_last_days(user: User, days: int = COACHING_EMAIL_WINDOW_DAYS) -> int:
     since = timezone.now() - timedelta(days=days)
     return EmailSendLog.objects.filter(
         user=user,
         email_type__in=COACHING_EMAIL_TYPES,
         sent_at__gte=since,
     ).count()
+
+
+def coaching_email_budget_exceeded(
+    user: User,
+    *,
+    days: int = COACHING_EMAIL_WINDOW_DAYS,
+    limit: int = MAX_COACHING_EMAILS_PER_7_DAYS,
+) -> bool:
+    """True when user already received the weekly coaching email cap."""
+    return coaching_emails_in_last_days(user, days=days) >= limit
+
+
+def user_active_within_hours(user: User, hours: int = 72) -> bool:
+    last_login = getattr(user, "last_login", None)
+    if last_login is None:
+        return False
+    return last_login >= timezone.now() - timedelta(hours=hours)
 
 
 def received_coaching_touchpoint_today(user: User) -> bool:

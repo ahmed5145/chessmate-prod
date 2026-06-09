@@ -7,19 +7,20 @@ from datetime import timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from django.contrib.auth.models import User
-from django.core import mail
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.html import strip_tags
 
 from .email_send_log import (
+    coaching_email_budget_exceeded,
     digest_already_sent_this_week,
     log_email_send,
     received_coaching_touchpoint_today,
     spaced_sent_in_last_days,
+    user_active_within_hours,
 )
-from .email_utils import get_frontend_base_url, is_email_configured
+from .email_utils import get_frontend_base_url, is_email_configured, send_coaching_email
 from .models import EmailSendLog, Game, GameAnalysis, Profile, SpacedReminderLog
 from .notification_preferences import user_wants_spaced_repetition_email
 from .stats_helpers import ANALYZED_GAME_Q
@@ -134,7 +135,11 @@ def send_spaced_repetition_for_user(user: User, *, force: bool = False) -> bool:
             return False
         if spaced_sent_in_last_days(user, days=7):
             return False
+        if coaching_email_budget_exceeded(user):
+            return False
         if _analysis_completion_sent_recently(user):
+            return False
+        if user_active_within_hours(user, hours=72):
             return False
         if received_coaching_touchpoint_today(user):
             return False
@@ -178,12 +183,13 @@ def send_spaced_repetition_for_user(user: User, *, force: bool = False) -> bool:
             f"Replay the moment that swung your game: {review_url}\n"
         )
 
-    mail.send_mail(
+    preferences_url = f"{base}/profile"
+    send_coaching_email(
         subject=subject,
         message=strip_tags(str(html_body)),
-        from_email=None,
         recipient_list=[user.email],
         html_message=str(html_body),
+        preferences_url=preferences_url,
     )
 
     SpacedReminderLog.objects.create(user=user, moment_key=key)

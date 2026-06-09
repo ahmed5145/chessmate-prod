@@ -42,7 +42,7 @@ def test_digest_skipped_when_opted_out(digest_user):
     profile.preferences = {WANTS_WEEKLY_DIGEST_KEY: False}
     profile.save(update_fields=["preferences"])
 
-    with patch("core.weekly_digest_email.mail.send_mail") as mock_send:
+    with patch("core.weekly_digest_email.send_coaching_email") as mock_send:
         assert send_weekly_digest_for_user(digest_user) is False
         mock_send.assert_not_called()
 
@@ -52,14 +52,14 @@ def test_digest_skipped_when_no_content(digest_user):
         "core.weekly_digest_email.build_weekly_digest_payload",
         return_value={"has_content": False},
     ):
-        with patch("core.weekly_digest_email.mail.send_mail") as mock_send:
+        with patch("core.weekly_digest_email.send_coaching_email") as mock_send:
             assert send_weekly_digest_for_user(digest_user) is False
             mock_send.assert_not_called()
 
 
 @patch("core.weekly_digest_email.is_email_configured", return_value=True)
 @patch("core.weekly_digest_email.render_to_string", return_value="<p>Digest</p>")
-@patch("core.weekly_digest_email.mail.send_mail", return_value=1)
+@patch("core.weekly_digest_email.send_coaching_email", return_value=1)
 def test_sends_once_per_week(mock_send, _mock_render, _mock_email, digest_user):
     payload = {
         "has_content": True,
@@ -88,7 +88,7 @@ def test_sends_once_per_week(mock_send, _mock_render, _mock_email, digest_user):
 
 @patch("core.weekly_digest_email.is_email_configured", return_value=True)
 @patch("core.weekly_digest_email.render_to_string", return_value="<p>Digest</p>")
-@patch("core.weekly_digest_email.mail.send_mail", return_value=1)
+@patch("core.weekly_digest_email.send_coaching_email", return_value=1)
 def test_skips_when_completion_notification_today(
     mock_send, _mock_render, _mock_email, digest_user
 ):

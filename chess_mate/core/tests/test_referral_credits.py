@@ -3,6 +3,7 @@
 import pytest
 from core.models import BatchAnalysisReport, Profile, ReferralRedemption
 from core.referral import (
+    MONTHLY_REFERRAL_CAP,
     REFEREE_BONUS_CREDITS,
     REFERRER_CREDITS,
     attach_referral_on_signup,
@@ -82,3 +83,40 @@ def test_no_double_redemption(referrer, referee):
     batch = _first_batch(referee)
     assert process_referral_on_first_batch(batch) is not None
     assert process_referral_on_first_batch(batch) is None
+
+
+def test_monthly_referral_cap_blocks_referrer_reward(referrer, db):
+    referrer_profile = Profile.objects.get(user=referrer)
+    referrer_start = referrer_profile.credits
+
+    for index in range(MONTHLY_REFERRAL_CAP):
+        extra = User.objects.create_user(
+            username=f"referee_{index}",
+            email=f"referee_{index}@example.com",
+            password="Test.Password.123",
+        )
+        extra_profile = Profile.objects.get(user=extra)
+        attach_referral_on_signup(
+            extra_profile,
+            referral_code=referrer_profile.referral_code,
+            signup_ip=f"10.0.0.{index + 10}",
+        )
+        batch = _first_batch(extra)
+        assert process_referral_on_first_batch(batch) is not None
+
+    capped_referee = User.objects.create_user(
+        username="referee_capped",
+        email="referee_capped@example.com",
+        password="Test.Password.123",
+    )
+    capped_profile = Profile.objects.get(user=capped_referee)
+    attach_referral_on_signup(
+        capped_profile,
+        referral_code=referrer_profile.referral_code,
+        signup_ip="10.0.0.99",
+    )
+    capped_batch = _first_batch(capped_referee)
+
+    assert process_referral_on_first_batch(capped_batch) is None
+    referrer_profile.refresh_from_db()
+    assert referrer_profile.credits == referrer_start + (REFERRER_CREDITS * MONTHLY_REFERRAL_CAP)

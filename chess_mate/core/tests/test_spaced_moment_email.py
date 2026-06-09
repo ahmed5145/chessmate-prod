@@ -66,7 +66,7 @@ def stale_moment_game(spaced_user):
 
 @patch("core.spaced_repetition_email.is_email_configured", return_value=True)
 @patch("core.spaced_repetition_email.render_to_string", return_value="<p>Spaced</p>")
-@patch("core.spaced_repetition_email.mail.send_mail", return_value=1)
+@patch("core.spaced_repetition_email.send_coaching_email", return_value=1)
 def test_sends_for_eligible_moment(
     mock_send, _mock_render, _mock_email, spaced_user, stale_moment_game
 ):
@@ -89,7 +89,7 @@ def test_skips_when_digest_sent_this_week(spaced_user, stale_moment_game):
         week_key="2026-W23",
     )
     with patch("core.spaced_repetition_email.digest_already_sent_this_week", return_value=True):
-        with patch("core.spaced_repetition_email.mail.send_mail") as mock_send:
+        with patch("core.spaced_repetition_email.send_coaching_email") as mock_send:
             assert send_spaced_repetition_for_user(spaced_user) is False
             mock_send.assert_not_called()
 
@@ -99,7 +99,49 @@ def test_skips_duplicate_moment_within_30_days(spaced_user, stale_moment_game):
         user=spaced_user,
         moment_key=moment_key(stale_moment_game.id, 12),
     )
-    with patch("core.spaced_repetition_email.mail.send_mail") as mock_send:
+    with patch("core.spaced_repetition_email.send_coaching_email") as mock_send:
+        assert send_spaced_repetition_for_user(spaced_user) is False
+        mock_send.assert_not_called()
+
+
+def test_skips_when_completion_email_sent_in_last_48h(spaced_user, stale_moment_game):
+    log_email_send(
+        spaced_user,
+        EmailSendLog.TYPE_ANALYSIS_COMPLETION,
+        meta={"game_id": stale_moment_game.id},
+    )
+    with patch("core.spaced_repetition_email.send_coaching_email") as mock_send:
+        assert send_spaced_repetition_for_user(spaced_user) is False
+        mock_send.assert_not_called()
+
+
+def test_skips_when_spaced_sent_in_last_7_days(spaced_user, stale_moment_game):
+    log_email_send(
+        spaced_user,
+        EmailSendLog.TYPE_SPACED_MOMENT,
+        week_key=moment_key(stale_moment_game.id, 12),
+    )
+    with patch("core.spaced_repetition_email.send_coaching_email") as mock_send:
+        assert send_spaced_repetition_for_user(spaced_user) is False
+        mock_send.assert_not_called()
+
+
+def test_skips_when_weekly_coaching_budget_exceeded(spaced_user, stale_moment_game):
+    log_email_send(spaced_user, EmailSendLog.TYPE_WEEKLY_DIGEST, week_key="2026-W23")
+    log_email_send(
+        spaced_user,
+        EmailSendLog.TYPE_ANALYSIS_COMPLETION,
+        meta={"game_id": 1},
+    )
+    with patch("core.spaced_repetition_email.send_coaching_email") as mock_send:
+        assert send_spaced_repetition_for_user(spaced_user) is False
+        mock_send.assert_not_called()
+
+
+def test_skips_when_user_active_within_72h(spaced_user, stale_moment_game):
+    spaced_user.last_login = timezone.now() - timedelta(hours=6)
+    spaced_user.save(update_fields=["last_login"])
+    with patch("core.spaced_repetition_email.send_coaching_email") as mock_send:
         assert send_spaced_repetition_for_user(spaced_user) is False
         mock_send.assert_not_called()
 
@@ -108,6 +150,6 @@ def test_skips_when_opted_out(spaced_user, stale_moment_game):
     profile = Profile.objects.get(user=spaced_user)
     profile.preferences = {WANTS_SPACED_REPETITION_KEY: False}
     profile.save(update_fields=["preferences"])
-    with patch("core.spaced_repetition_email.mail.send_mail") as mock_send:
+    with patch("core.spaced_repetition_email.send_coaching_email") as mock_send:
         assert send_spaced_repetition_for_user(spaced_user) is False
         mock_send.assert_not_called()
