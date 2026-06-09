@@ -182,8 +182,8 @@ export const getMoveArrowStyle = (move = {}, reviewPlayerColor = 'white') => {
   };
 };
 
-export const formatReviewPositionEval = (move = {}, reviewPlayerColor = 'white') => {
-  const value = evalForPlayer(move.evalAfter, reviewPlayerColor);
+const formatEvalValue = (whitePovEval, reviewPlayerColor = 'white') => {
+  const value = evalForPlayer(whitePovEval, reviewPlayerColor);
   if (Math.abs(value) >= 9.5) {
     return value > 0 ? '+M' : '-M';
   }
@@ -191,19 +191,48 @@ export const formatReviewPositionEval = (move = {}, reviewPlayerColor = 'white')
   return `${sign}${value.toFixed(2)}`;
 };
 
-export const formatReviewPositionEvalVerbose = (move = {}, reviewPlayerColor = 'white') => {
-  const text = formatReviewPositionEval(move, reviewPlayerColor);
-  const value = evalForPlayer(move.evalAfter, reviewPlayerColor);
+const evalTone = (value) => {
   if (value > 1.5) {
-    return { text, tone: 'winning' };
+    return 'winning';
   }
   if (value < -1.5) {
-    return { tone: 'losing', text };
+    return 'losing';
   }
   if (Math.abs(value) <= 0.35) {
-    return { tone: 'equal', text };
+    return 'equal';
   }
-  return { tone: 'unclear', text };
+  return 'unclear';
+};
+
+/** Live eval at the position on the board (before the move is played). */
+export const formatLivePositionEval = (move = {}, reviewPlayerColor = 'white') =>
+  formatEvalValue(move.evalBefore, reviewPlayerColor);
+
+/** Eval after the engine's best move from the same position (Chess.com best-line). */
+export const formatBestLineEval = (move = {}, reviewPlayerColor = 'white') => {
+  const source = move.evalAfterBest ?? move.eval_after_best ?? move.evalAfter;
+  return formatEvalValue(source, reviewPlayerColor);
+};
+
+/** Eval after the move that was actually played. */
+export const formatAfterMoveEval = (move = {}, reviewPlayerColor = 'white') =>
+  formatEvalValue(move.evalAfter, reviewPlayerColor);
+
+export const formatReviewPositionEval = formatAfterMoveEval;
+
+export const formatReviewPositionEvalVerbose = (move = {}, reviewPlayerColor = 'white') => {
+  const value = evalForPlayer(move.evalBefore, reviewPlayerColor);
+  const text = formatLivePositionEval(move, reviewPlayerColor);
+  return { text, tone: evalTone(value) };
+};
+
+export const buildMoveEvalSummary = (move = {}, reviewPlayerColor = 'white') => {
+  const live = formatLivePositionEval(move, reviewPlayerColor);
+  const bestLine = formatBestLineEval(move, reviewPlayerColor);
+  const after = formatAfterMoveEval(move, reviewPlayerColor);
+  const showBestLine = !move.isBest && bestLine !== live;
+  const showAfter = after !== live;
+  return { live, bestLine, after, showBestLine, showAfter };
 };
 
 export const computePlayerMoveStats = (moves = [], reviewPlayerColor = 'white') => {

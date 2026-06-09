@@ -3,10 +3,11 @@ import { useTheme } from '../../context/ThemeContext';
 
 const SingleGameHero = ({ coaching = {}, worstMoment = null, playerStats = null }) => {
   const { isDarkMode } = useTheme();
+  const headline = coaching.headline;
   const takeaway = coaching.takeaway;
   const doToday = coaching.do_today;
 
-  if (!takeaway && !doToday && !worstMoment && !playerStats) {
+  if (!headline && !takeaway && !doToday && !worstMoment && !playerStats) {
     return null;
   }
 
@@ -16,12 +17,17 @@ const SingleGameHero = ({ coaching = {}, worstMoment = null, playerStats = null 
         isDarkMode ? 'bg-indigo-950/30 border-indigo-800/50' : 'bg-indigo-50 border-indigo-100'
       }`}
     >
+      {headline ? (
+        <h3 className={`text-lg font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          {headline}
+        </h3>
+      ) : null}
       {playerStats?.totalMoves ? (
         <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${
           isDarkMode ? 'text-indigo-300' : 'text-indigo-700'
         }`}
         >
-          Coach summary · {playerStats.totalMoves} of your moves reviewed at depth 20
+          Depth-20 coach review · {playerStats.totalMoves} of your moves analyzed
         </p>
       ) : null}
       {takeaway ? (
@@ -31,15 +37,16 @@ const SingleGameHero = ({ coaching = {}, worstMoment = null, playerStats = null 
       ) : null}
       {worstMoment ? (
         <p className={`mt-2 text-sm ${isDarkMode ? 'text-amber-200' : 'text-amber-900'}`}>
-          <span className="font-semibold">Biggest swing:</span>
+          <span className="font-semibold">Replay this:</span>
           {' '}Move {worstMoment.move_number}
-          {worstMoment.played_move ? ` (${worstMoment.played_move})` : ''}
-          {worstMoment.eval_swing != null ? ` — ${worstMoment.eval_swing} pawns` : ''}
+          {worstMoment.played_move ? ` — you played ${worstMoment.played_move}` : ''}
+          {worstMoment.best_move ? `, engine wanted ${worstMoment.best_move}` : ''}
+          {worstMoment.eval_swing != null ? ` (${worstMoment.eval_swing} pawn swing)` : ''}
         </p>
       ) : null}
       {doToday ? (
         <p className={`mt-2 text-sm ${isDarkMode ? 'text-indigo-200' : 'text-indigo-900'}`}>
-          <span className="font-semibold">Do today:</span> {doToday}
+          <span className="font-semibold">Do today (5 min):</span> {doToday}
         </p>
       ) : null}
     </div>

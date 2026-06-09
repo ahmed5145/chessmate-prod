@@ -5,6 +5,7 @@ import { FaClock, FaChartLine, FaExclamationTriangle, FaHourglassHalf } from 're
 import SingleGameHeader from './SingleGameHeader';
 import SingleGameFooterCta from './SingleGameFooterCta';
 import SingleGameHero from './SingleGameHero';
+import ReportInsightCards from './ReportInsightCards';
 import SingleGameBoardPanel from './SingleGameBoardPanel';
 import CriticalMomentsSection from './CriticalMomentsSection';
 import LichessActionButton from '../batch/LichessActionButton';
@@ -262,6 +263,14 @@ const SingleGameReport = ({
 
       <SingleGameHero coaching={coaching} worstMoment={worstMoment} playerStats={playerStats} />
 
+      <ReportInsightCards
+        playerStats={playerStats}
+        worstMoment={worstMoment}
+        gameContext={gameContext}
+        phaseData={phaseData}
+        playerColor={playerColor}
+      />
+
       <PhaseStrip
         phases={phaseData}
         phaseNotes={coaching.phase_notes || {}}
@@ -346,7 +355,7 @@ const SingleGameReport = ({
                   <th className="text-left py-2 pr-4">Played</th>
                   <th className="text-left py-2 pr-4">Best</th>
                   <th className="text-left py-2 pr-4">Class</th>
-                  <th className="text-right py-2">Eval</th>
+                  <th className="text-right py-2">Live / Best</th>
                 </tr>
               </thead>
               <tbody>
@@ -373,7 +382,14 @@ const SingleGameReport = ({
                     <td className="py-2 pr-4">
                       <MoveClassificationBadge classification={move.displayClassification || 'neutral'} />
                     </td>
-                    <td className="py-2 text-right tabular-nums">{move.displayEval}</td>
+                    <td className="py-2 text-right tabular-nums">
+                      <div>{move.displayLiveEval}</div>
+                      {move.evalSummary?.showBestLine ? (
+                        <div className={`text-xs ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                          {move.displayBestLineEval}
+                        </div>
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>

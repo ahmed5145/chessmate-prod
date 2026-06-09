@@ -960,11 +960,17 @@ class StockfishAnalyzer:
                 # Classify move with best-move and mate-aware context.
                 best_move = position_before.get("pv", [])[0] if position_before.get("pv") else None
                 best_move_san = None
+                eval_after_best = None
                 if best_move:
                     try:
                         best_move_obj = chess.Move.from_uci(best_move)
                         if best_move_obj in board.legal_moves:
                             best_move_san = board.san(best_move_obj)
+                            if move.uci() != best_move:
+                                best_board = board.copy()
+                                best_board.push(best_move_obj)
+                                position_best = self.analyze_position(best_board, depth=depth)
+                                eval_after_best = position_best.get("score", 0)
                     except Exception:
                         best_move_san = None
 
@@ -973,6 +979,8 @@ class StockfishAnalyzer:
                 # Analyze position after move
                 position_after = self.analyze_position(board, depth=depth)
                 eval_after = position_after.get("score", 0)
+                if eval_after_best is None:
+                    eval_after_best = eval_after
 
                 # Adjust for player perspective
                 if is_white:
@@ -995,6 +1003,7 @@ class StockfishAnalyzer:
                     "is_white": is_white,
                     "eval_before": eval_before,
                     "eval_after": eval_after,
+                    "eval_after_best": eval_after_best,
                     "eval_change": eval_change,
                     "classification": classification,
                     "best_move": best_move,

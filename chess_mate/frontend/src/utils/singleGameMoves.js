@@ -1,8 +1,12 @@
 /** Normalize single-game move payloads for board + chart UI. */
 
 import {
+  buildMoveEvalSummary,
   computePlayerMoveStats,
   evalForPlayer,
+  formatAfterMoveEval,
+  formatBestLineEval,
+  formatLivePositionEval,
   formatReviewPositionEval,
   getMoveArrowStyle,
   isPlayerMove as classificationIsPlayerMove,
@@ -10,8 +14,12 @@ import {
 } from './singleGameClassification';
 
 export {
+  buildMoveEvalSummary,
   computePlayerMoveStats,
   evalForPlayer,
+  formatAfterMoveEval,
+  formatBestLineEval,
+  formatLivePositionEval,
   formatReviewPositionEval,
   resolveMoveClassification,
 } from './singleGameClassification';
@@ -79,6 +87,8 @@ export const countFullMoves = (moves = []) => {
 export const normalizeSingleGameMove = (move = {}, index = 0, reviewPlayerColor = 'white') => {
   const evalAfter = move.eval_after ?? move.evaluation ?? move.score ?? 0;
   const evalBefore = move.eval_before ?? null;
+  const evalAfterBestRaw = move.eval_after_best ?? move.evalAfterBest;
+  const evalAfterBest = evalAfterBestRaw == null ? null : toNumber(evalAfterBestRaw);
   const evalChange = move.eval_change ?? move.evaluation_change ?? move.delta ?? 0;
   const bestMoveUci = move.best_move_uci
     || (typeof move.best_move === 'string' && isUciMove(move.best_move) ? move.best_move : '')
@@ -95,6 +105,7 @@ export const normalizeSingleGameMove = (move = {}, index = 0, reviewPlayerColor 
     classification: move.classification || 'neutral',
     evalAfter: toNumber(evalAfter),
     evalBefore: evalBefore == null ? null : toNumber(evalBefore),
+    evalAfterBest: evalAfterBest == null ? toNumber(evalAfter) : evalAfterBest,
     evalChange: toNumber(evalChange),
     bestMove: move.best_move_san || move.best_move || move.bestMove || '-',
     bestMoveUci,
@@ -105,7 +116,11 @@ export const normalizeSingleGameMove = (move = {}, index = 0, reviewPlayerColor 
   normalized.displayClassification = resolveMoveClassification(normalized, reviewPlayerColor);
   normalized.displayBestMove = formatBestMoveDisplay(normalized);
   normalized.displayLabel = formatMoveLabel(normalized);
-  normalized.displayEval = formatReviewPositionEval(normalized, reviewPlayerColor);
+  normalized.displayLiveEval = formatLivePositionEval(normalized, reviewPlayerColor);
+  normalized.displayBestLineEval = formatBestLineEval(normalized, reviewPlayerColor);
+  normalized.displayAfterEval = formatAfterMoveEval(normalized, reviewPlayerColor);
+  normalized.displayEval = normalized.displayAfterEval;
+  normalized.evalSummary = buildMoveEvalSummary(normalized, reviewPlayerColor);
   const arrowStyle = getMoveArrowStyle(normalized, reviewPlayerColor);
   normalized.displayArrowStyle = arrowStyle;
 
@@ -202,7 +217,11 @@ export const annotateMovesForPlayer = (moves = [], playerColor = 'white') =>
       isPlayerMove: playerMove,
       sideLabel: playerMove ? 'You' : 'Opponent',
       displayClassification,
-      displayEval: formatReviewPositionEval(move, playerColor),
+      displayLiveEval: formatLivePositionEval(move, playerColor),
+      displayBestLineEval: formatBestLineEval(move, playerColor),
+      displayAfterEval: formatAfterMoveEval(move, playerColor),
+      displayEval: formatAfterMoveEval(move, playerColor),
+      evalSummary: buildMoveEvalSummary(move, playerColor),
     };
     enriched.displayArrowStyle = getMoveArrowStyle(enriched, playerColor);
     return enriched;

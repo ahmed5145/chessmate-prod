@@ -20,7 +20,7 @@ const PositionEvalBar = ({ evalText = '0.00', tone = 'equal', playerColor = 'whi
     <div className="mb-3">
       <div className="mb-1 flex items-center justify-between text-xs">
         <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-          Position eval ({playerColor === 'black' ? 'your perspective' : 'your perspective'})
+          Live eval (your view)
         </span>
         <span className={`font-semibold tabular-nums ${toneColor}`}>{evalText}</span>
       </div>

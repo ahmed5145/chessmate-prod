@@ -21,20 +21,26 @@ const sampleMoves = [
     fen: 'fen-after-e4',
     classification: 'good',
     isCritical: false,
+    isWhite: true,
+    displayLabel: '1. e4',
   },
   {
-    moveNumber: 2,
+    moveNumber: 1,
     san: 'e5',
     fen: 'fen-after-e5',
     classification: 'best',
     isCritical: true,
+    isWhite: false,
+    displayLabel: '1... e5',
   },
   {
-    moveNumber: 3,
+    moveNumber: 2,
     san: 'Nf3',
     fen: 'fen-after-nf3',
     classification: 'inaccuracy',
     isCritical: false,
+    isWhite: true,
+    displayLabel: '2. Nf3',
   },
 ];
 
@@ -53,7 +59,8 @@ describe('SingleGameBoardPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /expand position review/i }));
 
     expect(screen.getByRole('dialog', { name: /expanded position review/i })).toBeInTheDocument();
-    expect(screen.getByText(/Move 1 of 3/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/1\. e4/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/2 moves/i).length).toBeGreaterThan(0);
 
     fireEvent.keyDown(window, { key: 'ArrowRight' });
     expect(screen.getAllByTestId('fen-board')[0]).toHaveTextContent('fen-after-e5');

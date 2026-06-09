@@ -4,6 +4,7 @@ import FenBoardImage from '../batch/FenBoardImage';
 import EvalChart from '../analysis/EvalChart';
 import { useTheme } from '../../context/ThemeContext';
 import {
+  countFullMoves,
   findMoveIndexByNumber,
   formatBestMoveDisplay,
   formatMoveLabel,
@@ -41,6 +42,7 @@ const MoveCaption = ({ move, playerColor, isDarkMode }) => {
   const bestMove = formatBestMoveDisplay(move);
   const sideLabel = formatMoveSideLabel(move, playerColor);
   const classification = move.displayClassification || 'neutral';
+  const summary = move.evalSummary || {};
   return (
     <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
       <p className="flex flex-wrap items-center gap-2">
@@ -55,9 +57,14 @@ const MoveCaption = ({ move, playerColor, isDarkMode }) => {
         <span className="font-medium">{formatMoveLabel(move)}</span>
         <MoveClassificationBadge classification={classification} />
       </p>
-      {bestMove && bestMove !== '-' && !move.isBest ? (
+      {summary.showBestLine ? (
+        <p className={`mt-1 text-xs ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
+          Best {bestMove}: <strong>{summary.bestLine}</strong>
+        </p>
+      ) : null}
+      {summary.showAfter && move.isPlayerMove ? (
         <p className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          Engine best: <strong>{bestMove}</strong>
+          After {move.san}: <strong>{summary.after}</strong>
         </p>
       ) : null}
     </div>
@@ -264,7 +271,7 @@ const SingleGameBoardPanel = ({
                     <MoveClassificationBadge classification={move.displayClassification || 'neutral'} showIcon={false} />
                   </span>
                   <span className={`ml-auto text-xs tabular-nums ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {move.displayEval}
+                    {move.displayLiveEval}
                   </span>
                 </button>
               ))}
@@ -299,7 +306,7 @@ const SingleGameBoardPanel = ({
               <div>
                 <h3 className="text-lg font-semibold">Position review</h3>
                 <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Move {selectedIndex + 1} of {moves.length} · Use arrow keys to step · Esc to close
+                  {formatMoveLabel(selectedMove)} · {countFullMoves(moves)} moves · Arrow keys to step · Esc to close
                 </p>
               </div>
               <button

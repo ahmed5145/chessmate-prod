@@ -3,7 +3,11 @@ import FenBoardImage from '../batch/FenBoardImage';
 import { useTheme } from '../../context/ThemeContext';
 import { formatNumber } from '../../utils/formatters';
 import { formatBestMoveDisplay, formatUciMove } from '../../utils/singleGameMoves';
-import { getMoveArrowStyle } from '../../utils/singleGameClassification';
+import {
+  formatAfterMoveEval,
+  formatBestLineEval,
+  getMoveArrowStyle,
+} from '../../utils/singleGameClassification';
 import MoveClassificationBadge from './MoveClassificationBadge';
 
 const severityClass = (type, isDarkMode) => {
@@ -84,6 +88,20 @@ const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectM
               Played {moment.played_move || '?'} · best {formatMomentBestMove(moment)}
               {moment.eval_swing != null ? ` · swing ${formatNumber(moment.eval_swing, 2)}` : ''}
             </p>
+            {moment.eval_after != null ? (
+              <p className={`mt-1 text-xs tabular-nums ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                After your move: {formatAfterMoveEval({ evalAfter: moment.eval_after }, playerColor)}
+                {moment.eval_after_best != null ? (
+                  <>
+                    {' · '}
+                    Best line: {formatBestLineEval({
+                      evalAfterBest: moment.eval_after_best,
+                      evalAfter: moment.eval_after,
+                    }, playerColor)}
+                  </>
+                ) : null}
+              </p>
+            ) : null}
             {moment.explanation ? (
               <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 {moment.explanation}

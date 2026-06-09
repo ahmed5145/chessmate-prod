@@ -1,6 +1,9 @@
 import {
+  buildMoveEvalSummary,
   computePlayerMoveStats,
-  formatReviewPositionEval,
+  formatAfterMoveEval,
+  formatBestLineEval,
+  formatLivePositionEval,
   plyToFullMoveNumber,
   resolveMoveClassification,
 } from '../singleGameClassification';
@@ -27,9 +30,17 @@ describe('singleGameClassification', () => {
     }, 0, 'black'), 'black')).toBe('blunder');
   });
 
-  it('formats position eval from the reviewing player perspective', () => {
-    expect(formatReviewPositionEval({ evalAfter: 6.94 }, 'black')).toBe('-6.94');
-    expect(formatReviewPositionEval({ evalAfter: 0.4 }, 'white')).toBe('+0.40');
+  it('formats live, best-line, and after-move evals from player perspective', () => {
+    const move = {
+      evalBefore: -1.47,
+      evalAfter: 6.94,
+      evalAfterBest: -0.8,
+      isBest: false,
+    };
+    expect(formatLivePositionEval(move, 'black')).toBe('+1.47');
+    expect(formatBestLineEval(move, 'black')).toBe('+0.80');
+    expect(formatAfterMoveEval(move, 'black')).toBe('-6.94');
+    expect(buildMoveEvalSummary(move, 'black').showBestLine).toBe(true);
   });
 
   it('computes player-only accuracy and errors', () => {

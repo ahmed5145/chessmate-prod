@@ -13,11 +13,15 @@ def test_template_coaching_without_openai_key(settings):
                 "move_number": 18,
                 "played_move": "Qh5",
                 "best_move": "Nf3",
+                "eval_swing": 1.8,
+                "eval_after": 0.4,
+                "eval_after_best": 2.2,
             }
         ],
-        game_context={"opening_name": "Sicilian Defense"},
+        game_context={"opening_name": "Sicilian Defense", "player_color": "white"},
     )
-    assert coaching["takeaway"]
+    assert coaching["headline"]
+    assert "Qh5" in coaching["takeaway"]
     assert coaching["do_today"]
     assert coaching["source"] == "template"
     assert coaching["critical_moments"][0]["move_number"] == 18
@@ -36,6 +40,6 @@ def test_template_coaching_references_batch_priority(settings):
             }
         },
     )
-    assert "batch priority" in coaching["takeaway"].lower()
-    assert "opening inaccuracies" in coaching["takeaway"]
+    assert "batch focus" in coaching["takeaway"].lower()
+    assert "opening inaccuracies" in coaching["takeaway"].lower()
     assert coaching["do_today"] == "Practice 10 opening puzzles."

@@ -84,8 +84,8 @@ describe('GameAnalysisResults', () => {
 
     render(<GameAnalysisResults analysisData={analysisData} />);
 
-    expect(screen.getByText('Your accuracy')).toBeInTheDocument();
-    expect(screen.getByText('100%')).toBeInTheDocument();
+    expect(screen.getAllByText('Your accuracy').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('100%').length).toBeGreaterThan(0);
     expect(screen.getByText(/All moves/i)).toBeInTheDocument();
     expect(screen.getAllByText('e4').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Nf3').length).toBeGreaterThan(0);
@@ -139,7 +139,7 @@ describe('GameAnalysisResults', () => {
 
     render(<GameAnalysisResults analysisData={analysisData} />);
 
-    expect(screen.getByText('100%')).toBeInTheDocument();
+    expect(screen.getAllByText('100%').length).toBeGreaterThan(0);
     expect(screen.getByText('64.2%')).toBeInTheDocument();
     expect(screen.getByText('11.1%')).toBeInTheDocument();
   });
@@ -159,7 +159,7 @@ describe('GameAnalysisResults', () => {
 
     render(<GameAnalysisResults analysisData={analysisData} />);
 
-    expect(screen.getByText('100%')).toBeInTheDocument();
+    expect(screen.getAllByText('100%').length).toBeGreaterThan(0);
   });
 
   it('shows unavailable states when analysis data is explicitly unavailable', () => {
@@ -177,7 +177,7 @@ describe('GameAnalysisResults', () => {
 
     render(<GameAnalysisResults analysisData={analysisData} />);
 
-    expect(screen.getByText('Your accuracy')).toBeInTheDocument();
+    expect(screen.getAllByText('Your accuracy').length).toBeGreaterThan(0);
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
   });
 
