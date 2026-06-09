@@ -21,14 +21,19 @@ import {
   isGameRowAnalyzed,
   resolveFocusInsight,
   resolveNextAction,
-  shouldShowFocusCard,
 } from '../utils/dashboardFocus';
+import {
+  resolveDashboardPageCopy,
+  resolveDashboardSections,
+} from '../utils/dashboardLayout';
 import LoadingSpinner from './LoadingSpinner';
 import WelcomeGuide from './WelcomeGuide';
 import PwaInstallPrompt from './PwaInstallPrompt';
 import GamePlatformBadge from './GamePlatformBadge';
 import CoachInboxCard from './dashboard/CoachInboxCard';
 import DashboardOneThingCard from './dashboard/DashboardOneThingCard';
+import DashboardPageHeader from './dashboard/DashboardPageHeader';
+import DashboardSection from './dashboard/DashboardSection';
 import FixRateCard from './batch/FixRateCard';
 import DashboardNotificationsCard from './dashboard/DashboardNotificationsCard';
 import PhaseResultHeatmap from './dashboard/PhaseResultHeatmap';
@@ -107,7 +112,7 @@ const DashboardSinceLastVisit = ({ sinceLastVisit }) => {
   );
 };
 
-const DashboardHero = ({ dashboardData, username }) => {
+const DashboardHero = ({ dashboardData }) => {
   const { isDarkMode } = useTheme();
   const action = resolveNextAction(dashboardData);
   const metrics = buildHeroMetrics(dashboardData);
@@ -120,10 +125,7 @@ const DashboardHero = ({ dashboardData, username }) => {
           : 'bg-gradient-to-br from-white to-indigo-50/60 border-gray-200'
       } shadow-lg`}
     >
-      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-        Welcome back, {username}
-      </p>
-      <h1 className={`mt-1 text-2xl sm:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+      <h1 className={`text-2xl sm:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
         {action.title}
       </h1>
       <p className={`mt-2 max-w-2xl text-sm sm:text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
@@ -177,16 +179,16 @@ const DashboardFocusCard = ({ dashboardData }) => {
   const iconColor = INSIGHT_COLORS[focus.type] || 'text-indigo-500';
 
   return (
-    <section
-      className={`rounded-xl p-5 sm:p-6 mb-8 border ${
+    <article
+      className={`rounded-xl p-5 sm:p-6 border ${
         isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
       } shadow-lg`}
     >
       <div className="flex items-center gap-2 mb-3">
         <Brain className={`h-5 w-5 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`} />
-        <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-          Your focus
-        </h2>
+        <h3 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          From your latest report
+        </h3>
       </div>
 
       <div className="flex items-start gap-3">
@@ -213,7 +215,7 @@ const DashboardFocusCard = ({ dashboardData }) => {
           ) : null}
         </div>
       </div>
-    </section>
+    </article>
   );
 };
 
@@ -320,7 +322,7 @@ const DashboardMoreStats = ({ dashboardData }) => {
   }
 
   return (
-    <section className="mt-8">
+    <div>
       <button
         type="button"
         onClick={() => setExpanded((value) => !value)}
@@ -393,7 +395,7 @@ const DashboardMoreStats = ({ dashboardData }) => {
           )}
         </div>
       )}
-    </section>
+    </div>
   );
 };
 
@@ -479,38 +481,83 @@ const Dashboard = () => {
     return null;
   }
 
+  const sections = resolveDashboardSections(dashboardData, user);
+  const pageCopy = resolveDashboardPageCopy(sections.stage, user?.username || 'there');
+
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'} py-8`}>
       <WelcomeGuide />
       <PwaInstallPrompt batchesCompleted={dashboardData.batches_completed || 0} />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <DashboardSinceLastVisit sinceLastVisit={dashboardData.sinceLastVisit} />
-        {!oneThingHidden ? (
-          <DashboardOneThingCard
-            oneThing={resolveOneThingToday(dashboardData)}
-            onSnooze={() => setOneThingHidden(true)}
-          />
+        <DashboardPageHeader eyebrow={pageCopy.eyebrow} subtitle={pageCopy.subtitle} />
+
+        <DashboardHero dashboardData={dashboardData} />
+
+        {sections.showSinceLastVisit ? (
+          <DashboardSinceLastVisit sinceLastVisit={dashboardData.sinceLastVisit} />
         ) : null}
+
         <DashboardNotificationsCard />
-        <CoachInboxCard
-          priorityInbox={dashboardData.priority_inbox}
-          onInboxUpdated={(payload) => {
-            if (payload?.priority_inbox) {
-              setDashboardData((current) => ({
-                ...current,
-                priority_inbox: payload.priority_inbox,
-              }));
-            }
-          }}
-        />
-        <FixRateCard fixRate={dashboardData.fix_rate} compact />
-        <PhaseResultHeatmap phaseHeatmap={dashboardData.phase_heatmap} />
-        <DashboardHero dashboardData={dashboardData} username={user?.username || 'there'} />
-        {shouldShowFocusCard(dashboardData, user) ? (
-          <DashboardFocusCard dashboardData={dashboardData} />
+
+        {sections.showCoachSection ? (
+          <DashboardSection
+            title={sections.coachSection.title}
+            description={sections.coachSection.description}
+          >
+            {sections.showOneThingToday && !oneThingHidden ? (
+              <DashboardOneThingCard
+                oneThing={resolveOneThingToday(dashboardData)}
+                onSnooze={() => setOneThingHidden(true)}
+              />
+            ) : null}
+            <CoachInboxCard
+              priorityInbox={dashboardData.priority_inbox}
+              onInboxUpdated={(payload) => {
+                if (payload?.priority_inbox) {
+                  setDashboardData((current) => ({
+                    ...current,
+                    priority_inbox: payload.priority_inbox,
+                  }));
+                }
+              }}
+            />
+          </DashboardSection>
         ) : null}
-        <DashboardRecentActivity games={dashboardData.recent_games} user={user} />
-        <DashboardMoreStats dashboardData={dashboardData} />
+
+        {sections.showProgressSection ? (
+          <DashboardSection
+            title="Your progress"
+            description="Track patterns you fixed and where losses cluster by phase."
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+              <FixRateCard fixRate={dashboardData.fix_rate} compact />
+              <PhaseResultHeatmap phaseHeatmap={dashboardData.phase_heatmap} />
+            </div>
+          </DashboardSection>
+        ) : null}
+
+        {sections.showFocusSection ? (
+          <DashboardSection
+            title="Coach insight"
+            description="A deeper read from your latest batch analysis."
+          >
+            <DashboardFocusCard dashboardData={dashboardData} />
+          </DashboardSection>
+        ) : null}
+
+        <DashboardSection
+          title="Your games"
+          description={
+            sections.stage === 'new'
+              ? 'Import games to populate your library.'
+              : 'Jump back into recent games or run another batch when you have new material.'
+          }
+        >
+          <DashboardRecentActivity games={dashboardData.recent_games} user={user} />
+          {sections.showMoreStats ? (
+            <DashboardMoreStats dashboardData={dashboardData} />
+          ) : null}
+        </DashboardSection>
       </div>
     </div>
   );

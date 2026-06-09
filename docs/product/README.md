@@ -11,5 +11,6 @@ This folder contains the product definition for ChessMate's coaching-focused MVP
 - [Single-Game Analysis Implementation Plan](SINGLE_GAME_ANALYSIS_IMPLEMENTATION_PLAN.md)
 - [Single-Game Retention & Batch Bridge Plan](SINGLE_GAME_RETENTION_PLAN.md) 🔒
 - [Platform Growth & Opportunity Audit](PLATFORM_GROWTH_AUDIT.md) — post-launch opportunities, financial impact, timing
+- [Dashboard UX Plan](DASHBOARD_UX_PLAN.md) — coach-home layout (implemented)
 
 The central product idea is batch analysis that turns many games into one combined coaching report with clear priorities, recurring weakness detection, and an action plan. Single-game depth-20 is the **proof layer** — free to revisit, paid once per fresh engine run — that turns batch priorities into believable, actionable moments.
