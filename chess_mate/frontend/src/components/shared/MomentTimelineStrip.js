@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 
-const Sparkline = ({ values = [] }) => {
+export const Sparkline = ({ values = [] }) => {
   if (!Array.isArray(values) || values.length < 2) {
     return null;
   }

@@ -7,7 +7,7 @@ jest.mock('../BatchReportHeader', () => () => <div data-testid="batch-header" />
 jest.mock('../ExecutiveSummary', () => () => <div data-testid="executive-summary" />);
 jest.mock('../TopPriorities', () => () => <div data-testid="top-priorities" />);
 jest.mock('../PracticeNextStrip', () => () => <div data-testid="practice-next" />);
-jest.mock('../BatchCompareCard', () => () => <div data-testid="batch-compare" />);
+jest.mock('../BatchMomentDiff', () => () => <div data-testid="batch-moment-diff" />);
 jest.mock('../PhaseBreakdown', () => () => <div data-testid="phase-breakdown" />);
 jest.mock('../TimeManagementInsight', () => {
   const actual = jest.requireActual('../TimeManagementInsight');
@@ -74,11 +74,11 @@ describe('BatchReportSections', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders core sections and owner compare card', () => {
+  it('renders core sections and owner moment diff', () => {
     render(<BatchReportSections batchReport={buildReport()} batchId="batch-9" />);
 
     expect(screen.getByTestId('batch-hero')).toBeInTheDocument();
-    expect(screen.getByTestId('batch-compare')).toBeInTheDocument();
+    expect(screen.getByTestId('batch-moment-diff')).toBeInTheDocument();
     expect(screen.getByTestId('opening-section')).toBeInTheDocument();
     expect(screen.getByTestId('recurring-patterns')).toBeInTheDocument();
     expect(screen.getByTestId('coaching-insights')).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe('BatchReportSections', () => {
   it('hides compare in read-only share mode', () => {
     render(<BatchReportSections batchReport={buildReport()} batchId="batch-9" readOnly />);
 
-    expect(screen.queryByTestId('batch-compare')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('batch-moment-diff')).not.toBeInTheDocument();
   });
 
   it('shows coaching unavailable banner and failed games on partial batches', () => {

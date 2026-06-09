@@ -10,6 +10,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from .batch_labels import BATCH_COACH_MAX_GAMES, BATCH_COACH_REQUIRES_MIN
+from .batch_moment_diff import build_batch_moment_diff
 from .fix_rate import build_fix_rate_payload
 from .models import BatchAnalysisReport, Game
 
@@ -334,6 +335,10 @@ class BatchAnalysisReportSerializer(serializers.ModelSerializer):
             )
             if previous:
                 data["fix_rate"] = build_fix_rate_payload(instance, previous)
+                data["moment_diff"] = build_batch_moment_diff(
+                    instance, previous, profile
+                )
             else:
                 data["fix_rate"] = {"show": False}
+                data["moment_diff"] = {"show": False}
         return data

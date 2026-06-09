@@ -15,7 +15,7 @@ import TrainingPlan from './TrainingPlan';
 import GameAccordion from './GameAccordion';
 import FailedGamesList from './FailedGamesList';
 import TopCriticalMoments from './TopCriticalMoments';
-import BatchCompareCard from './BatchCompareCard';
+import BatchMomentDiff from './BatchMomentDiff';
 import TimeManagementInsight, { shouldShowTimeManagementInsight } from './TimeManagementInsight';
 import OpeningSection from './OpeningSection';
 import CoachingInsightsSection from './CoachingInsightsSection';
@@ -136,7 +136,10 @@ const BatchReportSections = ({
 
           {!readOnly && batchId ? (
             <SectionWrap id="batch-section-compare">
-              <BatchCompareCard batchId={batchId} />
+              <BatchMomentDiff
+                momentDiff={batchReport.moment_diff}
+                batchId={batchId}
+              />
             </SectionWrap>
           ) : null}
 

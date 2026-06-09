@@ -467,6 +467,11 @@ def batch_compare_view(request, batch_id):
         "new": sorted(current_themes - other_themes),
     }
 
+    profile = getattr(request.user, "profile", None)
+    from .batch_moment_diff import build_batch_moment_diff
+
+    moment_diff = build_batch_moment_diff(current, other, profile)
+
     return Response(
         {
             "current_batch_id": current.id,
@@ -474,6 +479,7 @@ def batch_compare_view(request, batch_id):
             "other_created_at": other.created_at,
             "metrics": metrics,
             "weaknesses": weaknesses,
+            "moment_diff": moment_diff,
             "narrative": build_compare_narrative(
                 metrics=metrics,
                 weaknesses=weaknesses,

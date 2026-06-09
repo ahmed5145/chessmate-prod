@@ -1036,6 +1036,7 @@ flowchart TD
 - [ ] **SRG-16** Batch-linked single-game report shows streak banner when ≥2 days.
 - [ ] **SRG-10** Moment timeline shows batch run count when pattern seen in ≥2 batches; hidden on first sighting.
 - [ ] **SRG-17** Fix-rate on 2nd batch reflects improved/absent patterns; hidden on first batch.
+- [ ] **SRG-20** Compared-to-last-batch table shows ≥3 patterns with then/now swing + sparkline; hidden on first batch.
 - [ ] **SRG-14** Bell shows completion + inbox; mark read works.
 - [ ] **SRG-15** Opt in digest → **one** mail in 7 days; opt out → zero.
 - [ ] **SRG-13** Spaced mail **not** same week as digest (mutual exclusion).
@@ -1123,7 +1124,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-18 | ⬜ Not started | Phase heatmap |
 | SRG-19 | ✅ Done | Auto-pick proof games + proof_label in inbox |
 | SRG-11 | ✅ Done | Coach alignment score on batch-linked single-game |
-| SRG-20 | ⬜ Not started | Batch A vs B diff |
+| SRG-20 | ✅ Done | Batch A vs B moment diff with swing sparklines |
 | SRG-21 | ⬜ Not started | Opening gaps → games |
 | SRG-22 | ✅ Done | Verify email + one-time welcome after confirm |
 | SRG-23 | ⬜ Not started | First-batch celebration |
