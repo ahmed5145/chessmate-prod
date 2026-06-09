@@ -2,6 +2,7 @@ import React from 'react';
 import FenBoardImage from '../batch/FenBoardImage';
 import { useTheme } from '../../context/ThemeContext';
 import { formatNumber } from '../../utils/formatters';
+import { formatBestMoveDisplay, formatUciMove } from '../../utils/singleGameMoves';
 
 const severityClass = (type, isDarkMode) => {
   if (type === 'blunder') {
@@ -13,7 +14,17 @@ const severityClass = (type, isDarkMode) => {
   return isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700';
 };
 
-const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectMove }) => {
+const formatMomentBestMove = (moment) => {
+  if (moment?.best_move && !/^[a-h][1-8][a-h][1-8]/i.test(moment.best_move)) {
+    return moment.best_move;
+  }
+  if (moment?.best_move_uci) {
+    return formatUciMove(moment.best_move_uci);
+  }
+  return formatBestMoveDisplay({ bestMove: moment?.best_move, bestMoveUci: moment?.best_move_uci });
+};
+
+const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectMoment }) => {
   const { isDarkMode } = useTheme();
 
   if (!Array.isArray(moments) || moments.length === 0) {
@@ -43,7 +54,7 @@ const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectM
               <button
                 type="button"
                 className="w-full text-left"
-                onClick={() => onSelectMove && onSelectMove(moment.move_number)}
+                onClick={() => onSelectMoment && onSelectMoment(moment)}
               >
                 <FenBoardImage
                   fen={moment.fen}
@@ -55,7 +66,7 @@ const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectM
               </button>
             ) : null}
             <p className={`mt-2 text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-              Played {moment.played_move || '?'} · best {moment.best_move || '?'}
+              Played {moment.played_move || '?'} · best {formatMomentBestMove(moment)}
               {moment.eval_swing != null ? ` · swing ${formatNumber(moment.eval_swing, 2)}` : ''}
             </p>
             {moment.explanation ? (

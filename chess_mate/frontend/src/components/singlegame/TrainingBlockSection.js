@@ -27,7 +27,7 @@ const formatMotifEvidence = (evidence = []) => {
     .map((entry) => {
       const move = entry?.move_number ?? entry?.move;
       const san = entry?.san || '';
-      if (move != null) {
+      if (move != null && Number(move) > 0) {
         return `move ${move}${san ? ` ${san}` : ''}`.trim();
       }
       return san || null;

@@ -953,20 +953,9 @@ class StockfishAnalyzer:
 
                 # Execute the move
                 san = board.san(move)
-                board.push(move)
-
-                # Analyze position after move
-                position_after = self.analyze_position(board, depth=depth)
 
                 # Calculate evaluation change
                 eval_before = position_before.get("score", 0)
-                eval_after = position_after.get("score", 0)
-
-                # Adjust for player perspective
-                if is_white:
-                    eval_change = eval_after - eval_before
-                else:
-                    eval_change = eval_before - eval_after
 
                 # Classify move with best-move and mate-aware context.
                 best_move = position_before.get("pv", [])[0] if position_before.get("pv") else None
@@ -978,6 +967,18 @@ class StockfishAnalyzer:
                             best_move_san = board.san(best_move_obj)
                     except Exception:
                         best_move_san = None
+
+                board.push(move)
+
+                # Analyze position after move
+                position_after = self.analyze_position(board, depth=depth)
+                eval_after = position_after.get("score", 0)
+
+                # Adjust for player perspective
+                if is_white:
+                    eval_change = eval_after - eval_before
+                else:
+                    eval_change = eval_before - eval_after
                 classification = self._classify_move(
                     eval_change,
                     eval_before=eval_before,
@@ -1063,11 +1064,6 @@ class StockfishAnalyzer:
             if eval_change_cp >= 100:
                 return "excellent_move"
             return "good_move"
-
-        # Reduce neutral over-classification when the move is explicitly not best
-        # and loses a meaningful amount of evaluation.
-        if played_move and best_move and played_move != best_move and eval_change_cp <= -25:
-            return "inaccuracy"
 
         if eval_change_cp < -300:
             return "blunder"

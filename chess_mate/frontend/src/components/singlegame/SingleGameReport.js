@@ -8,7 +8,15 @@ import SingleGameHero from './SingleGameHero';
 import SingleGameBoardPanel from './SingleGameBoardPanel';
 import CriticalMomentsSection from './CriticalMomentsSection';
 import LichessActionButton from '../batch/LichessActionButton';
-import { normalizeSingleGameMoves } from '../../utils/singleGameMoves';
+import {
+  findMoveIndexForMoment,
+  formatBestMoveDisplay,
+  formatMoveLabel,
+  formatMovesSummaryLabel,
+  formatPlayerEvalLoss,
+  inferDisplayClassification,
+  normalizeSingleGameMoves,
+} from '../../utils/singleGameMoves';
 import { resolveSingleGameDrillLink } from '../../utils/singleGameDrillLinks';
 import {
   alignMomentsWithBatchContext,
@@ -95,6 +103,7 @@ const SingleGameReport = ({
 }) => {
   const { isDarkMode } = useTheme();
   const [focusMoveNumber, setFocusMoveNumber] = useState(initialMoveNumber);
+  const [focusMoveIsWhite, setFocusMoveIsWhite] = useState(null);
   const resolvedAnalysisData = analysisData || analysis;
 
   const {
@@ -163,9 +172,12 @@ const SingleGameReport = ({
       : formatNumber(
         pickAccuracy(overall.accuracy, moveQuality.accuracy, overall.accuracy_score, metricsData.accuracy)
       );
-    const mistakes = unavailable
-      ? 'N/A'
-      : formatNumber(pickNumber(overall.mistakes, overall.total_mistakes, pickNumber(overall.blunders, 0) + pickNumber(overall.mistakes, 0)));
+    const mistakeCount = pickNumber(
+      overall.mistakes,
+      overall.total_mistakes,
+      pickNumber(overall.blunders, 0) + pickNumber(overall.mistakes, 0)
+    );
+    const mistakes = unavailable ? 'N/A' : String(Math.round(mistakeCount));
 
     let timeMgmt = unavailable ? 'N/A' : formatNumber(pickNumber(timeManagement.time_management_score, overall.time_management_score));
     let timePressure = unavailable ? 'N/A' : formatNumber(pickNumber(timeManagement.time_pressure_percentage));
@@ -220,6 +232,7 @@ const SingleGameReport = ({
     moveNumber: moment.move_number,
     label: `Move ${moment.move_number}`,
     classification: moment.type,
+    isWhite: moment.player_color === 'white',
   }));
 
   return (
@@ -265,11 +278,13 @@ const SingleGameReport = ({
         moves={tableMoves}
         momentChips={momentChips}
         initialMoveNumber={focusMoveNumber ?? initialMoveNumber}
+        initialMoveIsWhite={focusMoveIsWhite}
         playerColor={playerColor}
         onMoveIndexChange={(index) => {
           const move = tableMoves[index];
           if (move?.moveNumber) {
             setFocusMoveNumber(move.moveNumber);
+            setFocusMoveIsWhite(move.isWhite);
           }
         }}
       />
@@ -277,7 +292,14 @@ const SingleGameReport = ({
       <CriticalMomentsSection
         moments={criticalMoments}
         playerColor={playerColor}
-        onSelectMove={(moveNumber) => setFocusMoveNumber(moveNumber)}
+        onSelectMoment={(moment) => {
+          const index = findMoveIndexForMoment(tableMoves, moment, playerColor);
+          const move = tableMoves[index];
+          if (move?.moveNumber != null) {
+            setFocusMoveNumber(move.moveNumber);
+            setFocusMoveIsWhite(move.isWhite);
+          }
+        }}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -290,7 +312,7 @@ const SingleGameReport = ({
       {tableMoves.length > 0 ? (
         <details className={`mb-8 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <summary className={`cursor-pointer px-4 py-3 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            All moves ({tableMoves.length})
+            All moves ({formatMovesSummaryLabel(tableMoves)})
           </summary>
           <div className="px-4 pb-4 overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -300,21 +322,21 @@ const SingleGameReport = ({
                   <th className="text-left py-2 pr-4">Played</th>
                   <th className="text-left py-2 pr-4">Best</th>
                   <th className="text-left py-2 pr-4">Class</th>
-                  <th className="text-right py-2">Eval Δ</th>
+                  <th className="text-right py-2">Eval loss</th>
                 </tr>
               </thead>
               <tbody>
                 {tableMoves.map((move, idx) => (
                   <tr key={`${move.moveNumber}-${move.san}-${idx}`} className={isDarkMode ? 'border-t border-gray-700' : 'border-t border-gray-200'}>
-                    <td className="py-2 pr-4">{move.moveNumber}</td>
+                    <td className="py-2 pr-4">{move.displayLabel || formatMoveLabel(move)}</td>
                     <td className="py-2 pr-4 font-medium">{move.san}</td>
-                    <td className="py-2 pr-4">{move.bestMove}</td>
+                    <td className="py-2 pr-4">{move.displayBestMove || formatBestMoveDisplay(move)}</td>
                     <td className="py-2 pr-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getClassificationBadgeClass(move.classification, isDarkMode)}`}>
-                        {formatClassificationLabel(move.classification)}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getClassificationBadgeClass(inferDisplayClassification(move), isDarkMode)}`}>
+                        {formatClassificationLabel(inferDisplayClassification(move))}
                       </span>
                     </td>
-                    <td className="py-2 text-right">{move.evalChange.toFixed(2)}</td>
+                    <td className="py-2 text-right">{move.displayEvalLoss || formatPlayerEvalLoss(move)}</td>
                   </tr>
                 ))}
               </tbody>

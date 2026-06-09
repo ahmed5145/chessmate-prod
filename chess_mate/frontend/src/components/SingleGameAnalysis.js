@@ -337,7 +337,7 @@ const SingleGameAnalysis = () => {
   const pollDelayRef = useRef(3000);
   const activeTaskIdRef = useRef(null);
   const timeoutIds = useRef([]);
-  const POLL_MIN_DELAY = 5000;
+  const POLL_MIN_DELAY = 8000;
   const POLL_MAX_DELAY = 30000;
 
   const scheduleStatusPoll = (delay = POLL_MIN_DELAY) => {

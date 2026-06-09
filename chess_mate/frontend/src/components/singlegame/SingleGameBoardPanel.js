@@ -3,7 +3,13 @@ import { FaChevronLeft, FaChevronRight, FaCompress, FaExpand } from 'react-icons
 import FenBoardImage from '../batch/FenBoardImage';
 import EvalChart from '../analysis/EvalChart';
 import { useTheme } from '../../context/ThemeContext';
-import { findMoveIndexByNumber, pickEvalSeries } from '../../utils/singleGameMoves';
+import {
+  findMoveIndexByNumber,
+  formatBestMoveDisplay,
+  formatMoveLabel,
+  inferDisplayClassification,
+  pickEvalSeries,
+} from '../../utils/singleGameMoves';
 
 const classificationClass = (classification, isDarkMode) => {
   const value = String(classification || '').toLowerCase();
@@ -41,17 +47,21 @@ const panelButtonClass = (isDarkMode, disabled = false) => {
     : 'text-gray-700 hover:bg-gray-100';
 };
 
-const MoveCaption = ({ move, isDarkMode }) => (
-  <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-    Move {move.moveNumber}: <strong>{move.san}</strong>
-    {move.bestMove && move.bestMove !== '-' ? (
-      <> · Best: <strong>{move.bestMove}</strong></>
-    ) : null}
-    <span className={`ml-2 ${classificationClass(move.classification, isDarkMode)}`}>
-      {move.classification}
-    </span>
-  </p>
-);
+const MoveCaption = ({ move, isDarkMode }) => {
+  const bestMove = formatBestMoveDisplay(move);
+  const classification = inferDisplayClassification(move);
+  return (
+    <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+      {formatMoveLabel(move)} · Eval after: <strong>{Number(move.evalAfter).toFixed(2)}</strong>
+      {bestMove && bestMove !== '-' ? (
+        <> · Best: <strong>{bestMove}</strong></>
+      ) : null}
+      <span className={`ml-2 ${classificationClass(classification, isDarkMode)}`}>
+        {classification}
+      </span>
+    </p>
+  );
+};
 
 const MoveBoard = ({ move, playerColor, boardSize = 320 }) => {
   if (!move?.fen) {
@@ -73,18 +83,25 @@ const SingleGameBoardPanel = ({
   moves = [],
   momentChips = [],
   initialMoveNumber = null,
+  initialMoveIsWhite = null,
   playerColor = 'white',
   onMoveIndexChange,
 }) => {
   const { isDarkMode } = useTheme();
+  const resolveIndex = useCallback((moveNumber, isWhite = initialMoveIsWhite) =>
+    findMoveIndexByNumber(moves, moveNumber, {
+      isWhite: isWhite === null ? undefined : isWhite,
+      playerColor: isWhite === null ? playerColor : undefined,
+    }), [initialMoveIsWhite, moves, playerColor]);
+
   const [selectedIndex, setSelectedIndex] = useState(() =>
-    findMoveIndexByNumber(moves, initialMoveNumber)
+    resolveIndex(initialMoveNumber)
   );
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
-    setSelectedIndex(findMoveIndexByNumber(moves, initialMoveNumber));
-  }, [moves, initialMoveNumber]);
+    setSelectedIndex(resolveIndex(initialMoveNumber, initialMoveIsWhite));
+  }, [initialMoveNumber, initialMoveIsWhite, resolveIndex]);
 
   const selectedMove = moves[selectedIndex] || moves[0];
   const evalPoints = pickEvalSeries(moves);
@@ -146,7 +163,7 @@ const SingleGameBoardPanel = ({
     ? momentChips
     : moves.filter((move) => move.isCritical).map((move) => ({
       moveNumber: move.moveNumber,
-      label: `${move.moveNumber}. ${move.san}`,
+      label: move.displayLabel || formatMoveLabel(move),
       classification: move.classification,
     }));
 
@@ -180,13 +197,16 @@ const SingleGameBoardPanel = ({
           <div className="single-game-no-print md:hidden sticky top-0 z-10 -mx-1 mb-4 pb-2 bg-inherit">
             <div className="flex gap-2 overflow-x-auto px-1 py-1 snap-x snap-mandatory">
               {chips.map((chip) => {
-                const index = moves.findIndex((move) => move.moveNumber === chip.moveNumber);
+                const index = findMoveIndexByNumber(moves, chip.moveNumber, {
+                  isWhite: chip.isWhite === undefined ? undefined : chip.isWhite,
+                  playerColor: chip.isWhite === undefined ? playerColor : undefined,
+                });
                 if (index < 0) {
                   return null;
                 }
                 return (
                   <button
-                    key={`chip-${chip.moveNumber}`}
+                    key={`chip-${chip.moveNumber}-${chip.isWhite ? 'w' : 'b'}`}
                     type="button"
                     onClick={() => handleSelect(index)}
                     className={`shrink-0 snap-start rounded-full border px-3 py-1 text-xs font-semibold ${chipClass(index === selectedIndex, isDarkMode)}`}
@@ -227,9 +247,9 @@ const SingleGameBoardPanel = ({
                       : (isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50')
                   } ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}
                 >
-                  <span className="font-medium">{move.moveNumber}.</span> {move.san}
-                  <span className={`ml-2 text-xs ${classificationClass(move.classification, isDarkMode)}`}>
-                    {move.classification}
+                  <span className="font-medium">{move.displayLabel || formatMoveLabel(move)}</span>
+                  <span className={`ml-2 text-xs ${classificationClass(inferDisplayClassification(move), isDarkMode)}`}>
+                    {inferDisplayClassification(move)}
                   </span>
                 </button>
               ))}
@@ -313,13 +333,16 @@ const SingleGameBoardPanel = ({
               {chips.length > 0 ? (
                 <div className="flex w-full max-w-3xl flex-wrap justify-center gap-2">
                   {chips.map((chip) => {
-                    const index = moves.findIndex((move) => move.moveNumber === chip.moveNumber);
+                    const index = findMoveIndexByNumber(moves, chip.moveNumber, {
+                      isWhite: chip.isWhite === undefined ? undefined : chip.isWhite,
+                      playerColor: chip.isWhite === undefined ? playerColor : undefined,
+                    });
                     if (index < 0) {
                       return null;
                     }
                     return (
                       <button
-                        key={`expanded-chip-${chip.moveNumber}`}
+                        key={`expanded-chip-${chip.moveNumber}-${chip.isWhite ? 'w' : 'b'}`}
                         type="button"
                         onClick={() => handleSelect(index)}
                         className={`rounded-full border px-3 py-1 text-xs font-semibold ${chipClass(index === selectedIndex, isDarkMode)}`}

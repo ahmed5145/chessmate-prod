@@ -606,6 +606,17 @@ class TestStockfishAnalyzer(TransactionTestCase):
                 self.assertIn("remaining_time", metrics)
                 self.assertIn("normalized_time", metrics)
 
+    def test_classify_move_large_loss_is_blunder_not_capped_at_inaccuracy(self):
+        """Non-best moves with large eval drops must not be capped at inaccuracy."""
+        result = self.analyzer._classify_move(
+            -8.41,
+            eval_before=-1.47,
+            eval_after=6.94,
+            played_move="d6d5",
+            best_move="b8a6",
+        )
+        self.assertEqual(result, "blunder")
+
     def tearDown(self):
         """Clean up test environment after each test."""
         try:
