@@ -66,6 +66,9 @@ const ReportInsightCards = ({
     const afterEval = formatAfterMoveEval({ evalAfter: worstMoment.eval_after }, playerColor);
     momentDetail = `${worstMoment.played_move || '?'} vs best ${worstMoment.best_move || '?'} `
       + `(${afterEval} after · ${bestEval} best line)`;
+    if (worstMoment.rating_benchmark?.copy) {
+      momentDetail = `${momentDetail} ${worstMoment.rating_benchmark.copy}`;
+    }
   }
 
   return (

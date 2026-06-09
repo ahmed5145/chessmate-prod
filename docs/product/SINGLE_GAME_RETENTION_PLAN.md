@@ -277,10 +277,11 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] No fabricated precision — show band range, not false exactitude.
-- [ ] Hidden when rating unknown.
+- [x] No fabricated precision — show band range, not false exactitude.
+- [x] Hidden when rating unknown.
+- [x] Tests: `test_rating_band_coaching.py`, `CriticalMomentsSection.test.js` (§8).
 
-**Primary files:** `rating_band_coaching.py`, `CriticalMomentsSection.js`, `ReportInsightCards.js`
+**Primary files:** `rating_band_coaching.py`, `CriticalMomentsSection.js`, `ReportInsightCards.js`, `game_views.py`
 
 ---
 
@@ -1047,7 +1048,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | **SRG-2** | `test_single_game_streak.py` | `singleGameStreak.test.js`, `SingleGameStreakCard.test.js` | Streak rules unit-tested |
 | **SRG-3** | `test_single_game_context.py` (pattern counts) | `singleGameBatchCta.test.js`, `SingleGameFooterCta.test.js` | Batch link + analytics |
 | **SRG-4** | — | `singleGameDrillLinks.test.js`, `singleGameBatchCta.test.js` | ECO + mistake context |
-| **SRG-5** | `test_rating_band_copy.py` *(add)* | — | Template strings from rating |
+| **SRG-5** | `test_rating_band_coaching.py` | `CriticalMomentsSection.test.js` | Benchmark ranges on moments |
 | **SRG-6** | — | `singleGameDrillChecklist.test.js`, `DrillChecklistSection.test.js` | `localStorage` persistence |
 | **SRG-7** | — | `singleGameMoveSound.test.js` *(add)* | Classification → sound map |
 | **SRG-8** | — | `SingleGameReportActions.test.js` | No print handler |
@@ -1086,7 +1087,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-2 | ✅ Done | Blunder-free streak card + Games chip + tests |
 | SRG-3 | ✅ Done | Pattern-count batch CTA + analytics + tests |
 | SRG-4 | ✅ Done | Opening study label with ECO + mistake count |
-| SRG-5 | ⬜ Not started | |
+| SRG-5 | ✅ Done | Rating-band benchmark on critical moments + tests |
 | SRG-6 | ✅ Done | 5-min drill checklist + localStorage + tests |
 | SRG-7 | ⬜ Not started | |
 | SRG-8 | ✅ Done | Print removed; tests in matrix §8 |
@@ -1124,6 +1125,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-08 | Added §7 manual smoke plan (3 sessions) + §8 automated test matrix per SRG |
 | 2026-06-08 | Shipped SRG-3 batch pattern CTA + SRG-4 opening study drill labels |
 | 2026-06-08 | Shipped SRG-2 blunder-free streak (profile-backed) |
+| 2026-06-08 | Shipped SRG-5 rating-band benchmark copy on critical moments |
 
 ---
 

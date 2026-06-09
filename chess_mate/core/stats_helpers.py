@@ -126,12 +126,22 @@ def build_single_game_context(game: Game, profile: Optional[Profile] = None) -> 
     if not opening_name or opening_name.lower() == "unknown opening":
         opening_name = (getattr(game, "opening_played", None) or "").strip() or opening_name
 
+    player_rating = None
+    if profile is not None:
+        try:
+            raw_rating = getattr(profile, "elo_rating", None)
+            if raw_rating is not None:
+                player_rating = int(raw_rating)
+        except (TypeError, ValueError):
+            player_rating = None
+
     return {
         "id": game.id,
         "white": game.white,
         "black": game.black,
         "opponent": resolve_game_opponent_display(game, profile),
         "player_color": player_color,
+        "player_rating": player_rating,
         "result": game.result,
         "opening_name": opening_name,
         "eco": getattr(game, "eco_code", None),

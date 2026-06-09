@@ -5,7 +5,154 @@ Tailored using batch_summary signals when available.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+# Conservative static miss-rate ranges (percent) per band + moment theme.
+# Labeled "ChessMate benchmark" until aggregated product data exists.
+_MOMENT_MISS_RATES: Dict[str, Dict[str, Tuple[int, int]]] = {
+    "under_1000": {
+        "tactical_oversight": (50, 62),
+        "missed_tactic": (55, 68),
+        "opening_inaccuracy": (45, 58),
+    },
+    "1000_1199": {
+        "tactical_oversight": (42, 52),
+        "missed_tactic": (48, 58),
+        "opening_inaccuracy": (38, 48),
+    },
+    "1200_1399": {
+        "tactical_oversight": (35, 45),
+        "missed_tactic": (40, 50),
+        "opening_inaccuracy": (32, 42),
+    },
+    "1400_1599": {
+        "tactical_oversight": (28, 38),
+        "missed_tactic": (32, 42),
+        "opening_inaccuracy": (24, 34),
+    },
+    "1600_1799": {
+        "tactical_oversight": (22, 32),
+        "missed_tactic": (26, 36),
+        "opening_inaccuracy": (18, 28),
+    },
+    "1800_1999": {
+        "tactical_oversight": (16, 26),
+        "missed_tactic": (20, 30),
+        "opening_inaccuracy": (14, 22),
+    },
+    "2000_plus": {
+        "tactical_oversight": (12, 20),
+        "missed_tactic": (15, 24),
+        "opening_inaccuracy": (10, 18),
+    },
+}
+
+_MOMENT_THEME_LABELS = {
+    "tactical_oversight": "this tactic",
+    "missed_tactic": "a winning tactic",
+    "opening_inaccuracy": "this opening inaccuracy",
+    "positional_slip": "this positional slip",
+}
+
+
+def resolve_rating_band(player_rating: Optional[int]) -> Optional[Dict[str, Any]]:
+    """Map a player rating to a band key, label, and rounded anchor for copy."""
+    if player_rating is None:
+        return None
+    try:
+        rating = int(player_rating)
+    except (TypeError, ValueError):
+        return None
+    if rating <= 0:
+        return None
+
+    if rating < 1000:
+        return {"key": "under_1000", "label": "under 1000", "near_rating": 900}
+    if rating < 1200:
+        return {"key": "1000_1199", "label": "1000-1199", "near_rating": 1100}
+    if rating < 1400:
+        return {"key": "1200_1399", "label": "1200-1399", "near_rating": 1300}
+    if rating < 1600:
+        return {"key": "1400_1599", "label": "1400-1599", "near_rating": 1500}
+    if rating < 1800:
+        return {"key": "1600_1799", "label": "1600-1799", "near_rating": 1700}
+    if rating < 2000:
+        return {"key": "1800_1999", "label": "1800-1999", "near_rating": 1900}
+    return {"key": "2000_plus", "label": "2000+", "near_rating": 2100}
+
+
+def normalize_moment_benchmark_theme(moment_type: Optional[str]) -> Optional[str]:
+    """Map single-game / batch moment labels to benchmark theme keys."""
+    if not moment_type:
+        return None
+    normalized = str(moment_type).lower().replace(" ", "_").strip()
+    aliases = {
+        "blunder": "tactical_oversight",
+        "mistake": "tactical_oversight",
+        "missed_win": "missed_tactic",
+        "inaccuracy": "opening_inaccuracy",
+        "opening_inaccuracy": "opening_inaccuracy",
+        "tactical_oversight": "tactical_oversight",
+        "missed_tactic": "missed_tactic",
+        "positional_slip": "positional_slip",
+    }
+    return aliases.get(normalized)
+
+
+def single_game_moment_benchmark(
+    player_rating: Optional[int],
+    moment_type: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    """
+    Build honest benchmark copy for a critical moment at the player's rating band.
+    Returns None when rating or moment theme is unknown.
+    """
+    band = resolve_rating_band(player_rating)
+    theme = normalize_moment_benchmark_theme(moment_type)
+    if not band or not theme:
+        return None
+
+    rates = _MOMENT_MISS_RATES.get(band["key"], {}).get(theme)
+    if not rates:
+        return None
+
+    low, high = rates
+    theme_label = _MOMENT_THEME_LABELS.get(theme, "this mistake")
+    copy = (
+        f"ChessMate benchmark: players near {band['near_rating']} "
+        f"miss {theme_label} about {low}-{high}% of the time in similar positions."
+    )
+    return {
+        "band_label": band["label"],
+        "near_rating": band["near_rating"],
+        "moment_theme": theme,
+        "miss_rate_low": low,
+        "miss_rate_high": high,
+        "copy": copy,
+        "source": "static_benchmark",
+    }
+
+
+def attach_moment_benchmarks(
+    moments: Optional[List[Dict[str, Any]]],
+    player_rating: Optional[int],
+) -> List[Dict[str, Any]]:
+    """Attach rating_benchmark payloads to critical moment dicts."""
+    if not isinstance(moments, list):
+        return []
+    enriched: List[Dict[str, Any]] = []
+    for moment in moments:
+        if not isinstance(moment, dict):
+            continue
+        item = dict(moment)
+        benchmark = single_game_moment_benchmark(
+            player_rating,
+            moment.get("type") or moment.get("classification"),
+        )
+        if benchmark:
+            item["rating_benchmark"] = benchmark
+        enriched.append(item)
+    return enriched
 
 
 def _top_weakness_label(recurring_weaknesses: Optional[List[dict]]) -> Optional[str]:

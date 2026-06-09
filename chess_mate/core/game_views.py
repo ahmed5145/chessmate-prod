@@ -74,6 +74,7 @@ from .single_game_analysis_cache import (
     cached_analysis_response,
     has_complete_cached_analysis,
 )
+from .rating_band_coaching import attach_moment_benchmarks, resolve_rating_band
 from .single_game_streak import get_single_game_streak
 from .single_game_credits import (
     charge_single_game_credit,
@@ -2299,6 +2300,9 @@ def get_game_analysis(request, game_id):
             critical_moments = payload.get("critical_moments")
             if not isinstance(critical_moments, list):
                 critical_moments = coaching_payload.get("critical_moments") or []
+            player_rating = game_context.get("player_rating")
+            critical_moments = attach_moment_benchmarks(critical_moments, player_rating)
+            rating_context = resolve_rating_band(player_rating)
 
             batch_id_param = request.GET.get("batch_id") or request.GET.get("batch")
             move_param = request.GET.get("move")
@@ -2340,6 +2344,7 @@ def get_game_analysis(request, game_id):
                 "batch_context": batch_context,
                 "training_block": training_block,
                 "single_game_streak": streak_state,
+                "rating_context": rating_context,
                 "engine_meta": {
                     "depth": getattr(analysis, "depth", 20) or 20,
                     "classification_note": ("Single-game uses depth-20 coach model; batch report uses depth-14."),
@@ -2354,6 +2359,9 @@ def get_game_analysis(request, game_id):
                 game_context = build_single_game_context(game, profile)
                 coaching_payload = payload.get("coaching") if isinstance(payload.get("coaching"), dict) else {}
                 critical_moments = payload.get("critical_moments") or coaching_payload.get("critical_moments") or []
+                player_rating = game_context.get("player_rating")
+                critical_moments = attach_moment_benchmarks(critical_moments, player_rating)
+                rating_context = resolve_rating_band(player_rating)
                 batch_id_param = request.GET.get("batch_id") or request.GET.get("batch")
                 move_param = request.GET.get("move")
                 priority_param = request.GET.get("priority")
@@ -2388,6 +2396,7 @@ def get_game_analysis(request, game_id):
                     "batch_context": batch_context,
                     "training_block": training_block if isinstance(training_block, dict) else {},
                     "single_game_streak": streak_state,
+                    "rating_context": rating_context,
                     "engine_meta": {
                         "depth": 20,
                         "classification_note": ("Single-game uses depth-20 coach model; batch report uses depth-14."),

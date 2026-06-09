@@ -107,6 +107,11 @@ const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectM
                 {moment.explanation}
               </p>
             ) : null}
+            {moment.rating_benchmark?.copy ? (
+              <p className={`mt-2 text-xs italic ${isDarkMode ? 'text-indigo-300/90' : 'text-indigo-700'}`}>
+                {moment.rating_benchmark.copy}
+              </p>
+            ) : null}
           </div>
           );
         })}
