@@ -29,7 +29,11 @@ class OpeningGapsGamesTests(SimpleTestCase):
                 "platform": "lichess",
                 "platform_game_url": "https://lichess.org/abc",
                 "critical_moments": [
-                    {"phase": "opening", "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", "move_number": 2}
+                    {
+                        "phase": "opening",
+                        "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+                        "move_number": 2,
+                    }
                 ],
             },
             {
@@ -46,7 +50,9 @@ class OpeningGapsGamesTests(SimpleTestCase):
         lost = collect_lost_games_for_gap(self.gap, self.per_game, batch_id=7)
         self.assertEqual(len(lost), 1)
         self.assertEqual(lost[0]["saved_game_id"], 42)
-        self.assertEqual(lost[0]["href"], "/game/42/analysis?mode=review&batch=7&move=2")
+        self.assertEqual(
+            lost[0]["href"], "/game/42/analysis?mode=review&batch=7&move=2"
+        )
         self.assertIn("opening_fen", lost[0])
 
     def test_enrich_gap_sets_loss_copy(self):

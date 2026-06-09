@@ -15,7 +15,9 @@ def create_superuser():
     try:
         with transaction.atomic():
             if not User.objects.filter(username="admin").exists():
-                User.objects.create_superuser(username="admin", email="admin@example.com", password="admin")
+                User.objects.create_superuser(
+                    username="admin", email="admin@example.com", password="admin"
+                )
                 print("Superuser created successfully!")
             else:
                 print("Superuser already exists!")

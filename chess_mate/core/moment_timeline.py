@@ -24,7 +24,9 @@ def build_moment_signature(
 ) -> str:
     pattern = _normalize_token(pattern_or_type) or "positional_slip"
     pattern = pattern.replace(" ", "_")
-    phase_name = phase if phase in ("opening", "middlegame", "endgame") else "middlegame"
+    phase_name = (
+        phase if phase in ("opening", "middlegame", "endgame") else "middlegame"
+    )
     eco = str(opening_eco or "").strip().upper()[:10]
     return f"{pattern}|{phase_name}|{eco}"
 
@@ -118,14 +120,18 @@ def record_batch_timeline_events(batch_report: BatchAnalysisReport) -> int:
         return 0
 
     batch_summary = (
-        batch_report.batch_summary if isinstance(batch_report.batch_summary, dict) else {}
+        batch_report.batch_summary
+        if isinstance(batch_report.batch_summary, dict)
+        else {}
     )
     per_game_results = (
         batch_report.per_game_results
         if isinstance(batch_report.per_game_results, list)
         else []
     )
-    occurred_at = (batch_report.updated_at or batch_report.created_at or timezone.now()).isoformat()
+    occurred_at = (
+        batch_report.updated_at or batch_report.created_at or timezone.now()
+    ).isoformat()
     added = 0
 
     weaknesses = batch_summary.get("recurring_weaknesses") or []
@@ -168,9 +174,7 @@ def record_batch_timeline_events(batch_report: BatchAnalysisReport) -> int:
                 if game and game.opening_name:
                     eco = getattr(game, "eco_code", None)
             signature = signature_from_moment(moment, opening_eco=eco)
-            dedupe_key = (
-                f"batch:{batch_report.id}:moment:{signature}:{moment.get('move_number')}"
-            )
+            dedupe_key = f"batch:{batch_report.id}:moment:{signature}:{moment.get('move_number')}"
             _append_event(
                 profile,
                 {
@@ -197,9 +201,7 @@ def record_batch_timeline_events(batch_report: BatchAnalysisReport) -> int:
                 if not isinstance(moment, dict):
                     continue
                 signature = signature_from_moment(moment)
-                dedupe_key = (
-                    f"batch:{batch_report.id}:fallback:{signature}:{moment.get('move_number')}"
-                )
+                dedupe_key = f"batch:{batch_report.id}:fallback:{signature}:{moment.get('move_number')}"
                 _append_event(
                     profile,
                     {
@@ -265,9 +267,7 @@ def summarize_timeline_for_signature(
     signature: str,
 ) -> Dict[str, Any]:
     events = [
-        event
-        for event in _load_events(profile)
-        if event.get("signature") == signature
+        event for event in _load_events(profile) if event.get("signature") == signature
     ]
     events.sort(key=lambda row: row.get("occurred_at") or "")
 

@@ -60,7 +60,11 @@ def build_first_batch_celebration_payload(
     if not is_first_eligible_batch(batch_report):
         return {"show": False}
 
-    coaching = batch_report.coaching_report if isinstance(batch_report.coaching_report, dict) else {}
+    coaching = (
+        batch_report.coaching_report
+        if isinstance(batch_report.coaching_report, dict)
+        else {}
+    )
     headline = str(
         coaching.get("executive_summary")
         or coaching.get("one_thing_to_do_today")

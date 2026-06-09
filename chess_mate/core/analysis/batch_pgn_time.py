@@ -62,7 +62,9 @@ def compute_time_management_from_pgn(
 
         if is_white == player_is_white and time_spent is not None:
             move_number = half_move_index // 2 + 1
-            phase = phase_for_half_move_index(half_move_index, opening_end, endgame_start)
+            phase = phase_for_half_move_index(
+                half_move_index, opening_end, endgame_start
+            )
             player_spends.append(
                 {
                     "move_number": move_number,
@@ -84,7 +86,11 @@ def compute_time_management_from_pgn(
     rushed_moves = [row for row in player_spends if row["seconds"] < rushed_threshold]
     rushed_critical = [row for row in rushed_moves if row["is_critical"]]
 
-    phase_buckets: Dict[str, List[float]] = {"opening": [], "middlegame": [], "endgame": []}
+    phase_buckets: Dict[str, List[float]] = {
+        "opening": [],
+        "middlegame": [],
+        "endgame": [],
+    }
     for row in player_spends:
         phase_buckets.setdefault(row["phase"], []).append(row["seconds"])
 

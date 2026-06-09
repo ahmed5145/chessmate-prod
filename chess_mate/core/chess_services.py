@@ -51,7 +51,9 @@ class ChessComService:
         cls._last_request_time = time.time()
 
     @classmethod
-    def _make_request(cls, url: str, headers: Optional[Dict[str, str]] = None) -> requests.Response:
+    def _make_request(
+        cls, url: str, headers: Optional[Dict[str, str]] = None
+    ) -> requests.Response:
         """Make a request with retries and rate limiting."""
         if not headers:
             headers = {"User-Agent": "ChessMate/1.0", "Accept": "application/json"}
@@ -62,11 +64,15 @@ class ChessComService:
         for attempt in range(cls.MAX_RETRIES):
             try:
                 cls._wait_for_rate_limit()
-                response = requests.get(url, headers=headers, timeout=cls.REQUEST_TIMEOUT)
+                response = requests.get(
+                    url, headers=headers, timeout=cls.REQUEST_TIMEOUT
+                )
 
                 if response.status_code == 429:  # Rate limit hit
                     retry_after = int(response.headers.get("Retry-After", retry_delay))
-                    logger.warning(f"Rate limit hit, waiting {retry_after}s before retry")
+                    logger.warning(
+                        f"Rate limit hit, waiting {retry_after}s before retry"
+                    )
                     time.sleep(retry_after)
                     continue
 
@@ -106,10 +112,14 @@ class ChessComService:
             logger.warning("Empty PGN text")
             return info
 
-        logger.info(f"Extracting info from PGN: {pgn_text[:200]}...")  # Log first 200 chars
+        logger.info(
+            f"Extracting info from PGN: {pgn_text[:200]}..."
+        )  # Log first 200 chars
 
         # Extract date from [UTCDate "YYYY.MM.DD"] or [Date "YYYY.MM.DD"]
-        date_match = re.search(r'\[(UTCDate|Date)\s+"(\d{4}\.\d{2}\.\d{2})"\]', pgn_text)
+        date_match = re.search(
+            r'\[(UTCDate|Date)\s+"(\d{4}\.\d{2}\.\d{2})"\]', pgn_text
+        )
         if date_match:
             date_str = date_match.group(2)
             try:
@@ -145,7 +155,9 @@ class ChessComService:
         if info.get("date") and info.get("time"):
             info["played_at"] = make_aware(datetime.combine(info["date"], info["time"]))
         elif info.get("date"):
-            info["played_at"] = make_aware(datetime.combine(info["date"], datetime.min.time()))
+            info["played_at"] = make_aware(
+                datetime.combine(info["date"], datetime.min.time())
+            )
         else:
             info["played_at"] = make_aware(datetime.now())
             logger.warning("No date found in PGN, using current time")
@@ -165,7 +177,9 @@ class ChessComService:
         return "unknown"
 
     @staticmethod
-    def fetch_games(username: str, user: User, game_type: str = "rapid", limit: int = 10) -> Dict[str, Any]:
+    def fetch_games(
+        username: str, user: User, game_type: str = "rapid", limit: int = 10
+    ) -> Dict[str, Any]:
         """
         Fetch games from Chess.com API.
         """
@@ -195,7 +209,9 @@ class ChessComService:
                     "message": "No archives found",
                 }
 
-            logger.info(f"Processing archives for {username}, game type: {game_type}, limit: {limit}")
+            logger.info(
+                f"Processing archives for {username}, game type: {game_type}, limit: {limit}"
+            )
 
             formatted_games = []
             skipped_count = 0
@@ -221,7 +237,9 @@ class ChessComService:
 
                     # Filter games by type
                     matching_games = (
-                        [g for g in games if g.get("time_class") == game_type] if game_type != "all" else games
+                        [g for g in games if g.get("time_class") == game_type]
+                        if game_type != "all"
+                        else games
                     )
 
                     for game in matching_games:
@@ -233,7 +251,9 @@ class ChessComService:
                         game_id = game.get("url", "").split("/")[-1]
                         if (
                             game_id in unique_games
-                            or Game.objects.filter(game_id=game_id, platform="chess.com", user=user).exists()
+                            or Game.objects.filter(
+                                game_id=game_id, platform="chess.com", user=user
+                            ).exists()
                         ):
                             skipped_count += 1
                             continue
@@ -241,20 +261,30 @@ class ChessComService:
                         unique_games.add(game_id)
 
                         # Extract game information
-                        pgn_info = ChessComService._extract_pgn_info(game.get("pgn", ""))
+                        pgn_info = ChessComService._extract_pgn_info(
+                            game.get("pgn", "")
+                        )
                         white = game.get("white", {}).get("username", "Unknown")
                         black = game.get("black", {}).get("username", "Unknown")
 
                         # Determine if the user was white or black
                         is_white = username.lower() == white.lower()
-                        player_result = game.get("white" if is_white else "black", {}).get("result", "")
+                        player_result = game.get(
+                            "white" if is_white else "black", {}
+                        ).get("result", "")
 
                         # Get ECO code and opening name
                         eco_code = None
-                        eco_match = re.search(r'\[ECO\s+"([^"]+)"\]', game.get("pgn", ""))
+                        eco_match = re.search(
+                            r'\[ECO\s+"([^"]+)"\]', game.get("pgn", "")
+                        )
                         if eco_match:
                             eco_code = eco_match.group(1)
-                        opening_name = get_opening_name(eco_code) if eco_code else "Unknown Opening"
+                        opening_name = (
+                            get_opening_name(eco_code)
+                            if eco_code
+                            else "Unknown Opening"
+                        )
                         if opening_name == "Unknown Opening":
                             opening_name = pgn_info.get("opening", "Unknown Opening")
 
@@ -265,7 +295,9 @@ class ChessComService:
                             "white": white,
                             "black": black,
                             "opponent": black if is_white else white,
-                            "result": ChessComService._format_result(player_result, username),
+                            "result": ChessComService._format_result(
+                                player_result, username
+                            ),
                             "pgn": game.get("pgn", ""),
                             "date_played": pgn_info.get("played_at"),
                             "opening_name": opening_name,
@@ -285,7 +317,9 @@ class ChessComService:
                     logger.error(f"Error processing archive {archive_url}: {str(e)}")
                     continue
 
-            logger.info(f"Completed fetching games. Saved: {saved_count}, Skipped: {skipped_count}")
+            logger.info(
+                f"Completed fetching games. Saved: {saved_count}, Skipped: {skipped_count}"
+            )
             return {
                 "games": formatted_games[:limit],
                 "total_found": len(formatted_games) + skipped_count,
@@ -304,7 +338,9 @@ class ChessComService:
                 "message": f"Error: {str(e)}",
             }
 
-    def save_game(self, game_data: Dict[str, Any], username: str, user: User) -> Optional[Game]:
+    def save_game(
+        self, game_data: Dict[str, Any], username: str, user: User
+    ) -> Optional[Game]:
         """Save a Chess.com game to the database."""
         try:
             # Get the user profile
@@ -323,8 +359,12 @@ class ChessComService:
                 logger.error("Game ID not found in game data")
                 return None
 
-            if Game.objects.filter(game_id=game_id, platform=self.platform, user=user).exists():
-                logger.warning(f"Game {game_id} already exists for user {user.username}")
+            if Game.objects.filter(
+                game_id=game_id, platform=self.platform, user=user
+            ).exists():
+                logger.warning(
+                    f"Game {game_id} already exists for user {user.username}"
+                )
                 return None
 
             # Create the game object with transaction
@@ -348,13 +388,21 @@ class ChessComService:
                 # Update user's rating if available
                 time_category = game.get_time_control_category()
                 if time_category:
-                    user_played_as_white = username.lower() == game_data.get("white", "").lower()
+                    user_played_as_white = (
+                        username.lower() == game_data.get("white", "").lower()
+                    )
                     if user_played_as_white and game_data.get("white_rating"):
-                        profile.update_rating(time_category, int(game_data["white_rating"]))
+                        profile.update_rating(
+                            time_category, int(game_data["white_rating"])
+                        )
                     elif not user_played_as_white and game_data.get("black_rating"):
-                        profile.update_rating(time_category, int(game_data["black_rating"]))
+                        profile.update_rating(
+                            time_category, int(game_data["black_rating"])
+                        )
 
-                logger.info(f"Successfully saved game {game_id} for user {user.username}")
+                logger.info(
+                    f"Successfully saved game {game_id} for user {user.username}"
+                )
             return game
 
         except Exception as e:
@@ -382,11 +430,15 @@ class ChessComService:
         """
         try:
             if user is None:
-                logger.warning("get_games called without user; falling back to api_system_user")
+                logger.warning(
+                    "get_games called without user; falling back to api_system_user"
+                )
                 user, _ = User.objects.get_or_create(username="api_system_user")
 
             result = ChessComService.fetch_games(username, user, game_type, limit)
-            logger.info(f"Retrieved {len(result.get('games', []))} games for {username}")
+            logger.info(
+                f"Retrieved {len(result.get('games', []))} games for {username}"
+            )
             return result.get("games", [])
         except Exception as e:
             logger.error(f"Error getting games for {username}: {str(e)}", exc_info=True)
@@ -400,7 +452,9 @@ class ChessComService:
         user: Optional[User] = None,
     ) -> List[Dict[str, Any]]:
         """Backward-compatible alias used by legacy tests."""
-        return self.get_games(username=username, limit=num_games, game_type=game_type, user=user)
+        return self.get_games(
+            username=username, limit=num_games, game_type=game_type, user=user
+        )
 
 
 class LichessService:
@@ -425,7 +479,9 @@ class LichessService:
 
         # Convert timestamp to date
         try:
-            date = datetime.fromtimestamp(game_data.get("createdAt", 0) / 1000.0).strftime("%Y.%m.%d")
+            date = datetime.fromtimestamp(
+                game_data.get("createdAt", 0) / 1000.0
+            ).strftime("%Y.%m.%d")
         except Exception:
             date = "????.??.??"
 
@@ -464,7 +520,9 @@ class LichessService:
         return "\n".join(pgn)
 
     @staticmethod
-    def fetch_games(username: str, user: User, game_type: str = "rapid", limit: int = 10) -> Dict[str, Any]:
+    def fetch_games(
+        username: str, user: User, game_type: str = "rapid", limit: int = 10
+    ) -> Dict[str, Any]:
         """
         Fetch games from Lichess API.
         Args:
@@ -510,7 +568,9 @@ class LichessService:
             batch_size = 100  # Number of games to fetch per request
             since = None  # Timestamp to fetch games after
 
-            logger.info(f"Fetching {limit} Lichess games for {username}, type: {game_type}")
+            logger.info(
+                f"Fetching {limit} Lichess games for {username}, type: {game_type}"
+            )
 
             while games_saved < limit:
                 # Prepare request parameters
@@ -556,13 +616,25 @@ class LichessService:
                             continue
 
                         # Skip if game already exists for this user
-                        if Game.objects.filter(game_id=game_id, platform="lichess", user=user).exists():
+                        if Game.objects.filter(
+                            game_id=game_id, platform="lichess", user=user
+                        ).exists():
                             games_skipped += 1
                             continue
 
                         # Extract player usernames
-                        white = game.get("players", {}).get("white", {}).get("user", {}).get("name", "Unknown")
-                        black = game.get("players", {}).get("black", {}).get("user", {}).get("name", "Unknown")
+                        white = (
+                            game.get("players", {})
+                            .get("white", {})
+                            .get("user", {})
+                            .get("name", "Unknown")
+                        )
+                        black = (
+                            game.get("players", {})
+                            .get("black", {})
+                            .get("user", {})
+                            .get("name", "Unknown")
+                        )
 
                         # Skip if neither player matches the username
                         if username.lower() not in [white.lower(), black.lower()]:
@@ -574,22 +646,40 @@ class LichessService:
                             "platform": "lichess",
                             "white": white,
                             "black": black,
-                            "opponent": (black if username.lower() == white.lower() else white),
-                            "result": LichessService._format_result(game.get("winner"), username),
+                            "opponent": (
+                                black if username.lower() == white.lower() else white
+                            ),
+                            "result": LichessService._format_result(
+                                game.get("winner"), username
+                            ),
                             "pgn": LichessService._format_pgn(game),
-                            "date_played": make_aware(datetime.fromtimestamp(game.get("createdAt", 0) / 1000.0)),
-                            "opening_name": game.get("opening", {}).get("name", "Unknown Opening"),
+                            "date_played": make_aware(
+                                datetime.fromtimestamp(
+                                    game.get("createdAt", 0) / 1000.0
+                                )
+                            ),
+                            "opening_name": game.get("opening", {}).get(
+                                "name", "Unknown Opening"
+                            ),
                             "eco_code": game.get("opening", {}).get("eco"),
-                            "white_rating": game.get("players", {}).get("white", {}).get("rating"),
-                            "black_rating": game.get("players", {}).get("black", {}).get("rating"),
+                            "white_rating": game.get("players", {})
+                            .get("white", {})
+                            .get("rating"),
+                            "black_rating": game.get("players", {})
+                            .get("black", {})
+                            .get("rating"),
                             "time_control": game.get("speed", game_type),
                         }
 
                         # Save the game
-                        saved_game = LichessService().save_game(formatted_game, username, user)
+                        saved_game = LichessService().save_game(
+                            formatted_game, username, user
+                        )
                         if saved_game:
                             games_saved += 1
-                            logger.info(f"Saved game {game_id} for user {user.username}")
+                            logger.info(
+                                f"Saved game {game_id} for user {user.username}"
+                            )
 
                             if games_saved >= limit:
                                 break
@@ -609,7 +699,9 @@ class LichessService:
                 f"(skipped {games_skipped} existing games)"
             )
 
-            logger.info(f"Finished fetching games. Saved: {games_saved}, Skipped: {games_skipped}")
+            logger.info(
+                f"Finished fetching games. Saved: {games_saved}, Skipped: {games_skipped}"
+            )
             return {
                 "success": success,
                 "games_saved": games_saved,
@@ -636,7 +728,9 @@ class LichessService:
         else:
             return "loss"
 
-    def save_game(self, game_data: Dict[str, Any], username: str, user: User) -> Optional[Game]:
+    def save_game(
+        self, game_data: Dict[str, Any], username: str, user: User
+    ) -> Optional[Game]:
         """Save a game to the database."""
         try:
             # Extract game data safely with get() method
@@ -646,8 +740,12 @@ class LichessService:
                 return None
 
             # Check if game already exists for this user
-            if Game.objects.filter(game_id=game_id, platform="lichess", user=user).exists():
-                logger.info(f"Game {game_id} already exists for user {user.username}, skipping")
+            if Game.objects.filter(
+                game_id=game_id, platform="lichess", user=user
+            ).exists():
+                logger.info(
+                    f"Game {game_id} already exists for user {user.username}, skipping"
+                )
                 return None
 
             # Get the user profile
@@ -656,7 +754,9 @@ class LichessService:
                 if not profile.lichess_username:
                     profile.lichess_username = username
                     profile.save()
-                    logger.info(f"Updated Lichess username for user {user.username} to {username}")
+                    logger.info(
+                        f"Updated Lichess username for user {user.username} to {username}"
+                    )
             except Profile.DoesNotExist:
                 logger.error(f"Profile not found for user {user.username}")
                 return None
@@ -708,16 +808,24 @@ class LichessService:
                     user_played_as_white = username.lower() == white.lower()
                     if user_played_as_white and white_elo:
                         profile.update_rating(time_category, white_elo)
-                        logger.info(f"Updated {time_category} rating for user {user.username} to {white_elo}")
+                        logger.info(
+                            f"Updated {time_category} rating for user {user.username} to {white_elo}"
+                        )
                     elif not user_played_as_white and black_elo:
                         profile.update_rating(time_category, black_elo)
-                        logger.info(f"Updated {time_category} rating for user {user.username} to {black_elo}")
+                        logger.info(
+                            f"Updated {time_category} rating for user {user.username} to {black_elo}"
+                        )
 
-                logger.info(f"Successfully saved game {game_id} for user {user.username}")
+                logger.info(
+                    f"Successfully saved game {game_id} for user {user.username}"
+                )
             return game
 
         except Exception as e:
-            logger.error(f"Error saving game {game_id if game_id else 'unknown'}: {str(e)}")
+            logger.error(
+                f"Error saving game {game_id if game_id else 'unknown'}: {str(e)}"
+            )
             return None
 
     def get_games(
@@ -741,7 +849,9 @@ class LichessService:
         """
         try:
             if user is None:
-                logger.warning("get_games called without user; falling back to api_system_user")
+                logger.warning(
+                    "get_games called without user; falling back to api_system_user"
+                )
                 user, _ = User.objects.get_or_create(username="api_system_user")
 
             result = LichessService.fetch_games(username, user, game_type, limit)
@@ -764,7 +874,9 @@ class LichessService:
         user: Optional[User] = None,
     ) -> List[Dict[str, Any]]:
         """Backward-compatible alias used by legacy tests."""
-        return self.get_games(username=username, limit=num_games, game_type=game_type, user=user)
+        return self.get_games(
+            username=username, limit=num_games, game_type=game_type, user=user
+        )
 
 
 def save_game(game: Dict[str, Any], username: str, user: User) -> Optional[Game]:
@@ -800,20 +912,28 @@ def save_game(game: Dict[str, Any], username: str, user: User) -> Optional[Game]
         game_url = game.get("url")
 
         # Log the game information for debugging
-        logger.info(f"Checking for duplicate game - ID: {game_id}, URL: {game_url}, User: {user.id}")
+        logger.info(
+            f"Checking for duplicate game - ID: {game_id}, URL: {game_url}, User: {user.id}"
+        )
 
         if game_id and Game.objects.filter(game_id=game_id, user=user).exists():
-            logger.info(f"Game with ID {game_id} already exists for user {user.id}. Skipping.")
+            logger.info(
+                f"Game with ID {game_id} already exists for user {user.id}. Skipping."
+            )
             return None
 
         # Also check by URL as fallback
         if game_url and Game.objects.filter(game_url=game_url, user=user).exists():
-            logger.info(f"Game with URL {game_url} already exists for user {user.id}. Skipping.")
+            logger.info(
+                f"Game with URL {game_url} already exists for user {user.id}. Skipping."
+            )
             return None
 
         # Set opponent and result based on player color
         opponent = black_username if is_white else white_username
-        final_result = ChessComService._format_result(game.get("result", ""), input_username)
+        final_result = ChessComService._format_result(
+            game.get("result", ""), input_username
+        )
 
         # Get played_at date
         played_at = game.get("date_played") or timezone.now()

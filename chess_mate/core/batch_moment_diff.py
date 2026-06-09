@@ -18,7 +18,9 @@ from .moment_timeline import (
 )
 
 
-def _top_weaknesses(batch_report: BatchAnalysisReport, limit: int = 3) -> List[Dict[str, Any]]:
+def _top_weaknesses(
+    batch_report: BatchAnalysisReport, limit: int = 3
+) -> List[Dict[str, Any]]:
     summary = (
         batch_report.batch_summary
         if isinstance(batch_report.batch_summary, dict)
@@ -175,12 +177,8 @@ def build_batch_moment_diff(
                 "previous_swing": None,
                 "current_swing": current_swing,
                 "swing_delta": None,
-                "proof_game_id": _proof_game_id(
-                    current, label, prefer_absent=False
-                ),
-                "sparkline": _build_sparkline(
-                    profile, signature, None, current_swing
-                ),
+                "proof_game_id": _proof_game_id(current, label, prefer_absent=False),
+                "sparkline": _build_sparkline(profile, signature, None, current_swing),
             }
         )
 

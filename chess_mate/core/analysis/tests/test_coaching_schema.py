@@ -119,11 +119,15 @@ def test_generate_coaching_report_matches_schema(monkeypatch):
     ]
 
     # Call generator — it will use our fake OpenAI client and return fake_report
-    result = coaching_generator.generate_coaching_report(batch_summary, per_game_results, player_rating=1200)
+    result = coaching_generator.generate_coaching_report(
+        batch_summary, per_game_results, player_rating=1200
+    )
 
     # Basic structural assertions to validate schema conformance
     assert isinstance(result, dict)
-    assert "executive_summary" in result and isinstance(result["executive_summary"], str)
+    assert "executive_summary" in result and isinstance(
+        result["executive_summary"], str
+    )
 
     cn = result.get("coaching_narrative")
     assert isinstance(cn, dict)
@@ -145,7 +149,9 @@ def test_generate_coaching_report_matches_schema(monkeypatch):
     for k in ("week_1", "week_2", "week_3", "week_4"):
         assert k in tp and isinstance(tp[k], str)
 
-    assert "one_thing_to_do_today" in result and isinstance(result["one_thing_to_do_today"], str)
+    assert "one_thing_to_do_today" in result and isinstance(
+        result["one_thing_to_do_today"], str
+    )
 
 
 def test_generate_coaching_report_rejects_invalid_json(monkeypatch):
@@ -170,7 +176,9 @@ def test_generate_coaching_report_rejects_invalid_json(monkeypatch):
     ]
 
     with pytest.raises(coaching_generator.CoachingGeneratorError):
-        coaching_generator.generate_coaching_report(batch_summary, per_game_results, player_rating=1200)
+        coaching_generator.generate_coaching_report(
+            batch_summary, per_game_results, player_rating=1200
+        )
 
 
 def test_generate_coaching_report_rejects_schema_violation(monkeypatch):
@@ -179,7 +187,9 @@ def test_generate_coaching_report_rejects_schema_violation(monkeypatch):
 
     fake_openai = make_fake_openai_module(response_dict=invalid_report)
     monkeypatch.setitem(sys.modules, "openai", fake_openai)
-    monkeypatch.setitem(sys.modules, "jsonschema", make_fake_jsonschema_module(should_raise=True))
+    monkeypatch.setitem(
+        sys.modules, "jsonschema", make_fake_jsonschema_module(should_raise=True)
+    )
 
     batch_summary = {"overall_accuracy": 0.72}
     per_game_results = [
@@ -198,4 +208,6 @@ def test_generate_coaching_report_rejects_schema_violation(monkeypatch):
     ]
 
     with pytest.raises(coaching_generator.CoachingGeneratorError):
-        coaching_generator.generate_coaching_report(batch_summary, per_game_results, player_rating=1200)
+        coaching_generator.generate_coaching_report(
+            batch_summary, per_game_results, player_rating=1200
+        )

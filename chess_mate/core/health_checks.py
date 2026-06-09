@@ -45,7 +45,9 @@ logger = logging.getLogger(__name__)
 # no matter which package spelling the test runner imports first.
 sys.modules.setdefault("core.health_checks", sys.modules[__name__])
 sys.modules.setdefault("chess_mate.core.health_checks", sys.modules[__name__])
-sys.modules.setdefault("chessmate_prod.chess_mate.core.health_checks", sys.modules[__name__])
+sys.modules.setdefault(
+    "chessmate_prod.chess_mate.core.health_checks", sys.modules[__name__]
+)
 
 # Health check types
 DB_CHECK = "database"
@@ -196,7 +198,9 @@ def check_redis() -> Dict[str, Any]:
 
                     # Add more details from Redis info
                     details = {
-                        "uptime_days": round(float(info.get("uptime_in_seconds", 0)) / 86400, 2),
+                        "uptime_days": round(
+                            float(info.get("uptime_in_seconds", 0)) / 86400, 2
+                        ),
                         "memory_used": info.get("used_memory_human", "unknown"),
                         "clients_connected": info.get("connected_clients", 0),
                         "keys_count": sum(
@@ -352,7 +356,9 @@ def check_storage(path: Optional[str] = None) -> Dict[str, Any]:
     }
 
 
-def check_external_service(url: str, expected_status: int = 200, timeout: int = 5) -> Dict[str, Any]:
+def check_external_service(
+    url: str, expected_status: int = 200, timeout: int = 5
+) -> Dict[str, Any]:
     """
     Check if an external service is reachable.
 
@@ -519,7 +525,11 @@ def get_system_info() -> Dict[str, Any]:
     info = {
         "platform": platform.platform(),
         "python_version": sys.version,
-        "django_version": (settings.DJANGO_VERSION if hasattr(settings, "DJANGO_VERSION") else "unknown"),
+        "django_version": (
+            settings.DJANGO_VERSION
+            if hasattr(settings, "DJANGO_VERSION")
+            else "unknown"
+        ),
         "cpu_count": multiprocessing.cpu_count(),
         "hostname": socket.gethostname(),
         "timestamp": timezone.now().isoformat(),
@@ -528,7 +538,9 @@ def get_system_info() -> Dict[str, Any]:
     # Add application-specific info
     info["app_name"] = getattr(settings, "APP_NAME", "ChessMate")
     info["app_version"] = getattr(settings, "APP_VERSION", "1.0.0")
-    info["environment"] = getattr(settings, "ENVIRONMENT", "development" if settings.DEBUG else "production")
+    info["environment"] = getattr(
+        settings, "ENVIRONMENT", "development" if settings.DEBUG else "production"
+    )
 
     return info
 
@@ -670,7 +682,9 @@ def system_status_view(request):
             "default": {
                 "type": "redis",
                 "location": getattr(settings, "REDIS_URL", "redis://localhost:6379/0"),
-                "version": get_redis_connection().info().get("redis_version", "unknown"),
+                "version": get_redis_connection()
+                .info()
+                .get("redis_version", "unknown"),
                 "clients": get_redis_connection().info().get("connected_clients", 0),
                 "memory": f"{get_redis_connection().info().get('used_memory_human', '0')}",
             }

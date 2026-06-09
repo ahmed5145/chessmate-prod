@@ -78,7 +78,10 @@ def test_batch_insights_when_no_game_analysis_rows():
     insights = format_dashboard_insights(
         [],
         total_games=12,
-        latest_batch_coach={"summary": "Focus on opening preparation.", "overall_accuracy_pct": 72.5},
+        latest_batch_coach={
+            "summary": "Focus on opening preparation.",
+            "overall_accuracy_pct": 72.5,
+        },
         latest_batch_summary={
             "overall_accuracy_pct": 72.5,
             "top_priorities": [{"title": "Reduce opening inaccuracies"}],
@@ -130,7 +133,10 @@ def test_build_dashboard_focus_insight_prefers_priority():
     focus = build_dashboard_focus_insight(
         insights=[
             {"type": "warning", "text": "Top focus area: opening preparation"},
-            {"type": "success", "text": "Latest batch coach: 71.0% overall accuracy across your games."},
+            {
+                "type": "success",
+                "text": "Latest batch coach: 71.0% overall accuracy across your games.",
+            },
         ],
         latest_batch_coach={"batch_id": 4, "summary": "Fallback summary"},
         total_games=10,
@@ -165,14 +171,23 @@ def test_build_dashboard_hero_metrics_thresholds():
 
 def test_format_dashboard_insights_preserves_game_id():
     insights = format_dashboard_insights(
-        [{"game_id": 42, "opponent": "Rival", "mistake_count": 3, "summary": "Missed tactic on move 12."}],
+        [
+            {
+                "game_id": 42,
+                "opponent": "Rival",
+                "mistake_count": 3,
+                "summary": "Missed tactic on move 12.",
+            }
+        ],
         total_games=1,
     )
     assert insights[0]["game_id"] == 42
 
 
 def test_parse_last_dashboard_visit_reads_iso_timestamp():
-    parsed = parse_last_dashboard_visit({"last_dashboard_visit_at": "2025-06-01T12:00:00+00:00"})
+    parsed = parse_last_dashboard_visit(
+        {"last_dashboard_visit_at": "2025-06-01T12:00:00+00:00"}
+    )
     assert parsed is not None
     assert parsed.year == 2025
 

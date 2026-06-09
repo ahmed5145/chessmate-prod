@@ -56,7 +56,9 @@ def qualifies_for_first_single_game_free(profile: Optional[Profile]) -> bool:
 
 
 def mark_first_single_game_free_used(profile: Profile) -> None:
-    preferences = dict(profile.preferences) if isinstance(profile.preferences, dict) else {}
+    preferences = (
+        dict(profile.preferences) if isinstance(profile.preferences, dict) else {}
+    )
     preferences[PREF_FIRST_FREE_USED] = True
     profile.preferences = preferences
     profile.save(update_fields=["preferences"])
@@ -78,7 +80,11 @@ def resolve_single_game_credit_waiver(
     if force_reanalyze:
         return ""
 
-    if from_batch and batch_id not in (None, "") and getattr(settings, "SINGLE_GAME_FREE_FROM_BATCH", True):
+    if (
+        from_batch
+        and batch_id not in (None, "")
+        and getattr(settings, "SINGLE_GAME_FREE_FROM_BATCH", True)
+    ):
         from .analysis.single_game_context import game_qualifies_for_batch_waiver
 
         if game_qualifies_for_batch_waiver(user, game_id, batch_id):
@@ -137,9 +143,16 @@ def refund_single_game_credit_on_fail(user_id: int, game_id: int) -> int:
             profile.credits += amount
             profile.save(update_fields=["credits"])
     except Profile.DoesNotExist:
-        logger.warning("Cannot refund single-game credit — profile missing user_id=%s", user_id)
+        logger.warning(
+            "Cannot refund single-game credit — profile missing user_id=%s", user_id
+        )
         return 0
 
     cache.set(cache_key, True, _REFUND_CACHE_TTL)
-    logger.info("Refunded %s credit(s) for failed single-game analysis game_id=%s user_id=%s", amount, game_id, user_id)
+    logger.info(
+        "Refunded %s credit(s) for failed single-game analysis game_id=%s user_id=%s",
+        amount,
+        game_id,
+        user_id,
+    )
     return amount

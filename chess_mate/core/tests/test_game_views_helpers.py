@@ -39,7 +39,10 @@ class TestCleanFeedbackItems:
 
 class TestNormalizeOpeningName:
     def test_collapses_whitespace(self):
-        assert game_views._normalize_opening_name("  Sicilian   Defense  ") == "Sicilian Defense"
+        assert (
+            game_views._normalize_opening_name("  Sicilian   Defense  ")
+            == "Sicilian Defense"
+        )
 
     def test_truncates_long_variation_strings(self):
         long_name = "A" * 120

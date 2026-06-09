@@ -19,7 +19,9 @@ def api_client():
 @pytest.fixture
 def user():
     """Create a test user."""
-    return User.objects.create_user(username="testuser", email="test@example.com", password="testpassword")
+    return User.objects.create_user(
+        username="testuser", email="test@example.com", password="testpassword"
+    )
 
 
 @pytest.fixture
@@ -41,7 +43,9 @@ class TestRequestValidationMiddleware:
             "password": "Secure.Password.123",
             "username": "newuser",
         }
-        response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
+        response = authenticated_client.post(
+            url, data=json.dumps(data), content_type="application/json"
+        )
 
         # Either a 201 CREATED or 400 BAD REQUEST if email already exists,
         # but not a validation error from the middleware
@@ -60,7 +64,9 @@ class TestRequestValidationMiddleware:
             # Missing 'password' field
             "username": "newuser",
         }
-        response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
+        response = authenticated_client.post(
+            url, data=json.dumps(data), content_type="application/json"
+        )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         response_data = response.json()
@@ -75,7 +81,9 @@ class TestRequestValidationMiddleware:
         data = {
             "depth": "not_an_integer",  # Should be an integer
         }
-        response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
+        response = authenticated_client.post(
+            url, data=json.dumps(data), content_type="application/json"
+        )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         response_data = response.json()
@@ -91,7 +99,9 @@ class TestRequestValidationMiddleware:
             "password": "Secure.Password.123",
             "username": "newuser",
         }  # Invalid email format
-        response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
+        response = authenticated_client.post(
+            url, data=json.dumps(data), content_type="application/json"
+        )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         response_data = response.json()
@@ -105,7 +115,9 @@ class TestRequestValidationMiddleware:
             "password": "short",
             "username": "newuser",
         }  # Too short
-        response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
+        response = authenticated_client.post(
+            url, data=json.dumps(data), content_type="application/json"
+        )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         response_data = response.json()
@@ -116,7 +128,9 @@ class TestRequestValidationMiddleware:
         url = reverse("register")
 
         # Send invalid JSON
-        response = authenticated_client.post(url, data="{not valid json", content_type="application/json")
+        response = authenticated_client.post(
+            url, data="{not valid json", content_type="application/json"
+        )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         response_data = response.json()
@@ -143,7 +157,9 @@ class TestRequestValidationMiddleware:
         """Test that value validation works properly."""
         url = reverse("analyze_game", kwargs={"game_id": 1})
         data = {"depth": 50}  # Too high, should be 1-30
-        response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
+        response = authenticated_client.post(
+            url, data=json.dumps(data), content_type="application/json"
+        )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         response_data = response.json()
@@ -157,7 +173,9 @@ class TestRequestValidationMiddleware:
             "password": "Secure.Password.123",
             "username": "validuser",
         }
-        response = authenticated_client.post(url, data=json.dumps(data), content_type="application/json")
+        response = authenticated_client.post(
+            url, data=json.dumps(data), content_type="application/json"
+        )
 
         # The request should be processed normally if validation passes
         assert response.status_code in [

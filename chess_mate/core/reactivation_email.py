@@ -46,7 +46,9 @@ def _last_activity_at(user: User, profile: Profile):
     return max(dt for dt in candidates if dt is not None)
 
 
-def reactivation_sent_recently(user: User, days: int = REACTIVATION_COOLDOWN_DAYS) -> bool:
+def reactivation_sent_recently(
+    user: User, days: int = REACTIVATION_COOLDOWN_DAYS
+) -> bool:
     since = timezone.now() - timedelta(days=days)
     return EmailSendLog.objects.filter(
         user=user,
@@ -83,7 +85,9 @@ def send_reactivation_for_user(user: User, *, force: bool = False) -> bool:
         return False
 
     if not is_email_configured():
-        logger.error("Reactivation email not sent for %s: SMTP not configured", user.email)
+        logger.error(
+            "Reactivation email not sent for %s: SMTP not configured", user.email
+        )
         return False
 
     base = get_frontend_base_url()

@@ -16,7 +16,9 @@ from django.utils import timezone
 
 @pytest.fixture
 def stats_user():
-    user = User.objects.create_user(username="statsuser", email="stats@example.com", password="pass12345")
+    user = User.objects.create_user(
+        username="statsuser", email="stats@example.com", password="pass12345"
+    )
     profile = ensure_profile(
         user,
         credits=10,
@@ -67,7 +69,10 @@ class TestAverageAccuracy:
             coaching_report={"executive_summary": "Solid opening play."},
         )
 
-        assert compute_user_average_accuracy(user, profile, {"overall_accuracy_pct": 76.3}) == 76.3
+        assert (
+            compute_user_average_accuracy(user, profile, {"overall_accuracy_pct": 76.3})
+            == 76.3
+        )
 
     def test_completed_analysis_status_counts_toward_accuracy(self, stats_user):
         user, profile = stats_user

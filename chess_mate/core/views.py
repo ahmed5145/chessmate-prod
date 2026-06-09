@@ -343,7 +343,9 @@ def check_task_status(request: HttpRequest) -> Response:
     status = task_manager.get_task_status(task_id)
 
     if not status:
-        return Response({"status": "error", "message": f"Task {task_id} not found"}, status=404)
+        return Response(
+            {"status": "error", "message": f"Task {task_id} not found"}, status=404
+        )
 
     return Response(status)
 
@@ -421,7 +423,11 @@ def get_basic_profile(request):
                 "email": request.user.email,
                 "first_name": request.user.first_name,
                 "last_name": request.user.last_name,
-                "date_joined": (request.user.date_joined.isoformat() if hasattr(request.user, "date_joined") else None),
+                "date_joined": (
+                    request.user.date_joined.isoformat()
+                    if hasattr(request.user, "date_joined")
+                    else None
+                ),
                 "is_active": request.user.is_active,
             },
             "profile": {"credits": 0},  # Default empty profile
@@ -441,7 +447,9 @@ def get_basic_profile(request):
             except Exception as e:
                 logger.error(f"Error accessing profile attributes: {str(e)}")
 
-        return Response({"status": "success", "data": basic_data}, status=status.HTTP_200_OK)
+        return Response(
+            {"status": "success", "data": basic_data}, status=status.HTTP_200_OK
+        )
 
     except Exception as e:
         logger.error(f"Error in get_basic_profile: {str(e)}", exc_info=True)

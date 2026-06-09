@@ -46,6 +46,12 @@ def test_extract_critical_moments_returns_worst_swings_for_white():
 
 def test_extract_critical_moments_empty_when_no_bad_moves():
     moves = [
-        {"move_number": 1, "san": "d4", "is_white": True, "eval_change": 0.2, "classification": "good"},
+        {
+            "move_number": 1,
+            "san": "d4",
+            "is_white": True,
+            "eval_change": 0.2,
+            "classification": "good",
+        },
     ]
     assert extract_critical_moments(moves, player_color="white") == []

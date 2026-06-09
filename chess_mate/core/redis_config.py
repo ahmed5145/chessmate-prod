@@ -25,7 +25,9 @@ REDIS_DB = int(os.environ.get("REDIS_DB", 0))
 REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", None)
 REDIS_SOCKET_TIMEOUT = int(os.environ.get("REDIS_SOCKET_TIMEOUT", 5))
 REDIS_SOCKET_CONNECT_TIMEOUT = int(os.environ.get("REDIS_SOCKET_CONNECT_TIMEOUT", 5))
-REDIS_RETRY_ON_TIMEOUT = os.environ.get("REDIS_RETRY_ON_TIMEOUT", "true").lower() == "true"
+REDIS_RETRY_ON_TIMEOUT = (
+    os.environ.get("REDIS_RETRY_ON_TIMEOUT", "true").lower() == "true"
+)
 REDIS_CONNECTION_POOL_SIZE = int(os.environ.get("REDIS_CONNECTION_POOL_SIZE", 20))
 REDIS_MAX_CONNECTIONS = int(os.environ.get("REDIS_MAX_CONNECTIONS", 100))
 
@@ -84,16 +86,22 @@ def get_redis_client() -> redis.Redis:
                     decode_responses=False,
                     health_check_interval=30,  # Periodically check connections
                 )
-                logger.info(f"Created Redis connection pool for {REDIS_HOST}:{REDIS_PORT} (attempt {attempt+1})")
+                logger.info(
+                    f"Created Redis connection pool for {REDIS_HOST}:{REDIS_PORT} (attempt {attempt+1})"
+                )
                 break
             except Exception as e:
-                logger.error(f"Failed to create Redis connection pool (attempt {attempt+1}): {str(e)}")
+                logger.error(
+                    f"Failed to create Redis connection pool (attempt {attempt+1}): {str(e)}"
+                )
                 if attempt < max_retries - 1:
                     import time
 
                     time.sleep(retry_delay)
                 else:
-                    logger.critical(f"Max retries ({max_retries}) reached for creating Redis connection pool")
+                    logger.critical(
+                        f"Max retries ({max_retries}) reached for creating Redis connection pool"
+                    )
                     return DummyRedisClient()
 
     # Get client from pool with retries
@@ -120,7 +128,9 @@ def get_redis_client() -> redis.Redis:
             time.sleep(retry_delay)
 
     # Return dummy client if all attempts failed
-    logger.critical(f"All {max_retries} attempts to get Redis client failed, using dummy client")
+    logger.critical(
+        f"All {max_retries} attempts to get Redis client failed, using dummy client"
+    )
     return DummyRedisClient()
 
 
@@ -142,7 +152,9 @@ class DummyRedisClient:
             arg_str = ", ".join([str(a) for a in args])
             kwargs_str = ", ".join([f"{k}={v}" for k, v in kwargs.items()])
             all_args = ", ".join(filter(None, [arg_str, kwargs_str]))
-            logger.debug(f"DummyRedisClient: {name}({all_args}) called but Redis is unavailable")
+            logger.debug(
+                f"DummyRedisClient: {name}({all_args}) called but Redis is unavailable"
+            )
 
             # Simulate common Redis commands with local in-memory operations
             if name == "get":
@@ -175,7 +187,9 @@ class DummyRedisClient:
                 pattern = args[0]
                 import fnmatch
 
-                return [k for k in self._local_cache.keys() if fnmatch.fnmatch(k, pattern)]
+                return [
+                    k for k in self._local_cache.keys() if fnmatch.fnmatch(k, pattern)
+                ]
             elif name == "hget":
                 return None
             elif name == "hgetall":
@@ -203,7 +217,9 @@ class DummyRedisClient:
         return self
 
     def execute(self):
-        logger.debug(f"DummyRedisClient: Executing {len(self._pipeline_commands)} pipeline commands")
+        logger.debug(
+            f"DummyRedisClient: Executing {len(self._pipeline_commands)} pipeline commands"
+        )
         results = []
         for cmd, args, kwargs in self._pipeline_commands:
             method = getattr(self, cmd)
@@ -485,8 +501,14 @@ def with_redis_lock(lock_name: str, timeout: int = TTL_LOCK):
             caller_frame = inspect.currentframe().f_back
             if caller_frame is not None:
                 caller_chess_mate = caller_frame.f_globals.get("chess_mate")
-                caller_core = getattr(caller_chess_mate, "core", None) if caller_chess_mate else None
-                alias_module = getattr(caller_core, "redis_config", None) if caller_core else None
+                caller_core = (
+                    getattr(caller_chess_mate, "core", None)
+                    if caller_chess_mate
+                    else None
+                )
+                alias_module = (
+                    getattr(caller_core, "redis_config", None) if caller_core else None
+                )
 
             if alias_module is None:
                 alias_module = sys.modules.get("chess_mate.core.redis_config")
@@ -495,15 +517,29 @@ def with_redis_lock(lock_name: str, timeout: int = TTL_LOCK):
                     import chess_mate as chess_mate_pkg  # type: ignore
 
                     core_pkg = getattr(chess_mate_pkg, "core", None)
-                    alias_module = getattr(core_pkg, "redis_config", None) if core_pkg else None
+                    alias_module = (
+                        getattr(core_pkg, "redis_config", None) if core_pkg else None
+                    )
                 except Exception:
                     alias_module = None
             if alias_module is None:
                 chess_mate_pkg = getattr(builtins, "chess_mate", None)
-                core_pkg = getattr(chess_mate_pkg, "core", None) if chess_mate_pkg else None
-                alias_module = getattr(core_pkg, "redis_config", None) if core_pkg else None
-            lock_fn = getattr(alias_module, "redis_lock", redis_lock) if alias_module else redis_lock
-            unlock_fn = getattr(alias_module, "redis_unlock", redis_unlock) if alias_module else redis_unlock
+                core_pkg = (
+                    getattr(chess_mate_pkg, "core", None) if chess_mate_pkg else None
+                )
+                alias_module = (
+                    getattr(core_pkg, "redis_config", None) if core_pkg else None
+                )
+            lock_fn = (
+                getattr(alias_module, "redis_lock", redis_lock)
+                if alias_module
+                else redis_lock
+            )
+            unlock_fn = (
+                getattr(alias_module, "redis_unlock", redis_unlock)
+                if alias_module
+                else redis_unlock
+            )
 
             # Try to acquire lock
             lock_id = lock_fn(actual_lock_name, timeout)

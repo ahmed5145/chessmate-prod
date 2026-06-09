@@ -11,13 +11,20 @@ def weakness_themes(summary: dict) -> Set[str]:
     themes: Set[str] = set()
     for item in summary.get("recurring_weaknesses") or []:
         if isinstance(item, dict):
-            theme = item.get("pattern") or item.get("theme") or item.get("type") or item.get("label")
+            theme = (
+                item.get("pattern")
+                or item.get("theme")
+                or item.get("type")
+                or item.get("label")
+            )
             if theme:
                 themes.add(str(theme))
     return themes
 
 
-def metric_delta(current_summary: dict, other_summary: dict, key: str) -> Optional[float]:
+def metric_delta(
+    current_summary: dict, other_summary: dict, key: str
+) -> Optional[float]:
     cur = current_summary.get(key)
     prev = other_summary.get(key)
     if cur is None or prev is None:

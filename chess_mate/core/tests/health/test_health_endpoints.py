@@ -35,7 +35,9 @@ class HealthEndpointsTestCase(TestCase):
     @patch("core.health_checks.check_database")
     @patch("core.health_checks.check_cache")
     @patch("core.health_checks.check_redis")
-    def test_basic_health_check(self, mock_check_redis, mock_check_cache, mock_check_db):
+    def test_basic_health_check(
+        self, mock_check_redis, mock_check_cache, mock_check_db
+    ):
         """Test the basic health check endpoint."""
         # Configure mocks
         mock_check_db.return_value = {"status": STATUS_OK}
@@ -49,7 +51,10 @@ class HealthEndpointsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode("utf-8"), "ok")
 
-    @override_settings(SECURE_SSL_REDIRECT=True, SECURE_REDIRECT_EXEMPT=[r"^health/?$", r"^readiness/?$"])
+    @override_settings(
+        SECURE_SSL_REDIRECT=True,
+        SECURE_REDIRECT_EXEMPT=[r"^health/?$", r"^readiness/?$"],
+    )
     def test_health_check_not_redirected_when_ssl_redirect_enabled(self):
         """Load balancer probes must get 200 on HTTP /health/, not 301."""
         response = self.client.get("/health/", secure=False)

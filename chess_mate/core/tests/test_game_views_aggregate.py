@@ -18,9 +18,24 @@ ANALYSIS_DATA = {
             "total_moves": 40,
         },
         "phases": {
-            "opening": {"accuracy": 90, "mistakes": 0, "best_moves": 3, "opportunities": 4},
-            "middlegame": {"accuracy": 55, "mistakes": 2, "best_moves": 1, "opportunities": 2},
-            "endgame": {"accuracy": 70, "mistakes": 0, "best_moves": 2, "opportunities": 3},
+            "opening": {
+                "accuracy": 90,
+                "mistakes": 0,
+                "best_moves": 3,
+                "opportunities": 4,
+            },
+            "middlegame": {
+                "accuracy": 55,
+                "mistakes": 2,
+                "best_moves": 1,
+                "opportunities": 2,
+            },
+            "endgame": {
+                "accuracy": 70,
+                "mistakes": 0,
+                "best_moves": 2,
+                "opportunities": 3,
+            },
         },
         "time_management": {
             "avg_time_per_move": 12,
@@ -46,7 +61,9 @@ ANALYSIS_DATA = {
 
 @pytest.fixture
 def aggregate_user():
-    user = User.objects.create_user(username="agguser", email="agg@example.com", password="pass12345")
+    user = User.objects.create_user(
+        username="agguser", email="agg@example.com", password="pass12345"
+    )
     ensure_profile(user, email_verified=True, credits=10)
     return user
 
@@ -62,7 +79,9 @@ class TestBuildBatchAggregateMetrics:
 
     @pytest.mark.django_db
     @patch("core.game_views.CoachingFeedbackGenerator")
-    def test_builds_aggregate_metrics_from_analyses(self, mock_generator, aggregate_user):
+    def test_builds_aggregate_metrics_from_analyses(
+        self, mock_generator, aggregate_user
+    ):
         game = Game.objects.create(
             user=aggregate_user,
             platform="lichess",
@@ -80,7 +99,9 @@ class TestBuildBatchAggregateMetrics:
             "phase_motifs": {"weakest_phase": "middlegame"},
             "impact_metrics": {"accuracy_gap": 12.0},
         }
-        mock_generator.return_value.generate_feedback.side_effect = ValueError("skip ai")
+        mock_generator.return_value.generate_feedback.side_effect = ValueError(
+            "skip ai"
+        )
 
         result = game_views._build_batch_aggregate_metrics([{"game_id": game.id}])
 

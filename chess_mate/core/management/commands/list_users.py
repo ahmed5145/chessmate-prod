@@ -31,7 +31,10 @@ class Command(BaseCommand):
                 credits = Profile.objects.get(user=user).credits
             except Profile.DoesNotExist:
                 credits = "no profile"
-            admin = "admin" if user.is_superuser else ("staff" if user.is_staff else "user")
+            admin = (
+                "admin" if user.is_superuser else ("staff" if user.is_staff else "user")
+            )
             self.stdout.write(
-                f"id={user.id} username={user.username!r} email={user.email!r} " f"credits={credits} role={admin}"
+                f"id={user.id} username={user.username!r} email={user.email!r} "
+                f"credits={credits} role={admin}"
             )

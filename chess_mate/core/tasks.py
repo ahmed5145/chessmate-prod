@@ -573,9 +573,7 @@ def analyze_game_task(
                     )
 
                     moments = extract_critical_moments_from_analysis(analysis_result)
-                    record_single_game_timeline_events(
-                        streak_profile, game, moments
-                    )
+                    record_single_game_timeline_events(streak_profile, game, moments)
             except Exception as streak_exc:
                 logger.warning(
                     "[%s] Single-game streak update failed for game %s: %s",

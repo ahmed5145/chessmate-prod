@@ -47,7 +47,9 @@ def _load_eco_openings() -> Dict[str, str]:
         with open(ECO_PATH, "r", encoding="utf-8") as fh:
             return json.load(fh)
     except Exception:
-        logger.warning("ECO openings data not available or unreadable; continuing with empty map")
+        logger.warning(
+            "ECO openings data not available or unreadable; continuing with empty map"
+        )
         return {}
 
 
@@ -149,7 +151,11 @@ def build_game_result(
     """
     analyzer = StockfishAnalyzer.get_instance()
     if depth is None:
-        depth = int(os.environ.get("BATCH_ANALYSIS_DEPTH", os.environ.get("STOCKFISH_DEPTH", "20")))
+        depth = int(
+            os.environ.get(
+                "BATCH_ANALYSIS_DEPTH", os.environ.get("STOCKFISH_DEPTH", "20")
+            )
+        )
 
     # Analyze game (per-move). Use analyze_position directly to avoid
     # incompatible keyword arguments in some analyzer versions.
@@ -185,8 +191,11 @@ def build_game_result(
                 "evaluation": eval_before,
                 "eval_before": eval_before,
                 "eval_after": eval_after,
-                "best_move": (result_before.get("pv") and result_before.get("pv")[0]) or "",
-                "best_line": result_before.get("pv", [])[:5] if result_before.get("pv") else [],
+                "best_move": (result_before.get("pv") and result_before.get("pv")[0])
+                or "",
+                "best_line": (
+                    result_before.get("pv", [])[:5] if result_before.get("pv") else []
+                ),
                 "depth": result_before.get("depth", 0),
                 "time": result_before.get("time", 0.0),
             }
@@ -292,7 +301,9 @@ def build_game_result(
             opening_matches += 1
         opening_evaluated += 1
 
-    opening_accuracy = (opening_matches / opening_evaluated) if opening_evaluated > 0 else None
+    opening_accuracy = (
+        (opening_matches / opening_evaluated) if opening_evaluated > 0 else None
+    )
 
     # Per-move deterioration from true pre/post engine evals (White POV, player-relative)
     eval_befores = []
@@ -321,7 +332,9 @@ def build_game_result(
     def _avg_drop_for_slice(start: int, end: int) -> float:
         if end <= start:
             return 0.0
-        slice_vals = [eval_drops[i] for i in range(start, end) if _is_player_half_move_index(i)]
+        slice_vals = [
+            eval_drops[i] for i in range(start, end) if _is_player_half_move_index(i)
+        ]
         return float(sum(slice_vals) / len(slice_vals)) if slice_vals else 0.0
 
     # Initialize phase_breakdown with zeros (will be filled during classification pass)
@@ -385,7 +398,9 @@ def build_game_result(
         has_mate[i] = is_mate_before or is_mate_after
 
         played_san = mv.get("san") or ""
-        if is_delivered_checkmate(played_san) or player_has_winning_mate(is_white, eval_after):
+        if is_delivered_checkmate(played_san) or player_has_winning_mate(
+            is_white, eval_after
+        ):
             deterioration = 0.0
             classification = "best"
         else:
@@ -445,7 +460,9 @@ def build_game_result(
         fen = mv.get("fen") or ""
         played_move = mv.get("san") or mv.get("move")
         best_move = mv.get("best_move") or (
-            mv.get("best_line") and mv.get("best_line")[0] if mv.get("best_line") else ""
+            mv.get("best_line") and mv.get("best_line")[0]
+            if mv.get("best_line")
+            else ""
         )
 
         played_uci = mv.get("move")
@@ -453,10 +470,14 @@ def build_game_result(
         if best_uci and hasattr(best_move, "uci"):
             best_uci = best_move.uci()
 
-        if is_delivered_checkmate(played_move) or player_has_winning_mate(bool(mv.get("is_white", True)), eval_after):
+        if is_delivered_checkmate(played_move) or player_has_winning_mate(
+            bool(mv.get("is_white", True)), eval_after
+        ):
             continue
 
-        tactical_theme = classify_tactical_theme(fen, played_uci, best_uci, eval_swing=eval_swing)
+        tactical_theme = classify_tactical_theme(
+            fen, played_uci, best_uci, eval_swing=eval_swing
+        )
 
         # generate explanation via template
         explanation = get_explanation(
@@ -498,7 +519,9 @@ def build_game_result(
         critical_moments.append(moment)
 
     # tactical_patterns_missed: unique tactical themes from critical moments
-    tactical_patterns = list({cm.get("tactical_theme", "missed_tactic") for cm in critical_moments})
+    tactical_patterns = list(
+        {cm.get("tactical_theme", "missed_tactic") for cm in critical_moments}
+    )
 
     result = {
         "game_id": game_id,
@@ -551,12 +574,20 @@ def build_game_result(
     result["black_elo"] = black_elo
 
     player_color = result.get("player_color", "white")
-    player_moments = [moment for moment in critical_moments if moment.get("mover") == player_color]
+    player_moments = [
+        moment for moment in critical_moments if moment.get("mover") == player_color
+    ]
     result["critical_moments"] = player_moments
-    result["tactical_patterns_missed"] = list({cm.get("tactical_theme", "missed_tactic") for cm in player_moments})
+    result["tactical_patterns_missed"] = list(
+        {cm.get("tactical_theme", "missed_tactic") for cm in player_moments}
+    )
     result["accuracy"] = compute_game_accuracy(analyzed_moves, player_color)
     result["player_moves"] = len(
-        [mv for mv in analyzed_moves if bool(mv.get("is_white", True)) == (player_color == "white")]
+        [
+            mv
+            for mv in analyzed_moves
+            if bool(mv.get("is_white", True)) == (player_color == "white")
+        ]
     )
     for phase_name, start, end in (
         ("opening", 0, opening_end),
@@ -570,7 +601,11 @@ def build_game_result(
     if saved_game_id is not None:
         result["saved_game_id"] = saved_game_id
 
-    critical_move_numbers = [int(m.get("move_number")) for m in player_moments if m.get("move_number") is not None]
+    critical_move_numbers = [
+        int(m.get("move_number"))
+        for m in player_moments
+        if m.get("move_number") is not None
+    ]
     time_management = compute_time_management_from_pgn(
         pgn,
         player_color,

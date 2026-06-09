@@ -8,11 +8,14 @@ BATCH_COACH_STARTED = "Batch Coach started"
 BATCH_COACH_PENDING = "Batch Coach pending"
 BATCH_COACH_IN_PROGRESS = "Batch Coach in progress"
 
-BATCH_COACH_REQUIRES_MIN = "Batch Coach requires at least {min_games} games to detect patterns."
+BATCH_COACH_REQUIRES_MIN = (
+    "Batch Coach requires at least {min_games} games to detect patterns."
+)
 BATCH_COACH_MAX_GAMES = "Batch Coach supports a maximum of {max_games} games."
 
 BATCH_COACH_ACTIVE_LIMIT = (
-    "You already have a Batch Coach report running. " f"Wait for it to finish or check {SAVED_BATCH_COACH_REPORTS}."
+    "You already have a Batch Coach report running. "
+    f"Wait for it to finish or check {SAVED_BATCH_COACH_REPORTS}."
 )
 
 BATCH_COACH_MUST_FINISH = "Batch Coach must finish before regenerating coaching."

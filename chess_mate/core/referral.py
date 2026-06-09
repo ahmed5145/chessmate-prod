@@ -42,7 +42,9 @@ def ensure_referral_code(profile: Profile) -> str:
         return str(existing)
     code = generate_referral_code(profile.user)
     for _ in range(5):
-        clash = Profile.objects.filter(referral_code=code).exclude(pk=profile.pk).exists()
+        clash = (
+            Profile.objects.filter(referral_code=code).exclude(pk=profile.pk).exists()
+        )
         if not clash:
             break
         code = generate_referral_code(profile.user)
@@ -59,9 +61,7 @@ def find_referrer_profile(code: str) -> Optional[Profile]:
     profile = Profile.objects.filter(referral_code__iexact=normalized).first()
     if profile:
         return profile
-    return (
-        Profile.objects.filter(preferences__referral_code__iexact=normalized).first()
-    )
+    return Profile.objects.filter(preferences__referral_code__iexact=normalized).first()
 
 
 def attach_referral_on_signup(
@@ -82,7 +82,10 @@ def attach_referral_on_signup(
         return False
 
     if signup_ip and referrer_profile.get_preference(SIGNUP_IP_KEY) == signup_ip:
-        logger.info("Referral skipped for user %s: same signup IP as referrer", referee_profile.user_id)
+        logger.info(
+            "Referral skipped for user %s: same signup IP as referrer",
+            referee_profile.user_id,
+        )
         return False
 
     referee_profile.set_preference(REFERRED_BY_USER_ID_KEY, referrer_profile.user_id)
@@ -93,7 +96,9 @@ def attach_referral_on_signup(
 
 
 def _referrals_this_month(referrer: User) -> int:
-    month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start = timezone.now().replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
     return ReferralRedemption.objects.filter(
         referrer=referrer,
         created_at__gte=month_start,
@@ -119,7 +124,9 @@ def build_referral_payload(profile: Profile, request=None) -> Dict[str, Any]:
 
 
 @transaction.atomic
-def process_referral_on_first_batch(batch_report: BatchAnalysisReport) -> Optional[ReferralRedemption]:
+def process_referral_on_first_batch(
+    batch_report: BatchAnalysisReport,
+) -> Optional[ReferralRedemption]:
     if not is_first_eligible_batch(batch_report):
         return None
 

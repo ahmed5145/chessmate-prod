@@ -11,7 +11,10 @@ from core.analysis.batch_metrics import (
 
 def test_move_centipawn_loss_from_eval_swing():
     # White loses 0.5 pawns of eval after their move
-    assert move_centipawn_loss({"eval_before": 0.0, "eval_after": -0.5, "is_white": True}) == 50.0
+    assert (
+        move_centipawn_loss({"eval_before": 0.0, "eval_after": -0.5, "is_white": True})
+        == 50.0
+    )
 
 
 def test_compute_game_acpl_averages_moves():

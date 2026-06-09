@@ -30,7 +30,9 @@ urlpatterns = [
         profile_views.create_subscription,
         name="create_subscription",
     ),
-    path("subscription/pro/", profile_views.subscribe_pro_plan, name="subscribe_pro_plan"),
+    path(
+        "subscription/pro/", profile_views.subscribe_pro_plan, name="subscribe_pro_plan"
+    ),
     path(
         "subscription/confirm/",
         profile_views.confirm_subscription,

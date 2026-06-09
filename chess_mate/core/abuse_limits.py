@@ -32,12 +32,16 @@ def _retry_after(window_seconds: int, cache_key: str) -> int:
     return max(1, window_seconds - elapsed)
 
 
-def _check_ip_window(cache_prefix: str, request, max_count: int, window_seconds: int) -> Tuple[bool, int]:
+def _check_ip_window(
+    cache_prefix: str, request, max_count: int, window_seconds: int
+) -> Tuple[bool, int]:
     ip = get_client_ip(request)
     cache_key = f"{cache_prefix}:{ip}"
     count = int(cache_get(cache_key, 0) or 0)
     if count >= max_count:
-        logger.warning("%s limit exceeded for IP %s (%s/%s)", cache_prefix, ip, count, max_count)
+        logger.warning(
+            "%s limit exceeded for IP %s (%s/%s)", cache_prefix, ip, count, max_count
+        )
         return False, _retry_after(window_seconds, cache_key)
     return True, 0
 
@@ -59,7 +63,9 @@ def _record_ip_window(cache_prefix: str, request, window_seconds: int) -> None:
     cache_set(ttl_key, first_ts, timeout=ttl)
 
 
-def _check_email_window(email: str, cache_prefix: str, max_count: int, window_seconds: int) -> Tuple[bool, int]:
+def _check_email_window(
+    email: str, cache_prefix: str, max_count: int, window_seconds: int
+) -> Tuple[bool, int]:
     normalized = (email or "").strip().lower()
     if not normalized:
         return True, 0
@@ -133,7 +139,9 @@ def _end_of_local_day() -> datetime:
 def check_signup_allowed(request) -> Tuple[bool, int]:
     max_per_ip = int(getattr(settings, "SIGNUP_RATE_LIMIT_MAX_PER_IP", 5))
     window_seconds = int(getattr(settings, "SIGNUP_RATE_LIMIT_WINDOW_SECONDS", 3600))
-    return _check_ip_window("signup_attempts", request, max(1, max_per_ip), max(60, window_seconds))
+    return _check_ip_window(
+        "signup_attempts", request, max(1, max_per_ip), max(60, window_seconds)
+    )
 
 
 def record_signup_attempt(request) -> None:
@@ -156,7 +164,9 @@ def signup_rate_limit_response(retry_after: int) -> Response:
 def check_login_allowed(request) -> Tuple[bool, int]:
     max_per_ip = int(getattr(settings, "LOGIN_FAILED_MAX_PER_IP", 20))
     window_seconds = int(getattr(settings, "LOGIN_FAILED_WINDOW_SECONDS", 3600))
-    return _check_ip_window("login_failed", request, max(1, max_per_ip), max(60, window_seconds))
+    return _check_ip_window(
+        "login_failed", request, max(1, max_per_ip), max(60, window_seconds)
+    )
 
 
 def record_failed_login(request) -> None:
@@ -182,10 +192,14 @@ def check_password_reset_allowed(request, email: str) -> Tuple[bool, int]:
     email_max = int(getattr(settings, "PASSWORD_RESET_MAX_PER_EMAIL", 3))
     email_window = int(getattr(settings, "PASSWORD_RESET_EMAIL_WINDOW_SECONDS", 86400))
 
-    ip_ok, ip_retry = _check_ip_window("password_reset_ip", request, max(1, ip_max), max(60, ip_window))
+    ip_ok, ip_retry = _check_ip_window(
+        "password_reset_ip", request, max(1, ip_max), max(60, ip_window)
+    )
     if not ip_ok:
         return False, ip_retry
-    email_ok, email_retry = _check_email_window(email, "password_reset_email", max(1, email_max), max(60, email_window))
+    email_ok, email_retry = _check_email_window(
+        email, "password_reset_email", max(1, email_max), max(60, email_window)
+    )
     if not email_ok:
         return False, email_retry
     return True, 0
@@ -211,11 +225,15 @@ def password_reset_rate_limit_response(retry_after: int) -> Response:
 
 
 def batches_started_today(user: User) -> int:
-    return BatchAnalysisReport.objects.filter(user=user, created_at__gte=_start_of_local_day()).count()
+    return BatchAnalysisReport.objects.filter(
+        user=user, created_at__gte=_start_of_local_day()
+    ).count()
 
 
 def user_has_active_batch(user: User) -> bool:
-    return BatchAnalysisReport.objects.filter(user=user, status__in=["pending", "in_progress"]).exists()
+    return BatchAnalysisReport.objects.filter(
+        user=user, status__in=["pending", "in_progress"]
+    ).exists()
 
 
 def check_batch_creation_allowed(user: User) -> Tuple[bool, Dict[str, Any]]:
@@ -236,11 +254,18 @@ def check_batch_creation_allowed(user: User) -> Tuple[bool, Dict[str, Any]]:
 
     if not allow_concurrent and user_has_active_batch(user):
         info["active_batch"] = True
-        logger.warning("Blocked new batch for user %s: active batch in progress", user.id)
+        logger.warning(
+            "Blocked new batch for user %s: active batch in progress", user.id
+        )
         return False, info
 
     if daily_limit > 0 and count >= daily_limit:
-        logger.warning("Daily batch limit exceeded for user %s (%s/%s)", user.id, count, daily_limit)
+        logger.warning(
+            "Daily batch limit exceeded for user %s (%s/%s)",
+            user.id,
+            count,
+            daily_limit,
+        )
         return False, info
 
     return True, info
@@ -273,8 +298,12 @@ def games_imported_today(user: User) -> int:
     return Game.objects.filter(user=user, created_at__gte=_start_of_local_day()).count()
 
 
-def check_game_import_allowed(user: User, num_games: int = 1) -> Tuple[bool, Dict[str, Any]]:
-    daily_limit = max(0, int(getattr(settings, "MAX_GAME_IMPORTS_PER_USER_PER_DAY", 100)))
+def check_game_import_allowed(
+    user: User, num_games: int = 1
+) -> Tuple[bool, Dict[str, Any]]:
+    daily_limit = max(
+        0, int(getattr(settings, "MAX_GAME_IMPORTS_PER_USER_PER_DAY", 100))
+    )
     count = games_imported_today(user)
     info = {
         "limit": daily_limit,
@@ -286,7 +315,13 @@ def check_game_import_allowed(user: User, num_games: int = 1) -> Tuple[bool, Dic
         info["bypass"] = True
         return True, info
     if count + max(0, num_games) > daily_limit:
-        logger.warning("Daily import limit exceeded for user %s (%s+%s>%s)", user.id, count, num_games, daily_limit)
+        logger.warning(
+            "Daily import limit exceeded for user %s (%s+%s>%s)",
+            user.id,
+            count,
+            num_games,
+            daily_limit,
+        )
         return False, info
     return True, info
 
@@ -295,7 +330,8 @@ def game_import_limit_response(info: Dict[str, Any]) -> Response:
     return abuse_limit_response(
         code="IMPORT_001",
         message=(
-            f"Daily game import limit reached ({info.get('limit')} per day). " "Try again tomorrow or contact support."
+            f"Daily game import limit reached ({info.get('limit')} per day). "
+            "Try again tomorrow or contact support."
         ),
         error="Daily game import limit exceeded",
         detail=info,
@@ -304,7 +340,9 @@ def game_import_limit_response(info: Dict[str, Any]) -> Response:
 
 def check_external_fetch_allowed(user: User) -> Tuple[bool, Dict[str, Any]]:
     """Limit external platform fetch *requests* per day (each may import many games)."""
-    daily_limit = max(0, int(getattr(settings, "MAX_EXTERNAL_FETCH_REQUESTS_PER_USER_PER_DAY", 30)))
+    daily_limit = max(
+        0, int(getattr(settings, "MAX_EXTERNAL_FETCH_REQUESTS_PER_USER_PER_DAY", 30))
+    )
     cache_key = f"external_fetch_count:{user.id}:{timezone.localdate().isoformat()}"
     count = int(cache_get(cache_key, 0) or 0)
     info = {
@@ -340,10 +378,16 @@ def external_fetch_limit_response(info: Dict[str, Any]) -> Response:
 
 
 def check_single_analysis_allowed(user: User) -> Tuple[bool, Dict[str, Any]]:
-    daily_limit = max(0, int(getattr(settings, "MAX_SINGLE_ANALYSES_PER_USER_PER_DAY", 50)))
+    daily_limit = max(
+        0, int(getattr(settings, "MAX_SINGLE_ANALYSES_PER_USER_PER_DAY", 50))
+    )
     cache_key = f"single_analysis_count:{user.id}:{timezone.localdate().isoformat()}"
     count = int(cache_get(cache_key, 0) or 0)
-    info = {"limit": daily_limit, "count": count, "resets_at": _end_of_local_day().isoformat()}
+    info = {
+        "limit": daily_limit,
+        "count": count,
+        "resets_at": _end_of_local_day().isoformat(),
+    }
     if _staff_bypasses(user) or daily_limit <= 0:
         info["bypass"] = True
         return True, info
@@ -371,9 +415,15 @@ def single_analysis_limit_response(info: Dict[str, Any]) -> Response:
 # --- Coaching regenerate (OpenAI cost) ---
 
 
-def check_coaching_regenerate_allowed(user: User, batch_id: int) -> Tuple[bool, Dict[str, Any]]:
-    user_daily = max(0, int(getattr(settings, "MAX_COACHING_REGENERATIONS_PER_USER_PER_DAY", 10)))
-    batch_daily = max(0, int(getattr(settings, "MAX_COACHING_REGENERATIONS_PER_BATCH_PER_DAY", 3)))
+def check_coaching_regenerate_allowed(
+    user: User, batch_id: int
+) -> Tuple[bool, Dict[str, Any]]:
+    user_daily = max(
+        0, int(getattr(settings, "MAX_COACHING_REGENERATIONS_PER_USER_PER_DAY", 10))
+    )
+    batch_daily = max(
+        0, int(getattr(settings, "MAX_COACHING_REGENERATIONS_PER_BATCH_PER_DAY", 3))
+    )
     today = timezone.localdate().isoformat()
     user_key = f"coaching_regen_user:{user.id}:{today}"
     batch_key = f"coaching_regen_batch:{batch_id}:{today}"
@@ -399,7 +449,10 @@ def check_coaching_regenerate_allowed(user: User, batch_id: int) -> Tuple[bool, 
 def record_coaching_regenerate(user: User, batch_id: int) -> None:
     today = timezone.localdate().isoformat()
     ttl = max(60, int((_end_of_local_day() - timezone.now()).total_seconds()))
-    for key in (f"coaching_regen_user:{user.id}:{today}", f"coaching_regen_batch:{batch_id}:{today}"):
+    for key in (
+        f"coaching_regen_user:{user.id}:{today}",
+        f"coaching_regen_batch:{batch_id}:{today}",
+    ):
         count = int(cache_get(key, 0) or 0)
         cache_set(key, count + 1, timeout=ttl)
 

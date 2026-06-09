@@ -41,7 +41,10 @@ class TestBatchRerun:
             status="completed",
             games_count=5,
             game_ids=[g.id for g in self.games],
-            per_game_results=[{"saved_game_id": g.id, "game_id": f"game_{idx}"} for idx, g in enumerate(self.games)],
+            per_game_results=[
+                {"saved_game_id": g.id, "game_id": f"game_{idx}"}
+                for idx, g in enumerate(self.games)
+            ],
         )
 
     def test_resolve_batch_game_ids_from_metadata(self):
@@ -74,7 +77,11 @@ class TestBatchRerun:
 
         def fake_subtask(pgn, game_id, batch_id, user_id, saved_id=None):
             subtask_calls.append(game_id)
-            return {"game_id": game_id, "status": "success", "result": {"game_id": game_id}}
+            return {
+                "game_id": game_id,
+                "status": "success",
+                "result": {"game_id": game_id},
+            }
 
         def fake_aggregate(results, batch_id, pgn_list, user_id):
             aggregate_calls.append(batch_id)

@@ -81,7 +81,11 @@ def user_wants_analysis_completion_email(user: Any) -> bool:
     if profile is None:
         return True
 
-    prefs = profile.preferences if isinstance(getattr(profile, "preferences", None), dict) else {}
+    prefs = (
+        profile.preferences
+        if isinstance(getattr(profile, "preferences", None), dict)
+        else {}
+    )
     if prefs.get("emailNotifications") is False:
         return False
     if prefs.get("notifications_enabled") is False:

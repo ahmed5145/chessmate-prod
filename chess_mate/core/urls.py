@@ -19,10 +19,22 @@ urlpatterns = [
     path("batches/", include("core.urls_batches")),
     path("notifications/", include("core.urls_notifications")),
     path("credits/", include("core.urls_credits")),
-    path("purchase-credits/", views_credits.purchase_credits_checkout_view, name="purchase-credits"),
-    path("confirm-purchase/", views_credits.confirm_purchase_view, name="confirm-purchase"),
+    path(
+        "purchase-credits/",
+        views_credits.purchase_credits_checkout_view,
+        name="purchase-credits",
+    ),
+    path(
+        "confirm-purchase/",
+        views_credits.confirm_purchase_view,
+        name="confirm-purchase",
+    ),
     path("webhooks/stripe/", views_credits.stripe_webhook_view, name="stripe-webhook"),
-    path("public/site-config/", views_public.public_site_config_view, name="public-site-config"),
+    path(
+        "public/site-config/",
+        views_public.public_site_config_view,
+        name="public-site-config",
+    ),
     path(
         "v1/games/<int:game_id>/analysis/status/",
         game_views.get_task_status,

@@ -112,7 +112,9 @@ class TestNotificationCenter(TestCase):
                 ]
             },
             per_game_results=[{"saved_game_id": game.id, "move_number": 12}],
-            batch_summary={"top_critical_moments": [{"saved_game_id": game.id, "move_number": 12}]},
+            batch_summary={
+                "top_critical_moments": [{"saved_game_id": game.id, "move_number": 12}]
+            },
         )
         seed_priority_inbox_from_batch(batch)
         notify_batch_complete(self.user, batch)

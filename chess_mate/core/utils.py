@@ -67,7 +67,9 @@ Endgame Technique:
     time_pressure = stats["common_mistakes"].get("time_pressure", 0)
     if time_pressure > 0.3:
         time_feedback = "you often get into time trouble"
-        time_suggestion = "practice better time allocation in the opening and middlegame"
+        time_suggestion = (
+            "practice better time allocation in the opening and middlegame"
+        )
     else:
         time_feedback = "generally good time management"
         time_suggestion = "fine-tune your time usage in critical positions"

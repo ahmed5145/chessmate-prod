@@ -76,6 +76,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="profile",
             name="games",
-            field=models.ManyToManyField(blank=True, related_name="profiles", to="core.game"),
+            field=models.ManyToManyField(
+                blank=True, related_name="profiles", to="core.game"
+            ),
         ),
     ]

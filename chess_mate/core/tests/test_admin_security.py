@@ -29,7 +29,10 @@ def _clear_cache():
 
 class TestAdminPathHelpers:
     def test_resolve_admin_path_allows_default_in_tests(self):
-        assert resolve_admin_path(is_production=True, testing=True, configured="admin") == "admin"
+        assert (
+            resolve_admin_path(is_production=True, testing=True, configured="admin")
+            == "admin"
+        )
 
     def test_resolve_admin_path_requires_secret_in_production(self):
         with pytest.raises(ValueError, match="DJANGO_ADMIN_PATH must be set"):
@@ -40,7 +43,9 @@ class TestAdminPathHelpers:
             resolve_admin_path(is_production=True, testing=False, configured="admin")
 
     def test_resolve_admin_path_accepts_custom_secret(self):
-        path = resolve_admin_path(is_production=True, testing=False, configured="cm-ops-secret")
+        path = resolve_admin_path(
+            is_production=True, testing=False, configured="cm-ops-secret"
+        )
         assert path == "cm-ops-secret"
 
     def test_is_legacy_admin_path(self):
@@ -65,26 +70,36 @@ class TestAdminSecurityMiddleware:
         self.factory = RequestFactory()
         self.middleware = AdminSecurityMiddleware(lambda request: HttpResponse("ok"))
 
-    @override_settings(ADMIN_HIDE_LEGACY_PATH=True, DJANGO_ADMIN_PATH="cm-ops-secret", ADMIN_ALLOWED_IPS=[])
+    @override_settings(
+        ADMIN_HIDE_LEGACY_PATH=True,
+        DJANGO_ADMIN_PATH="cm-ops-secret",
+        ADMIN_ALLOWED_IPS=[],
+    )
     def test_legacy_admin_path_returns_404(self):
         request = self.factory.get("/admin/")
         response = self.middleware.process_request(request)
         assert response.status_code == 404
 
-    @override_settings(ADMIN_HIDE_LEGACY_PATH=False, DJANGO_ADMIN_PATH="admin", ADMIN_ALLOWED_IPS=[])
+    @override_settings(
+        ADMIN_HIDE_LEGACY_PATH=False, DJANGO_ADMIN_PATH="admin", ADMIN_ALLOWED_IPS=[]
+    )
     def test_legacy_admin_path_allowed_when_not_hidden(self):
         request = self.factory.get("/admin/")
         response = self.middleware.process_request(request)
         assert response is None
 
-    @override_settings(DJANGO_ADMIN_PATH="cm-ops-secret", ADMIN_ALLOWED_IPS=["203.0.113.10"])
+    @override_settings(
+        DJANGO_ADMIN_PATH="cm-ops-secret", ADMIN_ALLOWED_IPS=["203.0.113.10"]
+    )
     def test_admin_ip_allowlist_blocks_unknown_ip(self):
         request = self.factory.get("/cm-ops-secret/")
         request.META["REMOTE_ADDR"] = "198.51.100.20"
         response = self.middleware.process_request(request)
         assert response.status_code == 403
 
-    @override_settings(DJANGO_ADMIN_PATH="cm-ops-secret", ADMIN_ALLOWED_IPS=["203.0.113.10"])
+    @override_settings(
+        DJANGO_ADMIN_PATH="cm-ops-secret", ADMIN_ALLOWED_IPS=["203.0.113.10"]
+    )
     def test_admin_ip_allowlist_allows_configured_ip(self):
         request = self.factory.get("/cm-ops-secret/")
         request.META["REMOTE_ADDR"] = "203.0.113.10"
@@ -102,12 +117,16 @@ class TestAdminSecurityMiddleware:
         _clear_cache()
 
         for _ in range(2):
-            request = self.factory.post("/cm-ops-secret/login/", {"username": "x", "password": "y"})
+            request = self.factory.post(
+                "/cm-ops-secret/login/", {"username": "x", "password": "y"}
+            )
             request.META["REMOTE_ADDR"] = "203.0.113.55"
             response = self.middleware.process_request(request)
             assert response is None
 
-        blocked = self.factory.post("/cm-ops-secret/login/", {"username": "x", "password": "y"})
+        blocked = self.factory.post(
+            "/cm-ops-secret/login/", {"username": "x", "password": "y"}
+        )
         blocked.META["REMOTE_ADDR"] = "203.0.113.55"
         response = self.middleware.process_request(blocked)
         assert response.status_code == 403

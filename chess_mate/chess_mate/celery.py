@@ -28,7 +28,11 @@ def _safe_get_celery_Celery():
         project_inner = os.path.dirname(os.path.dirname(__file__))
         saved_sys_path = list(sys.path)
         try:
-            sys.path = [p for p in sys.path if os.path.abspath(p) != os.path.abspath(project_inner)]
+            sys.path = [
+                p
+                for p in sys.path
+                if os.path.abspath(p) != os.path.abspath(project_inner)
+            ]
             celery_pkg = importlib.import_module("celery")
             return getattr(celery_pkg, "Celery")
         finally:
@@ -185,7 +189,9 @@ def configure_worker(sender=None, conf=None, **kwargs):
 def setup_loggers(logger, *args, **kwargs):
     """Configure logging for Celery."""
     logger.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
     # Add console handler
     console_handler = logging.StreamHandler()

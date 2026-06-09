@@ -38,7 +38,9 @@ def get_or_create_moment_share(
     move_number: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Persist share token in analysis_data without a DB migration."""
-    payload = dict(analysis.analysis_data) if isinstance(analysis.analysis_data, dict) else {}
+    payload = (
+        dict(analysis.analysis_data) if isinstance(analysis.analysis_data, dict) else {}
+    )
     share_meta = payload.get(SHARE_META_KEY)
     if isinstance(share_meta, dict) and share_meta.get("token"):
         if move_number is not None:
@@ -64,11 +66,15 @@ def find_analysis_by_share_token(share_token: str) -> Optional[GameAnalysis]:
     if not share_token:
         return None
     return (
-        GameAnalysis.objects.select_related("game").filter(analysis_data__moment_share__token=str(share_token)).first()
+        GameAnalysis.objects.select_related("game")
+        .filter(analysis_data__moment_share__token=str(share_token))
+        .first()
     )
 
 
-def _pick_moment(critical_moments: list, move_number: Optional[int]) -> Optional[Dict[str, Any]]:
+def _pick_moment(
+    critical_moments: list, move_number: Optional[int]
+) -> Optional[Dict[str, Any]]:
     if not isinstance(critical_moments, list) or not critical_moments:
         return None
     if move_number is not None:
@@ -91,7 +97,9 @@ def sanitize_public_game_context(game_context: Dict[str, Any]) -> Dict[str, Any]
     }
 
 
-def build_public_moment_payload(analysis: GameAnalysis, move_number: Optional[int] = None) -> Dict[str, Any]:
+def build_public_moment_payload(
+    analysis: GameAnalysis, move_number: Optional[int] = None
+) -> Dict[str, Any]:
     game: Game = analysis.game
     payload = analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
     feedback_payload = analysis.feedback if isinstance(analysis.feedback, dict) else {}
@@ -99,7 +107,9 @@ def build_public_moment_payload(analysis: GameAnalysis, move_number: Optional[in
     coaching_payload = payload.get("coaching")
     if not isinstance(coaching_payload, dict):
         coaching_payload = (
-            feedback_payload.get("coaching") if isinstance(feedback_payload.get("coaching"), dict) else {}
+            feedback_payload.get("coaching")
+            if isinstance(feedback_payload.get("coaching"), dict)
+            else {}
         )
 
     critical_moments = payload.get("critical_moments")
@@ -107,14 +117,18 @@ def build_public_moment_payload(analysis: GameAnalysis, move_number: Optional[in
         critical_moments = coaching_payload.get("critical_moments") or []
 
     share_meta = get_moment_share_meta(analysis) or {}
-    resolved_move = move_number if move_number is not None else share_meta.get("move_number")
+    resolved_move = (
+        move_number if move_number is not None else share_meta.get("move_number")
+    )
     try:
         resolved_move = int(resolved_move) if resolved_move not in (None, "") else None
     except (TypeError, ValueError):
         resolved_move = None
 
     moment = _pick_moment(critical_moments, resolved_move)
-    game_context = sanitize_public_game_context(build_single_game_context(game, profile=None))
+    game_context = sanitize_public_game_context(
+        build_single_game_context(game, profile=None)
+    )
 
     return {
         "share_token": share_meta.get("token"),
@@ -127,6 +141,8 @@ def build_public_moment_payload(analysis: GameAnalysis, move_number: Optional[in
         "moment": moment,
         "engine_meta": {
             "depth": getattr(analysis, "depth", 20) or 20,
-            "classification_note": ("Single-game uses depth-20 coach model; batch report uses depth-14."),
+            "classification_note": (
+                "Single-game uses depth-20 coach model; batch report uses depth-14."
+            ),
         },
     }

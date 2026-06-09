@@ -103,19 +103,35 @@ OPENAPI_SPEC = {
         "responses": {
             "Unauthorized": {
                 "description": "Authentication failed or token is invalid",
-                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                    }
+                },
             },
             "BadRequest": {
                 "description": "The request contains invalid parameters",
-                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                    }
+                },
             },
             "NotFound": {
                 "description": "The requested resource was not found",
-                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                    }
+                },
             },
             "ServerError": {
                 "description": "An unexpected server error occurred",
-                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                    }
+                },
             },
         },
     },
@@ -167,7 +183,9 @@ def extract_endpoints_from_markdown(md_path):
         auth_required = match.group(5).strip() == "Required"
 
         # Extract parameters if present
-        params_pattern = r"\*\*(?:Path |Query |Request Body)Parameters\*\*:\n\n\| (.*?)\n\|(.*?)\n\n"
+        params_pattern = (
+            r"\*\*(?:Path |Query |Request Body)Parameters\*\*:\n\n\| (.*?)\n\|(.*?)\n\n"
+        )
         params_match = re.search(params_pattern, content[match.end() :], re.DOTALL)
 
         params = []
@@ -240,7 +258,11 @@ def generate_path_item(endpoint):
         "responses": {
             "200": {
                 "description": "Successful operation",
-                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SuccessResponse"}}},
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/SuccessResponse"}
+                    }
+                },
             },
             "400": {"$ref": "#/components/responses/BadRequest"},
             "401": {"$ref": "#/components/responses/Unauthorized"},
@@ -336,11 +358,17 @@ def generate_path_item(endpoint):
                 required_props.append(param_name)
 
         path_item["requestBody"] = {
-            "content": {"application/json": {"schema": {"type": "object", "properties": properties}}}
+            "content": {
+                "application/json": {
+                    "schema": {"type": "object", "properties": properties}
+                }
+            }
         }
 
         if required_props:
-            path_item["requestBody"]["content"]["application/json"]["schema"]["required"] = required_props
+            path_item["requestBody"]["content"]["application/json"]["schema"][
+                "required"
+            ] = required_props
 
         path_item["requestBody"]["required"] = bool(required_props)
 
@@ -390,7 +418,9 @@ def main():
     with open(OPENAPI_YAML_PATH, "w") as f:
         yaml.dump(OPENAPI_SPEC, f, sort_keys=False)
 
-    print(f"OpenAPI specification generated at {OPENAPI_JSON_PATH} and {OPENAPI_YAML_PATH}")
+    print(
+        f"OpenAPI specification generated at {OPENAPI_JSON_PATH} and {OPENAPI_YAML_PATH}"
+    )
 
 
 if __name__ == "__main__":

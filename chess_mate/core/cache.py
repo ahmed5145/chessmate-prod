@@ -155,7 +155,8 @@ def get_cache_instance(cache_alias: str = "default") -> BaseCache:
     # `chess_mate.core.cache` imports; prefer patched alias when present.
     patched_impl = _resolve_patched_cache_symbol("get_cache_instance")
     if patched_impl is not None and (
-        _ORIGINAL_GET_CACHE_INSTANCE is None or patched_impl is not _ORIGINAL_GET_CACHE_INSTANCE
+        _ORIGINAL_GET_CACHE_INSTANCE is None
+        or patched_impl is not _ORIGINAL_GET_CACHE_INSTANCE
     ):
         return cast(BaseCache, patched_impl(cache_alias))
 
@@ -219,7 +220,9 @@ def get_redis_connection() -> Optional[Redis]:
     """
     use_redis = getattr(settings, "USE_REDIS", None)
     if use_redis is False:
-        stack_modules = {frame.frame.f_globals.get("__name__", "") for frame in inspect.stack()}
+        stack_modules = {
+            frame.frame.f_globals.get("__name__", "") for frame in inspect.stack()
+        }
         if any("core.tests.test_cache" in module for module in stack_modules):
             return None
 
@@ -298,7 +301,9 @@ def cache_key(prefix: str, *args: Any, **kwargs: Any) -> str:
     return ":".join(key_parts)
 
 
-def cache_get(key: str, default: Any = None, backend_name: str = CACHE_BACKEND_DEFAULT) -> Any:
+def cache_get(
+    key: str, default: Any = None, backend_name: str = CACHE_BACKEND_DEFAULT
+) -> Any:
     """
     Get a value from cache with error handling.
 
@@ -389,13 +394,17 @@ def cache_set(
             return True
 
         # First try to use the specified backend
-        backend = caches[backend_name] if backend_name != CACHE_BACKEND_DEFAULT else cache
+        backend = (
+            caches[backend_name] if backend_name != CACHE_BACKEND_DEFAULT else cache
+        )
         backend.set(key, value, timeout=timeout)
         return True
     except (KeyError, RedisError) as e:
         # If Redis backend is unavailable, fallback to default
         if backend_name != CACHE_BACKEND_DEFAULT:
-            logger.warning(f"Cache backend '{backend_name}' unavailable, falling back to default: {str(e)}")
+            logger.warning(
+                f"Cache backend '{backend_name}' unavailable, falling back to default: {str(e)}"
+            )
             try:
                 cache.set(key, value, timeout=timeout)
                 return True
@@ -434,18 +443,24 @@ def cache_delete(
             return redis_client.delete(key)  # type: ignore
 
         # First try to use the specified backend
-        backend = caches[backend_name] if backend_name != CACHE_BACKEND_DEFAULT else cache
+        backend = (
+            caches[backend_name] if backend_name != CACHE_BACKEND_DEFAULT else cache
+        )
         backend.delete(key)
         return True
     except (KeyError, RedisError) as e:
         # If Redis backend is unavailable, fallback to default
         if backend_name != CACHE_BACKEND_DEFAULT:
-            logger.warning(f"Cache backend '{backend_name}' unavailable, falling back to default: {str(e)}")
+            logger.warning(
+                f"Cache backend '{backend_name}' unavailable, falling back to default: {str(e)}"
+            )
             try:
                 cache.delete(key)
                 return True
             except Exception as inner_e:
-                logger.error(f"Default cache delete error for key {key}: {str(inner_e)}")
+                logger.error(
+                    f"Default cache delete error for key {key}: {str(inner_e)}"
+                )
                 return False
         else:
             logger.warning(f"Cache delete error for key {key}: {str(e)}")
@@ -660,7 +675,9 @@ def memoize(
             # Try to get from cache
             cached_value = cache_get(hash_key, cache_backend)
             if cached_value is not None:
-                ttl_seconds = float(timeout if timeout is not None else DEFAULT_CACHE_TTL)
+                ttl_seconds = float(
+                    timeout if timeout is not None else DEFAULT_CACHE_TTL
+                )
                 local_memo[hash_key] = (now + ttl_seconds, cached_value)
                 return cast(Any, cached_value)  # Cast to Any to satisfy mypy
 
@@ -745,7 +762,9 @@ def invalidate_cache(
         return False
 
 
-def invalidate_pattern(pattern: str, cache_alias: str = "default", backend: Optional[str] = None) -> bool:
+def invalidate_pattern(
+    pattern: str, cache_alias: str = "default", backend: Optional[str] = None
+) -> bool:
     """
     Invalidate all cache entries matching the given pattern.
     Only works with Redis cache.
@@ -781,7 +800,9 @@ def invalidate_pattern(pattern: str, cache_alias: str = "default", backend: Opti
 
         if key_list:
             redis_client.delete(*key_list)  # type: ignore
-            logger.debug(f"Invalidated {len(key_list)} keys matching pattern: {pattern}")
+            logger.debug(
+                f"Invalidated {len(key_list)} keys matching pattern: {pattern}"
+            )
         else:
             logger.debug(f"No keys found matching pattern: {pattern}")
         return True
@@ -862,7 +883,9 @@ def cache_stats() -> Dict[str, Any]:
     return stats
 
 
-def invalidate_cache_for(key_prefix: str = "", cache_alias: str = "default") -> Callable[[F], F]:
+def invalidate_cache_for(
+    key_prefix: str = "", cache_alias: str = "default"
+) -> Callable[[F], F]:
     """
     Decorator to invalidate cache with a given prefix after the view function executes.
     Useful for POST/PUT/DELETE operations that modify data.
@@ -891,11 +914,17 @@ def invalidate_cache_for(key_prefix: str = "", cache_alias: str = "default") -> 
                     pattern = f"{key_prefix}*"
                     invalidate_pattern(pattern, cache_alias)
                 # For simpler backends, try to delete user-specific keys at minimum
-                elif args and isinstance(args[0], HttpRequest) and args[0].user.is_authenticated:
+                elif (
+                    args
+                    and isinstance(args[0], HttpRequest)
+                    and args[0].user.is_authenticated
+                ):
                     user_key = f"{key_prefix}:user:{args[0].user.id}"
                     invalidate_cache(user_key, cache_alias=cache_alias)
             except Exception as e:
-                logger.warning(f"Cache invalidation error for prefix {key_prefix}: {str(e)}")
+                logger.warning(
+                    f"Cache invalidation error for prefix {key_prefix}: {str(e)}"
+                )
 
             return response
 
@@ -944,7 +973,9 @@ def generate_cache_key(prefix: str, *args: Any, **kwargs: Any) -> str:
     return key
 
 
-def cache_delete_pattern(pattern: str, backend_name: str = CACHE_BACKEND_DEFAULT) -> int:
+def cache_delete_pattern(
+    pattern: str, backend_name: str = CACHE_BACKEND_DEFAULT
+) -> int:
     """
     Delete all keys matching a pattern.
 
@@ -989,7 +1020,9 @@ def cache_delete_pattern(pattern: str, backend_name: str = CACHE_BACKEND_DEFAULT
             backend = get_cache_instance(backend_name)
 
             # Limited support for pattern matching in non-Redis backends
-            logger.warning(f"Pattern deletion not fully supported for backend {backend_name}")
+            logger.warning(
+                f"Pattern deletion not fully supported for backend {backend_name}"
+            )
 
     except Exception as e:
         logger.warning(f"Error deleting keys matching pattern {pattern}: {str(e)}")
@@ -997,7 +1030,9 @@ def cache_delete_pattern(pattern: str, backend_name: str = CACHE_BACKEND_DEFAULT
     return count
 
 
-def cache_incr(key: str, amount: int = 1, backend_name: str = CACHE_BACKEND_DEFAULT) -> Optional[int]:
+def cache_incr(
+    key: str, amount: int = 1, backend_name: str = CACHE_BACKEND_DEFAULT
+) -> Optional[int]:
     """
     Increment a numeric cache value.
 
@@ -1023,7 +1058,9 @@ def cache_incr(key: str, amount: int = 1, backend_name: str = CACHE_BACKEND_DEFA
         return None
 
 
-def cache_decr(key: str, amount: int = 1, backend_name: str = CACHE_BACKEND_DEFAULT) -> Optional[int]:
+def cache_decr(
+    key: str, amount: int = 1, backend_name: str = CACHE_BACKEND_DEFAULT
+) -> Optional[int]:
     """
     Decrement a numeric cache value.
 
@@ -1158,7 +1195,9 @@ def get_cache_health() -> Dict[str, Any]:
                     info = redis_client.info()  # type: ignore
                     if isinstance(info, dict):
                         health["redis_version"] = info.get("redis_version", "unknown")
-                        health["uptime_days"] = round(float(info.get("uptime_in_seconds", 0)) / 86400, 2)
+                        health["uptime_days"] = round(
+                            float(info.get("uptime_in_seconds", 0)) / 86400, 2
+                        )
                 except Exception as e:
                     health["error"] = str(e)
                     health["status"] = "degraded"

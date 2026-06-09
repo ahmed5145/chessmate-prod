@@ -25,7 +25,9 @@ class WindowsWorkerProcess:
 
     def start(self):
         """Start the worker process."""
-        self.process = multiprocessing.Process(target=self._run_worker, args=(self.redis_url, self.queues))
+        self.process = multiprocessing.Process(
+            target=self._run_worker, args=(self.redis_url, self.queues)
+        )
         self.process.start()
 
     def stop(self):

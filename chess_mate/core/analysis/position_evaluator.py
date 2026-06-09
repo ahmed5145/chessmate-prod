@@ -92,12 +92,17 @@ class PositionEvaluator:
                 return 0.0
 
             # Calculate safety for the side to move
-            king_square = white_king_square if board.turn == chess.WHITE else black_king_square
+            king_square = (
+                white_king_square if board.turn == chess.WHITE else black_king_square
+            )
 
             # Check pawn shield
             pawn_shield = 0
             for square in board.attacks(king_square):
-                if board.piece_at(square) and board.piece_at(square).piece_type == chess.PAWN:
+                if (
+                    board.piece_at(square)
+                    and board.piece_at(square).piece_type == chess.PAWN
+                ):
                     pawn_shield += 1
 
             # Check attacking pieces
@@ -153,8 +158,12 @@ class PositionEvaluator:
             complexity += legal_moves / 40.0  # Normalize by average moves
 
             # Factor 3: Piece distribution
-            files_used = len(set(chess.square_file(square) for square in board.piece_map()))
-            ranks_used = len(set(chess.square_rank(square) for square in board.piece_map()))
+            files_used = len(
+                set(chess.square_file(square) for square in board.piece_map())
+            )
+            ranks_used = len(
+                set(chess.square_rank(square) for square in board.piece_map())
+            )
             complexity += (files_used + ranks_used) / 16.0
 
             return max(0.0, min(1.0, complexity / 3.0))
@@ -212,12 +221,18 @@ class PositionEvaluator:
 
             # Count pieces in the center
             center_squares = [chess.D4, chess.D5, chess.E4, chess.E5]
-            center_control = sum(1 for sq in center_squares if board.piece_at(sq) is not None)
+            center_control = sum(
+                1 for sq in center_squares if board.piece_at(sq) is not None
+            )
             complexity += center_control * 0.25
 
             # Count attacked squares
-            white_attacks = sum(1 for sq in chess.SQUARES if board.is_attacked_by(chess.WHITE, sq))
-            black_attacks = sum(1 for sq in chess.SQUARES if board.is_attacked_by(chess.BLACK, sq))
+            white_attacks = sum(
+                1 for sq in chess.SQUARES if board.is_attacked_by(chess.WHITE, sq)
+            )
+            black_attacks = sum(
+                1 for sq in chess.SQUARES if board.is_attacked_by(chess.BLACK, sq)
+            )
             complexity += (white_attacks + black_attacks) * 0.01
 
             # Count piece mobility
@@ -229,7 +244,9 @@ class PositionEvaluator:
             for sq in chess.SQUARES:
                 piece = board.piece_at(sq)
                 if piece is not None and piece.color is not None:
-                    if board.is_pinned(piece.color, sq) or board.attackers(not piece.color, sq):
+                    if board.is_pinned(piece.color, sq) or board.attackers(
+                        not piece.color, sq
+                    ):
                         tactical_pieces += 1
             complexity += tactical_pieces * 0.2
 
@@ -254,9 +271,13 @@ class PositionEvaluator:
 
                 # Count attacked squares
                 if piece.color == chess.WHITE:
-                    attacks = sum(1 for s in chess.SQUARES if board.is_attacked_by(chess.WHITE, s))
+                    attacks = sum(
+                        1 for s in chess.SQUARES if board.is_attacked_by(chess.WHITE, s)
+                    )
                 else:
-                    attacks = sum(1 for s in chess.SQUARES if board.is_attacked_by(chess.BLACK, s))
+                    attacks = sum(
+                        1 for s in chess.SQUARES if board.is_attacked_by(chess.BLACK, s)
+                    )
                 activity_score += attacks * 0.1
 
                 # Bonus for center control
@@ -307,9 +328,9 @@ class PositionEvaluator:
                 file_end = min(7, chess.square_file(king_square) + 1)
 
                 for f in range(file_start, file_end + 1):
-                    if board.piece_at(chess.square(f, rank_mod + (1 if color == chess.WHITE else -1))) == chess.Piece(
-                        chess.PAWN, color
-                    ):
+                    if board.piece_at(
+                        chess.square(f, rank_mod + (1 if color == chess.WHITE else -1))
+                    ) == chess.Piece(chess.PAWN, color):
                         pawn_shield += 1
 
                 safety_score += pawn_shield * 5
@@ -348,7 +369,12 @@ class PositionEvaluator:
                     rank = chess.square_rank(pawn_square)
 
                     # Check for doubled pawns
-                    if any(sq for sq in pawns if chess.square_file(sq) == file and chess.square_rank(sq) != rank):
+                    if any(
+                        sq
+                        for sq in pawns
+                        if chess.square_file(sq) == file
+                        and chess.square_rank(sq) != rank
+                    ):
                         doubled_pawns += 1
 
                     # Check for isolated pawns
@@ -358,7 +384,9 @@ class PositionEvaluator:
                     if file < 7:
                         adjacent_files.append(file + 1)
 
-                    if not any(sq for sq in pawns if chess.square_file(sq) in adjacent_files):
+                    if not any(
+                        sq for sq in pawns if chess.square_file(sq) in adjacent_files
+                    ):
                         isolated_pawns += 1
 
                     # Check for passed pawns
@@ -367,10 +395,16 @@ class PositionEvaluator:
                     for enemy_square in enemy_pawns:
                         enemy_file = chess.square_file(enemy_square)
                         if abs(enemy_file - file) <= 1:
-                            if color == chess.WHITE and chess.square_rank(enemy_square) > rank:
+                            if (
+                                color == chess.WHITE
+                                and chess.square_rank(enemy_square) > rank
+                            ):
                                 is_passed = False
                                 break
-                            elif color == chess.BLACK and chess.square_rank(enemy_square) < rank:
+                            elif (
+                                color == chess.BLACK
+                                and chess.square_rank(enemy_square) < rank
+                            ):
                                 is_passed = False
                                 break
                     if is_passed:
@@ -500,7 +534,9 @@ class PositionEvaluator:
                     black_space += 4 - rank
 
         # Normalize scores
-        max_space = len(central_squares) * 2 + len(extended_squares) + 16  # 16 for max pawn advancement
+        max_space = (
+            len(central_squares) * 2 + len(extended_squares) + 16
+        )  # 16 for max pawn advancement
         white_space_score = white_space / max_space
         black_space_score = black_space / max_space
 
@@ -529,10 +565,14 @@ class PositionEvaluator:
             shield_squares = []
             if color == chess.WHITE:
                 base_rank = king_rank + 1
-                shield_ranks = [base_rank, base_rank + 1] if base_rank <= 6 else [base_rank]
+                shield_ranks = (
+                    [base_rank, base_rank + 1] if base_rank <= 6 else [base_rank]
+                )
             else:
                 base_rank = king_rank - 1
-                shield_ranks = [base_rank, base_rank - 1] if base_rank >= 1 else [base_rank]
+                shield_ranks = (
+                    [base_rank, base_rank - 1] if base_rank >= 1 else [base_rank]
+                )
 
             for rank in shield_ranks:
                 for file_offset in [-1, 0, 1]:

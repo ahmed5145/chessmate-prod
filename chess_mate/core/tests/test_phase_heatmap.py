@@ -91,5 +91,7 @@ class TestPhaseHeatmap(TestCase):
         )
         assert loss_mid["highlight"] is True
         assert loss_mid["game_count"] >= 3
-        assert loss_mid["example_games"][0]["href"].startswith("/game/101/analysis?mode=review")
+        assert loss_mid["example_games"][0]["href"].startswith(
+            "/game/101/analysis?mode=review"
+        )
         assert payload["top_insight"]["headline"] == "You lose winning middlegames"

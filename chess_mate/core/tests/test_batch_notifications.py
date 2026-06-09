@@ -35,7 +35,10 @@ def test_skips_when_user_has_no_email(_mock_email_configured):
 
 @patch("core.batch_notifications.mail.send_mail", return_value=1)
 @patch("core.batch_notifications.render_to_string", return_value="<p>Ready</p>")
-@patch("core.batch_notifications.get_frontend_base_url", return_value="https://chessmate.test")
+@patch(
+    "core.batch_notifications.get_frontend_base_url",
+    return_value="https://chessmate.test",
+)
 @patch("core.batch_notifications.is_email_configured", return_value=True)
 def test_sends_email_on_completed_batch(
     _mock_email_configured,
@@ -62,7 +65,10 @@ def test_sends_email_on_completed_batch(
     "core.batch_notifications.render_to_string",
     side_effect=Exception("template missing"),
 )
-@patch("core.batch_notifications.get_frontend_base_url", return_value="https://chessmate.test")
+@patch(
+    "core.batch_notifications.get_frontend_base_url",
+    return_value="https://chessmate.test",
+)
 @patch("core.batch_notifications.is_email_configured", return_value=True)
 def test_template_render_failure_uses_plaintext_fallback(
     _mock_email_configured,
@@ -81,6 +87,8 @@ def test_template_render_failure_uses_plaintext_fallback(
 @patch("core.batch_notifications.mail.send_mail", side_effect=RuntimeError("SMTP down"))
 @patch("core.batch_notifications.render_to_string", return_value="<p>Ready</p>")
 @patch("core.batch_notifications.is_email_configured", return_value=True)
-def test_returns_false_when_send_mail_fails(_mock_email_configured, _mock_render, _mock_send_mail):
+def test_returns_false_when_send_mail_fails(
+    _mock_email_configured, _mock_render, _mock_send_mail
+):
     user = MagicMock(email="player@example.com")
     assert send_batch_complete_email(user, _batch_report()) is False

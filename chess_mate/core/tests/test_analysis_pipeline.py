@@ -158,7 +158,9 @@ class TestGameAnalysis:
         self.game.save()
 
         # Mock Stockfish responses with detailed metrics
-        mock_response = self.stockfish_mock.create_analysis_result(cp_score=10, depth=20, nodes=1000, time=0.5)
+        mock_response = self.stockfish_mock.create_analysis_result(
+            cp_score=10, depth=20, nodes=1000, time=0.5
+        )
         self.stockfish_mock.return_value.analyse.return_value = mock_response
 
         # Run analysis
