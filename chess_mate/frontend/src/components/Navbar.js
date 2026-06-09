@@ -18,6 +18,7 @@ import { toast } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../contexts/UserContext';
 import { logoutUser } from '../services/apiRequests';
+import NotificationCenter from './notifications/NotificationCenter';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -116,6 +117,8 @@ const Navbar = () => {
               </Link>
             ))}
 
+            {isLoggedIn && <NotificationCenter className="hidden sm:block" />}
+
             {isLoggedIn && (
               <button
                 onClick={handleLogout}
@@ -162,6 +165,12 @@ const Navbar = () => {
       {isOpen && (
         <div className={`sm:hidden ${isDarkMode ? 'bg-gray-900' : 'bg-white'} border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
           <div className="px-2 pt-2 pb-3 space-y-1">
+            {isLoggedIn && (
+              <div className="px-3 py-2 sm:hidden">
+                <NotificationCenter />
+              </div>
+            )}
+
             {isLoggedIn && (
               <Link
                 to="/credits"

@@ -29,6 +29,7 @@ import GamePlatformBadge from './GamePlatformBadge';
 import CoachInboxCard from './dashboard/CoachInboxCard';
 import DashboardOneThingCard from './dashboard/DashboardOneThingCard';
 import FixRateCard from './batch/FixRateCard';
+import DashboardNotificationsCard from './dashboard/DashboardNotificationsCard';
 import { resolveOneThingToday } from '../utils/oneThingToday';
 
 const formatResultLabel = (result) => {
@@ -487,6 +488,7 @@ const Dashboard = () => {
             onSnooze={() => setOneThingHidden(true)}
           />
         ) : null}
+        <DashboardNotificationsCard />
         <CoachInboxCard priorityInbox={dashboardData.priority_inbox} />
         <FixRateCard fixRate={dashboardData.fix_rate} compact />
         <DashboardHero dashboardData={dashboardData} username={user?.username || 'there'} />

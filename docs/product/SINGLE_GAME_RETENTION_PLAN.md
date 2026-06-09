@@ -1037,7 +1037,7 @@ flowchart TD
 - [ ] **SRG-10** Moment timeline shows batch run count when pattern seen in ≥2 batches; hidden on first sighting.
 - [ ] **SRG-17** Fix-rate on 2nd batch reflects improved/absent patterns; hidden on first batch.
 - [ ] **SRG-20** Compared-to-last-batch table shows ≥3 patterns with then/now swing + sparkline; hidden on first batch.
-- [ ] **SRG-14** Bell shows completion + inbox; mark read works.
+- [ ] **SRG-14** Bell shows completion + inbox; mark read works; no duplicate within 24h.
 - [ ] **SRG-15** Opt in digest → **one** mail in 7 days; opt out → zero.
 - [ ] **SRG-13** Spaced mail **not** same week as digest (mutual exclusion).
 - [ ] **SRG-18** *(not shipped)* Phase heatmap cell → example game opens free review.
@@ -1117,7 +1117,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-10 | ✅ Done | Moment timeline — cross-batch pattern recurrence on moments + weaknesses |
 | SRG-12 | ✅ Done | One thing today card + snooze + server selection |
 | SRG-13 | ⬜ Not started | Spaced email — ship after digest |
-| SRG-14 | ⬜ Not started | Notification center |
+| SRG-14 | ✅ Done | Notification bell + dashboard panel + deduped seeding |
 | SRG-15 | ⬜ Not started | Weekly digest |
 | SRG-16 | ✅ Done | Inbox review streak chip + milestones |
 | SRG-17 | ✅ Done | Fix-rate score on batch report + dashboard |

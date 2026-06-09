@@ -17,6 +17,7 @@ urlpatterns = [
     path("health/", include("core.urls_health")),
     path("system/", include("core.urls_system")),
     path("batches/", include("core.urls_batches")),
+    path("notifications/", include("core.urls_notifications")),
     path("credits/", include("core.urls_credits")),
     path("purchase-credits/", views_credits.purchase_credits_checkout_view, name="purchase-credits"),
     path("confirm-purchase/", views_credits.confirm_purchase_view, name="confirm-purchase"),

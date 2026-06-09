@@ -952,6 +952,48 @@ class BatchAnalysisReport(models.Model):
         return f"Batch report {self.id} for {self.user.username} ({self.games_count} games)"
 
 
+class UserNotification(models.Model):
+    """In-app notification for inbox items, analysis completions, and coach insights."""
+
+    TYPE_INBOX_ITEM = "inbox_item"
+    TYPE_SINGLE_COMPLETE = "single_complete"
+    TYPE_BATCH_COMPLETE = "batch_complete"
+    TYPE_FIX_RATE = "fix_rate"
+    TYPE_WEEKLY_DIGEST = "weekly_digest_summary"
+
+    NOTIFICATION_TYPES = [
+        (TYPE_INBOX_ITEM, "Inbox Item"),
+        (TYPE_SINGLE_COMPLETE, "Single Game Complete"),
+        (TYPE_BATCH_COMPLETE, "Batch Complete"),
+        (TYPE_FIX_RATE, "Fix Rate"),
+        (TYPE_WEEKLY_DIGEST, "Weekly Digest Summary"),
+    ]
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="notifications"
+    )
+    notification_type = models.CharField(max_length=40, db_index=True)
+    entity_id = models.CharField(max_length=128, db_index=True)
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True, default="")
+    href = models.CharField(max_length=500)
+    meta = models.JSONField(default=dict, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "read_at", "-created_at"]),
+            models.Index(
+                fields=["user", "notification_type", "entity_id", "-created_at"]
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.notification_type} for {self.user.username}: {self.title[:40]}"
+
+
 class AnalysisCache(models.Model):
     """Model to track cache usage and implement eviction policies."""
 

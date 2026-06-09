@@ -932,6 +932,31 @@ export const markPriorityInboxReviewed = async ({ batchId, priorityIndex }) => {
     }
 };
 
+/**
+ * GET /api/v1/notifications/
+ */
+export const fetchNotifications = async () => {
+    try {
+        const response = await api.get('/api/v1/notifications/');
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error('Failed to load notifications');
+    }
+};
+
+/**
+ * PATCH /api/v1/notifications/
+ */
+export const patchNotifications = async ({ ids = [], markAll = false } = {}) => {
+    try {
+        const body = markAll ? { mark_all: true } : { ids };
+        const response = await api.patch('/api/v1/notifications/', body);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error('Failed to update notifications');
+    }
+};
+
 export const fetchBatchCompare = async (batchId, other = 'previous') => {
     try {
         const response = await api.get(`/api/v1/batches/${batchId}/compare/`, {

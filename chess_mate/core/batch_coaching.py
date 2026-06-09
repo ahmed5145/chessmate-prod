@@ -87,4 +87,14 @@ def regenerate_batch_coaching(batch_report: BatchAnalysisReport) -> Tuple[bool, 
             batch_report.id,
             exc,
         )
+    try:
+        from .notifications import notify_batch_complete
+
+        notify_batch_complete(batch_report.user, batch_report)
+    except Exception as exc:
+        logger.warning(
+            "In-app notifications failed after coaching regenerate for batch %s: %s",
+            batch_report.id,
+            exc,
+        )
     return True, "Coaching regenerated successfully."

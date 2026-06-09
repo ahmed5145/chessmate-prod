@@ -592,6 +592,9 @@ def analyze_game_task(
 
                 notify_user = User.objects.select_related("profile").get(id=user_id)
                 send_single_game_complete_email(notify_user, game, analysis_result)
+                from .notifications import notify_single_game_complete
+
+                notify_single_game_complete(notify_user, game, analysis_result)
             except Exception as email_exc:
                 logger.warning(
                     "[%s] Single-game complete email failed for game %s: %s",
@@ -1692,6 +1695,18 @@ def aggregate_and_report_task(
             except Exception as timeline_exc:
                 logger.warning(
                     "Moment timeline seed failed for %s: %s", batch_id, timeline_exc
+                )
+
+        if batch_report.status in ("completed", "partial"):
+            try:
+                from .notifications import notify_batch_complete
+
+                notify_batch_complete(batch_report.user, batch_report)
+            except Exception as notify_exc:
+                logger.warning(
+                    "Batch in-app notifications failed for %s: %s",
+                    batch_id,
+                    notify_exc,
                 )
 
         return {
