@@ -1116,7 +1116,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-9 | ✅ Done | Inbox seed on batch complete/regenerate; dashboard card; mark reviewed |
 | SRG-10 | ✅ Done | Moment timeline — cross-batch pattern recurrence on moments + weaknesses |
 | SRG-12 | ✅ Done | One thing today card + snooze + server selection |
-| SRG-13 | ⬜ Not started | Spaced email — ship after digest |
+| SRG-13 | ✅ Done | Spaced moment email + digest mutual exclusion |
 | SRG-14 | ✅ Done | Notification bell + dashboard panel + deduped seeding |
 | SRG-15 | ✅ Done | Weekly digest email + in-app mirror + EmailSendLog |
 | SRG-16 | ✅ Done | Inbox review streak chip + milestones |

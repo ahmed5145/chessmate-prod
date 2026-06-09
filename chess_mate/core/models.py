@@ -994,6 +994,25 @@ class UserNotification(models.Model):
         return f"{self.notification_type} for {self.user.username}: {self.title[:40]}"
 
 
+class SpacedReminderLog(models.Model):
+    """Idempotency for spaced moment emails — one row per user+moment send (SRG-13)."""
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="spaced_reminder_logs"
+    )
+    moment_key = models.CharField(max_length=128, db_index=True)
+    sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-sent_at"]
+        indexes = [
+            models.Index(fields=["user", "moment_key", "-sent_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"spaced:{self.moment_key} for {self.user.username}"
+
+
 class EmailSendLog(models.Model):
     """Tracks coaching email sends for caps and idempotency (SRG-15/13/27)."""
 

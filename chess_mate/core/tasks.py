@@ -1978,3 +1978,13 @@ def send_weekly_digest_task() -> int:
     sent = send_weekly_digests()
     logger.info("Weekly digest task completed: %s sends", sent)
     return sent
+
+
+@shared_task(name="core.tasks.send_spaced_repetition_task", ignore_result=True)
+def send_spaced_repetition_task() -> int:
+    """Celery beat: spaced moment reminder for opted-in users (SRG-13)."""
+    from .spaced_repetition_email import send_spaced_repetition_reminders
+
+    sent = send_spaced_repetition_reminders()
+    logger.info("Spaced repetition task completed: %s sends", sent)
+    return sent

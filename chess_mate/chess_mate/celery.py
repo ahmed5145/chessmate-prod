@@ -89,6 +89,10 @@ app.conf.beat_schedule = {
         "task": "core.tasks.send_weekly_digest_task",
         "schedule": crontab(hour=10, minute=0, day_of_week="tuesday"),
     },
+    "spaced-moment-reminder": {
+        "task": "core.tasks.send_spaced_repetition_task",
+        "schedule": crontab(hour=11, minute=0),
+    },
 }
 
 # Windows-specific settings

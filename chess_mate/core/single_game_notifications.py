@@ -10,7 +10,9 @@ from django.core import mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
+from .email_send_log import log_email_send
 from .email_utils import get_frontend_base_url, is_email_configured
+from .models import EmailSendLog
 from .notification_preferences import user_wants_analysis_completion_email
 from .stats_helpers import build_single_game_context
 
@@ -198,6 +200,11 @@ def send_single_game_complete_email(user, game, analysis_model) -> bool:
             from_email=None,
             recipient_list=[email],
             html_message=str(html_body),
+        )
+        log_email_send(
+            user,
+            EmailSendLog.TYPE_ANALYSIS_COMPLETION,
+            meta={"game_id": game.id, "channel": "single_game"},
         )
         logger.info("Single-game complete email sent to %s for game %s", email, game.id)
         return True
