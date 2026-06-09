@@ -30,6 +30,7 @@ import CoachInboxCard from './dashboard/CoachInboxCard';
 import DashboardOneThingCard from './dashboard/DashboardOneThingCard';
 import FixRateCard from './batch/FixRateCard';
 import DashboardNotificationsCard from './dashboard/DashboardNotificationsCard';
+import PhaseResultHeatmap from './dashboard/PhaseResultHeatmap';
 import { resolveOneThingToday } from '../utils/oneThingToday';
 
 const formatResultLabel = (result) => {
@@ -491,6 +492,7 @@ const Dashboard = () => {
         <DashboardNotificationsCard />
         <CoachInboxCard priorityInbox={dashboardData.priority_inbox} />
         <FixRateCard fixRate={dashboardData.fix_rate} compact />
+        <PhaseResultHeatmap phaseHeatmap={dashboardData.phase_heatmap} />
         <DashboardHero dashboardData={dashboardData} username={user?.username || 'there'} />
         {shouldShowFocusCard(dashboardData, user) ? (
           <DashboardFocusCard dashboardData={dashboardData} />

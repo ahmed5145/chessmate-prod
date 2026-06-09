@@ -1040,7 +1040,7 @@ flowchart TD
 - [ ] **SRG-14** Bell shows completion + inbox; mark read works; no duplicate within 24h.
 - [ ] **SRG-15** Opt in digest → **one** mail in 7 days; opt out → zero.
 - [ ] **SRG-13** Spaced mail **not** same week as digest (mutual exclusion).
-- [ ] **SRG-18** *(not shipped)* Phase heatmap cell → example game opens free review.
+- [ ] **SRG-18** Phase heatmap cell → example game opens free review (`mode=review`); hidden under 5 analyzed games.
 - [ ] **SRG-21** *(not shipped)* Opening gap → lost games list.
 
 ### Smoke 3 — Growth (P5)
@@ -1121,7 +1121,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-15 | ⬜ Not started | Weekly digest |
 | SRG-16 | ✅ Done | Inbox review streak chip + milestones |
 | SRG-17 | ✅ Done | Fix-rate score on batch report + dashboard |
-| SRG-18 | ⬜ Not started | Phase heatmap |
+| SRG-18 | ✅ Done | Win/loss × phase heatmap on dashboard |
 | SRG-19 | ✅ Done | Auto-pick proof games + proof_label in inbox |
 | SRG-11 | ✅ Done | Coach alignment score on batch-linked single-game |
 | SRG-20 | ✅ Done | Batch A vs B moment diff with swing sparklines |
