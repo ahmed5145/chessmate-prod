@@ -18,7 +18,14 @@ _MOVE_REF_RE = re.compile(r"move\s*#?\s*(\d+)", re.IGNORECASE)
 
 _PHASE_KEYWORDS = {
     "opening": ("opening", "prep", "repertoire", "development", "opening prep"),
-    "middlegame": ("middlegame", "tactic", "tactical", "calculation", "vision", "middlegame"),
+    "middlegame": (
+        "middlegame",
+        "tactic",
+        "tactical",
+        "calculation",
+        "vision",
+        "middlegame",
+    ),
     "endgame": ("endgame", "conversion", "technique", "pawn endgame"),
 }
 
@@ -60,7 +67,9 @@ def _priority_text_blob(priority: Dict[str, Any]) -> str:
     )
 
 
-def _parse_priority_refs(priority: Dict[str, Any]) -> Tuple[Optional[int], Optional[int]]:
+def _parse_priority_refs(
+    priority: Dict[str, Any]
+) -> Tuple[Optional[int], Optional[int]]:
     blob = " ".join(
         str(priority.get(key) or "")
         for key in ("title", "specific_drill", "how_to_fix")
@@ -242,7 +251,12 @@ def _pick_proof_game_for_priority(
                             game_result,
                         )
             moment = {"move_number": move_number}
-            return saved_id, move_number, _build_proof_label(game_result, moment), game_result
+            return (
+                saved_id,
+                move_number,
+                _build_proof_label(game_result, moment),
+                game_result,
+            )
 
     ranked_moments = _iter_ranked_moments(per_game_results, batch_summary)
     if not ranked_moments:
@@ -261,7 +275,9 @@ def _pick_proof_game_for_priority(
         )
     scored.sort(key=lambda row: row[0], reverse=True)
 
-    def _pick_from_scored(allow_used_games: bool) -> Optional[Tuple[int, int, str, Dict[str, Any]]]:
+    def _pick_from_scored(
+        allow_used_games: bool,
+    ) -> Optional[Tuple[int, int, str, Dict[str, Any]]]:
         for _, moment in scored:
             saved_id = moment.get("saved_game_id")
             if saved_id is None:
@@ -320,8 +336,10 @@ def _build_inbox_item(
         if isinstance(batch_report.batch_summary, dict)
         else {}
     )
-    linked_game_id, linked_move, proof_label, game_result = _pick_proof_game_for_priority(
-        priority, per_game_results, batch_summary, used_game_ids
+    linked_game_id, linked_move, proof_label, game_result = (
+        _pick_proof_game_for_priority(
+            priority, per_game_results, batch_summary, used_game_ids
+        )
     )
     if linked_game_id is not None:
         used_game_ids.add(int(linked_game_id))

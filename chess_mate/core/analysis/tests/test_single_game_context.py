@@ -71,10 +71,18 @@ def test_resolve_batch_context_links_moment_and_priority(test_user):
         batch_id=report.pk,
         move_number=12,
         priority_index=1,
-        single_game_moments=[{"move_number": 12, "type": "blunder"}],
+        single_game_moments=[
+            {"move_number": 12, "type": "blunder", "phase": "opening"},
+            {"move_number": 28, "type": "mistake", "phase": "middlegame"},
+        ],
     )
 
     assert context is not None
+    alignment = context.get("coach_alignment")
+    assert alignment is not None
+    assert alignment["target_phase"] == "opening"
+    assert alignment["confirmed_moments"] == 1
+    assert alignment["relevant_moments"] == 2
     assert context["batch_id"] == report.pk
     assert context["priority"]["title"] == "Fix opening prep"
     assert context["linked_moment"]["move_number"] == 12

@@ -8,13 +8,19 @@ from typing import Any, Dict, List, Optional, Tuple
 from django.contrib.auth.models import User
 
 from ..models import BatchAnalysisReport
+from .alignment_score import compute_coach_alignment_score
 
 
 def _normalize_pattern_label(value: Any) -> Optional[str]:
     if value is None:
         return None
     if isinstance(value, dict):
-        return str(value.get("pattern") or value.get("title") or value.get("label") or "").strip() or None
+        return (
+            str(
+                value.get("pattern") or value.get("title") or value.get("label") or ""
+            ).strip()
+            or None
+        )
     text = str(value).strip()
     return text or None
 
@@ -169,7 +175,9 @@ def game_qualifies_for_batch_waiver(
     if not report:
         return False
 
-    per_game_results = report.per_game_results if isinstance(report.per_game_results, list) else []
+    per_game_results = (
+        report.per_game_results if isinstance(report.per_game_results, list) else []
+    )
     return _per_game_for_saved_id(per_game_results, game_id) is not None
 
 
@@ -189,9 +197,15 @@ def resolve_batch_context_for_game(
     if not report:
         return None
 
-    batch_summary = report.batch_summary if isinstance(report.batch_summary, dict) else {}
-    coaching_report = report.coaching_report if isinstance(report.coaching_report, dict) else {}
-    per_game_results = report.per_game_results if isinstance(report.per_game_results, list) else []
+    batch_summary = (
+        report.batch_summary if isinstance(report.batch_summary, dict) else {}
+    )
+    coaching_report = (
+        report.coaching_report if isinstance(report.coaching_report, dict) else {}
+    )
+    per_game_results = (
+        report.per_game_results if isinstance(report.per_game_results, list) else []
+    )
 
     game_result = _per_game_for_saved_id(per_game_results, game_id)
     linked_moment = _find_linked_moment(
@@ -227,7 +241,9 @@ def resolve_batch_context_for_game(
                 continue
             if int(moment.get("move_number") or 0) != int(move_no or 0):
                 continue
-            single_class = str(moment.get("type") or moment.get("classification") or "").lower()
+            single_class = str(
+                moment.get("type") or moment.get("classification") or ""
+            ).lower()
             if batch_class and single_class and batch_class != single_class:
                 classification_disclaimer = (
                     f"Batch (depth-14) flagged this as {batch_class}; "
@@ -241,10 +257,20 @@ def resolve_batch_context_for_game(
         priority=priority,
         pattern_label=pattern_label,
     )
-    pattern_frequency = matched_weakness.get("frequency") if isinstance(matched_weakness, dict) else None
+    pattern_frequency = (
+        matched_weakness.get("frequency")
+        if isinstance(matched_weakness, dict)
+        else None
+    )
     pattern_count, batch_game_count = _parse_pattern_frequency(
         pattern_frequency,
         games_count=report.games_count or len(per_game_results),
+    )
+
+    coach_alignment = compute_coach_alignment_score(
+        priority=priority,
+        batch_worst_phase=batch_summary.get("worst_phase"),
+        single_game_moments=single_game_moments,
     )
 
     return {
@@ -255,7 +281,9 @@ def resolve_batch_context_for_game(
         "pattern_count": pattern_count,
         "pattern_frequency": pattern_frequency,
         "priority": priority,
-        "priority_rank": priority.get("rank") if isinstance(priority, dict) else priority_index,
+        "priority_rank": (
+            priority.get("rank") if isinstance(priority, dict) else priority_index
+        ),
         "pattern_label": pattern_label,
         "linked_moment": linked_moment,
         "opening_name": opening_name,
@@ -264,7 +292,9 @@ def resolve_batch_context_for_game(
         "batch_phase_performance": phase_performance,
         "batch_worst_phase": batch_summary.get("worst_phase"),
         "classification_disclaimer": classification_disclaimer,
-        "coaching_summary": coaching_report.get("executive_summary") or coaching_report.get("summary"),
+        "coaching_summary": coaching_report.get("executive_summary")
+        or coaching_report.get("summary"),
+        "coach_alignment": coach_alignment,
     }
 
 

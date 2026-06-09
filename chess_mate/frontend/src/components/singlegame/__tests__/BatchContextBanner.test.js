@@ -56,6 +56,29 @@ describe('BatchContextBanner', () => {
     expect(screen.getByRole('button', { name: /Mark reviewed/i })).toBeInTheDocument();
   });
 
+  it('renders coach alignment badge when batch_context includes score', () => {
+    render(
+      <MemoryRouter>
+        <BatchContextBanner
+          batchId={9}
+          batchContext={{
+            batch_id: 9,
+            priority_rank: 1,
+            coach_alignment: {
+              alignment_pct: 75,
+              tier: 'high',
+              headline: 'Batch focused on opening — this game confirms 3/4 critical moments.',
+              tooltip: '3 of 4 depth-20 critical moments occurred in the batch opening focus area.',
+            },
+          }}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(/75% aligned/i)).toBeInTheDocument();
+    expect(screen.getByText(/confirms 3\/4 critical moments/i)).toBeInTheDocument();
+  });
+
   it('marks priority reviewed via API', async () => {
     const user = userEvent.setup();
     markPriorityInboxReviewed.mockResolvedValue({ detail: 'Priority marked reviewed' });

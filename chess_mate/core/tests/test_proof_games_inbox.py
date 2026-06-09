@@ -1,10 +1,12 @@
 """Tests for SRG-19 auto-picked proof games in the priority inbox."""
 
-from core.models import BatchAnalysisReport, Profile
-from core.priority_inbox import get_priority_inbox_payload, seed_priority_inbox_from_batch
-from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.test import TestCase
+
+from core.models import BatchAnalysisReport, Profile
+from core.priority_inbox import (get_priority_inbox_payload,
+                                 seed_priority_inbox_from_batch)
+from core.tests.profile_helpers import ensure_profile
 
 
 class TestProofGamesInbox(TestCase):
@@ -36,9 +38,21 @@ class TestProofGamesInbox(TestCase):
             },
             coaching_report={
                 "top_3_priorities": [
-                    {"rank": 1, "title": "Opening prep", "specific_drill": "Review losses"},
-                    {"rank": 2, "title": "Middlegame tactics", "specific_drill": "Train forks"},
-                    {"rank": 3, "title": "Endgame technique", "specific_drill": "King activity"},
+                    {
+                        "rank": 1,
+                        "title": "Opening prep",
+                        "specific_drill": "Review losses",
+                    },
+                    {
+                        "rank": 2,
+                        "title": "Middlegame tactics",
+                        "specific_drill": "Train forks",
+                    },
+                    {
+                        "rank": 3,
+                        "title": "Endgame technique",
+                        "specific_drill": "King activity",
+                    },
                 ]
             },
             per_game_results=[
@@ -48,7 +62,9 @@ class TestProofGamesInbox(TestCase):
                     "opening_name": "Sicilian Defense",
                     "opponent": "alpha",
                     "player_color": "white",
-                    "critical_moments": [self._moment(move_number=8, phase="opening", eval_swing=0.9)],
+                    "critical_moments": [
+                        self._moment(move_number=8, phase="opening", eval_swing=0.9)
+                    ],
                 },
                 {
                     "game_id": "game_1",
@@ -57,7 +73,12 @@ class TestProofGamesInbox(TestCase):
                     "opponent": "beta",
                     "player_color": "white",
                     "critical_moments": [
-                        self._moment(move_number=22, phase="middlegame", eval_swing=1.6, theme="fork")
+                        self._moment(
+                            move_number=22,
+                            phase="middlegame",
+                            eval_swing=1.6,
+                            theme="fork",
+                        )
                     ],
                 },
                 {
@@ -67,7 +88,12 @@ class TestProofGamesInbox(TestCase):
                     "opponent": "gamma",
                     "player_color": "white",
                     "critical_moments": [
-                        self._moment(move_number=55, phase="endgame", eval_swing=1.3, theme="technique")
+                        self._moment(
+                            move_number=55,
+                            phase="endgame",
+                            eval_swing=1.3,
+                            theme="technique",
+                        )
                     ],
                 },
             ],
@@ -101,8 +127,16 @@ class TestProofGamesInbox(TestCase):
             batch_summary={"worst_phase": "middlegame"},
             coaching_report={
                 "top_3_priorities": [
-                    {"rank": 1, "title": "Time management", "specific_drill": "Use a clock"},
-                    {"rank": 2, "title": "Piece activity", "specific_drill": "Find active squares"},
+                    {
+                        "rank": 1,
+                        "title": "Time management",
+                        "specific_drill": "Use a clock",
+                    },
+                    {
+                        "rank": 2,
+                        "title": "Piece activity",
+                        "specific_drill": "Find active squares",
+                    },
                 ]
             },
             per_game_results=[

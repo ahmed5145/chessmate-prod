@@ -1056,7 +1056,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | **SRG-8** | — | `SingleGameReportActions.test.js` | No print handler |
 | **SRG-9** | `test_priority_inbox.py` | `CoachInboxCard.test.js`, `BatchContextBanner.test.js` | Ownership + reviewed state |
 | **SRG-10** | `test_moment_timeline.py` *(add)* | `MomentTimeline.test.js` *(add)* | Cross-batch counts |
-| **SRG-11** | `test_alignment_score.py` *(add)* | `AlignmentScore.test.js` *(add)* | Batch vs single match |
+| **SRG-11** | `test_alignment_score.py` | `BatchContextBanner.test.js` | Batch vs single match |
 | **SRG-12** | `test_dashboard_one_thing.py` *(add)* | `DashboardOneThing.test.js` *(add)* | Worst moment link |
 | **SRG-13** | `test_spaced_moment_email.py` *(add)* | — | 7d cap + digest exclusion |
 | **SRG-14** | `test_notification_center.py` *(add)* | `NotificationCenter.test.js` *(add)* | Bell + read state |
@@ -1064,7 +1064,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | **SRG-16** | `test_inbox_streak.py` *(add)* | `InboxStreak.test.js` *(add)* | Streak increment rules |
 | **SRG-17** | `test_fix_rate.py` *(add)* | `FixRateCard.test.js` *(add)* | Batch-over-batch patterns |
 | **SRG-18** | `test_phase_heatmap.py` *(add)* | `PhaseHeatmap.test.js` *(add)* | Cell → game links |
-| **SRG-19** | `test_proof_games_inbox.py` *(add)* | — | Post-batch seed ≥3 games |
+| **SRG-19** | `test_proof_games_inbox.py` | `CoachInboxCard.test.js` | Post-batch proof links + labels |
 | **SRG-20** | `test_batch_moment_diff.py` *(add)* | `BatchMomentDiff.test.js` *(add)* | A vs B swing trend |
 | **SRG-21** | `test_opening_gaps_games.py` *(add)* | `OpeningGapsGames.test.js` *(add)* | Gap → lost games |
 | **SRG-22** | `test_welcome_email.py` | — | Confirm + welcome once each |
@@ -1095,7 +1095,6 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-8 | ✅ Done | Print removed; tests in matrix §8 |
 | SRG-9 | ✅ Done | Inbox seed on batch complete/regenerate; dashboard card; mark reviewed |
 | SRG-10 | ⬜ Not started | Moment timeline |
-| SRG-11 | ⬜ Not started | Alignment score |
 | SRG-12 | ⬜ Not started | Dashboard one thing |
 | SRG-13 | ⬜ Not started | Spaced email — ship after digest |
 | SRG-14 | ⬜ Not started | Notification center |
@@ -1103,7 +1102,8 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-16 | ⬜ Not started | Inbox streak |
 | SRG-17 | ⬜ Not started | Fix-rate score |
 | SRG-18 | ⬜ Not started | Phase heatmap |
-| SRG-19 | ⬜ Not started | Auto proof games |
+| SRG-19 | ✅ Done | Auto-pick proof games + proof_label in inbox |
+| SRG-11 | ✅ Done | Coach alignment score on batch-linked single-game |
 | SRG-20 | ⬜ Not started | Batch A vs B diff |
 | SRG-21 | ⬜ Not started | Opening gaps → games |
 | SRG-22 | ✅ Done | Verify email + one-time welcome after confirm |
