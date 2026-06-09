@@ -5,7 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { trackMarketingEvent } from '../../utils/marketingAnalytics';
 import InboxStreakChip from './InboxStreakChip';
 
-const CoachInboxCard = ({ priorityInbox }) => {
+const CoachInboxCard = ({ priorityInbox, onInboxUpdated }) => {
   const { isDarkMode } = useTheme();
   const pendingItems = priorityInbox?.pending_items || [];
   const pendingCount = priorityInbox?.pending_count ?? pendingItems.length;
@@ -23,7 +23,7 @@ const CoachInboxCard = ({ priorityInbox }) => {
           <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Coach inbox
           </h2>
-          <InboxStreakChip streak={streak} />
+          <InboxStreakChip streak={streak} onFreezeApplied={onInboxUpdated} />
         </div>
         <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           No priorities waiting. Run a batch to get your top 3 coaching actions.
@@ -55,7 +55,7 @@ const CoachInboxCard = ({ priorityInbox }) => {
           <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Coach inbox
           </h2>
-          <InboxStreakChip streak={streak} />
+          <InboxStreakChip streak={streak} onFreezeApplied={onInboxUpdated} />
         </div>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${
           isDarkMode ? 'bg-indigo-900/50 text-indigo-200' : 'bg-indigo-100 text-indigo-800'

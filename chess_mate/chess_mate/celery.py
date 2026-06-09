@@ -93,6 +93,10 @@ app.conf.beat_schedule = {
         "task": "core.tasks.send_spaced_repetition_task",
         "schedule": crontab(hour=11, minute=0),
     },
+    "inactive-user-reactivation": {
+        "task": "core.tasks.send_reactivation_email_task",
+        "schedule": crontab(hour=12, minute=0),
+    },
 }
 
 # Windows-specific settings

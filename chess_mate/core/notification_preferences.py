@@ -7,6 +7,7 @@ from typing import Any
 WANTS_WEEKLY_DIGEST_KEY = "wants_weekly_digest"
 WANTS_WEEKLY_DIGEST_IN_APP_KEY = "wants_weekly_digest_in_app"
 WANTS_SPACED_REPETITION_KEY = "wants_spaced_repetition_email"
+WANTS_REACTIVATION_KEY = "wants_reactivation_email"
 
 
 def _profile_preferences(user: Any) -> dict:
@@ -41,6 +42,15 @@ def user_wants_weekly_digest_notification(user: Any) -> bool:
     if prefs.get(WANTS_WEEKLY_DIGEST_IN_APP_KEY) is True:
         return True
     return prefs.get(WANTS_WEEKLY_DIGEST_KEY) is True
+
+
+def user_wants_reactivation_email(user: Any) -> bool:
+    """Opt-in 30-day reactivation email (default off)."""
+    if user is None or not getattr(user, "email", None):
+        return False
+    if not user_wants_analysis_completion_email(user):
+        return False
+    return _profile_preferences(user).get(WANTS_REACTIVATION_KEY) is True
 
 
 def user_wants_spaced_repetition_email(user: Any) -> bool:

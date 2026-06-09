@@ -920,6 +920,15 @@ export const fetchPriorityInbox = async () => {
 /**
  * POST /api/v1/batches/inbox/review/
  */
+export const freezeInboxStreak = async () => {
+    try {
+        const response = await api.post('/api/v1/batches/inbox/freeze/');
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error('Failed to apply streak freeze');
+    }
+};
+
 export const markPriorityInboxReviewed = async ({ batchId, priorityIndex }) => {
     try {
         const response = await api.post('/api/v1/batches/inbox/review/', {

@@ -23,6 +23,7 @@ from .batch_coaching import regenerate_batch_coaching
 from .batch_compare import build_compare_narrative, metric_delta, weakness_themes
 from .decorators import rate_limit
 from .models import BatchAnalysisReport, Profile
+from .inbox_streak import apply_inbox_streak_freeze
 from .priority_inbox import get_priority_inbox_payload, mark_priority_inbox_reviewed
 from .serializers_batches import (
     BatchAnalysisReportSerializer,
@@ -106,6 +107,29 @@ def batch_inbox_review_view(request):
             "detail": message,
             "priority_inbox": inbox,
             "inbox_streak": inbox_streak or inbox.get("streak"),
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def batch_inbox_freeze_view(request):
+    """POST /api/v1/batches/inbox/freeze/ — use monthly inbox streak freeze (SRG-25)."""
+    try:
+        profile = Profile.objects.get(user=request.user)
+        streak = apply_inbox_streak_freeze(profile)
+    except Profile.DoesNotExist:
+        return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    inbox = get_priority_inbox_payload(profile)
+    return Response(
+        {
+            "detail": "Streak freeze applied",
+            "inbox_streak": streak,
+            "priority_inbox": inbox,
         },
         status=status.HTTP_200_OK,
     )

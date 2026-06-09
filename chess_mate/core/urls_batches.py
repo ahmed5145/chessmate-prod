@@ -10,6 +10,7 @@ urlpatterns = [
     path("", views_batches.batch_collection_view, name="batch-collection"),
     path("inbox/", views_batches.batch_inbox_view, name="batch-inbox"),
     path("inbox/review/", views_batches.batch_inbox_review_view, name="batch-inbox-review"),
+    path("inbox/freeze/", views_batches.batch_inbox_freeze_view, name="batch-inbox-freeze"),
     path(
         "public/<uuid:share_token>/report/",
         views_batches.batch_public_report_view,

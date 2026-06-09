@@ -10,7 +10,9 @@ from django.utils import timezone
 from .models import Profile
 
 PREFERENCES_KEY = "inbox_streak"
+FREEZE_MONTH_KEY = "inbox_streak_freeze_used_month"
 _MIN_DISPLAY_COUNT = 2
+_MIN_FREEZE_COUNT = 3
 
 
 def _parse_review_date(raw: Any) -> Optional[date]:
@@ -56,18 +58,77 @@ def _milestone_message(count: int) -> Optional[str]:
     return None
 
 
+def _freeze_month_key(when: Optional[date] = None) -> str:
+    day = when or timezone.localdate()
+    return day.strftime("%Y-%m")
+
+
+def can_use_inbox_streak_freeze(
+    preferences: Optional[Dict[str, Any]],
+    today: Optional[date] = None,
+) -> bool:
+    """True when user missed exactly yesterday, streak ≥3, freeze unused this month."""
+    today = today or timezone.localdate()
+    prefs = preferences if isinstance(preferences, dict) else {}
+    if prefs.get(FREEZE_MONTH_KEY) == _freeze_month_key(today):
+        return False
+
+    state = _load_streak_state(prefs)
+    count = int(state.get("count") or 0)
+    if count < _MIN_FREEZE_COUNT:
+        return False
+
+    last_date = _parse_review_date(state.get("last_reviewed_date"))
+    if last_date is None:
+        return False
+    return (today - last_date).days == 2
+
+
+def apply_inbox_streak_freeze(profile: Profile) -> Dict[str, Any]:
+    """
+    Preserve streak after one missed day. Does not increment count.
+    """
+    today = timezone.localdate()
+    prefs = profile.preferences if isinstance(profile.preferences, dict) else {}
+    if not can_use_inbox_streak_freeze(prefs, today):
+        raise ValueError("Streak freeze is not available right now.")
+
+    state = _load_streak_state(prefs)
+    prefs = dict(prefs)
+    prefs[FREEZE_MONTH_KEY] = _freeze_month_key(today)
+    state = dict(state)
+    state["last_reviewed_date"] = (today - timedelta(days=1)).isoformat()
+    prefs[PREFERENCES_KEY] = state
+    profile.preferences = prefs
+    profile.save(update_fields=["preferences"])
+    return get_inbox_streak_payload(prefs)
+
+
 def get_inbox_streak_payload(preferences: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """Serialize streak for API/UI. Shown only when effective count >= 2."""
     today = timezone.localdate()
-    state = _load_streak_state(preferences)
+    prefs = preferences if isinstance(preferences, dict) else {}
+    state = _load_streak_state(prefs)
     count = _effective_streak_count(state, today)
     show = count >= _MIN_DISPLAY_COUNT
+    freeze_used = prefs.get(FREEZE_MONTH_KEY) == _freeze_month_key(today)
+    can_freeze = can_use_inbox_streak_freeze(prefs, today)
     return {
         "count": count,
         "show": show,
         "label": f"{count}-day coach streak" if show else None,
         "milestone_message": _milestone_message(count) if show else None,
         "last_reviewed_date": state.get("last_reviewed_date"),
+        "freeze": {
+            "can_use": can_freeze,
+            "used_this_month": freeze_used,
+            "label": "Use freeze (1 left this month)" if can_freeze else None,
+            "blocked_reason": (
+                "Freeze already used this month"
+                if freeze_used and not can_freeze
+                else None
+            ),
+        },
     }
 
 
