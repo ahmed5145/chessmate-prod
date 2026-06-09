@@ -492,7 +492,17 @@ const Dashboard = () => {
           />
         ) : null}
         <DashboardNotificationsCard />
-        <CoachInboxCard priorityInbox={dashboardData.priority_inbox} />
+        <CoachInboxCard
+          priorityInbox={dashboardData.priority_inbox}
+          onInboxUpdated={(payload) => {
+            if (payload?.priority_inbox) {
+              setDashboardData((current) => ({
+                ...current,
+                priority_inbox: payload.priority_inbox,
+              }));
+            }
+          }}
+        />
         <FixRateCard fixRate={dashboardData.fix_rate} compact />
         <PhaseResultHeatmap phaseHeatmap={dashboardData.phase_heatmap} />
         <DashboardHero dashboardData={dashboardData} username={user?.username || 'there'} />

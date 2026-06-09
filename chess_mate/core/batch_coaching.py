@@ -35,10 +35,14 @@ def regenerate_batch_coaching(batch_report: BatchAnalysisReport) -> Tuple[bool, 
         return False, "Insufficient saved analysis data to regenerate coaching."
 
     try:
+        from .coach_persona import resolve_coach_persona
+
+        profile = getattr(batch_report.user, "profile", None)
         coaching_report = generate_coaching_report(
             batch_summary,
             per_game_results,
             player_rating=batch_summary.get("player_rating"),
+            coach_persona=resolve_coach_persona(profile),
         )
     except CoachingGeneratorError as exc:
         logger.warning(

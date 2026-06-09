@@ -198,6 +198,7 @@ def generate_coaching_report(
     batch_summary: Dict[str, Any],
     per_game_results: List[Dict[str, Any]],
     player_rating: Optional[int] = None,
+    coach_persona: str = "encouraging",
 ) -> Dict[str, Any]:
     """
     Generate a batch coaching report by calling the OpenAI API once with a
@@ -222,9 +223,12 @@ def generate_coaching_report(
         else:
             per_game_summaries.append(summary)
 
+    from ..coach_persona import coach_persona_prompt_modifier
+
     # System prompt from PRD with an added instruction about skipping no_data phases
     system_prompt = (
         "You are a chess coach generating a batch improvement report from structured analysis data.\n"
+        f"{coach_persona_prompt_modifier(coach_persona)}"
         "Use only the provided aggregated metrics and per-game summaries. Do not invent openings, move numbers, tactical themes, or chess facts that are not present in the input. Be direct, specific, and practical. No generic advice. No motivational filler. No hedging. No markdown. No prose outside the JSON object.\n"
         "Return only valid JSON that exactly matches the supplied schema. Every field is required. Use concise coaching language. If some games failed or data is missing, reflect that succinctly inside the JSON fields rather than outside the schema.\n"
         "If a player rating is provided, calibrate all advice, drills, and priorities to that skill level. A 1200-rated player needs fundamentals. A 1600-rated player needs pattern recognition and basic strategy. A 2000-rated player needs deep calculation, complex positional play, and advanced endgame technique — do not recommend beginner drills.\n"

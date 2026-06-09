@@ -581,6 +581,8 @@ class GameAnalyzer:
                 analyzed_moves,
                 player_color=game_context.get("player_color"),
             )
+            from .coach_persona import resolve_coach_persona
+
             coaching = generate_single_game_coaching(
                 analyzed_moves=analyzed_moves,
                 metrics_summary=metrics,
@@ -588,6 +590,7 @@ class GameAnalyzer:
                 game_context=game_context,
                 existing_feedback=feedback if isinstance(feedback, dict) else None,
                 batch_context=batch_context if isinstance(batch_context, dict) else None,
+                coach_persona=resolve_coach_persona(profile),
             )
             if analysis_timer:
                 analysis_timer.mark("coaching_done")

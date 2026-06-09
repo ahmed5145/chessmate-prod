@@ -136,6 +136,7 @@ def generate_single_game_coaching(
     game_context: Optional[Dict[str, Any]] = None,
     existing_feedback: Optional[Dict[str, Any]] = None,
     batch_context: Optional[Dict[str, Any]] = None,
+    coach_persona: str = "encouraging",
 ) -> Dict[str, Any]:
     """
     Produce structured coaching JSON for single-game UI.
@@ -194,8 +195,11 @@ def generate_single_game_coaching(
             "existing_weaknesses": (existing_feedback or {}).get("weaknesses", [])[:3],
         }
 
+        from ..coach_persona import coach_persona_prompt_modifier
+
         system_prompt = (
             "You are a chess coach writing a single-game review for a paying student. "
+            f"{coach_persona_prompt_modifier(coach_persona)}"
             "Use ONLY supplied JSON facts — cite specific move numbers, SAN, opening name, and eval swings. "
             "Never write generic advice like 'improve middlegame accuracy' without naming a move or pattern. "
             "When batch_context.priority is present, tie takeaway to that batch priority. "

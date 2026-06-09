@@ -12,6 +12,8 @@ const UserProfile = () => {
     emailNotifications: true,
     wants_weekly_digest: false,
     wants_spaced_repetition_email: false,
+    wants_reactivation_email: false,
+    coach_persona: "encouraging",
     darkMode: false,
     autoAnalyze: true,
   });
@@ -190,6 +192,45 @@ const UserProfile = () => {
                       <span
                         className={`${
                           preferences.wants_spaced_repetition_email ? "translate-x-5" : "translate-x-0"
+                        } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="flex-grow flex flex-col">
+                      <span className="text-sm font-medium text-gray-900">Coach tone</span>
+                      <span className="text-sm text-gray-500">Direct = blunt and short; Encouraging = supportive (applies to your next analysis)</span>
+                    </span>
+                    <select
+                      aria-label="Coach tone"
+                      value={preferences.coach_persona || "encouraging"}
+                      onChange={(event) => handlePreferenceChange("coach_persona", event.target.value)}
+                      className={`rounded-md border px-2 py-1 text-sm ${
+                        isDarkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
+                      }`}
+                    >
+                      <option value="encouraging">Encouraging</option>
+                      <option value="direct">Direct</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="flex-grow flex flex-col">
+                      <span className="text-sm font-medium text-gray-900">Reactivation reminders</span>
+                      <span className="text-sm text-gray-500">One email per 30 days if you have been inactive (opt-in)</span>
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Reactivation reminders"
+                      onClick={() => handlePreferenceChange("wants_reactivation_email")}
+                      className={`${
+                        preferences.wants_reactivation_email ? "bg-indigo-600" : "bg-gray-200"
+                      } relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+                    >
+                      <span
+                        className={`${
+                          preferences.wants_reactivation_email ? "translate-x-5" : "translate-x-0"
                         } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`}
                       />
                     </button>

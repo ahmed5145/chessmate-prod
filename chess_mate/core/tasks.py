@@ -1598,8 +1598,14 @@ def aggregate_and_report_task(
         try:
             # Extract player_rating from batch_summary (derived from game ELOs)
             player_rating = batch_summary.get("player_rating")
+            from .coach_persona import resolve_coach_persona
+
+            _coach_profile = Profile.objects.filter(user_id=user_id).first()
             coaching_report = _generate_coaching_report(
-                batch_summary, per_game_results, player_rating=player_rating
+                batch_summary,
+                per_game_results,
+                player_rating=player_rating,
+                coach_persona=resolve_coach_persona(_coach_profile),
             )
             # Status matrix (see docs/SHIP_CONTRACT.md P0-5):
             # - completed: coaching OK; failed_results may be non-empty (some games failed)
@@ -1997,4 +2003,14 @@ def send_spaced_repetition_task() -> int:
 
     sent = send_spaced_repetition_reminders()
     logger.info("Spaced repetition task completed: %s sends", sent)
+    return sent
+
+
+@shared_task(name="core.tasks.send_reactivation_email_task", ignore_result=True)
+def send_reactivation_email_task() -> int:
+    """Celery beat: inactive user reactivation for opted-in users (SRG-27)."""
+    from .reactivation_email import send_reactivation_emails
+
+    sent = send_reactivation_emails()
+    logger.info("Reactivation email task completed: %s sends", sent)
     return sent
