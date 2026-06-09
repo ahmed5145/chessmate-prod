@@ -6,15 +6,15 @@ const DashboardPageHeader = ({ eyebrow, subtitle }) => {
 
   return (
     <header className="mb-6">
-      <p className={`text-xs font-semibold uppercase tracking-wider ${
-        isDarkMode ? 'text-indigo-300' : 'text-indigo-600'
+      <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${
+        isDarkMode ? 'text-white' : 'text-gray-900'
       }`}
       >
         {eyebrow}
-      </p>
+      </h1>
       {subtitle ? (
-        <p className={`mt-1 text-sm sm:text-base max-w-2xl ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-600'
+        <p className={`mt-2 text-sm sm:text-base leading-relaxed max-w-2xl ${
+          isDarkMode ? 'text-gray-400' : 'text-gray-600'
         }`}
         >
           {subtitle}

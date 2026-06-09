@@ -15,12 +15,12 @@ describe('DashboardPageHeader', () => {
       />
     );
 
-    expect(screen.getByText('Coach home')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Coach home' })).toBeInTheDocument();
     expect(screen.getByText(/Welcome back, alice/i)).toBeInTheDocument();
   });
 
   it('renders eyebrow without subtitle', () => {
     render(<DashboardPageHeader eyebrow="Coach home" subtitle="" />);
-    expect(screen.getByText('Coach home')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Coach home' })).toBeInTheDocument();
   });
 });

@@ -125,9 +125,9 @@ const DashboardHero = ({ dashboardData }) => {
           : 'bg-gradient-to-br from-white to-indigo-50/60 border-gray-200'
       } shadow-lg`}
     >
-      <h1 className={`text-2xl sm:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+      <h2 className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
         {action.title}
-      </h1>
+      </h2>
       <p className={`mt-2 max-w-2xl text-sm sm:text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
         {action.description}
       </p>
