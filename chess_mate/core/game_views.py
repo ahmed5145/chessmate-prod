@@ -1972,8 +1972,8 @@ def check_analysis_status(request, task_id):
 
     try:
         from chess_mate.celery import (
-            app as celery_app,
-        )  # type: ignore[import-not-found]
+            app as celery_app,  # type: ignore[import-not-found]
+        )
     except ImportError:
         async_result = async_result_cls(task_id)
     else:
@@ -2023,8 +2023,8 @@ def check_batch_analysis_status(request, task_id):
 
     try:
         from chess_mate.celery import (
-            app as celery_app,
-        )  # type: ignore[import-not-found]
+            app as celery_app,  # type: ignore[import-not-found]
+        )
     except ImportError:
         async_result = async_result_cls(task_id)
     else:
