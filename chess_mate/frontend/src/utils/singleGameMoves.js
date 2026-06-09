@@ -190,6 +190,68 @@ export const pickEvalSeries = (moves = []) =>
     value: toNumber(move.evalAfter),
   }));
 
+export const isPlayerMove = (move = {}, playerColor = 'white') =>
+  Boolean(move.isWhite) === (playerColor === 'white');
+
+export const formatMoveSideLabel = (move = {}, playerColor = 'white') =>
+  (isPlayerMove(move, playerColor) ? 'You' : 'Opponent');
+
+export const annotateMovesForPlayer = (moves = [], playerColor = 'white') =>
+  moves.map((move) => {
+    const playerMove = isPlayerMove(move, playerColor);
+    return {
+      ...move,
+      isPlayerMove: playerMove,
+      sideLabel: playerMove ? 'You' : 'Opponent',
+    };
+  });
+
+const ARROW_COLORS = {
+  best: '#16a34a',
+  good: '#22c55e',
+  inaccuracy: '#f59e0b',
+  mistake: '#ea580c',
+  blunder: '#dc2626',
+  neutralYou: '#64748b',
+  opponentBest: '#2563eb',
+  opponentNeutral: '#475569',
+  engineBest: '#16a34a',
+};
+
+export const getMoveArrowColors = (move = {}, playerColor = 'white') => {
+  const playerMove = isPlayerMove(move, playerColor);
+  const classification = String(
+    move.displayClassification || inferDisplayClassification(move)
+  ).toLowerCase().replace(/_/g, ' ');
+  const isBest = Boolean(move.isBest) || classification === 'best' || classification === 'excellent';
+
+  if (isBest) {
+    return {
+      playedArrowColor: playerMove ? ARROW_COLORS.best : ARROW_COLORS.opponentBest,
+      bestArrowColor: null,
+    };
+  }
+
+  const playedByClass = {
+    blunder: ARROW_COLORS.blunder,
+    mistake: ARROW_COLORS.mistake,
+    inaccuracy: ARROW_COLORS.inaccuracy,
+    good: ARROW_COLORS.good,
+    excellent: ARROW_COLORS.good,
+    'good move': ARROW_COLORS.good,
+    'excellent move': ARROW_COLORS.good,
+    neutral: playerMove ? ARROW_COLORS.neutralYou : ARROW_COLORS.opponentNeutral,
+  };
+
+  const playedArrowColor = playedByClass[classification]
+    || (playerMove ? ARROW_COLORS.mistake : ARROW_COLORS.opponentNeutral);
+
+  return {
+    playedArrowColor,
+    bestArrowColor: move.bestMoveUci ? ARROW_COLORS.engineBest : null,
+  };
+};
+
 export const formatMovesSummaryLabel = (moves = []) => {
   const plies = moves.length;
   const fullMoves = countFullMoves(moves);

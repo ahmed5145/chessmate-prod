@@ -9,6 +9,7 @@ import SingleGameBoardPanel from './SingleGameBoardPanel';
 import CriticalMomentsSection from './CriticalMomentsSection';
 import LichessActionButton from '../batch/LichessActionButton';
 import {
+  annotateMovesForPlayer,
   findMoveIndexForMoment,
   formatBestMoveDisplay,
   formatMoveLabel,
@@ -187,9 +188,13 @@ const SingleGameReport = ({
     }
 
     const batchCtx = resolvedAnalysisData.batch_context || null;
-    const normalizedMoves = alignMovesWithBatchContext(
-      normalizeSingleGameMoves(rawMoves),
-      batchCtx,
+    const playerSide = context.player_color || 'white';
+    const normalizedMoves = annotateMovesForPlayer(
+      alignMovesWithBatchContext(
+        normalizeSingleGameMoves(rawMoves),
+        batchCtx,
+      ),
+      playerSide,
     );
     const alignedMoments = alignMomentsWithBatchContext(moments, batchCtx);
     const worstMoment = alignedMoments[0] || null;
@@ -319,6 +324,7 @@ const SingleGameReport = ({
               <thead>
                 <tr className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
                   <th className="text-left py-2 pr-4">Move</th>
+                  <th className="text-left py-2 pr-4">Side</th>
                   <th className="text-left py-2 pr-4">Played</th>
                   <th className="text-left py-2 pr-4">Best</th>
                   <th className="text-left py-2 pr-4">Class</th>
@@ -327,8 +333,23 @@ const SingleGameReport = ({
               </thead>
               <tbody>
                 {tableMoves.map((move, idx) => (
-                  <tr key={`${move.moveNumber}-${move.san}-${idx}`} className={isDarkMode ? 'border-t border-gray-700' : 'border-t border-gray-200'}>
+                  <tr
+                    key={`${move.moveNumber}-${move.san}-${idx}`}
+                    className={`${
+                      isDarkMode ? 'border-t border-gray-700' : 'border-t border-gray-200'
+                    } ${move.isPlayerMove
+                      ? (isDarkMode ? '' : '')
+                      : (isDarkMode ? 'bg-gray-800/40' : 'bg-gray-50')}`}
+                  >
                     <td className="py-2 pr-4">{move.displayLabel || formatMoveLabel(move)}</td>
+                    <td className={`py-2 pr-4 text-xs font-semibold ${
+                      move.isPlayerMove
+                        ? (isDarkMode ? 'text-indigo-300' : 'text-indigo-700')
+                        : (isDarkMode ? 'text-gray-400' : 'text-gray-500')
+                    }`}
+                    >
+                      {move.sideLabel}
+                    </td>
                     <td className="py-2 pr-4 font-medium">{move.san}</td>
                     <td className="py-2 pr-4">{move.displayBestMove || formatBestMoveDisplay(move)}</td>
                     <td className="py-2 pr-4">

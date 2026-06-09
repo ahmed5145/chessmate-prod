@@ -2,7 +2,7 @@ import React from 'react';
 import FenBoardImage from '../batch/FenBoardImage';
 import { useTheme } from '../../context/ThemeContext';
 import { formatNumber } from '../../utils/formatters';
-import { formatBestMoveDisplay, formatUciMove } from '../../utils/singleGameMoves';
+import { formatBestMoveDisplay, formatUciMove, getMoveArrowColors } from '../../utils/singleGameMoves';
 
 const severityClass = (type, isDarkMode) => {
   if (type === 'blunder') {
@@ -37,7 +37,17 @@ const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectM
         Critical moments
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {moments.map((moment, index) => (
+        {moments.map((moment, index) => {
+          const momentPlayerColor = moment.player_color || playerColor;
+          const arrowColors = getMoveArrowColors({
+            isBest: moment.classification === 'best',
+            isWhite: momentPlayerColor === 'white',
+            displayClassification: moment.type || moment.classification,
+            bestMoveUci: moment.best_move_uci,
+            uci: moment.played_move_uci,
+          }, playerColor);
+
+          return (
           <div
             key={`sg-moment-${moment.move_number}-${index}`}
             className={`rounded-lg border p-3 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
@@ -61,7 +71,9 @@ const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectM
                   size={220}
                   orientation={moment.player_color || playerColor}
                   playedMoveUci={moment.played_move_uci}
-                  bestMoveUci={moment.best_move_uci}
+                  bestMoveUci={arrowColors.bestArrowColor ? moment.best_move_uci : null}
+                  playedArrowColor={arrowColors.playedArrowColor}
+                  bestArrowColor={arrowColors.bestArrowColor}
                 />
               </button>
             ) : null}
@@ -75,7 +87,8 @@ const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectM
               </p>
             ) : null}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

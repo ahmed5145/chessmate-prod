@@ -1,11 +1,14 @@
 import {
+  annotateMovesForPlayer,
   countFullMoves,
   findMoveIndexByNumber,
   findMoveIndexForMoment,
   formatBestMoveDisplay,
   formatMoveLabel,
+  formatMoveSideLabel,
   formatMovesSummaryLabel,
   formatPlayerEvalLoss,
+  getMoveArrowColors,
   inferDisplayClassification,
   normalizeSingleGameMoves,
   pickEvalSeries,
@@ -67,6 +70,20 @@ describe('singleGameMoves', () => {
   it('summarizes full moves vs half-moves', () => {
     expect(countFullMoves(pairedMoves)).toBe(11);
     expect(formatMovesSummaryLabel(pairedMoves)).toBe('11 moves (3 half-moves)');
+  });
+
+  it('annotates player vs opponent sides', () => {
+    const annotated = annotateMovesForPlayer(pairedMoves, 'black');
+    expect(annotated[0].sideLabel).toBe('Opponent');
+    expect(annotated[1].sideLabel).toBe('You');
+    expect(formatMoveSideLabel(pairedMoves[1], 'black')).toBe('You');
+  });
+
+  it('colors arrows by classification and side', () => {
+    expect(getMoveArrowColors(pairedMoves[1], 'black').playedArrowColor).toBe('#dc2626');
+    expect(getMoveArrowColors(pairedMoves[1], 'black').bestArrowColor).toBe('#16a34a');
+    expect(getMoveArrowColors({ ...pairedMoves[2], isBest: true }, 'black').playedArrowColor).toBe('#2563eb');
+    expect(getMoveArrowColors({ ...pairedMoves[2], isBest: true }, 'black').bestArrowColor).toBeNull();
   });
 
   it('builds eval series by ply', () => {

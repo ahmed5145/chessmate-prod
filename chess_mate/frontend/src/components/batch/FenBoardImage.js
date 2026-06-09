@@ -158,6 +158,8 @@ const FenBoardImage = ({
   perspective,
   playedMoveUci = null,
   bestMoveUci = null,
+  playedArrowColor = '#dc2626',
+  bestArrowColor = '#16a34a',
 }) => {
   const isBlackView = (perspective || orientation) === 'black';
   const boardFen = useMemo(() => boardFenFromFullFen(fen), [fen]);
@@ -254,11 +256,11 @@ const FenBoardImage = ({
           }}
         >
           <BoardSvg boardFen={boardFen} isBlackView={isBlackView} />
-          {bestArrow ? (
-            <MoveArrow {...bestArrow} color="#16a34a" markerId={bestMarkerId} isBlackView={isBlackView} />
+          {bestArrow && bestArrowColor ? (
+            <MoveArrow {...bestArrow} color={bestArrowColor} markerId={bestMarkerId} isBlackView={isBlackView} />
           ) : null}
-          {playedArrow ? (
-            <MoveArrow {...playedArrow} color="#dc2626" markerId={playedMarkerId} isBlackView={isBlackView} />
+          {playedArrow && playedArrowColor ? (
+            <MoveArrow {...playedArrow} color={playedArrowColor} markerId={playedMarkerId} isBlackView={isBlackView} />
           ) : null}
         </Box>
 

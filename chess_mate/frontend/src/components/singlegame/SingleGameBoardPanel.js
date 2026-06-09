@@ -7,6 +7,8 @@ import {
   findMoveIndexByNumber,
   formatBestMoveDisplay,
   formatMoveLabel,
+  formatMoveSideLabel,
+  getMoveArrowColors,
   inferDisplayClassification,
   pickEvalSeries,
 } from '../../utils/singleGameMoves';
@@ -47,11 +49,20 @@ const panelButtonClass = (isDarkMode, disabled = false) => {
     : 'text-gray-700 hover:bg-gray-100';
 };
 
-const MoveCaption = ({ move, isDarkMode }) => {
+const MoveCaption = ({ move, playerColor, isDarkMode }) => {
   const bestMove = formatBestMoveDisplay(move);
   const classification = inferDisplayClassification(move);
+  const sideLabel = formatMoveSideLabel(move, playerColor);
   return (
     <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+      <span className={`mr-2 rounded-full px-2 py-0.5 text-xs font-semibold ${
+        move.isPlayerMove
+          ? (isDarkMode ? 'bg-indigo-900/50 text-indigo-200' : 'bg-indigo-100 text-indigo-800')
+          : (isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700')
+      }`}
+      >
+        {sideLabel}
+      </span>
       {formatMoveLabel(move)} · Eval after: <strong>{Number(move.evalAfter).toFixed(2)}</strong>
       {bestMove && bestMove !== '-' ? (
         <> · Best: <strong>{bestMove}</strong></>
@@ -68,16 +79,27 @@ const MoveBoard = ({ move, playerColor, boardSize = 320 }) => {
     return <p className="text-gray-500">Board unavailable for this move.</p>;
   }
 
+  const { playedArrowColor, bestArrowColor } = getMoveArrowColors(move, playerColor);
+
   return (
     <FenBoardImage
       fen={move.fen}
       size={boardSize}
       orientation={playerColor || 'white'}
       playedMoveUci={move.uci}
-      bestMoveUci={move.isBest ? null : move.bestMoveUci}
+      bestMoveUci={bestArrowColor ? move.bestMoveUci : null}
+      playedArrowColor={playedArrowColor}
+      bestArrowColor={bestArrowColor}
     />
   );
 };
+
+const BoardArrowLegend = ({ isDarkMode }) => (
+  <p className={`mt-2 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+    Arrow colors: green/blue = best · amber = inaccuracy · orange = mistake · red = blunder ·
+    gray = opponent move
+  </p>
+);
 
 const SingleGameBoardPanel = ({
   moves = [],
@@ -223,7 +245,8 @@ const SingleGameBoardPanel = ({
           <div>
             <MoveBoard move={selectedMove} playerColor={playerColor} boardSize={320} />
             <div className="mt-3">
-              <MoveCaption move={selectedMove} isDarkMode={isDarkMode} />
+              <MoveCaption move={selectedMove} playerColor={playerColor} isDarkMode={isDarkMode} />
+              <BoardArrowLegend isDarkMode={isDarkMode} />
             </div>
           </div>
           <div>
@@ -315,7 +338,8 @@ const SingleGameBoardPanel = ({
                     <MoveBoard move={selectedMove} playerColor={playerColor} boardSize={560} />
                   </div>
                   <div className="mt-4 w-full max-w-xl text-center">
-                    <MoveCaption move={selectedMove} isDarkMode={isDarkMode} />
+                    <MoveCaption move={selectedMove} playerColor={playerColor} isDarkMode={isDarkMode} />
+                    <BoardArrowLegend isDarkMode={isDarkMode} />
                   </div>
                 </div>
 
