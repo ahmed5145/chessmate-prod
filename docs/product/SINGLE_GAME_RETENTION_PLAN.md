@@ -973,15 +973,14 @@ flowchart TD
 
 ---
 
-## 7. Manual smoke plan (3 sessions)
+## 7. Manual smoke plan (2 sessions)
 
-**Rule:** At most **3** manual smokes for the full plan. Each smoke runs **after** its phase ships (do not smoke unfinished items). Skip checklist rows marked *(not shipped)*. Automated tests are the default gate; smoke is the human UX pass.
+**Rule:** At most **2** manual smokes for the full plan. Each smoke runs **after** its phase ships (do not smoke unfinished items). Automated tests are the default gate; smoke is the human UX pass.
 
 | Smoke | When (after phase ships) | Packages covered | Est. time |
 |-------|--------------------------|------------------|-----------|
 | **Smoke 1** | P0 + P1 + P2 | SRG-0, SRG-8, SRG-1, SRG-22, SRG-2…SRG-7 | ~25 min |
-| **Smoke 2** | P3 + P4 | SRG-9…SRG-21, SRG-14, SRG-15, SRG-13 | ~30 min |
-| **Smoke 3** | P5 | SRG-23…SRG-29 | ~20 min |
+| **Smoke 2** | P3 + P4 + P5 | SRG-9…SRG-29 (coach loop, hub, growth) | ~45 min |
 
 ### Smoke 1 — Trust, notify & engage (P0–P2)
 
@@ -1005,9 +1004,9 @@ flowchart TD
 - [ ] **SRG-5** Critical moment shows ChessMate benchmark range when rating known.
 - [ ] **SRG-7** Enable sound → move nav plays tone once per step; blunder vibrates on mobile.
 
-### Smoke 2 — Coach loop & hub (P3–P4)
+### Smoke 2 — Coach loop, hub & growth (P3–P5)
 
-**Prep:** User with ≥1 **completed** batch (inbox seeded automatically), ≥1 depth-20 single-game analysis optional, SMTP optional for batch email.
+**Prep:** User with ≥1 **completed** batch (inbox seeded automatically), ≥1 depth-20 single-game analysis optional, SMTP optional for email features; second account for referral; mobile device or emulator for PWA.
 
 **Deferred from Smoke 1** (re-test fixes):
 
@@ -1042,20 +1041,15 @@ flowchart TD
 - [ ] **SRG-13** Spaced mail **not** same week as digest (mutual exclusion).
 - [ ] **SRG-18** Phase heatmap cell → example game opens free review (`mode=review`); hidden under 5 analyzed games.
 - [ ] **SRG-21** Opening gap → “You lost N games” + ChessMate review links per loss.
-
-### Smoke 3 — Growth (P5)
-
-**Prep:** User who completed **first batch**; second account for referral; mobile device or emulator for PWA.
-
 - [ ] **SRG-23** First batch complete → celebration modal **once**; dismissible.
 - [ ] **SRG-24** Copy referral link → referee completes first batch → referrer **+5**, referee **+5** on top of signup bonus.
 - [ ] **SRG-24** Self-referral blocked.
 - [ ] **SRG-28** **Desktop:** no PWA/install banner anywhere.
 - [ ] **SRG-28** **Mobile** after first batch: small install hint **once**; dismiss → no repeat for 30 days.
 - [ ] **SRG-29** Paste moment share URL in Discord/iMessage preview → **text** title + description (no broken image).
-- [ ] **SRG-25** *(not shipped)* Streak freeze once per month.
-- [ ] **SRG-26** *(not shipped)* Persona toggle changes **next** report tone only.
-- [ ] **SRG-27** *(not shipped)* 30d inactive + opt-in → one reactivation mail max.
+- [ ] **SRG-25** Miss one inbox day with ≥3-day streak → **Use freeze** preserves streak; only once per calendar month.
+- [ ] **SRG-26** Profile → Coach tone **Direct** → next batch/single report reads blunter (Encouraging = default supportive).
+- [ ] **SRG-27** Opt in reactivation → 30d inactive user gets **one** mail max; no mail if digest/spaced sent in last 7d.
 
 ---
 
@@ -1090,9 +1084,9 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | **SRG-22** | `test_welcome_email.py` | — | Confirm + welcome once each |
 | **SRG-23** | `test_first_batch_celebration.py` *(add)* | `FirstBatchModal.test.js` *(add)* | Show once only |
 | **SRG-24** | `test_referral_credits.py` *(add)* | `ReferralCredits.test.js` *(add)* | 5+5 on first batch; caps |
-| **SRG-25** | `test_inbox_streak_freeze.py` *(add)* | — | 1× per calendar month |
-| **SRG-26** | `test_coach_persona.py` *(add)* | `CoachPersonaSettings.test.js` *(add)* | Prompt modifier only |
-| **SRG-27** | `test_reactivation_email.py` *(add)* | — | 30d cap + opt-in |
+| **SRG-25** | `test_inbox_streak_freeze.py` | `InboxStreak.test.js` | 1× per calendar month |
+| **SRG-26** | `test_coach_persona.py` | `CoachPersonaSettings.test.js` | Prompt modifier only |
+| **SRG-27** | `test_reactivation_email.py` | — | 30d cap + opt-in |
 | **SRG-28** | — | `PwaInstallPrompt.test.js` *(add)* | Mobile gate; desktop hidden |
 | **SRG-29** | — | `SharedGameMomentPage.test.js`, `pageMeta.test.js` | Text OG; no `og:image` |
 
@@ -1129,9 +1123,9 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-22 | ✅ Done | Verify email + one-time welcome after confirm |
 | SRG-23 | ✅ Done | First-batch celebration modal + confetti |
 | SRG-24 | ✅ Done | Referral credits on first batch complete |
-| SRG-25 | ⬜ Not started | Streak freeze |
-| SRG-26 | ⬜ Not started | Coach persona |
-| SRG-27 | ⬜ Not started | 30d reactivation |
+| SRG-25 | ✅ Done | Inbox streak freeze — 1× per month API + dashboard chip |
+| SRG-26 | ✅ Done | Coach persona toggle + prompt modifier on next analysis |
+| SRG-27 | ✅ Done | 30d reactivation email — opt-in + Celery beat + EmailSendLog |
 | SRG-28 | ✅ Done | PWA install prompt — mobile only, post-first-batch |
 | SRG-29 | ✅ Done | Text OG on share moment page + tests |
 
@@ -1145,6 +1139,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-08 | Scope revision — added SRG-23…SRG-27 (celebration, referral, streak freeze, persona, reactivation); DX-01…03 deferred pending decision |
 | 2026-06-08 | Scope revision — promoted SRG-28 (PWA mobile-only, not first visit), SRG-29 (text OG; DX-02b image deferred); SRG-24 rewards → referrer 5 + referee +5 on signup stack; DX-03 `.ics` deferred |
 | 2026-06-08 | Added §7 manual smoke plan (3 sessions) + §8 automated test matrix per SRG |
+| 2026-06-08 | Shipped SRG-25…27; merged Smoke 2 + Smoke 3 into one P3–P5 session (2 smokes total) |
 | 2026-06-08 | Shipped SRG-3 batch pattern CTA + SRG-4 opening study drill labels |
 | 2026-06-08 | Shipped SRG-2 blunder-free streak (profile-backed) |
 | 2026-06-08 | Shipped SRG-5 rating-band benchmark copy on critical moments |
