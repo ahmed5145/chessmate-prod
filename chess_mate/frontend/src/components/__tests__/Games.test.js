@@ -163,4 +163,21 @@ describe('Games Component', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Analyze \(1 credit\)/i }));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/game/2/analysis'));
   });
+
+  test('view report navigates without starting analysis', async () => {
+    fetchUserGames.mockResolvedValue([
+      {
+        ...mockGames[0],
+        analysis_status: 'analyzed',
+      },
+      mockGames[1],
+    ]);
+
+    renderWithProviders();
+
+    fireEvent.click(await screen.findByRole('button', { name: /View report/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/game/1/analysis?mode=review');
+    expect(analyzeSpecificGame).not.toHaveBeenCalled();
+  });
 });

@@ -260,11 +260,13 @@ export const analyzeSpecificGame = async (gameId, options = {}) => {
             const response = await api.post(`/api/v1/games/${gameId}/analyze/`, body);
             console.log('Analysis started response:', response.data);
 
+            const isCached = response.data.status === 'cached' || response.data.cached === true;
             const normalizedResponse = {
                 success: true,
+                cached: isCached,
                 task_id: response.data.task_id || response.data.id,
                 status: response.data.status || 'started',
-                message: response.data.message || 'Analysis started',
+                message: response.data.message || (isCached ? 'Using saved report' : 'Analysis started'),
                 redirect: false // Explicitly indicate no redirect
             };
 

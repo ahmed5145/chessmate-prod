@@ -70,6 +70,10 @@ from .error_handling import (
 # Local application imports
 from .models import BatchAnalysisReport, Game, GameAnalysis, Player, Profile, User
 from .serializers import GameSerializer
+from .single_game_analysis_cache import (
+    cached_analysis_response,
+    has_complete_cached_analysis,
+)
 from .single_game_credits import (
     charge_single_game_credit,
     resolve_single_game_credit_waiver,
@@ -801,6 +805,14 @@ class GameViewSet(viewsets.ModelViewSet):
             if not analysis_allowed:
                 return single_analysis_limit_response(analysis_info)
 
+            if not force_reanalyze and has_complete_cached_analysis(game.id):
+                if game.analysis_status not in ("analyzed", "completed"):
+                    game.analysis_status = "analyzed"
+                    game.save(update_fields=["analysis_status"])
+                payload = cached_analysis_response(game.id)
+                payload["credit_waiver"] = "cached"
+                return Response(payload)
+
             enqueue_result = _enqueue_analysis_task(
                 game_id=game.id,
                 user_id=request.user.id,
@@ -1344,6 +1356,16 @@ def analyze_game(request, game_id=None):
         analysis_allowed, analysis_info = check_single_analysis_allowed(request.user)
         if not analysis_allowed:
             return single_analysis_limit_response(analysis_info)
+
+        if not force_reanalyze and has_complete_cached_analysis(game.id):
+            if game.analysis_status not in ("analyzed", "completed"):
+                game.analysis_status = "analyzed"
+                game.save(update_fields=["analysis_status"])
+            payload = cached_analysis_response(game.id)
+            payload["free_from_batch"] = False
+            payload["free_first_game"] = False
+            payload["credit_waiver"] = "cached"
+            return Response(payload, status=status.HTTP_200_OK)
 
         # Resolve through legacy module path when tests patch core.* symbols.
         compat_task = _resolve_compat_attr("core.tasks", "analyze_game_task", analyze_game_task)

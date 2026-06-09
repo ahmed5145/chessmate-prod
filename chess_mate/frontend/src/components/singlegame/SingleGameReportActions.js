@@ -16,17 +16,13 @@ const SingleGameReportActions = ({
   const [shareLabel, setShareLabel] = useState('Share moment');
   const [sharing, setSharing] = useState(false);
 
-  const handlePrint = () => {
-    trackSingleGameEvent('single_game_print', { game_id: gameId, batch_id: batchId });
-    window.print();
-  };
-
   const handleCopyLink = async () => {
     const url = `${window.location.origin}${buildSingleGameAnalysisLink({
       gameId,
       batchId,
       move,
       priority,
+      mode: 'review',
     })}`;
     try {
       await navigator.clipboard.writeText(url);
@@ -74,9 +70,6 @@ const SingleGameReportActions = ({
           Re-run deep review (1 credit)
         </button>
       ) : null}
-      <button type="button" className={buttonClass} onClick={handlePrint}>
-        Print summary
-      </button>
       <button type="button" className={buttonClass} onClick={handleCopyLink}>
         {copyLabel}
       </button>

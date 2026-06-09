@@ -5,6 +5,7 @@ import FenBoardImage from '../batch/FenBoardImage';
 import EngineMetaNote from './EngineMetaNote';
 import { getPublicGameMoment } from '../../services/gameAnalysisService';
 import { buildRegisterHref, MARKETING_SOURCES } from '../../utils/marketingLinks';
+import { usePageMeta } from '../../utils/pageMeta';
 
 const SharedGameMomentPage = () => {
   const { shareToken } = useParams();
@@ -45,6 +46,29 @@ const SharedGameMomentPage = () => {
     };
   }, [shareToken]);
 
+  const moment = payload?.moment || {};
+  const context = payload?.game_context || {};
+  const coaching = payload?.coaching || {};
+  const shareTitle = coaching.takeaway || 'Critical moment from a ChessMate deep review';
+  const shareDescriptionParts = [
+    moment.move_number ? `Move ${moment.move_number}` : null,
+    moment.eval_swing != null ? `Eval swing ${moment.eval_swing}` : null,
+    context.opening_name ? context.opening_name : null,
+    context.result ? `Result ${context.result}` : null,
+    coaching.do_today ? `Practice: ${coaching.do_today}` : null,
+  ].filter(Boolean);
+  const shareDescription = shareDescriptionParts.length
+    ? shareDescriptionParts.join(' · ')
+    : 'See a turning point from a ChessMate depth-20 review — get your own batch coach report.';
+
+  usePageMeta({
+    title: payload ? shareTitle : 'Shared chess moment',
+    description: payload ? shareDescription : 'See a turning point from a ChessMate depth-20 review.',
+    path: shareToken ? `/share/game-moment/${shareToken}` : '/share/game-moment',
+    type: 'article',
+    twitterCard: 'summary',
+  });
+
   if (loading) {
     return (
       <Container maxWidth="md" sx={{ py: 6 }}>
@@ -64,9 +88,6 @@ const SharedGameMomentPage = () => {
     );
   }
 
-  const moment = payload?.moment || {};
-  const context = payload?.game_context || {};
-  const coaching = payload?.coaching || {};
   const registerHref = buildRegisterHref(MARKETING_SOURCES.EXAMPLE_PAGE);
 
   const metaParts = [

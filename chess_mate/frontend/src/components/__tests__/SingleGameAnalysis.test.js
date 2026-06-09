@@ -77,6 +77,7 @@ describe('SingleGameAnalysis', () => {
     classifyAnalysisPollingStatus.mockReset();
     computeNextPollDelay.mockReset();
     fetchGameAnalysis.mockReset();
+    fetchGameAnalysis.mockRejectedValue(new Error('No cached analysis'));
 
     classifyAnalysisPollingStatus.mockImplementation((status, progress) => {
       const normalizedStatus = String(status || '').toUpperCase();
@@ -152,12 +153,53 @@ describe('SingleGameAnalysis', () => {
       expect(screen.getByText('Game Analysis Results')).toBeInTheDocument();
     });
 
+    expect(analyzeSpecificGame).not.toHaveBeenCalled();
     expect(fetchGameAnalysis).toHaveBeenCalledWith('1', 0, {
       batchId: null,
       move: null,
       priority: null,
       ignoreStoredError: false,
     });
+  });
+
+  it('review mode shows cached report without POST analyze', async () => {
+    fetchGameAnalysis.mockResolvedValue({
+      moves: [{ move_number: 1, san: 'e4' }],
+      metrics: { overall: { accuracy: 85.5 } },
+      completed_at: '2026-06-08T12:00:00.000Z',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/game/42/analysis?mode=review']}>
+        <Routes>
+          <Route path="/game/:gameId/analysis" element={<SingleGameAnalysis />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Game Analysis Results')).toBeInTheDocument();
+    });
+
+    expect(analyzeSpecificGame).not.toHaveBeenCalled();
+  });
+
+  it('review mode shows error when no saved report exists', async () => {
+    fetchGameAnalysis.mockResolvedValue({});
+
+    render(
+      <MemoryRouter initialEntries={['/game/99/analysis?mode=review']}>
+        <Routes>
+          <Route path="/game/:gameId/analysis" element={<SingleGameAnalysis />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/No saved depth-20 report/i)).toBeInTheDocument();
+    });
+
+    expect(analyzeSpecificGame).not.toHaveBeenCalled();
   });
 
   it('shows batch context banner when analysis includes batch_context', async () => {

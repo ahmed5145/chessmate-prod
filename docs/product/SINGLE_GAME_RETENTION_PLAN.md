@@ -683,19 +683,20 @@ flowchart LR
 
 #### SRG-24: Referral credits
 
-**Copy:** *“Invite a friend — you both get 1 credit when they run their first batch.”*
+**Copy:** *“Invite a friend — you get 5 credits when they finish their first batch; they get 5 bonus credits on top of the 15 signup bonus.”*
 
 | Work | Detail |
 |------|--------|
 | **Mechanic** | Unique referral code/link per user; credit grant on referee **first batch complete** (not signup — reduces fraud) |
-| **Rewards** | Configurable: e.g. 1 credit each, cap 10 referrals/month per referrer |
+| **Rewards** | **Referrer: 5 credits.** **Referee: +5 credits** (stacked on existing **15** signup bonus → **20** total for referred signups who complete first batch). Cap **10** successful referrals/month per referrer |
 | **Anti-abuse** | Same IP/device fingerprint soft block; no self-referral; email domain heuristics optional |
 | **UI** | Credits page + post-first-batch modal secondary CTA |
 | **Analytics** | `referral_link_copy`, `referral_batch_completed` |
 
 **Acceptance criteria**
 
-- [ ] Credits apply only after referee’s first successful batch.
+- [ ] Credits apply only after referee’s first successful batch (`completed` or `partial` with ≥5 games).
+- [ ] Referrer receives 5; referee receives +5 (signup bonus unchanged at 15).
 - [ ] Referrer cannot earn &gt; monthly cap.
 
 **Primary files:** `credit_fulfillment.py` pattern, new `referral.py`, `Credits.js`, migration `ReferralRedemption`
@@ -767,6 +768,52 @@ flowchart LR
 **Primary files:** `reactivation_email.py`, `EmailSendLog`, `notification_preferences.py`
 
 **Depends on:** SRG-22 preference patterns, global email budget
+
+---
+
+#### SRG-28: PWA install prompt (mobile only, after first batch)
+
+**Why:** Mobile users who finish a batch are most likely to return — but **do not** interrupt first visit or desktop users where install rarely works.
+
+| Work | Detail |
+|------|--------|
+| **Eligibility** | Touch-capable / mobile viewport only; **never** show on desktop (no `beforeinstallprompt` and no iOS install path) |
+| **Timing** | After **first batch** completes (tie to SRG-23) or 2nd+ session with `batches_completed ≥ 1` — **not** on landing, login, or pre-batch |
+| **UX** | Small dismissible banner/sheet — not full-screen modal; snooze 30 days on dismiss; **once per device** unless user clears storage |
+| **Android** | Capture `beforeinstallprompt`; trigger only from explicit “Add to home screen” tap |
+| **iOS** | Text-only instructions (“Share → Add to Home Screen”) — no fake install button |
+| **Analytics** | `pwa_install_prompt_shown`, `pwa_install_accepted`, `pwa_install_dismissed` |
+
+**Acceptance criteria**
+
+- [ ] Desktop users never see the prompt.
+- [ ] First-time visitors (no completed batch) never see the prompt.
+- [ ] Dismiss does not re-show for 30 days.
+
+**Primary files:** new `PwaInstallPrompt.js`, `manifest.json` audit, mount gate in `Dashboard.js` or post-batch flow
+
+**Depends on:** SRG-23 (celebration moment); existing `manifest.json`
+
+---
+
+#### SRG-29: Moment share text OG preview (image deferred)
+
+**Why:** Pasteable share links should look credible in Discord/iMessage without paying for dynamic board PNGs (DX-02b).
+
+| Work | Detail |
+|------|--------|
+| **Meta** | `usePageMeta` on `/share/game-moment/:token` — `og:title` from coaching takeaway; `og:description` from move, swing, opening, practice line |
+| **Twitter** | `twitter:card=summary` (text only — **no** `og:image`) |
+| **Deferred** | DX-02b dynamic board image — promote only when share/referral volume justifies cost |
+
+**Acceptance criteria**
+
+- [ ] Shared moment URL sets title + description before paint (client-side meta upsert).
+- [ ] No `og:image` on share routes until DX-02b ships.
+
+**Primary files:** `SharedGameMomentPage.js`, `pageMeta.js`
+
+**Depends on:** Existing moment share tokens
 
 ---
 
@@ -843,7 +890,7 @@ flowchart TD
 | **P2 Engage** | SRG-3 → SRG-4 → SRG-2 → SRG-5 → SRG-7 |
 | **P3 Loop** | SRG-9 → SRG-19 → SRG-11 → SRG-12 → SRG-16 → SRG-10 → SRG-17 → SRG-20 |
 | **P4 Hub** | SRG-14 → SRG-18 → SRG-21 → SRG-15 → SRG-13 |
-| **P5 Growth** | SRG-23 → SRG-24 → SRG-25 → SRG-26 → SRG-27 |
+| **P5 Growth** | SRG-23 → SRG-24 → SRG-28 → SRG-29 → SRG-25 → SRG-26 → SRG-27 |
 
 **Email ship order:** SRG-22 → SRG-1 → SRG-15 → SRG-13 → SRG-27 (each gated on `EmailSendLog` + preferences). Prefer **digest OR spaced**, not both, until metrics prove otherwise.
 
@@ -923,7 +970,7 @@ flowchart TD
 
 | ID | Status | Notes |
 |----|--------|-------|
-| SRG-0 | ⬜ Not started | |
+| SRG-0 | 🟡 In progress | Cached analyze API + review mount + Games CTAs |
 | SRG-1 | ⬜ Not started | Email partial exists |
 | SRG-2 | ⬜ Not started | |
 | SRG-3 | ⬜ Not started | Footer CTA exists; needs counts |
@@ -931,7 +978,7 @@ flowchart TD
 | SRG-5 | ⬜ Not started | |
 | SRG-6 | ⬜ Not started | |
 | SRG-7 | ⬜ Not started | |
-| SRG-8 | ⬜ Not started | |
+| SRG-8 | 🟡 In progress | Print removed from report actions |
 | SRG-9 | ⬜ Not started | Priority inbox |
 | SRG-10 | ⬜ Not started | Moment timeline |
 | SRG-11 | ⬜ Not started | Alignment score |
@@ -951,6 +998,8 @@ flowchart TD
 | SRG-25 | ⬜ Not started | Streak freeze |
 | SRG-26 | ⬜ Not started | Coach persona |
 | SRG-27 | ⬜ Not started | 30d reactivation |
+| SRG-28 | ⬜ Not started | PWA install — mobile only, post-first-batch |
+| SRG-29 | 🟡 In progress | Text OG on share moment page |
 
 **Changelog**
 
@@ -960,6 +1009,7 @@ flowchart TD
 | 2026-06-08 | Scope revision — added SRG-9…SRG-13 (priority inbox, timeline, alignment, one thing today, spaced email w/ anti-spam) |
 | 2026-06-08 | Scope revision — added SRG-14…SRG-22 (notification hub, digest, streaks, fix-rate, heatmap, proof games, batch diff, opening gaps, welcome mail); global email budget |
 | 2026-06-08 | Scope revision — added SRG-23…SRG-27 (celebration, referral, streak freeze, persona, reactivation); DX-01…03 deferred pending decision |
+| 2026-06-08 | Scope revision — promoted SRG-28 (PWA mobile-only, not first visit), SRG-29 (text OG; DX-02b image deferred); SRG-24 rewards → referrer 5 + referee +5 on signup stack; DX-03 `.ics` deferred |
 
 ---
 
@@ -969,56 +1019,18 @@ To change this plan: edit this file, bump **Changelog**, and announce in PR desc
 
 ---
 
-## 9. Deferred ideas — explainers (your decision)
+## 9. Deferred ideas — explainers
 
-These are **not built** until you promote them to SRG-28+. Below is what each means in plain language and a recommendation.
+| ID | Status | Notes |
+|----|--------|-------|
+| **DX-01** | → **SRG-28** | PWA install promoted — mobile only, after first batch |
+| **DX-02b** | Deferred | Dynamic OG board image — ship SRG-29 text first |
+| **DX-03** | Deferred | `.ics` training plan export — SRG-6 + SRG-12 cover daily habit |
 
-### DX-01: PWA “Add to Home Screen” install prompt
+### DX-02b: Moment share dynamic OG image (still deferred)
 
-**What it is:** A Progressive Web App (PWA) lets ChessMate behave more like a phone app when opened from the home screen — full-screen, icon on the home screen, faster return visits. The **install prompt** is the browser banner: *“Add ChessMate to your home screen.”*
+Server-rendered board PNG per share token for rich Discord/Twitter cards. **Too expensive for now** — SRG-29 text preview ships first. Re-promote when share/referral analytics show paste volume.
 
-**What it is not:** Not an App Store app; not a separate codebase. It’s a manifest + service worker on your existing React site.
+### DX-03: Training plan `.ics` calendar export (still deferred)
 
-| Pros | Cons |
-|------|------|
-| Mobile users come back with one tap | iOS Safari support is weaker than Android Chrome |
-| Feels more “real” than a bookmark | Maintenance (cache, updates) if you go full offline |
-| Good after first batch (“keep your coach handy”) | Small % of users actually install |
-
-**Recommendation:** **Defer until after SRG-0 + mobile traffic &gt; 20%.** Until then, mobile browser + email/notifications (SRG-14) is enough. If you ship it later, show prompt **once** after first batch (SRG-23), not on landing.
-
----
-
-### DX-02: Moment share as social OG preview image
-
-**What it is:** When someone pastes your share link in Discord/Twitter/iMessage, the preview card shows a **generated image** — mini board, “Move 10 · −8.4 swing”, ChessMate branding — instead of a generic link.
-
-**How it works:** Server renders PNG (or SVG→PNG) per moment; `og:image` meta on `/share/game-moment/:token`.
-
-| Pros | Cons |
-|------|------|
-| Viral look; credible in chess Discord | Backend image generation + hosting |
-| Marketing without ads | Privacy: shared moments are already public tokens — still need sanitization |
-| Complements existing “Share moment” | Low priority until share volume proves demand |
-
-**Recommendation:** **Nice polish after moment share is used.** Cheaper interim: improve **text** preview (title + description) without dynamic image. Promote to SRG-28 if referral (SRG-24) or share analytics show traction.
-
----
-
-### DX-03: Training plan `.ics` calendar export
-
-**What it is:** Download a calendar file (`.ics`) that adds batch **4-week training plan** items to Google Calendar / Outlook — e.g. “Week 2: 20 tactics on middlegame pins.”
-
-| Pros | Cons |
-|------|------|
-| Serious club players love it | Small audience vs casual players |
-| Reinforces batch plan | Plan text may be vague — calendar spam feels worse than email spam |
-| Differentiator for “coach” positioning | Engineering edge cases (timezones, recurring events) |
-
-**Recommendation:** **Defer.** SRG-6 checklist + SRG-12 “one thing today” cover daily habit for most users. Revisit if users ask for calendar integration or you target coaches/clubs explicitly.
-
----
-
-### How to promote a deferred item
-
-Reply with e.g. *“Lock DX-02 as SRG-28”* and we update §0 scope + changelog the same way as SRG-23…27.
+Batch 4-week plan → Google Calendar / Outlook. Revisit for coach/club positioning or explicit user requests.

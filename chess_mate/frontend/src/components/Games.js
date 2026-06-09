@@ -286,7 +286,11 @@ const Games = () => {
     });
   };
 
-  const handleAnalyzeGame = async (gameId, { isReanalyze = false } = {}) => {
+  const handleViewReport = (gameId) => {
+    navigate(`/game/${gameId}/analysis?mode=review`);
+  };
+
+  const handleAnalyzeGame = async (gameId, { isReanalyze = false, navigateOnly = false } = {}) => {
     try {
       // Check authentication
       const isLoggedIn = await checkAuthStatus();
@@ -314,12 +318,20 @@ const Games = () => {
         duration: 3000, // Auto close after 3 seconds as we're navigating away
       });
 
+      const analysisPath = isReanalyze
+        ? `/game/${gameId}/analysis?force=reanalyze`
+        : `/game/${gameId}/analysis`;
+
+      if (navigateOnly) {
+        toast.dismiss(toastId);
+        navigate(`/game/${gameId}/analysis?mode=review`);
+        return;
+      }
+
       // Start the analysis in the background and navigate immediately
       try {
-        // Fire and forget the analysis request - we'll navigate to analysis page regardless
-        analyzeSpecificGame(gameId)
+        analyzeSpecificGame(gameId, { forceReanalyze: isReanalyze })
           .then(() => {
-            // If successful, dismiss the loading toast and show success toast
             toast.dismiss(toastId);
             toast.success('Analysis started! Redirecting to analysis page...', {
               id: `${toastId}-success`,
@@ -328,7 +340,6 @@ const Games = () => {
           })
           .catch(error => {
             console.error('Error starting analysis (background):', error);
-            // Only show error if we haven't navigated away yet
             toast.dismiss(toastId);
             toast.error('Error starting analysis. Please try again.', {
               id: `${toastId}-error`,
@@ -336,9 +347,8 @@ const Games = () => {
             });
           });
 
-        // Navigate to the analysis page immediately
         console.log(`Navigating to analysis page for game ${gameId}`);
-      navigate(`/game/${gameId}/analysis`);
+        navigate(analysisPath);
       } catch (error) {
         console.error('Error starting analysis:', error);
         toast.dismiss(toastId);
@@ -578,14 +588,26 @@ const Games = () => {
                           </span>
                         </td>
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <button
-                            onClick={() => openAnalyzeConfirm(game)}
-                            className={`text-indigo-600 hover:text-indigo-900 ${isDarkMode ? 'text-indigo-400 hover:text-indigo-300' : ''}`}
-                          >
-                            {isGameAnalyzed(game) ? 'Reanalyze' : 'Deep review'}
-                            {!isGameAnalyzed(game) ? ' (1 credit)' : ''}
-                            <span className="sr-only">, game {game.id}</span>
-                          </button>
+                          <div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end sm:gap-3">
+                            {isGameAnalyzed(game) ? (
+                              <button
+                                type="button"
+                                onClick={() => handleViewReport(game.id)}
+                                className={`text-indigo-600 hover:text-indigo-900 ${isDarkMode ? 'text-indigo-400 hover:text-indigo-300' : ''}`}
+                              >
+                                View report
+                                <span className="sr-only">, game {game.id}</span>
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => openAnalyzeConfirm(game)}
+                              className={`text-indigo-600 hover:text-indigo-900 ${isDarkMode ? 'text-indigo-400 hover:text-indigo-300' : ''}`}
+                            >
+                              {isGameAnalyzed(game) ? 'Re-run (1 credit)' : 'Deep review (1 credit)'}
+                              <span className="sr-only">, game {game.id}</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

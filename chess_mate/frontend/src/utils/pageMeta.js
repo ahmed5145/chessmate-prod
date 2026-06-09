@@ -57,6 +57,7 @@ export const setPageMeta = ({
   description = DEFAULT_SITE_DESCRIPTION,
   path = '/',
   type = 'website',
+  twitterCard = 'summary_large_image',
 }) => {
   if (typeof document === 'undefined') {
     return;
@@ -70,19 +71,19 @@ export const setPageMeta = ({
   setMetaContent('property', 'og:description', description);
   setMetaContent('property', 'og:type', type);
   setMetaContent('property', 'og:url', buildCanonicalUrl(path));
-  setMetaContent('name', 'twitter:card', 'summary_large_image');
+  setMetaContent('name', 'twitter:card', twitterCard);
   setMetaContent('name', 'twitter:title', pageTitle);
   setMetaContent('name', 'twitter:description', description);
   setLinkHref('canonical', buildCanonicalUrl(path));
 };
 
 export const usePageMeta = (config) => {
-  const { title, description, path, type } = config;
+  const { title, description, path, type, twitterCard } = config;
 
   useEffect(() => {
-    setPageMeta({ title, description, path, type });
+    setPageMeta({ title, description, path, type, twitterCard });
     return () => setPageMeta({});
-  }, [title, description, path, type]);
+  }, [title, description, path, type, twitterCard]);
 };
 
 export const PAGE_META = {

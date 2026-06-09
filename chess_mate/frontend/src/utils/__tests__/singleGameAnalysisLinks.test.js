@@ -19,6 +19,17 @@ describe('singleGameAnalysisLinks', () => {
       batchId: '7',
       move: 18,
       priority: 1,
+      mode: null,
+      force: null,
     });
+  });
+
+  it('builds review and reanalyze links', () => {
+    expect(buildSingleGameAnalysisLink({ gameId: 5, mode: 'review' })).toBe(
+      '/game/5/analysis?mode=review'
+    );
+    expect(buildSingleGameAnalysisLink({ gameId: 5, force: 'reanalyze' })).toBe(
+      '/game/5/analysis?force=reanalyze'
+    );
   });
 });

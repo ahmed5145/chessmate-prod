@@ -126,6 +126,34 @@ class TestGameViews:
         assert profile.credits == 9  # Started with 10, imported 1 game
 
     @override_settings(SINGLE_GAME_FIRST_FREE=False)
+    def test_analyze_game_returns_cached_when_complete(self, authenticated_client, test_user, test_game):
+        test_game.analysis_status = "analyzed"
+        test_game.save()
+        GameAnalysis.objects.create(
+            game=test_game,
+            analysis_data={
+                "status": "complete",
+                "moves": [{"move_number": 1, "san": "e4"}],
+                "completed_at": "2026-06-08T12:00:00+00:00",
+            },
+            feedback={},
+            depth=20,
+        )
+
+        url = reverse("analyze_game", kwargs={"game_id": test_game.id})
+        with patch("core.tasks.analyze_game_task.delay") as mock_task:
+            response = authenticated_client.post(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["status"] == "cached"
+        assert response.data["cached"] is True
+        assert response.data["credits_charged"] == 0
+        assert not mock_task.called
+
+        profile = Profile.objects.get(user=test_user)
+        assert profile.credits == 10
+
+    @override_settings(SINGLE_GAME_FIRST_FREE=False)
     def test_analyze_game(self, authenticated_client, test_user, test_game):
         # Set game to unanalyzed first
         test_game.analysis_status = "not_analyzed"

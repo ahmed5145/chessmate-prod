@@ -261,6 +261,14 @@ const SingleGameReport = ({
 
       <EngineMetaNote engineMeta={engineMeta} batchContext={batchContext} />
 
+      <p className={`mb-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+        Saved depth-20 report
+        {resolvedAnalysisData.completed_at || resolvedAnalysisData.analysis_data?.completed_at
+          ? ` · ${new Date(resolvedAnalysisData.completed_at || resolvedAnalysisData.analysis_data.completed_at).toLocaleString()}`
+          : ''}
+        {' '}— free to revisit anytime; re-run only if you want a fresh engine pass (1 credit).
+      </p>
+
       <SingleGameHero coaching={coaching} worstMoment={worstMoment} playerStats={playerStats} />
 
       <ReportInsightCards

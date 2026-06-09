@@ -285,7 +285,13 @@ const SingleGameAnalysis = () => {
   const location = useLocation();
   const { isDarkMode } = useTheme();
   const { credits } = React.useContext(UserContext);
-  const { batchId, move, priority } = parseSingleGameAnalysisSearch(location.search);
+  const {
+    batchId,
+    move,
+    priority,
+    mode: analysisMode,
+    force: analysisForce,
+  } = parseSingleGameAnalysisSearch(location.search);
   const [showReanalyzeConfirm, setShowReanalyzeConfirm] = useState(false);
   const [confirmingReanalyze, setConfirmingReanalyze] = useState(false);
   const trackedViewRef = useRef(false);
@@ -624,6 +630,12 @@ const SingleGameAnalysis = () => {
         analysisCompleted.current = true;
         localStorage.setItem(`analysis_complete_${gameId}`, 'true');
         isFetchingAnalysisRef.current = false;
+        trackSingleGameEvent(analysisMode === 'review' ? 'single_game_review' : 'single_game_view', {
+          game_id: gameId,
+          batch_id: batchId,
+          move,
+          priority,
+        });
         return true;
       }
 
@@ -632,10 +644,10 @@ const SingleGameAnalysis = () => {
       setLoading(false);
       isFetchingAnalysisRef.current = false;
       return false;
-        } catch (error) {
+    } catch (error) {
       console.error('Error fetching analysis data:', error);
       setAnalysisError(error.message || 'Failed to load analysis data');
-            setLoading(false);
+      setLoading(false);
       isFetchingAnalysisRef.current = false;
       return false;
     }
@@ -646,6 +658,9 @@ const SingleGameAnalysis = () => {
       return;
     }
     trackedViewRef.current = true;
+    if (analysisMode === 'review') {
+      return;
+    }
     trackSingleGameEvent(batchId ? 'single_game_from_batch' : 'single_game_view', {
       game_id: gameId,
       batch_id: batchId,
@@ -700,6 +715,14 @@ const SingleGameAnalysis = () => {
       console.log('Analysis started response:', response);
 
       if (response && response.success) {
+        if (response.cached) {
+          setLoadingMessage('Loading your saved report...');
+          const loaded = await fetchAnalysisData();
+          if (loaded) {
+            return;
+          }
+        }
+
         if (response.task_id) {
           activeTaskIdRef.current = response.task_id;
         }
@@ -774,42 +797,48 @@ const SingleGameAnalysis = () => {
     return () => clearInterval(elapsedTimeInterval);
   }, [loading, progress]);
 
-  // Initialize analysis on component mount
+  // Initialize: fetch saved report first; only POST analyze when no data or forced re-run.
   useEffect(() => {
-    if (gameId && !hasStartedRef.current) {
-      hasStartedRef.current = true;
-
-      // Check if analysis was already completed
-      const isComplete = localStorage.getItem(`analysis_complete_${gameId}`) === 'true';
-      if (isComplete) {
-        console.log(`Analysis previously marked as complete for game ${gameId}, verifying data...`);
-        // We'll now verify that the analysis really has valid data
-        fetchAnalysisData()
-          .then(success => {
-            if (!success) {
-              console.log('Cached analysis data was invalid or incomplete, starting new analysis');
-              // Clear localStorage flag to prevent false "completed" state
-              localStorage.removeItem(`analysis_complete_${gameId}`);
-              startAnalysis();
-            }
-          })
-          .catch(err => {
-            console.error('Error fetching cached analysis data:', err);
-            // Clear cache and start fresh
-            localStorage.removeItem(`analysis_complete_${gameId}`);
-            startAnalysis();
-          });
-      } else {
-        startAnalysis();
-      }
+    if (!gameId || hasStartedRef.current) {
+      return undefined;
     }
+    hasStartedRef.current = true;
 
-    // Cleanup function to clear any intervals when component unmounts
+    const bootstrap = async () => {
+      if (analysisForce === 'reanalyze') {
+        await startAnalysis({ forceReanalyze: true });
+        return;
+      }
+
+      setLoading(true);
+      setLoadingMessage('Loading your depth-20 report...');
+      const loaded = await fetchAnalysisData();
+      if (loaded) {
+        return;
+      }
+
+      if (analysisMode === 'review') {
+        setLoading(false);
+        setAnalysisError(
+          'No saved depth-20 report for this game yet. Run a deep review (1 credit) from Games to create one.'
+        );
+        return;
+      }
+
+      await startAnalysis();
+    };
+
+    bootstrap().catch((err) => {
+      console.error('Failed to bootstrap single-game analysis:', err);
+      setAnalysisError(err.message || 'Failed to load analysis');
+      setLoading(false);
+    });
+
     return () => {
       clearAllIntervals();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId]);
+  }, [gameId, analysisMode, analysisForce]);
 
   // If auth error, redirect to login
   useEffect(() => {
