@@ -41,10 +41,10 @@ const UserProfile = () => {
     fetchProfile();
   }, [navigate]);
 
-  const handlePreferenceChange = (key) => {
+  const handlePreferenceChange = (key, value) => {
     setPreferences((prev) => ({
       ...prev,
-      [key]: !prev[key],
+      [key]: value !== undefined ? value : !prev[key],
     }));
   };
 

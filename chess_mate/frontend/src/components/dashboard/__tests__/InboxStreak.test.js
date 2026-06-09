@@ -1,8 +1,9 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import CoachInboxCard from '../CoachInboxCard';
 import InboxStreakChip from '../InboxStreakChip';
+import { freezeInboxStreak } from '../../../services/apiRequests';
 
 jest.mock('../../../context/ThemeContext', () => ({
   useTheme: () => ({ isDarkMode: false }),
@@ -10,6 +11,10 @@ jest.mock('../../../context/ThemeContext', () => ({
 
 jest.mock('../../../utils/marketingAnalytics', () => ({
   trackMarketingEvent: jest.fn(),
+}));
+
+jest.mock('../../../services/apiRequests', () => ({
+  freezeInboxStreak: jest.fn(),
 }));
 
 describe('InboxStreak', () => {
@@ -45,5 +50,28 @@ describe('InboxStreak', () => {
     );
 
     expect(screen.getByText(/4-day coach streak/i)).toBeInTheDocument();
+  });
+
+  it('shows freeze action when available and calls API', async () => {
+    freezeInboxStreak.mockResolvedValue({
+      inbox_streak: { show: true, label: '3-day coach streak' },
+    });
+
+    render(
+      <InboxStreakChip
+        streak={{
+          show: true,
+          label: '3-day coach streak',
+          freeze: { can_use: true, label: 'Use freeze (1 left this month)' },
+        }}
+        onFreezeApplied={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /use freeze/i }));
+
+    await waitFor(() => {
+      expect(freezeInboxStreak).toHaveBeenCalled();
+    });
   });
 });
