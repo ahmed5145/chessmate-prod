@@ -2,12 +2,10 @@
 
 import {
   buildMoveEvalSummary,
-  computePlayerMoveStats,
   evalForPlayer,
   formatAfterMoveEval,
   formatBestLineEval,
   formatLivePositionEval,
-  formatReviewPositionEval,
   getMoveArrowStyle,
   isPlayerMove as classificationIsPlayerMove,
   resolveMoveClassification,

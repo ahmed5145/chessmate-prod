@@ -3,13 +3,14 @@
 from unittest.mock import patch
 
 import pytest
+from django.contrib.auth import get_user_model
+
 from core.models import Profile
 from core.welcome_email import (
     WELCOME_EMAIL_SENT_KEY,
     send_welcome_email_once,
     welcome_email_already_sent,
 )
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 

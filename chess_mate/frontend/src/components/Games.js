@@ -265,7 +265,7 @@ const Games = () => {
       clearPolling();
       pollingInFlightRef.current = false;
     };
-  }, [games, navigate]);
+  }, [games, navigate, refreshUserData]);
 
   const loadGames = async () => {
     setLoading(true);

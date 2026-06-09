@@ -47,32 +47,6 @@ const StatItem = ({ label, value, icon: Icon, isDarkMode }) => (
   </div>
 );
 
-const getClassificationBadgeClass = (classification, isDarkMode) => {
-  const value = String(classification || 'neutral').toLowerCase().replace(/_/g, ' ');
-
-  if (value === 'brilliant') {
-    return isDarkMode ? 'bg-cyan-900 text-cyan-300' : 'bg-cyan-100 text-cyan-700';
-  }
-  if (value === 'great' || value === 'great move') {
-    return isDarkMode ? 'bg-blue-950 text-blue-300' : 'bg-blue-900 text-blue-100';
-  }
-  if (value === 'blunder' || value === 'mistake') {
-    return isDarkMode ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-700';
-  }
-  if (value === 'inaccuracy') {
-    return isDarkMode ? 'bg-amber-900 text-amber-300' : 'bg-amber-100 text-amber-700';
-  }
-  if (value === 'best' || value === 'excellent' || value === 'good') {
-    return isDarkMode ? 'bg-emerald-900 text-emerald-300' : 'bg-emerald-100 text-emerald-700';
-  }
-  return isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700';
-};
-
-const formatClassificationLabel = (classification) => {
-  const normalized = String(classification || 'neutral').toLowerCase().replace(/_/g, ' ');
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-};
-
 const pickNumber = (...values) => {
   for (const value of values) {
     const parsed = Number(value);

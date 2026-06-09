@@ -667,7 +667,7 @@ const SingleGameAnalysis = () => {
       move,
       priority,
     });
-  }, [analysisData, loading, batchId, gameId, move, priority]);
+  }, [analysisData, loading, batchId, gameId, move, priority, analysisMode]);
 
   const startAnalysis = async ({ forceReanalyze = false } = {}) => {
     try {

@@ -10,16 +10,6 @@ import {
 } from '../../utils/singleGameClassification';
 import MoveClassificationBadge from './MoveClassificationBadge';
 
-const severityClass = (type, isDarkMode) => {
-  if (type === 'blunder') {
-    return isDarkMode ? 'bg-red-900/50 text-red-200' : 'bg-red-100 text-red-800';
-  }
-  if (type === 'mistake') {
-    return isDarkMode ? 'bg-amber-900/40 text-amber-200' : 'bg-amber-100 text-amber-800';
-  }
-  return isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700';
-};
-
 const formatMomentBestMove = (moment) => {
   if (moment?.best_move && !/^[a-h][1-8][a-h][1-8]/i.test(moment.best_move)) {
     return moment.best_move;

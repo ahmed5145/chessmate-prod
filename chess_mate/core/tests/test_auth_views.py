@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
+from django.test import override_settings
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -25,7 +26,9 @@ def api_client():
 
 @pytest.fixture
 def test_user():
-    user = User.objects.create_user(username="testuser", email="test@example.com", password="testpassword123")
+    user = User.objects.create_user(
+        username="testuser", email="test@example.com", password="testpassword123"
+    )
     profile = Profile.objects.get(user=user)
     profile.email_verified = True
     profile.credits = 10
@@ -44,7 +47,14 @@ def unverified_user():
     profile.email_verified = False
     profile.email_verification_token = "test-token-123"
     profile.credits = 10
-    profile.save(update_fields=["email_verified", "email_verification_token", "credits", "legacy_rating"])
+    profile.save(
+        update_fields=[
+            "email_verified",
+            "email_verification_token",
+            "credits",
+            "legacy_rating",
+        ]
+    )
     return user
 
 
@@ -62,7 +72,9 @@ class TestAuthViews:
         assert response.data["email"] == test_user.email
         assert response.data["username"] == test_user.username
 
-    def test_login_remember_me_controls_refresh_lifetime(self, api_client, test_user, settings):
+    def test_login_remember_me_controls_refresh_lifetime(
+        self, api_client, test_user, settings
+    ):
         from datetime import datetime
         from datetime import timezone as dt_timezone
 
@@ -76,17 +88,29 @@ class TestAuthViews:
 
         remember_response = api_client.post(
             url,
-            {"email": "test@example.com", "password": "testpassword123", "remember_me": True},
+            {
+                "email": "test@example.com",
+                "password": "testpassword123",
+                "remember_me": True,
+            },
             format="json",
         )
         session_response = api_client.post(
             url,
-            {"email": "test@example.com", "password": "testpassword123", "remember_me": False},
+            {
+                "email": "test@example.com",
+                "password": "testpassword123",
+                "remember_me": False,
+            },
             format="json",
         )
 
-        remember_exp = backend.decode(remember_response.data["refresh"], verify=False)["exp"]
-        session_exp = backend.decode(session_response.data["refresh"], verify=False)["exp"]
+        remember_exp = backend.decode(remember_response.data["refresh"], verify=False)[
+            "exp"
+        ]
+        session_exp = backend.decode(session_response.data["refresh"], verify=False)[
+            "exp"
+        ]
         now = datetime.now(dt_timezone.utc).timestamp()
 
         remember_days = (remember_exp - now) / 86400
@@ -115,6 +139,7 @@ class TestAuthViews:
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
         assert "Email not verified" in response.data["error"]
 
+    @override_settings(REQUIRE_EMAIL_VERIFICATION=True)
     def test_register_success(self, api_client):
         url = reverse("register")
         data = {
@@ -123,8 +148,9 @@ class TestAuthViews:
             "password": "Strong.Password.123",
         }
 
-        with patch("django.core.mail.send_mail", return_value=1):
-            response = api_client.post(url, data, format="json")
+        with patch("core.email_utils.is_email_configured", return_value=True):
+            with patch("django.core.mail.send_mail", return_value=1):
+                response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
         assert "user_id" in response.data
@@ -137,6 +163,25 @@ class TestAuthViews:
         assert profile.email_verified is False
         assert profile.email_verification_token is not None
         assert profile.legacy_rating == 1200
+
+    @override_settings(REQUIRE_EMAIL_VERIFICATION=False)
+    def test_register_marks_verified_when_verification_disabled(self, api_client):
+        url = reverse("register")
+        data = {
+            "username": "devuser",
+            "email": "dev@example.com",
+            "password": "Strong.Password.123",
+        }
+
+        with patch("core.welcome_email.send_welcome_email_once", return_value=True):
+            with patch("django.core.mail.send_mail", return_value=1):
+                response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data["requires_email_verification"] is False
+
+        profile = Profile.objects.get(user__email=data["email"])
+        assert profile.email_verified is True
 
     def test_register_requires_verification_in_production(self, api_client, settings):
         settings.REQUIRE_EMAIL_VERIFICATION = True
@@ -161,7 +206,9 @@ class TestAuthViews:
         url = reverse("resend_verification_email")
         with patch("core.email_utils.is_email_configured", return_value=True):
             with patch("django.core.mail.send_mail", return_value=1):
-                response = api_client.post(url, {"email": unverified_user.email}, format="json")
+                response = api_client.post(
+                    url, {"email": unverified_user.email}, format="json"
+                )
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["status"] == "success"
@@ -205,7 +252,9 @@ class TestAuthViews:
         logout_url = reverse("logout")
         logout_data = {"refresh": refresh_token}
 
-        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {login_response.data['access']}")
+        api_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login_response.data['access']}"
+        )
         response = api_client.post(logout_url, logout_data, format="json")
 
         assert response.status_code == status.HTTP_200_OK
@@ -281,7 +330,9 @@ class TestAuthViews:
 
     def test_verify_email(self, api_client, unverified_user):
         # Mock the verification function
-        with patch.object(auth_views.EmailVerificationToken, "is_valid", return_value=True):
+        with patch.object(
+            auth_views.EmailVerificationToken, "is_valid", return_value=True
+        ):
             url = reverse("verify_email", kwargs={"token": "test-token-123"})
 
             # Use Django test client for this one since it's a GET with redirect
