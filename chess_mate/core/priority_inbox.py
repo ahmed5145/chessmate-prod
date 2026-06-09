@@ -1,9 +1,9 @@
-"""Coach priority inbox — batch priorities as actionable queue items (SRG-9)."""
+"""Coach priority inbox — batch priorities as actionable queue items (SRG-9 / SRG-19)."""
 
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -15,6 +15,12 @@ _MAX_ITEMS = 3
 
 _GAME_REF_RE = re.compile(r"game[_\s-]?(\d+)", re.IGNORECASE)
 _MOVE_REF_RE = re.compile(r"move\s*#?\s*(\d+)", re.IGNORECASE)
+
+_PHASE_KEYWORDS = {
+    "opening": ("opening", "prep", "repertoire", "development", "opening prep"),
+    "middlegame": ("middlegame", "tactic", "tactical", "calculation", "vision", "middlegame"),
+    "endgame": ("endgame", "conversion", "technique", "pawn endgame"),
+}
 
 
 def _empty_inbox() -> Dict[str, Any]:
@@ -41,11 +47,20 @@ def _item_key(batch_id: int, priority_index: int) -> str:
     return f"{batch_id}:{priority_index}"
 
 
-def _resolve_saved_game_and_move(
-    priority: Dict[str, Any],
-    per_game_results: List[Dict[str, Any]],
-    batch_summary: Dict[str, Any],
-) -> Tuple[Optional[int], Optional[int]]:
+def _normalize_match_text(value: Any) -> str:
+    return str(value or "").replace("_", " ").strip().lower()
+
+
+def _priority_text_blob(priority: Dict[str, Any]) -> str:
+    return _normalize_match_text(
+        " ".join(
+            str(priority.get(key) or "")
+            for key in ("title", "specific_drill", "how_to_fix", "why_it_matters")
+        )
+    )
+
+
+def _parse_priority_refs(priority: Dict[str, Any]) -> Tuple[Optional[int], Optional[int]]:
     blob = " ".join(
         str(priority.get(key) or "")
         for key in ("title", "specific_drill", "how_to_fix")
@@ -61,25 +76,231 @@ def _resolve_saved_game_and_move(
     if move_match:
         move_number = int(move_match.group(1))
 
-    if game_idx is not None:
-        target_id = f"game_{game_idx}"
-        for result in per_game_results:
-            if not isinstance(result, dict):
+    return game_idx, move_number
+
+
+def _per_game_by_batch_index(
+    per_game_results: List[Dict[str, Any]],
+    game_idx: int,
+) -> Optional[Dict[str, Any]]:
+    target_id = f"game_{game_idx}"
+    for result in per_game_results:
+        if not isinstance(result, dict):
+            continue
+        if str(result.get("game_id")) == target_id:
+            return result
+    return None
+
+
+def _infer_priority_phase(
+    priority: Dict[str, Any],
+    batch_summary: Dict[str, Any],
+) -> Optional[str]:
+    blob = _priority_text_blob(priority)
+    for phase, keywords in _PHASE_KEYWORDS.items():
+        if any(keyword in blob for keyword in keywords):
+            return phase
+
+    weaknesses = batch_summary.get("recurring_weaknesses") or []
+    if isinstance(weaknesses, list) and blob:
+        for weakness in weaknesses:
+            if not isinstance(weakness, dict):
                 continue
-            if str(result.get("game_id")) == target_id:
-                saved_id = result.get("saved_game_id")
-                if saved_id is not None:
-                    return int(saved_id), move_number
+            pattern = _normalize_match_text(weakness.get("pattern"))
+            if pattern and (pattern in blob or blob in pattern):
+                phase = weakness.get("phase")
+                if phase in ("opening", "middlegame", "endgame"):
+                    return phase
 
+    worst_phase = batch_summary.get("worst_phase")
+    if worst_phase in ("opening", "middlegame", "endgame"):
+        return worst_phase
+    return None
+
+
+def _match_weakness_pattern(
+    priority: Dict[str, Any],
+    batch_summary: Dict[str, Any],
+) -> Optional[str]:
+    weaknesses = batch_summary.get("recurring_weaknesses") or []
+    if not isinstance(weaknesses, list) or not weaknesses:
+        return None
+
+    blob = _priority_text_blob(priority)
+    for weakness in weaknesses:
+        if not isinstance(weakness, dict):
+            continue
+        pattern = _normalize_match_text(weakness.get("pattern"))
+        if pattern and blob and (pattern in blob or blob in pattern):
+            return pattern
+
+    first = weaknesses[0]
+    if isinstance(first, dict):
+        return _normalize_match_text(first.get("pattern")) or None
+    return None
+
+
+def _iter_ranked_moments(
+    per_game_results: List[Dict[str, Any]],
+    batch_summary: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    ranked: List[Dict[str, Any]] = []
     top_moments = batch_summary.get("top_critical_moments") or []
-    if isinstance(top_moments, list) and top_moments:
-        first = top_moments[0]
-        if isinstance(first, dict):
-            saved_id = first.get("saved_game_id")
-            if saved_id is not None:
-                return int(saved_id), move_number or first.get("move_number")
+    if isinstance(top_moments, list):
+        for moment in top_moments:
+            if isinstance(moment, dict) and moment.get("saved_game_id") is not None:
+                ranked.append(dict(moment))
 
-    return None, move_number
+    for game_result in per_game_results:
+        if not isinstance(game_result, dict):
+            continue
+        saved_game_id = game_result.get("saved_game_id")
+        if saved_game_id is None:
+            continue
+        player_color = game_result.get("player_color")
+        for moment in game_result.get("critical_moments") or []:
+            if not isinstance(moment, dict):
+                continue
+            if (
+                player_color
+                and moment.get("mover")
+                and moment.get("mover") != player_color
+            ):
+                continue
+            ranked.append(
+                {
+                    **moment,
+                    "saved_game_id": saved_game_id,
+                    "game_result": game_result,
+                }
+            )
+
+    ranked.sort(
+        key=lambda row: float(row.get("eval_swing") or 0),
+        reverse=True,
+    )
+    return ranked
+
+
+def _score_moment_for_priority(
+    moment: Dict[str, Any],
+    *,
+    phase: Optional[str],
+    pattern: Optional[str],
+) -> float:
+    score = float(moment.get("eval_swing") or 0)
+    if phase and moment.get("phase") == phase:
+        score += 10.0
+    if pattern:
+        theme = _normalize_match_text(moment.get("tactical_theme"))
+        if theme and (pattern in theme or theme in pattern):
+            score += 5.0
+    return score
+
+
+def _build_proof_label(
+    game_result: Optional[Dict[str, Any]],
+    moment: Dict[str, Any],
+) -> Optional[str]:
+    if not game_result:
+        return None
+
+    opening = str(game_result.get("opening_name") or "").strip()
+    if not opening or opening.lower() == "unknown":
+        opening = "Proof game"
+
+    opponent = str(game_result.get("opponent") or "").strip() or "opponent"
+    move_number = moment.get("move_number")
+    if move_number:
+        return f"{opening} example: vs {opponent}, move {move_number}"
+    return f"{opening} example: vs {opponent}"
+
+
+def _pick_proof_game_for_priority(
+    priority: Dict[str, Any],
+    per_game_results: List[Dict[str, Any]],
+    batch_summary: Dict[str, Any],
+    used_game_ids: Set[int],
+) -> Tuple[Optional[int], Optional[int], Optional[str], Optional[Dict[str, Any]]]:
+    """
+    SRG-19: pick highest-swing moment in the priority's matching phase.
+    Returns (saved_game_id, move_number, proof_label, game_result).
+    """
+    game_idx, move_number = _parse_priority_refs(priority)
+    if game_idx is not None:
+        game_result = _per_game_by_batch_index(per_game_results, game_idx)
+        if game_result and game_result.get("saved_game_id") is not None:
+            saved_id = int(game_result["saved_game_id"])
+            if move_number is None:
+                for moment in game_result.get("critical_moments") or []:
+                    if isinstance(moment, dict) and moment.get("move_number"):
+                        move_number = int(moment["move_number"])
+                        return (
+                            saved_id,
+                            move_number,
+                            _build_proof_label(game_result, moment),
+                            game_result,
+                        )
+            moment = {"move_number": move_number}
+            return saved_id, move_number, _build_proof_label(game_result, moment), game_result
+
+    ranked_moments = _iter_ranked_moments(per_game_results, batch_summary)
+    if not ranked_moments:
+        return None, move_number, None, None
+
+    phase = _infer_priority_phase(priority, batch_summary)
+    pattern = _match_weakness_pattern(priority, batch_summary)
+
+    scored: List[Tuple[float, Dict[str, Any]]] = []
+    for moment in ranked_moments:
+        scored.append(
+            (
+                _score_moment_for_priority(moment, phase=phase, pattern=pattern),
+                moment,
+            )
+        )
+    scored.sort(key=lambda row: row[0], reverse=True)
+
+    def _pick_from_scored(allow_used_games: bool) -> Optional[Tuple[int, int, str, Dict[str, Any]]]:
+        for _, moment in scored:
+            saved_id = moment.get("saved_game_id")
+            if saved_id is None:
+                continue
+            saved_id = int(saved_id)
+            if not allow_used_games and saved_id in used_game_ids:
+                continue
+            game_result = moment.get("game_result")
+            if game_result is None:
+                for result in per_game_results:
+                    if (
+                        isinstance(result, dict)
+                        and int(result.get("saved_game_id") or 0) == saved_id
+                    ):
+                        game_result = result
+                        break
+            move = moment.get("move_number")
+            if move is None:
+                continue
+            proof_label = _build_proof_label(game_result, moment)
+            return saved_id, int(move), proof_label, game_result
+        return None
+
+    picked = _pick_from_scored(allow_used_games=False) or _pick_from_scored(
+        allow_used_games=True
+    )
+    if picked:
+        return picked
+
+    fallback = ranked_moments[0]
+    saved_id = int(fallback["saved_game_id"])
+    game_result = fallback.get("game_result")
+    move = fallback.get("move_number")
+    return (
+        saved_id,
+        int(move) if move is not None else None,
+        _build_proof_label(game_result, fallback),
+        game_result,
+    )
 
 
 def _build_inbox_item(
@@ -87,6 +308,7 @@ def _build_inbox_item(
     batch_report: BatchAnalysisReport,
     priority: Dict[str, Any],
     priority_index: int,
+    used_game_ids: Set[int],
 ) -> Dict[str, Any]:
     per_game_results = (
         batch_report.per_game_results
@@ -98,9 +320,12 @@ def _build_inbox_item(
         if isinstance(batch_report.batch_summary, dict)
         else {}
     )
-    linked_game_id, linked_move = _resolve_saved_game_and_move(
-        priority, per_game_results, batch_summary
+    linked_game_id, linked_move, proof_label, game_result = _pick_proof_game_for_priority(
+        priority, per_game_results, batch_summary, used_game_ids
     )
+    if linked_game_id is not None:
+        used_game_ids.add(int(linked_game_id))
+
     completed_at = batch_report.updated_at or batch_report.created_at
     return {
         "id": _item_key(batch_report.id, priority_index),
@@ -112,6 +337,9 @@ def _build_inbox_item(
         ).strip(),
         "linked_game_id": linked_game_id,
         "linked_move": linked_move,
+        "proof_label": proof_label,
+        "opening_name": (game_result or {}).get("opening_name"),
+        "opponent": (game_result or {}).get("opponent"),
         "status": "pending",
         "reviewed_at": None,
         "archived": False,
@@ -164,6 +392,7 @@ def seed_priority_inbox_from_batch(batch_report: BatchAnalysisReport) -> int:
             item["archived_at"] = timezone.now().isoformat()
             archived_ids.add(int(other_batch_id))
 
+    used_game_ids: Set[int] = set()
     upserted = 0
     for index, priority in enumerate(priorities[:_MAX_ITEMS], start=1):
         if not isinstance(priority, dict):
@@ -173,6 +402,7 @@ def seed_priority_inbox_from_batch(batch_report: BatchAnalysisReport) -> int:
             batch_report=batch_report,
             priority=priority,
             priority_index=rank,
+            used_game_ids=used_game_ids,
         )
         prior = existing_by_key.get(item["id"])
         if prior and prior.get("status") == "reviewed":

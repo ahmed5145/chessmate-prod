@@ -83,6 +83,11 @@ const CoachInboxCard = ({ priorityInbox }) => {
                 <p className={`mt-0.5 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   {item.title}
                 </p>
+                {item.proof_label ? (
+                  <p className={`mt-1 text-xs font-medium ${isDarkMode ? 'text-indigo-200/90' : 'text-indigo-700'}`}>
+                    {item.proof_label}
+                  </p>
+                ) : null}
                 {item.drill ? (
                   <p className={`mt-1 text-xs line-clamp-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     {item.drill}
