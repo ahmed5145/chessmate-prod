@@ -217,8 +217,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Streak increments after clean game; resets after blunder.
-- [ ] Copy is plain English, not “half-moves.”
+- [x] Streak increments after clean game; resets after blunder.
+- [x] Copy is plain English, not “half-moves.”
+- [x] Tests: `test_single_game_streak.py`, `singleGameStreak.test.js` (§8).
 
 **Primary files:** `SingleGameReport.js` or `ReportInsightCards.js`, `stats_helpers.py` or `Profile` extension, migration if persisted server-side
 
@@ -997,7 +998,7 @@ flowchart TD
 - [ ] **SRG-22** *(not shipped)* New signup → welcome/confirm mail (skip until shipped).
 - [ ] **SRG-3** Batch-linked report → footer shows `N of M games` → **See batch priorities** opens report.
 - [ ] **SRG-4** Opening drill button mentions ECO + opening inaccuracies when present.
-- [ ] **SRG-2** *(not shipped)* Streak card increments on clean game.
+- [ ] **SRG-2** After two clean depth-20 reviews, report + Games header show streak chip.
 - [ ] **SRG-6** *(not shipped)* Drill checklist persists after refresh (`localStorage`).
 - [ ] **SRG-7** *(not shipped)* Move nav plays sound once (if enabled).
 
@@ -1043,7 +1044,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 |----|---------------|----------------|-------|
 | **SRG-0** | `test_single_game_analysis_cache.py`, `test_game_views.py` (cached POST), `test_single_game_credits.py` | `SingleGameAnalysis.test.js`, `Games.test.js`, `singleGameAnalysisLinks.test.js` | Cache hit = 0 credits |
 | **SRG-1** | `test_single_game_notifications.py`, `test_analysis_tasks.py` (email on SUCCESS only) | — | Assert headline, `mode=review` URLs |
-| **SRG-2** | `test_single_game_streak.py` *(add)* | `SingleGameStreak.test.js` *(add)* | Streak rules unit-tested |
+| **SRG-2** | `test_single_game_streak.py` | `singleGameStreak.test.js`, `SingleGameStreakCard.test.js` | Streak rules unit-tested |
 | **SRG-3** | `test_single_game_context.py` (pattern counts) | `singleGameBatchCta.test.js`, `SingleGameFooterCta.test.js` | Batch link + analytics |
 | **SRG-4** | — | `singleGameDrillLinks.test.js`, `singleGameBatchCta.test.js` | ECO + mistake context |
 | **SRG-5** | `test_rating_band_copy.py` *(add)* | — | Template strings from rating |
@@ -1082,7 +1083,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 |----|--------|-------|
 | SRG-0 | ✅ Done | Cached analyze + review mount + Games CTAs + tests |
 | SRG-1 | ✅ Done | Headline subject + `mode=review` moment links + tests |
-| SRG-2 | ⬜ Not started | |
+| SRG-2 | ✅ Done | Blunder-free streak card + Games chip + tests |
 | SRG-3 | ✅ Done | Pattern-count batch CTA + analytics + tests |
 | SRG-4 | ✅ Done | Opening study label with ECO + mistake count |
 | SRG-5 | ⬜ Not started | |
@@ -1122,6 +1123,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-08 | Scope revision — promoted SRG-28 (PWA mobile-only, not first visit), SRG-29 (text OG; DX-02b image deferred); SRG-24 rewards → referrer 5 + referee +5 on signup stack; DX-03 `.ics` deferred |
 | 2026-06-08 | Added §7 manual smoke plan (3 sessions) + §8 automated test matrix per SRG |
 | 2026-06-08 | Shipped SRG-3 batch pattern CTA + SRG-4 opening study drill labels |
+| 2026-06-08 | Shipped SRG-2 blunder-free streak (profile-backed) |
 
 ---
 

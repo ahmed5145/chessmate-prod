@@ -15,6 +15,10 @@ import { UserContext } from '../contexts/UserContext';
 import { qualifiesForFirstSingleGameFree } from '../utils/singleGameCredits';
 import { notifySingleGameAnalysisComplete } from '../utils/analysisNotifications';
 import api from '../services/api';
+import {
+  formatSingleGameStreakCopy,
+  shouldShowSingleGameStreak,
+} from '../utils/singleGameStreak';
 
 const Games = () => {
   const [games, setGames] = useState([]);
@@ -32,7 +36,11 @@ const Games = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const { credits = 0, user } = useContext(UserContext) || {};
+  const { credits = 0, user, refreshUserData } = useContext(UserContext) || {};
+  const singleGameStreak = user?.single_game_streak
+    || user?.preferences?.single_game_streak
+    || null;
+  const streakCopy = formatSingleGameStreakCopy(singleGameStreak);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [confirmingAnalysis, setConfirmingAnalysis] = useState(false);
   const singleGameCredits = 1;
@@ -205,6 +213,9 @@ const Games = () => {
                 opponent: completedGame?.opponent,
                 onOpen: () => navigate(`/game/${parsedGameId}/analysis`),
               });
+              if (typeof refreshUserData === 'function') {
+                refreshUserData();
+              }
               setGames(prev => prev.map(g =>
                 g.id === parsedGameId ? { ...g, analysis_status: 'analyzed', analysis: status.analysis } : g
               ));
@@ -462,7 +473,19 @@ const Games = () => {
     <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>My Games</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>My Games</h1>
+            {shouldShowSingleGameStreak(singleGameStreak) ? (
+              <span
+                className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
+                  isDarkMode ? 'bg-amber-900/40 text-amber-200' : 'bg-amber-100 text-amber-900'
+                }`}
+              >
+                <span aria-hidden="true" className="mr-1">🔥</span>
+                {streakCopy}
+              </span>
+            ) : null}
+          </div>
           <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-700'}`}>
             A list of all your chess games, including their results and analysis status.
             {games.length > 0 && ` Total games: ${games.length}`}

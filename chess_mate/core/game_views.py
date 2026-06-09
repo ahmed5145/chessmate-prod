@@ -74,6 +74,7 @@ from .single_game_analysis_cache import (
     cached_analysis_response,
     has_complete_cached_analysis,
 )
+from .single_game_streak import get_single_game_streak
 from .single_game_credits import (
     charge_single_game_credit,
     resolve_single_game_credit_waiver,
@@ -2328,6 +2329,7 @@ def get_game_analysis(request, game_id):
                     payload.get("training_block") if isinstance(payload.get("training_block"), dict) else {}
                 )
 
+            streak_state = get_single_game_streak(profile.preferences if profile else {})
             response_payload = {
                 "analysis_data": payload,
                 **payload,
@@ -2337,6 +2339,7 @@ def get_game_analysis(request, game_id):
                 "critical_moments": critical_moments,
                 "batch_context": batch_context,
                 "training_block": training_block,
+                "single_game_streak": streak_state,
                 "engine_meta": {
                     "depth": getattr(analysis, "depth", 20) or 20,
                     "classification_note": ("Single-game uses depth-20 coach model; batch report uses depth-14."),
@@ -2374,6 +2377,7 @@ def get_game_analysis(request, game_id):
                     )
                 legacy_feedback = payload.get("feedback", {})
                 training_block = legacy_feedback.get("training_block") if isinstance(legacy_feedback, dict) else {}
+                streak_state = get_single_game_streak(profile.preferences if profile else {})
                 response_payload = {
                     "analysis_data": payload,
                     **payload,
@@ -2383,6 +2387,7 @@ def get_game_analysis(request, game_id):
                     "critical_moments": critical_moments,
                     "batch_context": batch_context,
                     "training_block": training_block if isinstance(training_block, dict) else {},
+                    "single_game_streak": streak_state,
                     "engine_meta": {
                         "depth": 20,
                         "classification_note": ("Single-game uses depth-20 coach model; batch report uses depth-14."),

@@ -28,6 +28,7 @@ import PhaseStrip from './PhaseStrip';
 import TrainingBlockSection from './TrainingBlockSection';
 import SingleGameReportActions from './SingleGameReportActions';
 import DrillChecklistSection from './DrillChecklistSection';
+import SingleGameStreakCard from './SingleGameStreakCard';
 import EngineMetaNote from './EngineMetaNote';
 import { trackSingleGameEvent } from '../../utils/marketingAnalytics';
 import './singleGamePrint.css';
@@ -275,6 +276,8 @@ const SingleGameReport = ({
       </p>
 
       <SingleGameHero coaching={coaching} worstMoment={worstMoment} playerStats={playerStats} />
+
+      <SingleGameStreakCard streak={resolvedAnalysisData?.single_game_streak} />
 
       <DrillChecklistSection
         gameId={gameId || gameContext?.game_id}

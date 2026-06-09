@@ -499,6 +499,36 @@ def analyze_game_task(
         game.analysis_status = "completed"
         game.save(update_fields=["analysis_status"])
 
+        if user_id:
+            try:
+                from django.contrib.auth.models import User
+
+                from .single_game_streak import update_single_game_streak
+                from .stats_helpers import build_single_game_context
+
+                streak_user = User.objects.select_related("profile").get(id=user_id)
+                streak_profile = getattr(streak_user, "profile", None)
+                if streak_profile is not None:
+                    player_color = build_single_game_context(game, streak_profile).get("player_color", "white")
+                    analysis_payload = (
+                        analysis_result.analysis_data
+                        if isinstance(analysis_result.analysis_data, dict)
+                        else {}
+                    )
+                    update_single_game_streak(
+                        streak_profile,
+                        game_id=game.id,
+                        analysis_data=analysis_payload,
+                        player_color=player_color,
+                    )
+            except Exception as streak_exc:
+                logger.warning(
+                    "[%s] Single-game streak update failed for game %s: %s",
+                    task_id,
+                    game_id,
+                    streak_exc,
+                )
+
         if user_id and getattr(settings, "SINGLE_GAME_SEND_COMPLETE_EMAIL", True):
             try:
                 from django.contrib.auth.models import User

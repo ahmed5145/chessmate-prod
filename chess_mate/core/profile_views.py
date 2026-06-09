@@ -210,7 +210,10 @@ def profile_view(request):
                 "analysis_count": getattr(profile, "analysis_count", 0),
                 "preferences": getattr(profile, "preferences", {}),
             }
+            from .single_game_streak import get_single_game_streak
+
             response_payload.update(enrich_profile_payload(request.user, profile))
+            response_payload["single_game_streak"] = get_single_game_streak(profile.preferences)
             combined_data.update(
                 {
                     "total_games": response_payload["total_games"],
