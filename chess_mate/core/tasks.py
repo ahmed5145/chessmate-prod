@@ -1709,6 +1709,16 @@ def aggregate_and_report_task(
                     notify_exc,
                 )
 
+        if batch_report.status in ("completed", "partial"):
+            try:
+                from .referral import process_referral_on_first_batch
+
+                process_referral_on_first_batch(batch_report)
+            except Exception as referral_exc:
+                logger.warning(
+                    "Referral redemption failed for %s: %s", batch_id, referral_exc
+                )
+
         return {
             "status": final_status,
             "batch_id": batch_id,

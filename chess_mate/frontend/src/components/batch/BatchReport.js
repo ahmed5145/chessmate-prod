@@ -8,6 +8,8 @@ import { Alert, Box, Container } from '@mui/material';
 import BatchLoadingScreen from './BatchLoadingScreen';
 import BatchReportStickyActions from './BatchReportStickyActions';
 import BatchReportSections from './BatchReportSections';
+import FirstBatchModal from './FirstBatchModal';
+import PwaInstallPrompt from '../PwaInstallPrompt';
 import { getBatchStatus, getBatchReport } from '../../services/apiRequests';
 import api from '../../services/api';
 
@@ -22,6 +24,8 @@ const BatchReport = () => {
   const [error, setError] = useState(null);
   const [failedReport, setFailedReport] = useState(null);
   const [batchSendsEmail, setBatchSendsEmail] = useState(true);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [pwaEligible, setPwaEligible] = useState(false);
   const intervalRef = useRef(null);
   const loadingReportRef = useRef(false);
   const finishedRef = useRef(false);
@@ -71,6 +75,11 @@ const BatchReport = () => {
           setFailedReport(null);
           setBatchReport(report);
           setShareToken(report?.share_token || null);
+          if (report?.first_batch_celebration?.show) {
+            setShowCelebration(true);
+          } else {
+            setPwaEligible(true);
+          }
         }
       } catch (reportError) {
         if (!isMounted) {
@@ -142,6 +151,13 @@ const BatchReport = () => {
 
   return (
     <Box sx={{ minHeight: '100vh' }}>
+      <FirstBatchModal
+        open={showCelebration}
+        celebration={batchReport?.first_batch_celebration || {}}
+        onDismiss={() => setShowCelebration(false)}
+        onCelebrationComplete={() => setPwaEligible(true)}
+      />
+      {pwaEligible ? <PwaInstallPrompt batchesCompleted={1} /> : null}
       <Box className="batch-report-no-print">
         <BatchLoadingScreen
           status={status}

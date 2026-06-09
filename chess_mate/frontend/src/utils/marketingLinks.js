@@ -22,3 +22,12 @@ export const getMarketingSourceFromSearch = (search = '') => {
   const from = params.get('from');
   return from?.trim() || null;
 };
+
+export const getReferralCodeFromSearch = (search = '') => {
+  if (!search) {
+    return null;
+  }
+  const params = new URLSearchParams(search.startsWith('?') ? search : `?${search}`);
+  const ref = params.get('ref') || params.get('referral_code');
+  return ref?.trim() || null;
+};

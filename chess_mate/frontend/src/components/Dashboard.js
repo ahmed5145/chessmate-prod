@@ -25,6 +25,7 @@ import {
 } from '../utils/dashboardFocus';
 import LoadingSpinner from './LoadingSpinner';
 import WelcomeGuide from './WelcomeGuide';
+import PwaInstallPrompt from './PwaInstallPrompt';
 import GamePlatformBadge from './GamePlatformBadge';
 import CoachInboxCard from './dashboard/CoachInboxCard';
 import DashboardOneThingCard from './dashboard/DashboardOneThingCard';
@@ -481,6 +482,7 @@ const Dashboard = () => {
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'} py-8`}>
       <WelcomeGuide />
+      <PwaInstallPrompt batchesCompleted={dashboardData.batches_completed || 0} />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <DashboardSinceLastVisit sinceLastVisit={dashboardData.sinceLastVisit} />
         {!oneThingHidden ? (

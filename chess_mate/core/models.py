@@ -69,6 +69,9 @@ class Profile(models.Model):
     # Add chess platform usernames
     chess_com_username = models.CharField(max_length=50, blank=True, default="")
     lichess_username = models.CharField(max_length=50, blank=True, default="")
+    referral_code = models.CharField(
+        max_length=40, unique=True, null=True, blank=True, db_index=True
+    )
     rating_history = models.JSONField(default=dict, blank=True)  # Store rating history
     games = models.ManyToManyField("Game", blank=True, related_name="profiles")
 
@@ -992,6 +995,36 @@ class UserNotification(models.Model):
 
     def __str__(self) -> str:
         return f"{self.notification_type} for {self.user.username}: {self.title[:40]}"
+
+
+class ReferralRedemption(models.Model):
+    """Credits granted when a referred user completes their first batch (SRG-24)."""
+
+    referrer = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="referral_redemptions_given"
+    )
+    referee = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="referral_redemption_received"
+    )
+    referrer_credits = models.PositiveSmallIntegerField(default=5)
+    referee_credits = models.PositiveSmallIntegerField(default=5)
+    batch_report = models.ForeignKey(
+        "BatchAnalysisReport",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="referral_redemptions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["referrer", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"referral {self.referrer.username} → {self.referee.username}"
 
 
 class SpacedReminderLog(models.Model):

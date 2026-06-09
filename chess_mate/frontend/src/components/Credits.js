@@ -74,6 +74,7 @@ const Credits = () => {
   const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [packages, setPackages] = useState(FALLBACK_PACKAGES);
   const [creditModel, setCreditModel] = useState(DEFAULT_CREDIT_MODEL);
+  const [referralInfo, setReferralInfo] = useState(null);
   const { credits, fetchUserData } = useContext(UserContext);
   const { isDarkMode } = useTheme();
 
@@ -141,6 +142,30 @@ const Credits = () => {
     loadPackages();
   }, []);
 
+  useEffect(() => {
+    const loadReferral = async () => {
+      try {
+        const response = await api.get('/api/v1/profile/referral/');
+        setReferralInfo(response.data || null);
+      } catch (error) {
+        console.warn('Referral info unavailable:', error);
+      }
+    };
+    loadReferral();
+  }, []);
+
+  const handleCopyReferralLink = async () => {
+    if (!referralInfo?.referral_link) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(referralInfo.referral_link);
+      toast.success('Referral link copied');
+    } catch (error) {
+      toast.error('Could not copy link');
+    }
+  };
+
   const handlePurchase = async (packageId) => {
     setLoading(true);
     try {
@@ -204,6 +229,38 @@ const Credits = () => {
           </span>
         </div>
       </div>
+
+      {referralInfo?.referral_link ? (
+        <div className={`mt-10 rounded-xl border p-6 ${
+          isDarkMode ? 'border-indigo-800 bg-indigo-950/30' : 'border-indigo-200 bg-indigo-50'
+        }`}>
+          <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Invite a friend
+          </h3>
+          <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            You get {referralInfo.referrer_credits} credits when they finish their first batch;
+            they get {referralInfo.referee_bonus_credits} bonus credits on top of the{' '}
+            {creditModel.signup_bonus_credits} signup bonus.
+          </p>
+          <button
+            type="button"
+            onClick={handleCopyReferralLink}
+            className={`mt-4 inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold ${
+              isDarkMode
+                ? 'bg-indigo-600 text-white hover:bg-indigo-500'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700'
+            }`}
+          >
+            Copy referral link
+          </button>
+          <p className={`mt-2 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            {referralInfo.successful_referrals || 0} successful referrals
+            {referralInfo.monthly_cap
+              ? ` · up to ${referralInfo.monthly_cap} rewarded per month`
+              : ''}
+          </p>
+        </div>
+      ) : null}
 
       <div className={`mt-10 rounded-xl border p-6 ${
         isDarkMode ? 'border-gray-700 bg-gray-800/60' : 'border-gray-200 bg-gray-50'

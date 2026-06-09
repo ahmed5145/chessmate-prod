@@ -1127,12 +1127,12 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-20 | ✅ Done | Batch A vs B moment diff with swing sparklines |
 | SRG-21 | ✅ Done | Lost games per repertoire gap + review deep links |
 | SRG-22 | ✅ Done | Verify email + one-time welcome after confirm |
-| SRG-23 | ⬜ Not started | First-batch celebration |
-| SRG-24 | ⬜ Not started | Referral credits |
+| SRG-23 | ✅ Done | First-batch celebration modal + confetti |
+| SRG-24 | ✅ Done | Referral credits on first batch complete |
 | SRG-25 | ⬜ Not started | Streak freeze |
 | SRG-26 | ⬜ Not started | Coach persona |
 | SRG-27 | ⬜ Not started | 30d reactivation |
-| SRG-28 | ⬜ Not started | PWA install — mobile only, post-first-batch |
+| SRG-28 | ✅ Done | PWA install prompt — mobile only, post-first-batch |
 | SRG-29 | ✅ Done | Text OG on share moment page + tests |
 
 **Changelog**

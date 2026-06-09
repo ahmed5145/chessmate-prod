@@ -345,6 +345,15 @@ def register_view(request):
             elif not profile_created:
                 logger.info("Profile already exists for user %s", username)
 
+            from .referral import attach_referral_on_signup
+
+            referral_code = data.get("referral_code") or data.get("ref")
+            attach_referral_on_signup(
+                profile,
+                referral_code=referral_code,
+                signup_ip=request.META.get("REMOTE_ADDR"),
+            )
+
         # For development, log the verification token
         logger.info(
             f"User {username} registered. Verification token: {profile.email_verification_token}"

@@ -41,6 +41,7 @@ urlpatterns = [
         profile_views.cancel_subscription,
         name="cancel_subscription",
     ),
+    path("referral/", profile_views.referral_info_view, name="referral_info"),
     path("credits/add/", profile_views.add_credits, name="add_credits"),
     path("credits/purchase/", profile_views.purchase_credits, name="purchase_credits"),
     path(

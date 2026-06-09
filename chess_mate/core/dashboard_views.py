@@ -370,6 +370,9 @@ def dashboard_view(request):
             latest_batch_summary=latest_batch_summary,
         )
         dashboard_data["analyzed_games"] = analysis_count
+        from .first_batch_celebration import eligible_batches_for_user
+
+        dashboard_data["batches_completed"] = eligible_batches_for_user(user).count()
         dashboard_data["next_action"] = build_dashboard_next_action(
             total_games=total_games,
             analyzed_games=analysis_count,

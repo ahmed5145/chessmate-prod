@@ -697,6 +697,17 @@ def confirm_credit_purchase(request):
     )
 
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def referral_info_view(request):
+    """GET referral link and stats for the authenticated user (SRG-24)."""
+    from .models import Profile
+    from .referral import build_referral_payload
+
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    return Response(build_referral_payload(profile, request))
+
+
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def update_preferences(request):

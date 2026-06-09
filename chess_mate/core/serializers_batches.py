@@ -12,6 +12,7 @@ from rest_framework import serializers
 from .batch_labels import BATCH_COACH_MAX_GAMES, BATCH_COACH_REQUIRES_MIN
 from .batch_moment_diff import build_batch_moment_diff
 from .fix_rate import build_fix_rate_payload
+from .first_batch_celebration import build_first_batch_celebration_payload
 from .opening_gaps_games import enrich_batch_summary_opening_gaps
 from .models import BatchAnalysisReport, Game
 
@@ -350,4 +351,13 @@ class BatchAnalysisReportSerializer(serializers.ModelSerializer):
             else:
                 data["fix_rate"] = {"show": False}
                 data["moment_diff"] = {"show": False}
+
+            if profile is not None and instance.status in ("completed", "partial"):
+                data["first_batch_celebration"] = build_first_batch_celebration_payload(
+                    instance, profile
+                )
+            else:
+                data["first_batch_celebration"] = {"show": False}
+        else:
+            data["first_batch_celebration"] = {"show": False}
         return data

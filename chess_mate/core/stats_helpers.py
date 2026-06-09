@@ -1182,6 +1182,12 @@ def enrich_profile_payload(user, profile: Profile) -> Dict[str, Any]:
         latest_batch_summary if isinstance(latest_batch_summary, dict) else None
     )
 
+    batches_completed = BatchAnalysisReport.objects.filter(
+        user=user,
+        status__in=["completed", "partial"],
+        games_count__gte=5,
+    ).count()
+
     return {
         "total_games": counts["total"],
         "win_rate": get_win_rate(counts["total"], counts["wins"]),
@@ -1193,4 +1199,5 @@ def enrich_profile_payload(user, profile: Profile) -> Dict[str, Any]:
         "wins": counts["wins"],
         "losses": counts["losses"],
         "draws": counts["draws"],
+        "batches_completed": batches_completed,
     }

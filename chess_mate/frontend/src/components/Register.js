@@ -5,7 +5,7 @@ import { KeyRound, Mail, User } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useTheme } from "../context/ThemeContext";
 import { extractApiError } from "../utils/apiErrors";
-import { getMarketingSourceFromSearch } from "../utils/marketingLinks";
+import { getMarketingSourceFromSearch, getReferralCodeFromSearch } from "../utils/marketingLinks";
 import { trackMarketingEvent } from "../utils/marketingAnalytics";
 
 const validatePassword = (password) => {
@@ -42,6 +42,7 @@ const Register = () => {
   const location = useLocation();
   const { isDarkMode } = useTheme();
   const marketingSource = getMarketingSourceFromSearch(location.search);
+  const referralCode = getReferralCodeFromSearch(location.search);
 
   // Check password validation on change
   useEffect(() => {
@@ -82,7 +83,12 @@ const Register = () => {
 
     setLoading(true);
     try {
-      const response = await registerUser({ username, email, password });
+      const response = await registerUser({
+        username,
+        email,
+        password,
+        ...(referralCode ? { referral_code: referralCode } : {}),
+      });
 
       if (response.status === 'success' && response.requires_email_verification) {
         trackMarketingEvent('register_complete', {
