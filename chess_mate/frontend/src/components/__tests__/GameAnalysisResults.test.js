@@ -26,6 +26,10 @@ jest.mock('../singlegame/SingleGameReportActions', () => function MockSingleGame
   return null;
 });
 
+jest.mock('../singlegame/DrillChecklistSection', () => function MockDrillChecklistSection() {
+  return null;
+});
+
 jest.mock('../../utils/marketingAnalytics', () => ({
   trackSingleGameEvent: jest.fn(),
 }));
