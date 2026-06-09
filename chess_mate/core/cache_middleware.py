@@ -67,7 +67,9 @@ MODEL_CACHE_MAPPING: Dict[str, Dict[str, Any]] = {
         "invalidate_functions": [
             invalidate_game_for_instance,
         ],
-        "related_invalidations": [{"field": "user", "func": invalidate_user_games_for_user}],
+        "related_invalidations": [
+            {"field": "user", "func": invalidate_user_games_for_user}
+        ],
     },
     "Player": {
         "tags": ["players", "games"],
@@ -219,7 +221,9 @@ def setup_cache_invalidation():
                 logger.warning("Could not find model %s", model_name)
 
         except CACHE_INVALIDATION_EXCEPTIONS as e:
-            logger.error("Error setting up cache invalidation for %s: %s", model_name, e)
+            logger.error(
+                "Error setting up cache invalidation for %s: %s", model_name, e
+            )
 
 
 def invalidate_player_cache_for_game(game_id):

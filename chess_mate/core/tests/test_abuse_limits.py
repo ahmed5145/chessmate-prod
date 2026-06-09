@@ -71,7 +71,9 @@ def _clear_cache():
             cache_delete(f"{prefix}:{ip}:ts")
 
 
-MIDDLEWARE_NO_RATE_LIMIT = [m for m in django_settings.MIDDLEWARE if m != "core.middleware.RateLimitMiddleware"]
+MIDDLEWARE_NO_RATE_LIMIT = [
+    m for m in django_settings.MIDDLEWARE if m != "core.middleware.RateLimitMiddleware"
+]
 
 
 def _auth_client(user):
@@ -99,18 +101,30 @@ class TestSignupRateLimit(TestCase):
         CACHES=LOCMEM_CACHES,
     )
     def test_register_blocks_after_ip_limit(self):
-        payload = {"username": "user1", "email": "one@example.com", "password": "Password123!"}
+        payload = {
+            "username": "user1",
+            "email": "one@example.com",
+            "password": "Password123!",
+        }
         for idx in range(2):
             response = self.client.post(
                 "/api/v1/auth/register/",
-                {**payload, "username": f"user{idx}", "email": f"user{idx}@example.com"},
+                {
+                    **payload,
+                    "username": f"user{idx}",
+                    "email": f"user{idx}@example.com",
+                },
                 format="json",
             )
             assert response.status_code == 201, response.data
 
         blocked = self.client.post(
             "/api/v1/auth/register/",
-            {"username": "user3", "email": "user3@example.com", "password": "Password123!"},
+            {
+                "username": "user3",
+                "email": "user3@example.com",
+                "password": "Password123!",
+            },
             format="json",
         )
         assert blocked.status_code == 429
@@ -249,7 +263,11 @@ class TestDailyBatchLimit(TestCase):
         ensure_profile(self.user, credits=100)
         self.client = _auth_client(self.user)
 
-    @override_settings(MAX_BATCHES_PER_USER_PER_DAY=2, ALLOW_CONCURRENT_BATCHES=True, CACHES=LOCMEM_CACHES)
+    @override_settings(
+        MAX_BATCHES_PER_USER_PER_DAY=2,
+        ALLOW_CONCURRENT_BATCHES=True,
+        CACHES=LOCMEM_CACHES,
+    )
     @patch("core.views_batches.analyze_batch_task.delay")
     @patch("core.serializers_batches.chess.pgn.read_game")
     def test_batch_create_blocks_after_daily_limit(self, mock_parse, mock_task):
@@ -258,10 +276,14 @@ class TestDailyBatchLimit(TestCase):
         pgn_data = [f'[Event "T{i}"]\n1.e4 e5' for i in range(5)]
 
         for _ in range(2):
-            response = self.client.post("/api/v1/batches/", {"games": pgn_data}, format="json")
+            response = self.client.post(
+                "/api/v1/batches/", {"games": pgn_data}, format="json"
+            )
             assert response.status_code == 202, response.data
 
-        blocked = self.client.post("/api/v1/batches/", {"games": pgn_data}, format="json")
+        blocked = self.client.post(
+            "/api/v1/batches/", {"games": pgn_data}, format="json"
+        )
         assert blocked.status_code == 429
         assert blocked.data["code"] == "BATCH_001"
         assert blocked.data["detail"]["limit"] == 2
@@ -279,7 +301,9 @@ class TestDailyBatchLimit(TestCase):
             games_count=5,
         )
         pgn_data = [f'[Event "T{i}"]\n1.e4 e5' for i in range(5)]
-        response = self.client.post("/api/v1/batches/", {"games": pgn_data}, format="json")
+        response = self.client.post(
+            "/api/v1/batches/", {"games": pgn_data}, format="json"
+        )
         assert response.status_code == 429
         assert response.data["code"] == "BATCH_002"
         assert response.data["detail"]["active_batch"] is True
@@ -343,7 +367,9 @@ class TestCoachingRegenerateLimit(TestCase):
 class TestCheckoutRateLimit(TestCase):
     def setUp(self):
         _clear_cache()
-        self.user = User.objects.create_user(username="payuser", email="pay@example.com", password="pass")
+        self.user = User.objects.create_user(
+            username="payuser", email="pay@example.com", password="pass"
+        )
         ensure_profile(self.user, credits=5)
         self.client = _auth_client(self.user)
 
@@ -354,13 +380,21 @@ class TestCheckoutRateLimit(TestCase):
         RATE_LIMIT=HIGH_AUTH_RATE_LIMIT,
     )
     def test_checkout_blocks_after_hourly_limit(self):
-        with patch("core.views_credits.PaymentProcessor.create_checkout_session") as mock_checkout:
-            mock_checkout.return_value = Mock(url="https://checkout.stripe.test/session", id="cs_test_1")
+        with patch(
+            "core.views_credits.PaymentProcessor.create_checkout_session"
+        ) as mock_checkout:
+            mock_checkout.return_value = Mock(
+                url="https://checkout.stripe.test/session", id="cs_test_1"
+            )
             for _ in range(2):
-                response = self.client.post("/api/v1/purchase-credits/", {"package_id": "basic"})
+                response = self.client.post(
+                    "/api/v1/purchase-credits/", {"package_id": "basic"}
+                )
                 assert response.status_code == 200, response.data
 
-            blocked = self.client.post("/api/v1/purchase-credits/", {"package_id": "basic"})
+            blocked = self.client.post(
+                "/api/v1/purchase-credits/", {"package_id": "basic"}
+            )
         assert blocked.status_code == 429
         assert blocked.data["code"] == "PAY_001"
 
@@ -390,10 +424,14 @@ class TestAbuseLimitUnitHelpers(TestCase):
     @override_settings(CACHES=LOCMEM_CACHES)
     def test_password_reset_email_window(self):
         with override_settings(PASSWORD_RESET_MAX_PER_EMAIL=2):
-            assert check_password_reset_allowed(self.request, "a@example.com")[0] is True
+            assert (
+                check_password_reset_allowed(self.request, "a@example.com")[0] is True
+            )
             record_password_reset_request(self.request, "a@example.com")
             record_password_reset_request(self.request, "a@example.com")
-            assert check_password_reset_allowed(self.request, "a@example.com")[0] is False
+            assert (
+                check_password_reset_allowed(self.request, "a@example.com")[0] is False
+            )
 
     @override_settings(CACHES=LOCMEM_CACHES, MAX_GAME_IMPORTS_PER_USER_PER_DAY=3)
     def test_game_import_daily_count(self):
@@ -412,7 +450,9 @@ class TestAbuseLimitUnitHelpers(TestCase):
         assert allowed is False
         assert info["count"] == 3
 
-    @override_settings(CACHES=LOCMEM_CACHES, MAX_EXTERNAL_FETCH_REQUESTS_PER_USER_PER_DAY=2)
+    @override_settings(
+        CACHES=LOCMEM_CACHES, MAX_EXTERNAL_FETCH_REQUESTS_PER_USER_PER_DAY=2
+    )
     def test_external_fetch_daily_count(self):
         assert check_external_fetch_allowed(self.user)[0] is True
         record_external_fetch(self.user)
@@ -438,7 +478,9 @@ class TestAbuseLimitUnitHelpers(TestCase):
         record_checkout_session(self.user)
         assert check_checkout_allowed(self.user)[0] is False
 
-    @override_settings(CACHES=LOCMEM_CACHES, MAX_COACHING_REGENERATIONS_PER_BATCH_PER_DAY=1)
+    @override_settings(
+        CACHES=LOCMEM_CACHES, MAX_COACHING_REGENERATIONS_PER_BATCH_PER_DAY=1
+    )
     def test_coaching_regenerate_counters(self):
         batch_id = 99
         assert check_coaching_regenerate_allowed(self.user, batch_id)[0] is True
@@ -447,7 +489,9 @@ class TestAbuseLimitUnitHelpers(TestCase):
 
     @override_settings(MAX_BATCHES_PER_USER_PER_DAY=5)
     def test_staff_bypasses_batch_daily_limit(self):
-        staff = User.objects.create_user(username="staff", password="pass", is_staff=True)
+        staff = User.objects.create_user(
+            username="staff", password="pass", is_staff=True
+        )
         for idx in range(6):
             BatchAnalysisReport.objects.create(
                 user=staff,
@@ -469,7 +513,9 @@ class TestAwsSetupArtifacts(TestCase):
         return Path(__file__).resolve().parents[3]
 
     def test_cloudwatch_policy_json_exists_and_allows_required_actions(self):
-        policy_path = self.repo_root / "scripts" / "aws" / "iam-cloudwatch-alarms-policy.json"
+        policy_path = (
+            self.repo_root / "scripts" / "aws" / "iam-cloudwatch-alarms-policy.json"
+        )
         assert policy_path.is_file(), f"Missing policy file: {policy_path}"
         import json
 

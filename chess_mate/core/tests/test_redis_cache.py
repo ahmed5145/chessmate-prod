@@ -128,7 +128,11 @@ class MockRedis:
         if isinstance(value, bytes):
             value_str = value
         else:
-            value_str = value.encode("utf-8") if isinstance(value, str) else str(value).encode("utf-8")
+            value_str = (
+                value.encode("utf-8")
+                if isinstance(value, str)
+                else str(value).encode("utf-8")
+            )
 
         self.sets[key].add(value_str)
         return 1
@@ -181,7 +185,9 @@ def mock_redis_client(monkeypatch):
         return mock_client
 
     # Replace the real client with our mock
-    monkeypatch.setattr("chess_mate.core.redis_config.get_redis_client", mock_get_redis_client)
+    monkeypatch.setattr(
+        "chess_mate.core.redis_config.get_redis_client", mock_get_redis_client
+    )
 
     return mock_client
 
@@ -541,7 +547,9 @@ class TestCacheOperations:
         mock_redis.scan_iter.assert_called_once_with(match="user:123*")
 
         # Check that Redis.delete was called for each key
-        assert mock_redis.delete.call_count == 1  # pipeline execute calls delete once with all keys
+        assert (
+            mock_redis.delete.call_count == 1
+        )  # pipeline execute calls delete once with all keys
 
         # Check the result
         assert result is True
@@ -570,7 +578,9 @@ class TestCacheMemoize:
         mock_redis.set.assert_called_once()
 
         # Configure mock Redis for cache hit on second call
-        mock_redis.get.return_value = json.dumps({"value": "hello_world"}).encode("utf-8")
+        mock_redis.get.return_value = json.dumps({"value": "hello_world"}).encode(
+            "utf-8"
+        )
 
         # Reset set method for clearer assertions
         mock_redis.set.reset_mock()
@@ -706,7 +716,9 @@ class TestIntegrationWithRedis:
 
         # Second call with same arguments (cache hit)
         result2 = test_function("hello", "world")
-        assert result2 == "hello_world_1"  # Note: still has count=1 because it was cached
+        assert (
+            result2 == "hello_world_1"
+        )  # Note: still has count=1 because it was cached
         assert call_count == 1  # Function wasn't actually called again
 
         # Call with different arguments (cache miss)

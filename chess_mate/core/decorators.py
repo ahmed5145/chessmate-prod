@@ -220,13 +220,19 @@ def api_login_required(view_func: F) -> F:
                 return view_func(request, *args, **kwargs)
 
             # No valid JWT token found, return 401
-            return JsonResponse({"status": "error", "message": "Authentication required"}, status=401)
+            return JsonResponse(
+                {"status": "error", "message": "Authentication required"}, status=401
+            )
 
         except AuthenticationFailed:
             # Invalid token
-            return JsonResponse({"status": "error", "message": "Invalid or expired token"}, status=401)
+            return JsonResponse(
+                {"status": "error", "message": "Invalid or expired token"}, status=401
+            )
         except (ValueError, TypeError, RuntimeError, AttributeError) as e:
             logger.error("Error in api_login_required: %s", e, exc_info=True)
-            return JsonResponse({"status": "error", "message": "Authentication error"}, status=401)
+            return JsonResponse(
+                {"status": "error", "message": "Authentication error"}, status=401
+            )
 
     return cast(F, wrapped_view)

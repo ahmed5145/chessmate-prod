@@ -54,7 +54,9 @@ class Migration(migrations.Migration):
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 (
                     "user",
-                    models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="auth.user"),
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, to="auth.user"
+                    ),
                 ),
             ],
             options={
@@ -82,11 +84,15 @@ class Migration(migrations.Migration):
                 ("rating_comment", models.TextField(blank=True, null=True)),
                 (
                     "game",
-                    models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="core.game"),
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, to="core.game"
+                    ),
                 ),
                 (
                     "user",
-                    models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="auth.user"),
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, to="auth.user"
+                    ),
                 ),
             ],
             options={

@@ -55,7 +55,9 @@ class RedisManager:
                 health_check_interval=30,
                 decode_responses=True,
             )
-            logger.info(f"Redis connection pool initialized with {self._MAX_CONNECTIONS} max connections")
+            logger.info(
+                f"Redis connection pool initialized with {self._MAX_CONNECTIONS} max connections"
+            )
         except Exception as e:
             logger.error(f"Failed to initialize Redis connection pool: {str(e)}")
             raise

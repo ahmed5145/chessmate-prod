@@ -55,7 +55,9 @@ def _filter_player_moves(
     player_color: str,
 ) -> List[Dict[str, Any]]:
     is_white_player = player_color == "white"
-    return [mv for mv in analyzed_moves if bool(mv.get("is_white", True)) == is_white_player]
+    return [
+        mv for mv in analyzed_moves if bool(mv.get("is_white", True)) == is_white_player
+    ]
 
 
 def compute_game_accuracy(

@@ -32,7 +32,9 @@ def test_template_coach_notes_without_openai():
 
     assert "game_0" in notes
     assert "move 12" in notes["game_0"].lower()
-    assert "hanging piece" in notes["game_0"].lower() or "hanging_piece" in notes["game_0"]
+    assert (
+        "hanging piece" in notes["game_0"].lower() or "hanging_piece" in notes["game_0"]
+    )
 
 
 def test_attach_coach_notes_to_results():

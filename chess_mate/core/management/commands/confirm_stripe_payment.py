@@ -17,7 +17,11 @@ class Command(BaseCommand):
     help = "Grant credits from a paid Stripe Checkout session_id (manual recovery)."
 
     def add_arguments(self, parser):
-        parser.add_argument("session_id", type=str, help="Stripe Checkout session id (cs_test_... or cs_live_...)")
+        parser.add_argument(
+            "session_id",
+            type=str,
+            help="Stripe Checkout session id (cs_test_... or cs_live_...)",
+        )
         parser.add_argument(
             "--user-id",
             type=int,
@@ -30,7 +34,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Credit user even if session metadata user_id differs",
         )
-        parser.add_argument("--dry-run", action="store_true", help="Verify session only; do not write DB")
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Verify session only; do not write DB",
+        )
 
     def handle(self, *args, **options):
         if not getattr(settings, "STRIPE_SECRET_KEY", ""):
@@ -58,19 +66,28 @@ class Command(BaseCommand):
             raise CommandError(f"Stripe verify failed: {exc}") from exc
 
         if not payment_data:
-            raise CommandError("Session is not paid yet. Check Stripe Dashboard → Payments.")
+            raise CommandError(
+                "Session is not paid yet. Check Stripe Dashboard → Payments."
+            )
 
         meta_uid = payment_data.get("user_id")
-        if meta_uid is not None and str(meta_uid) != str(user.id) and not options["force"]:
+        if (
+            meta_uid is not None
+            and str(meta_uid) != str(user.id)
+            and not options["force"]
+        ):
             raise CommandError(
-                f"Session metadata user_id={meta_uid} does not match --user-id={user.id}. " "Use --force to override."
+                f"Session metadata user_id={meta_uid} does not match --user-id={user.id}. "
+                "Use --force to override."
             )
 
         credits_to_add = int(payment_data.get("credits") or 0)
         if credits_to_add <= 0:
             raise CommandError("Session has no credits in metadata.")
 
-        existing = Transaction.objects.filter(user=user, stripe_payment_id=session_id, status="completed").first()
+        existing = Transaction.objects.filter(
+            user=user, stripe_payment_id=session_id, status="completed"
+        ).first()
         if existing:
             profile = Profile.objects.get(user=user)
             self.stdout.write(
@@ -108,6 +125,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Added {credits_to_add} credits to id={user.id} {user.username}. " f"New balance={profile.credits}"
+                f"Added {credits_to_add} credits to id={user.id} {user.username}. "
+                f"New balance={profile.credits}"
             )
         )

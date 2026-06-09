@@ -7,9 +7,22 @@ class Command(BaseCommand):
     help = "Add credits to a user profile by email address."
 
     def add_arguments(self, parser):
-        parser.add_argument("email", nargs="?", default="", type=str, help="User email (case-insensitive)")
-        parser.add_argument("amount", type=int, help="Credits to add (can be negative to deduct)")
-        parser.add_argument("--user-id", type=int, dest="user_id", help="Target user by id (overrides email)")
+        parser.add_argument(
+            "email",
+            nargs="?",
+            default="",
+            type=str,
+            help="User email (case-insensitive)",
+        )
+        parser.add_argument(
+            "amount", type=int, help="Credits to add (can be negative to deduct)"
+        )
+        parser.add_argument(
+            "--user-id",
+            type=int,
+            dest="user_id",
+            help="Target user by id (overrides email)",
+        )
 
     def handle(self, *args, **options):
         amount = options["amount"]
@@ -40,5 +53,7 @@ class Command(BaseCommand):
         profile.save(update_fields=["credits"])
 
         self.stdout.write(
-            self.style.SUCCESS(f"User {user.username} ({email}): credits {before} -> {profile.credits} ({amount:+d})")
+            self.style.SUCCESS(
+                f"User {user.username} ({email}): credits {before} -> {profile.credits} ({amount:+d})"
+            )
         )

@@ -21,13 +21,17 @@ def test_count_plies_in_pgn():
 
 
 def test_timer_mark_and_complete():
-    timer = SingleGameAnalysisTimer(task_id="task-1", game_id=168, depth=20, move_count=73)
+    timer = SingleGameAnalysisTimer(
+        task_id="task-1", game_id=168, depth=20, move_count=73
+    )
     timer.mark("stockfish_start")
     timer.complete(analysis_id=99)
     assert "stockfish_start" in timer.phases
 
 
 def test_timer_fail_marks_timeout():
-    timer = SingleGameAnalysisTimer(task_id="task-2", game_id=42, depth=20, move_count=40)
+    timer = SingleGameAnalysisTimer(
+        task_id="task-2", game_id=42, depth=20, move_count=40
+    )
     timer.fail(SoftTimeLimitExceeded(), progress=46)
     assert timer.phases == {}

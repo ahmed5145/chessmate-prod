@@ -13,7 +13,9 @@ import chess.pgn
 
 _LICHESS_GAME_RE = re.compile(r"lichess\.org/([a-zA-Z0-9]{8,12})", re.IGNORECASE)
 _CHESSCOM_GAME_RE = re.compile(r"chess\.com/(?:game/)?([a-zA-Z0-9/_-]+)", re.IGNORECASE)
-_LICHESS_RESERVED = frozenset({"study", "training", "practice", "api", "learn", "forum", "broadcast"})
+_LICHESS_RESERVED = frozenset(
+    {"study", "training", "practice", "api", "learn", "forum", "broadcast"}
+)
 
 
 def _normalize_platform_url(url: str) -> Optional[str]:

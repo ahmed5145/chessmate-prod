@@ -39,7 +39,9 @@ def player_has_winning_mate(is_white: bool, eval_after: float) -> bool:
     return False
 
 
-def player_eval_deterioration(is_white: bool, eval_before: float, eval_after: float) -> float:
+def player_eval_deterioration(
+    is_white: bool, eval_before: float, eval_after: float
+) -> float:
     """
     How much the moving side worsened their position (non-negative pawns).
 

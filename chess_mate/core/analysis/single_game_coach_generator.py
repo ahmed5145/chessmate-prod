@@ -48,8 +48,16 @@ def _template_coaching(
     game_context: Optional[Dict[str, Any]] = None,
     batch_context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    overall = metrics_summary.get("overall", {}) if isinstance(metrics_summary.get("overall"), dict) else {}
-    phases = metrics_summary.get("phases", {}) if isinstance(metrics_summary.get("phases", {}), dict) else {}
+    overall = (
+        metrics_summary.get("overall", {})
+        if isinstance(metrics_summary.get("overall"), dict)
+        else {}
+    )
+    phases = (
+        metrics_summary.get("phases", {})
+        if isinstance(metrics_summary.get("phases", {}), dict)
+        else {}
+    )
     accuracy = overall.get("accuracy")
     mistakes = overall.get("mistakes") or overall.get("blunders") or 0
 
@@ -62,7 +70,9 @@ def _template_coaching(
     weakest = _weakest_phase(phases)
 
     priority = (
-        (batch_context or {}).get("priority") if isinstance((batch_context or {}).get("priority"), dict) else None
+        (batch_context or {}).get("priority")
+        if isinstance((batch_context or {}).get("priority"), dict)
+        else None
     )
     priority_title = str(priority.get("title") or "").strip() if priority else ""
 
@@ -105,7 +115,11 @@ def _template_coaching(
 
     phase_notes: Dict[str, str] = {}
     for phase_name in ("opening", "middlegame", "endgame"):
-        phase = phases.get(phase_name, {}) if isinstance(phases.get(phase_name), dict) else {}
+        phase = (
+            phases.get(phase_name, {})
+            if isinstance(phases.get(phase_name), dict)
+            else {}
+        )
         phase_acc = phase.get("accuracy")
         phase_mistakes = phase.get("mistakes", 0)
         if phase_acc is not None:
@@ -153,14 +167,17 @@ def generate_single_game_coaching(
         from openai import OpenAI
 
         model = getattr(settings, "SINGLE_GAME_COACH_MODEL", "gpt-4o-mini")
-        client = OpenAI(api_key=api_key.strip() if isinstance(api_key, str) else api_key)
+        client = OpenAI(
+            api_key=api_key.strip() if isinstance(api_key, str) else api_key
+        )
 
         worst_moves = sorted(
             [
                 m
                 for m in analyzed_moves
                 if isinstance(m, dict)
-                and str(m.get("classification", "")).lower() in {"blunder", "mistake", "inaccuracy"}
+                and str(m.get("classification", "")).lower()
+                in {"blunder", "mistake", "inaccuracy"}
             ],
             key=lambda item: abs(float(item.get("eval_change") or 0)),
             reverse=True,
@@ -234,7 +251,11 @@ def generate_single_game_coaching(
                 enriched["explanation"] = explanation_by_move[move_no]
             enriched_moments.append(enriched)
 
-        phase_notes = parsed.get("phase_notes") if isinstance(parsed.get("phase_notes"), dict) else {}
+        phase_notes = (
+            parsed.get("phase_notes")
+            if isinstance(parsed.get("phase_notes"), dict)
+            else {}
+        )
         headline = str(parsed.get("headline") or template.get("headline") or "").strip()
         takeaway = str(parsed.get("takeaway") or template["takeaway"]).strip()
         do_today = str(parsed.get("do_today") or template["do_today"]).strip()

@@ -24,7 +24,9 @@ def build_moment_signature(
 ) -> str:
     pattern = _normalize_token(pattern_or_type) or "positional_slip"
     pattern = pattern.replace(" ", "_")
-    phase_name = phase if phase in ("opening", "middlegame", "endgame") else "middlegame"
+    phase_name = (
+        phase if phase in ("opening", "middlegame", "endgame") else "middlegame"
+    )
     eco = str(opening_eco or "").strip().upper()[:10]
     return f"{pattern}|{phase_name}|{eco}"
 
@@ -158,6 +160,7 @@ def record_batch_timeline_events(batch_report: BatchAnalysisReport) -> int:
                     eco = getattr(game, "eco_code", None)
             signature = signature_from_moment(moment, opening_eco=eco)
             dedupe_key = f"batch:{batch_report.id}:moment:{signature}:{moment.get('move_number')}"
+            dedupe_key = f"batch:{batch_report.id}:moment:{signature}:{moment.get('move_number')}"
             _append_event(
                 profile,
                 {
@@ -184,6 +187,7 @@ def record_batch_timeline_events(batch_report: BatchAnalysisReport) -> int:
                 if not isinstance(moment, dict):
                     continue
                 signature = signature_from_moment(moment)
+                dedupe_key = f"batch:{batch_report.id}:fallback:{signature}:{moment.get('move_number')}"
                 dedupe_key = f"batch:{batch_report.id}:fallback:{signature}:{moment.get('move_number')}"
                 _append_event(
                     profile,

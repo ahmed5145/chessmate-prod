@@ -29,6 +29,7 @@ def _opening_matches_gap(game: Dict[str, Any], gap: Dict[str, Any]) -> bool:
     game_eco = str(game.get("eco_code") or "").strip().upper()
 
     if gap_name and (game_name == gap_name or game_name.startswith(f"{gap_name}:")):
+    if gap_name and (game_name == gap_name or game_name.startswith(f"{gap_name}:")):
         return True
     if gap_eco and game_eco and gap_eco == game_eco:
         return True
@@ -39,7 +40,9 @@ def _opening_matches_gap(game: Dict[str, Any], gap: Dict[str, Any]) -> bool:
     return False
 
 
-def _review_href(saved_game_id: int, batch_id: Optional[int], move_number: Optional[int]) -> str:
+def _review_href(
+    saved_game_id: int, batch_id: Optional[int], move_number: Optional[int]
+) -> str:
     href = f"/game/{saved_game_id}/analysis?mode=review"
     if batch_id is not None:
         href = f"{href}&batch={batch_id}"
@@ -70,7 +73,10 @@ def _opening_moment_move(game: Dict[str, Any]) -> Optional[int]:
     for moment in moments:
         if not isinstance(moment, dict):
             continue
-        if moment.get("phase") == PHASES_OPENING and moment.get("move_number") is not None:
+        if (
+            moment.get("phase") == PHASES_OPENING
+            and moment.get("move_number") is not None
+        ):
             try:
                 return int(moment["move_number"])
             except (TypeError, ValueError):
@@ -135,6 +141,7 @@ def enrich_repertoire_gap(
     batch_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     row = dict(gap)
+    lost_games = collect_lost_games_for_gap(gap, per_game_results, batch_id=batch_id)
     lost_games = collect_lost_games_for_gap(gap, per_game_results, batch_id=batch_id)
     row["lost_games"] = lost_games
     row["loss_count"] = len(lost_games)

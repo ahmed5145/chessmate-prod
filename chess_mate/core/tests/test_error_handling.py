@@ -29,7 +29,9 @@ def api_client():
 @pytest.fixture
 def user():
     """Create a test user."""
-    return User.objects.create_user(username="testuser", email="test@example.com", password="testpassword")
+    return User.objects.create_user(
+        username="testuser", email="test@example.com", password="testpassword"
+    )
 
 
 @pytest.fixture
@@ -132,7 +134,10 @@ class TestCustomExceptions:
     def test_credit_limit_error(self):
         """Test CreditLimitError exception."""
         exc = CreditLimitError(10, 5)
-        assert str(exc) == "This operation requires 10 credits, but you only have 5 credits"
+        assert (
+            str(exc)
+            == "This operation requires 10 credits, but you only have 5 credits"
+        )
         assert exc.status_code == status.HTTP_402_PAYMENT_REQUIRED
 
     def test_validation_error(self):
@@ -178,7 +183,9 @@ class TestErrorHandlerDecorator:
     def test_api_exception_view(self):
         """Test decorator handling of API exceptions."""
         request = type("Request", (), {"request_id": "test-id"})()
-        response = sample_view_function(request, raise_error=True, error_type="chess_service")
+        response = sample_view_function(
+            request, raise_error=True, error_type="chess_service"
+        )
 
         assert response.status_code == status.HTTP_502_BAD_GATEWAY
         assert response.json()["status"] == "error"
@@ -187,7 +194,9 @@ class TestErrorHandlerDecorator:
     def test_resource_not_found_view(self):
         """Test decorator handling of ResourceNotFoundError."""
         request = type("Request", (), {"request_id": "test-id"})()
-        response = sample_view_function(request, raise_error=True, error_type="resource_not_found")
+        response = sample_view_function(
+            request, raise_error=True, error_type="resource_not_found"
+        )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert response.json()["status"] == "error"
@@ -197,7 +206,9 @@ class TestErrorHandlerDecorator:
     def test_validation_error_view(self):
         """Test decorator handling of ValidationError."""
         request = type("Request", (), {"request_id": "test-id"})()
-        response = sample_view_function(request, raise_error=True, error_type="validation")
+        response = sample_view_function(
+            request, raise_error=True, error_type="validation"
+        )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.json()["status"] == "error"

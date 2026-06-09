@@ -63,7 +63,9 @@ def resolve_batch_game_ids(batch_report: BatchAnalysisReport) -> List[int]:
     return ordered
 
 
-def collect_batch_pgns(batch_report: BatchAnalysisReport) -> Tuple[List[str], List[int]]:
+def collect_batch_pgns(
+    batch_report: BatchAnalysisReport,
+) -> Tuple[List[str], List[int]]:
     """Load PGN strings for a batch's saved games (same user)."""
     game_ids = resolve_batch_game_ids(batch_report)
     if not game_ids:
@@ -95,7 +97,9 @@ def collect_batch_pgns(batch_report: BatchAnalysisReport) -> Tuple[List[str], Li
         )
 
     if len(pgns) < 5:
-        raise BatchRerunError(f"Need at least 5 games with PGN to rerun (found {len(pgns)}).")
+        raise BatchRerunError(
+            f"Need at least 5 games with PGN to rerun (found {len(pgns)})."
+        )
 
     return pgns, source_ids
 
@@ -131,7 +135,8 @@ def queue_batch_rerun(batch_report: BatchAnalysisReport, *, eager: bool = False)
     """
     if batch_report.status not in ("completed", "partial", "failed"):
         raise BatchRerunError(
-            f"Batch {batch_report.id} is {batch_report.status}; " "wait for it to finish or cancel it first."
+            f"Batch {batch_report.id} is {batch_report.status}; "
+            "wait for it to finish or cancel it first."
         )
 
     pgns, source_ids = collect_batch_pgns(batch_report)
@@ -150,10 +155,18 @@ def queue_batch_rerun(batch_report: BatchAnalysisReport, *, eager: bool = False)
         for i, pgn in enumerate(pgns):
             saved_id = source_ids[i] if i < len(source_ids) else None
             try:
-                results.append(analyze_single_game_subtask(pgn, f"game_{i}", task_id, user_id, saved_id))
+                results.append(
+                    analyze_single_game_subtask(
+                        pgn, f"game_{i}", task_id, user_id, saved_id
+                    )
+                )
             except Exception as exc:
-                logger.exception("Batch %s eager rerun game %s failed: %s", batch_report.id, i, exc)
-                results.append({"game_id": f"game_{i}", "status": "failed", "error": str(exc)})
+                logger.exception(
+                    "Batch %s eager rerun game %s failed: %s", batch_report.id, i, exc
+                )
+                results.append(
+                    {"game_id": f"game_{i}", "status": "failed", "error": str(exc)}
+                )
         aggregate_and_report_task(results, task_id, pgns, user_id)
         return f"Re-analyzed batch {batch_report.id} inline ({len(pgns)} games)."
 

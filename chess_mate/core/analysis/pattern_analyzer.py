@@ -106,7 +106,9 @@ class PatternAnalyzer:
                 }
 
                 # Cache game data
-                cache_set(cache_key, game_data, timeout=3600, backend=CACHE_BACKEND_REDIS)  # 1 hour
+                cache_set(
+                    cache_key, game_data, timeout=3600, backend=CACHE_BACKEND_REDIS
+                )  # 1 hour
 
             return game_data
 
@@ -175,7 +177,9 @@ class PatternAnalyzer:
             pattern_analysis["patterns"].extend(position_patterns)
 
             # Calculate statistics
-            pattern_analysis["statistics"] = self._calculate_pattern_statistics(pattern_analysis["patterns"])
+            pattern_analysis["statistics"] = self._calculate_pattern_statistics(
+                pattern_analysis["patterns"]
+            )
 
             return pattern_analysis
 
@@ -183,7 +187,9 @@ class PatternAnalyzer:
             logger.error(f"Error analyzing patterns: {str(e)}")
             return {}
 
-    def _analyze_move_patterns(self, moves: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _analyze_move_patterns(
+        self, moves: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """Analyze moves for patterns."""
         try:
             patterns = []
@@ -199,7 +205,9 @@ class PatternAnalyzer:
             logger.error(f"Error analyzing move patterns: {str(e)}")
             return []
 
-    def _analyze_position_patterns(self, positions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _analyze_position_patterns(
+        self, positions: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """Analyze positions for patterns."""
         try:
             patterns = []
@@ -227,7 +235,9 @@ class PatternAnalyzer:
             logger.error(f"Error checking move patterns: {str(e)}")
             return []
 
-    def _check_position_patterns(self, position: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _check_position_patterns(
+        self, position: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """Check position for patterns."""
         try:
             patterns = []
@@ -239,7 +249,9 @@ class PatternAnalyzer:
             logger.error(f"Error checking position patterns: {str(e)}")
             return []
 
-    def _calculate_pattern_statistics(self, patterns: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _calculate_pattern_statistics(
+        self, patterns: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """Calculate pattern statistics."""
         try:
             statistics = {
@@ -252,7 +264,9 @@ class PatternAnalyzer:
                 # Count pattern types
                 pattern_type = pattern.get("type")
                 if pattern_type:
-                    statistics["pattern_types"][pattern_type] = statistics["pattern_types"].get(pattern_type, 0) + 1
+                    statistics["pattern_types"][pattern_type] = (
+                        statistics["pattern_types"].get(pattern_type, 0) + 1
+                    )
 
                 # Count pattern frequency
                 pattern_key = pattern.get("key")
@@ -277,9 +291,13 @@ class PatternAnalyzer:
         for method in required_methods:
             if not hasattr(self, method):
                 logger.error(f"Missing required method: {method}")
-                raise AttributeError(f"PatternAnalyzer missing required method: {method}")
+                raise AttributeError(
+                    f"PatternAnalyzer missing required method: {method}"
+                )
 
-    def analyze_game_patterns(self, moves: List[Dict[str, Any]], board: chess.Board) -> Dict[str, Any]:
+    def analyze_game_patterns(
+        self, moves: List[Dict[str, Any]], board: chess.Board
+    ) -> Dict[str, Any]:
         """Analyze patterns in a game."""
         try:
             patterns = {
@@ -310,7 +328,9 @@ class PatternAnalyzer:
                                 "type": "tactical",
                                 "move": str(move),
                                 "ply": move_data.get("ply"),
-                                "description": self._get_tactical_description(current_board, move),
+                                "description": self._get_tactical_description(
+                                    current_board, move
+                                ),
                             }
                         )
 
@@ -324,7 +344,9 @@ class PatternAnalyzer:
                                     "move": str(move),
                                     "ply": move_data.get("ply"),
                                     "pattern": pos_pattern,
-                                    "description": self._get_positional_description(pos_pattern),
+                                    "description": self._get_positional_description(
+                                        pos_pattern
+                                    ),
                                 }
                             )
 
@@ -338,7 +360,9 @@ class PatternAnalyzer:
                                     "move": str(move),
                                     "ply": move_data.get("ply"),
                                     "pattern": end_pattern,
-                                    "description": self._get_endgame_description(end_pattern),
+                                    "description": self._get_endgame_description(
+                                        end_pattern
+                                    ),
                                 }
                             )
 
@@ -421,7 +445,10 @@ class PatternAnalyzer:
             return (
                 white_material == 0
                 and black_material == 0
-                and (len(board.pieces(chess.PAWN, chess.WHITE)) > 0 or len(board.pieces(chess.PAWN, chess.BLACK)) > 0)
+                and (
+                    len(board.pieces(chess.PAWN, chess.WHITE)) > 0
+                    or len(board.pieces(chess.PAWN, chess.BLACK)) > 0
+                )
             )
         except Exception as e:
             logger.error(f"Error checking pawn endgame: {str(e)}")
@@ -471,8 +498,12 @@ class PatternAnalyzer:
             total_pieces = len(board.piece_map())
 
             # Check for specific endgame characteristics
-            queens = len(board.pieces(chess.QUEEN, chess.WHITE)) + len(board.pieces(chess.QUEEN, chess.BLACK))
-            rooks = len(board.pieces(chess.ROOK, chess.WHITE)) + len(board.pieces(chess.ROOK, chess.BLACK))
+            queens = len(board.pieces(chess.QUEEN, chess.WHITE)) + len(
+                board.pieces(chess.QUEEN, chess.BLACK)
+            )
+            rooks = len(board.pieces(chess.ROOK, chess.WHITE)) + len(
+                board.pieces(chess.ROOK, chess.BLACK)
+            )
 
             return total_pieces <= 12 or (queens == 0 and rooks <= 2)
 
@@ -623,7 +654,10 @@ class PatternAnalyzer:
             # Check for structural features
             has_doubled = any(f > 1 for f in files)
             has_isolated = any(
-                f == 1 and (i == 0 or files[i - 1] == 0) and (i == 7 or files[i + 1] == 0) for i, f in enumerate(files)
+                f == 1
+                and (i == 0 or files[i - 1] == 0)
+                and (i == 7 or files[i + 1] == 0)
+                for i, f in enumerate(files)
             )
 
             return has_doubled or has_isolated
@@ -636,7 +670,9 @@ class PatternAnalyzer:
         try:
             # Check central squares
             central_squares = [chess.E4, chess.D4, chess.E5, chess.D5]
-            center_control = sum(1 for sq in central_squares if board.piece_at(sq) is not None)
+            center_control = sum(
+                1 for sq in central_squares if board.piece_at(sq) is not None
+            )
 
             # Check piece development
             developed_pieces = sum(
@@ -668,8 +704,12 @@ class PatternAnalyzer:
             ]  # Extended center
 
             # Count control of key squares
-            white_control = sum(1 for sq in key_squares if board.is_attacked_by(chess.WHITE, sq))
-            black_control = sum(1 for sq in key_squares if board.is_attacked_by(chess.BLACK, sq))
+            white_control = sum(
+                1 for sq in key_squares if board.is_attacked_by(chess.WHITE, sq)
+            )
+            black_control = sum(
+                1 for sq in key_squares if board.is_attacked_by(chess.BLACK, sq)
+            )
 
             return white_control >= 4 or black_control >= 4
 
@@ -686,7 +726,10 @@ class PatternAnalyzer:
                     files[chess.square_file(square)] = 1
 
             return any(
-                files[i] == 1 and (i == 0 or files[i - 1] == 0) and (i == 7 or files[i + 1] == 0) for i in range(8)
+                files[i] == 1
+                and (i == 0 or files[i - 1] == 0)
+                and (i == 7 or files[i + 1] == 0)
+                for i in range(8)
             )
 
         except Exception:
@@ -714,7 +757,11 @@ class PatternAnalyzer:
                         for r in range(8):
                             adj_square = chess.square(adj_file, r)
                             adj_piece = board.piece_at(adj_square)
-                            if adj_piece and adj_piece.piece_type == chess.PAWN and adj_piece.color == piece.color:
+                            if (
+                                adj_piece
+                                and adj_piece.piece_type == chess.PAWN
+                                and adj_piece.color == piece.color
+                            ):
                                 adj_rank = r
                                 break
 
@@ -752,7 +799,9 @@ class PatternAnalyzer:
                     rank = chess.square_rank(square)
 
                     # Check if piece is in enemy territory
-                    if (piece.color == chess.WHITE and rank >= 4) or (piece.color == chess.BLACK and rank <= 3):
+                    if (piece.color == chess.WHITE and rank >= 4) or (
+                        piece.color == chess.BLACK and rank <= 3
+                    ):
                         # Check if protected by pawn
                         if self._is_protected_by_pawn(board, square, piece.color):
                             return True
@@ -777,7 +826,11 @@ class PatternAnalyzer:
                 bishop = board.piece_at(bishop_square)
                 if bishop and bishop.piece_type == chess.BISHOP:
                     pawn = board.piece_at(pawn_square)
-                    if pawn and pawn.piece_type == chess.PAWN and pawn.color == bishop.color:
+                    if (
+                        pawn
+                        and pawn.piece_type == chess.PAWN
+                        and pawn.color == bishop.color
+                    ):
                         return True
 
             return False
@@ -789,7 +842,9 @@ class PatternAnalyzer:
         """Check if position is a king and pawn endgame."""
         try:
             pieces = board.piece_map()
-            only_kings_and_pawns = all(p.piece_type in [chess.KING, chess.PAWN] for p in pieces.values())
+            only_kings_and_pawns = all(
+                p.piece_type in [chess.KING, chess.PAWN] for p in pieces.values()
+            )
             return only_kings_and_pawns and len(pieces) <= 7
         except Exception:
             return False
@@ -809,7 +864,10 @@ class PatternAnalyzer:
         """Check if position is a minor piece endgame."""
         try:
             pieces = board.piece_map()
-            only_minor = all(p.piece_type in [chess.KING, chess.BISHOP, chess.KNIGHT] for p in pieces.values())
+            only_minor = all(
+                p.piece_type in [chess.KING, chess.BISHOP, chess.KNIGHT]
+                for p in pieces.values()
+            )
             return only_minor and len(pieces) <= 6
         except Exception:
             return False
@@ -825,10 +883,12 @@ class PatternAnalyzer:
                 black_bishop_square = black_bishops.pop()
 
                 white_bishop_color = (
-                    chess.square_rank(white_bishop_square) + chess.square_file(white_bishop_square)
+                    chess.square_rank(white_bishop_square)
+                    + chess.square_file(white_bishop_square)
                 ) % 2
                 black_bishop_color = (
-                    chess.square_rank(black_bishop_square) + chess.square_file(black_bishop_square)
+                    chess.square_rank(black_bishop_square)
+                    + chess.square_file(black_bishop_square)
                 ) % 2
 
                 return white_bishop_color != black_bishop_color
@@ -838,7 +898,9 @@ class PatternAnalyzer:
         except Exception:
             return False
 
-    def _is_protected_by_pawn(self, board: chess.Board, square: chess.Square, color: bool) -> bool:
+    def _is_protected_by_pawn(
+        self, board: chess.Board, square: chess.Square, color: bool
+    ) -> bool:
         """Check if a square is protected by a pawn of the given color."""
         try:
             file = chess.square_file(square)
@@ -869,13 +931,21 @@ class PatternAnalyzer:
         except Exception:
             return False
 
-    def _summarize_patterns(self, patterns: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
+    def _summarize_patterns(
+        self, patterns: Dict[str, List[Dict[str, Any]]]
+    ) -> Dict[str, Any]:
         """Summarize found patterns into analysis."""
         try:
             return {
-                "tactical_patterns": self._summarize_tactical_patterns(patterns["tactical"]),
-                "positional_patterns": self._summarize_positional_patterns(patterns["positional"]),
-                "endgame_patterns": self._summarize_endgame_patterns(patterns["endgame"]),
+                "tactical_patterns": self._summarize_tactical_patterns(
+                    patterns["tactical"]
+                ),
+                "positional_patterns": self._summarize_positional_patterns(
+                    patterns["positional"]
+                ),
+                "endgame_patterns": self._summarize_endgame_patterns(
+                    patterns["endgame"]
+                ),
                 "overall_assessment": self._generate_pattern_assessment(patterns),
             }
         except Exception as e:
@@ -891,7 +961,9 @@ class PatternAnalyzer:
             "overall_assessment": "Pattern analysis not available",
         }
 
-    def _summarize_tactical_patterns(self, patterns: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _summarize_tactical_patterns(
+        self, patterns: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """Summarize tactical patterns found in the game."""
         if not patterns:
             return {"count": 0, "patterns": []}
@@ -903,10 +975,14 @@ class PatternAnalyzer:
 
         return {
             "count": len(patterns),
-            "patterns": [{"name": name, "count": count} for name, count in pattern_counts.items()],
+            "patterns": [
+                {"name": name, "count": count} for name, count in pattern_counts.items()
+            ],
         }
 
-    def _summarize_positional_patterns(self, patterns: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _summarize_positional_patterns(
+        self, patterns: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """Summarize positional patterns found in the game."""
         if not patterns:
             return {"count": 0, "patterns": []}
@@ -918,10 +994,14 @@ class PatternAnalyzer:
 
         return {
             "count": len(patterns),
-            "patterns": [{"name": name, "count": count} for name, count in pattern_counts.items()],
+            "patterns": [
+                {"name": name, "count": count} for name, count in pattern_counts.items()
+            ],
         }
 
-    def _summarize_endgame_patterns(self, patterns: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _summarize_endgame_patterns(
+        self, patterns: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """Summarize endgame patterns found in the game."""
         if not patterns:
             return {"count": 0, "patterns": []}
@@ -933,10 +1013,14 @@ class PatternAnalyzer:
 
         return {
             "count": len(patterns),
-            "patterns": [{"name": name, "count": count} for name, count in pattern_counts.items()],
+            "patterns": [
+                {"name": name, "count": count} for name, count in pattern_counts.items()
+            ],
         }
 
-    def _generate_pattern_assessment(self, patterns: Dict[str, List[Dict[str, Any]]]) -> str:
+    def _generate_pattern_assessment(
+        self, patterns: Dict[str, List[Dict[str, Any]]]
+    ) -> str:
         """Generate overall assessment based on patterns found."""
         total_patterns = sum(len(p) for p in patterns.values())
         if total_patterns == 0:

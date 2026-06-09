@@ -5,7 +5,9 @@ Payment processing module for ChessMate application.
 try:
     import stripe
 except ImportError:
-    raise ImportError("Failed to import stripe. Please ensure stripe is installed: pip install stripe")
+    raise ImportError(
+        "Failed to import stripe. Please ensure stripe is installed: pip install stripe"
+    )
 
 from django.conf import settings
 
@@ -29,7 +31,11 @@ def _frontend_base_url() -> str:
 def _payment_success_url() -> str:
     explicit = getattr(settings, "PAYMENT_SUCCESS_URL", "").strip()
     if explicit:
-        return explicit if "{CHECKOUT_SESSION_ID}" in explicit else f"{explicit}?session_id={{CHECKOUT_SESSION_ID}}"
+        return (
+            explicit
+            if "{CHECKOUT_SESSION_ID}" in explicit
+            else f"{explicit}?session_id={{CHECKOUT_SESSION_ID}}"
+        )
     return f"{_frontend_base_url()}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
 
 

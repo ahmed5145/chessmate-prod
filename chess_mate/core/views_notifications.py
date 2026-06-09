@@ -20,7 +20,9 @@ def notifications_view(request):
     PATCH — mark read: { "ids": [1, 2] } or { "mark_all": true }.
     """
     if request.method == "GET":
-        return Response(get_notifications_payload(request.user), status=status.HTTP_200_OK)
+        return Response(
+            get_notifications_payload(request.user), status=status.HTTP_200_OK
+        )
 
     if request.data.get("mark_all"):
         updated = mark_all_notifications_read(request.user)

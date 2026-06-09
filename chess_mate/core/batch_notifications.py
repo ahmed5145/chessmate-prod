@@ -36,13 +36,21 @@ def send_batch_complete_email(user, batch_report) -> bool:
     report_url = f"{get_frontend_base_url()}/batch-report/{batch_id}"
     summary = batch_report.batch_summary or {}
     status = batch_report.status
-    coaching = batch_report.coaching_report if isinstance(batch_report.coaching_report, dict) else {}
+    coaching = (
+        batch_report.coaching_report
+        if isinstance(batch_report.coaching_report, dict)
+        else {}
+    )
     coach_snippet = (coaching.get("executive_summary") or "")[:220]
     deep_review_url = build_worst_moment_deep_review_url(batch_report)
     worst_moment = worst_moment_summary(batch_report)
     accuracy_pct = summary.get("overall_accuracy_pct")
-    stability_raw = summary.get("overall_eval_stability") or summary.get("overall_accuracy")
-    stability_pct = round(float(stability_raw) * 100, 1) if stability_raw is not None else None
+    stability_raw = summary.get("overall_eval_stability") or summary.get(
+        "overall_accuracy"
+    )
+    stability_pct = (
+        round(float(stability_raw) * 100, 1) if stability_raw is not None else None
+    )
 
     try:
         html_body = render_to_string(

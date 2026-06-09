@@ -25,7 +25,10 @@ def _map_result_short(result_str: str, player_color: str) -> str:
 def _load_coaching_report_schema() -> Optional[Dict[str, Any]]:
     try:
         json_schema = getattr(
-            __import__("core.analysis.coaching_schema", fromlist=["BATCH_COACHING_REPORT_SCHEMA"]),
+            __import__(
+                "core.analysis.coaching_schema",
+                fromlist=["BATCH_COACHING_REPORT_SCHEMA"],
+            ),
             "BATCH_COACHING_REPORT_SCHEMA",
         )
     except Exception:
@@ -110,8 +113,12 @@ def validate_coaching_citations(
                 val = item.get(key)
                 if val:
                     endgame_tokens.append(str(val).lower().replace("_", " "))
-        endgame_text = _text_blob((parsed.get("coaching_narrative") or {}).get("endgame"))
-        if endgame_tokens and not any(token in endgame_text for token in endgame_tokens if len(token) > 3):
+        endgame_text = _text_blob(
+            (parsed.get("coaching_narrative") or {}).get("endgame")
+        )
+        if endgame_tokens and not any(
+            token in endgame_text for token in endgame_tokens if len(token) > 3
+        ):
             errors.append(
                 "coaching_narrative.endgame must reference an endgame type or study_focus "
                 "from batch_summary.endgame_insights."
@@ -213,13 +220,17 @@ def generate_coaching_report(
         # item may be already a wrapped response with status
         status = item.get("status")
         if status == "failed":
-            failed_games.append({"game_id": item.get("game_id"), "error": item.get("error")})
+            failed_games.append(
+                {"game_id": item.get("game_id"), "error": item.get("error")}
+            )
             continue
 
         summary = _build_per_game_summary(item)
         # If the summary indicates a failure, move to failed_games
         if summary.get("status") == "failed":
-            failed_games.append({"game_id": summary.get("game_id"), "error": item.get("error")})
+            failed_games.append(
+                {"game_id": summary.get("game_id"), "error": item.get("error")}
+            )
         else:
             per_game_summaries.append(summary)
 
@@ -293,18 +304,25 @@ def generate_coaching_report(
             - Tests / some SDK paths: response.output_parsed (dict)
             - Production chat completions: response.choices[0].message.content (JSON string)
             """
-            if hasattr(response_obj, "output_parsed") and response_obj.output_parsed is not None:
+            if (
+                hasattr(response_obj, "output_parsed")
+                and response_obj.output_parsed is not None
+            ):
                 parsed_obj = response_obj.output_parsed
                 if isinstance(parsed_obj, dict):
                     return parsed_obj
-                raise CoachingGeneratorError(f"OpenAI returned unexpected type: {type(parsed_obj)}")
+                raise CoachingGeneratorError(
+                    f"OpenAI returned unexpected type: {type(parsed_obj)}"
+                )
 
             content = response_obj.choices[0].message.content
             logger.info(f"OpenAI response (first 200 chars): {content[:200]}")
             try:
                 loaded = json.loads(content)
             except json.JSONDecodeError as exc:
-                raise CoachingGeneratorError(f"OpenAI returned non-JSON response: {content[:200]}") from exc
+                raise CoachingGeneratorError(
+                    f"OpenAI returned non-JSON response: {content[:200]}"
+                ) from exc
 
             if not isinstance(loaded, dict):
                 raise CoachingGeneratorError(
@@ -324,9 +342,14 @@ def generate_coaching_report(
         parsed = _parse_response(response)
         _validate_coaching_report(parsed)
 
-        citation_errors = validate_coaching_citations(parsed, batch_summary, per_game_summaries)
+        citation_errors = validate_coaching_citations(
+            parsed, batch_summary, per_game_summaries
+        )
         if citation_errors:
-            logger.warning("Coaching citation validation failed, retrying once: %s", citation_errors)
+            logger.warning(
+                "Coaching citation validation failed, retrying once: %s",
+                citation_errors,
+            )
             retry_message = (
                 user_message
                 + "\n\nYour previous JSON failed grounding checks. Fix and return new JSON only:\n"
@@ -342,7 +365,9 @@ def generate_coaching_report(
             )
             parsed = _parse_response(retry_response)
             _validate_coaching_report(parsed)
-            citation_errors = validate_coaching_citations(parsed, batch_summary, per_game_summaries)
+            citation_errors = validate_coaching_citations(
+                parsed, batch_summary, per_game_summaries
+            )
             if citation_errors:
                 logger.warning(
                     "Coaching citations still weak after retry (serving report anyway): %s",

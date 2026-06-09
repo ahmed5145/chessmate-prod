@@ -40,7 +40,12 @@ def _sample_games_analysis():
             },
             "analysis": {
                 "results": [
-                    {"accuracy": 80, "is_tactical": True, "evaluation_improvement": 1, "time_spent": 5},
+                    {
+                        "accuracy": 80,
+                        "is_tactical": True,
+                        "evaluation_improvement": 1,
+                        "time_spent": 5,
+                    },
                     {"accuracy": 70, "time_spent": 15},
                     {"accuracy": 90, "is_tactical": False, "time_spent": 3},
                 ]
@@ -55,7 +60,12 @@ def _sample_games_analysis():
             "analysis": {
                 "results": [
                     {"accuracy": 60, "time_spent": 8},
-                    {"accuracy": 55, "is_tactical": True, "evaluation_improvement": 0, "time_spent": 4},
+                    {
+                        "accuracy": 55,
+                        "is_tactical": True,
+                        "evaluation_improvement": 0,
+                        "time_spent": 4,
+                    },
                 ]
             },
         },

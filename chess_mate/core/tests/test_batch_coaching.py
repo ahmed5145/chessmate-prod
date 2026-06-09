@@ -32,9 +32,24 @@ def test_regenerate_batch_coaching_success(mock_notes, mock_generate):
         {
             "game_id": f"game_{i}",
             "phase_breakdown": {
-                "opening": {"moves": 1, "avg_eval_drop": 0.1, "blunders": 0, "mistakes": 0},
-                "middlegame": {"moves": 0, "avg_eval_drop": 0.0, "blunders": 0, "mistakes": 0},
-                "endgame": {"moves": 0, "avg_eval_drop": 0.0, "blunders": 0, "mistakes": 0},
+                "opening": {
+                    "moves": 1,
+                    "avg_eval_drop": 0.1,
+                    "blunders": 0,
+                    "mistakes": 0,
+                },
+                "middlegame": {
+                    "moves": 0,
+                    "avg_eval_drop": 0.0,
+                    "blunders": 0,
+                    "mistakes": 0,
+                },
+                "endgame": {
+                    "moves": 0,
+                    "avg_eval_drop": 0.0,
+                    "blunders": 0,
+                    "mistakes": 0,
+                },
             },
             "move_quality": {"blunder": 0, "mistake": 0, "good": 1},
         }

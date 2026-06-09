@@ -23,4 +23,6 @@ def test_build_worst_moment_deep_review_url_from_top_moments(test_user, settings
     )
 
     url = build_worst_moment_deep_review_url(report)
-    assert url == f"https://app.chessmate.test/game/501/analysis?batch={report.pk}&move=22"
+    assert (
+        url == f"https://app.chessmate.test/game/501/analysis?batch={report.pk}&move=22"
+    )

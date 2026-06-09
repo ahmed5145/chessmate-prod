@@ -60,10 +60,18 @@ def extract_critical_moments(
 
         swing = _eval_swing_pawns(move.get("eval_change"))
         classification = str(move.get("classification") or "")
-        is_bad = swing >= 0.2 or classification.lower() in {"blunder", "mistake", "inaccuracy"}
+        is_bad = swing >= 0.2 or classification.lower() in {
+            "blunder",
+            "mistake",
+            "inaccuracy",
+        }
         if not is_bad and not move.get("is_critical"):
             continue
-        if swing <= 0 and classification.lower() not in {"blunder", "mistake", "inaccuracy"}:
+        if swing <= 0 and classification.lower() not in {
+            "blunder",
+            "mistake",
+            "inaccuracy",
+        }:
             continue
 
         candidates.append(

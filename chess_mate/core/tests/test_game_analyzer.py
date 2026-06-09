@@ -143,7 +143,9 @@ class TestGameAnalyzer:
         result = analyzer.analyze_game(test_game, depth=20, use_ai=True)
 
         # Check that the engine was called correctly
-        self.mock_stockfish.analyze_game.assert_called_once_with(test_game.pgn, depth=20)
+        self.mock_stockfish.analyze_game.assert_called_once_with(
+            test_game.pgn, depth=20
+        )
 
         # Check that the feedback generator was called correctly
         self.mock_feedback.generate_feedback.assert_called_once()
@@ -188,7 +190,9 @@ class TestGameAnalyzer:
         analyzer = GameAnalyzer()
 
         # Call the method
-        analysis = analyzer.save_analysis(test_game, self.analysis_result, self.feedback_result)
+        analysis = analyzer.save_analysis(
+            test_game, self.analysis_result, self.feedback_result
+        )
 
         # Check that a GameAnalysis was created with the correct data
         assert isinstance(analysis, GameAnalysis)
@@ -256,7 +260,9 @@ class TestGameAnalyzer:
             ]
 
             # Call the method
-            results = analyzer.analyze_batch_games([test_game, game2], depth=20, use_ai=True)
+            results = analyzer.analyze_batch_games(
+                [test_game, game2], depth=20, use_ai=True
+            )
 
             # Check that analyze_game was called for each game
             assert mock_analyze_game.call_count == 2

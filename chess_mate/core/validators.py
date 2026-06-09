@@ -83,7 +83,9 @@ def validate_username(username):
 
     # Check for valid characters
     if not re.match(r"^[a-zA-Z0-9_-]+$", username):
-        errors.append("Username can only contain letters, numbers, underscores, and hyphens")
+        errors.append(
+            "Username can only contain letters, numbers, underscores, and hyphens"
+        )
 
     # Check for valid start and end characters
     if username.startswith(("-", "_")):
@@ -97,7 +99,9 @@ def validate_username(username):
 
     # If there are errors, raise ValidationError
     if errors:
-        logger.warning(f"Username validation failed for '{username}': {', '.join(errors)}")
+        logger.warning(
+            f"Username validation failed for '{username}': {', '.join(errors)}"
+        )
         raise ValidationError(errors)
 
     return True

@@ -46,9 +46,15 @@ class Migration(migrations.Migration):
             options={
                 "db_table": "analysis_cache",
                 "indexes": [
-                    models.Index(fields=["last_accessed"], name="analysis_ca_last_ac_b784f8_idx"),
-                    models.Index(fields=["priority"], name="analysis_ca_priorit_75983d_idx"),
-                    models.Index(fields=["expires_at"], name="analysis_ca_expires_3d3640_idx"),
+                    models.Index(
+                        fields=["last_accessed"], name="analysis_ca_last_ac_b784f8_idx"
+                    ),
+                    models.Index(
+                        fields=["priority"], name="analysis_ca_priorit_75983d_idx"
+                    ),
+                    models.Index(
+                        fields=["expires_at"], name="analysis_ca_expires_3d3640_idx"
+                    ),
                 ],
             },
         ),
@@ -101,7 +107,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "opponent_opening",
-                    models.CharField(default="Unknown Opponent Opening", max_length=200),
+                    models.CharField(
+                        default="Unknown Opponent Opening", max_length=200
+                    ),
                 ),
                 ("analysis_version", models.IntegerField(default=1)),
                 ("last_analysis_date", models.DateTimeField(null=True)),
@@ -181,7 +189,9 @@ class Migration(migrations.Migration):
                 ("status", models.CharField(default="pending", max_length=20)),
                 (
                     "games",
-                    models.ManyToManyField(related_name="batch_analyses", to="core.game"),
+                    models.ManyToManyField(
+                        related_name="batch_analyses", to="core.game"
+                    ),
                 ),
             ],
         ),
@@ -207,14 +217,18 @@ class Migration(migrations.Migration):
                 ("study_plan", models.JSONField(default=dict)),
                 (
                     "cache_key",
-                    models.CharField(default="default_cache_key", max_length=100, unique=True),
+                    models.CharField(
+                        default="default_cache_key", max_length=100, unique=True
+                    ),
                 ),
                 ("analysis_metadata", models.JSONField(default=dict)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 (
                     "game",
-                    models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to="core.game"),
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE, to="core.game"
+                    ),
                 ),
             ],
             options={
@@ -326,7 +340,9 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="game",
-            index=models.Index(fields=["user", "platform"], name="games_user_id_da8406_idx"),
+            index=models.Index(
+                fields=["user", "platform"], name="games_user_id_da8406_idx"
+            ),
         ),
         migrations.AddIndex(
             model_name="game",
@@ -334,11 +350,15 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="game",
-            index=models.Index(fields=["analysis_status"], name="games_analysi_386de9_idx"),
+            index=models.Index(
+                fields=["analysis_status"], name="games_analysi_386de9_idx"
+            ),
         ),
         migrations.AddIndex(
             model_name="game",
-            index=models.Index(fields=["time_control_type"], name="games_time_co_a145e7_idx"),
+            index=models.Index(
+                fields=["time_control_type"], name="games_time_co_a145e7_idx"
+            ),
         ),
         migrations.AddIndex(
             model_name="game",
@@ -350,11 +370,15 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="gameanalysis",
-            index=models.Index(fields=["cache_key"], name="game_analys_cache_k_738172_idx"),
+            index=models.Index(
+                fields=["cache_key"], name="game_analys_cache_k_738172_idx"
+            ),
         ),
         migrations.AddIndex(
             model_name="gameanalysis",
-            index=models.Index(fields=["created_at"], name="game_analys_created_b2b4a9_idx"),
+            index=models.Index(
+                fields=["created_at"], name="game_analys_created_b2b4a9_idx"
+            ),
         ),
         migrations.AddIndex(
             model_name="profile",

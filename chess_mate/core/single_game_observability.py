@@ -46,7 +46,9 @@ class SingleGameAnalysisTimer:
         phase_seconds = now - self._phase_started
         total_seconds = now - self._started
         self.phases[phase] = round(phase_seconds, 2)
-        payload = " ".join(f"{key}={value}" for key, value in extra.items() if value is not None)
+        payload = " ".join(
+            f"{key}={value}" for key, value in extra.items() if value is not None
+        )
         logger.info(
             "single_game_analysis phase=%s task_id=%s game_id=%s depth=%s plies=%s "
             "phase_seconds=%.2f total_seconds=%.2f%s%s",
@@ -64,9 +66,12 @@ class SingleGameAnalysisTimer:
 
     def complete(self, **extra: Any) -> None:
         total_seconds = time.monotonic() - self._started
-        payload = " ".join(f"{key}={value}" for key, value in extra.items() if value is not None)
+        payload = " ".join(
+            f"{key}={value}" for key, value in extra.items() if value is not None
+        )
         logger.info(
-            "single_game_analysis COMPLETE task_id=%s game_id=%s depth=%s plies=%s " "total_seconds=%.2f phases=%s%s%s",
+            "single_game_analysis COMPLETE task_id=%s game_id=%s depth=%s plies=%s "
+            "total_seconds=%.2f phases=%s%s%s",
             self.task_id,
             self.game_id,
             self.depth,
@@ -80,7 +85,9 @@ class SingleGameAnalysisTimer:
     def fail(self, exc: BaseException, **extra: Any) -> None:
         total_seconds = time.monotonic() - self._started
         timeout = is_celery_time_limit_error(exc)
-        payload = " ".join(f"{key}={value}" for key, value in extra.items() if value is not None)
+        payload = " ".join(
+            f"{key}={value}" for key, value in extra.items() if value is not None
+        )
         logger.error(
             "single_game_analysis FAILED task_id=%s game_id=%s depth=%s plies=%s "
             "total_seconds=%.2f timeout=%s error_type=%s error=%s phases=%s%s%s",

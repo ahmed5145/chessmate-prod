@@ -22,7 +22,11 @@ class Command(BaseCommand):
         dependent = ("core", "0014_payment_amount_float")
 
         if target in applied:
-            self.stdout.write(self.style.SUCCESS("core.0013a_state_inject_payment is already applied."))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    "core.0013a_state_inject_payment is already applied."
+                )
+            )
             return
 
         if dependent not in applied:
@@ -37,6 +41,7 @@ class Command(BaseCommand):
         recorder.record_applied(*target)
         self.stdout.write(
             self.style.SUCCESS(
-                "Recorded core.0013a_state_inject_payment as applied. " "You can now run `python manage.py migrate`."
+                "Recorded core.0013a_state_inject_payment as applied. "
+                "You can now run `python manage.py migrate`."
             )
         )

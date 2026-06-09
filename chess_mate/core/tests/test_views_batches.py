@@ -93,7 +93,9 @@ class TestBatchViews(TestCase):
             },
         )
 
-        response = self.client.get(f"/api/v1/batches/{newer.id}/compare/?other=previous")
+        response = self.client.get(
+            f"/api/v1/batches/{newer.id}/compare/?other=previous"
+        )
 
         assert response.status_code == 200
         assert response.data["other_batch_id"] == older.id
@@ -371,7 +373,9 @@ class TestBatchViews(TestCase):
             "player_rating": 1500,
             "opening_insights": [{"opening_name": "Italian Game", "status": "strong"}],
         }
-        per_game_results = [{"game_id": f"game_{i}", "total_moves": 40} for i in range(5)]
+        per_game_results = [
+            {"game_id": f"game_{i}", "total_moves": 40} for i in range(5)
+        ]
         batch = BatchAnalysisReport.objects.create(
             user=self.user,
             task_id="task-regen",
@@ -411,12 +415,21 @@ class TestBatchViews(TestCase):
                     "estimated_study_hours": 1,
                 },
             ],
-            "training_plan": {"week_1": "w1", "week_2": "w2", "week_3": "w3", "week_4": "w4"},
+            "training_plan": {
+                "week_1": "w1",
+                "week_2": "w2",
+                "week_3": "w3",
+                "week_4": "w4",
+            },
             "one_thing_to_do_today": "Practice",
         }
 
-        with patch("core.batch_coaching.generate_coaching_report", return_value=new_coaching):
-            response = self.client.post(f"/api/v1/batches/{batch.id}/regenerate-coaching/")
+        with patch(
+            "core.batch_coaching.generate_coaching_report", return_value=new_coaching
+        ):
+            response = self.client.post(
+                f"/api/v1/batches/{batch.id}/regenerate-coaching/"
+            )
 
         assert response.status_code == 200
         assert response.data["coaching_report"] == new_coaching

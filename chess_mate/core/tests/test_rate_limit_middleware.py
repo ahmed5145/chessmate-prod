@@ -27,7 +27,9 @@ def middleware():
 @pytest.fixture
 def auth_request(db):
     factory = RequestFactory()
-    user = User.objects.create_user(username="testuser", email="test@example.com", password="password")
+    user = User.objects.create_user(
+        username="testuser", email="test@example.com", password="password"
+    )
     request = factory.get("/api/games/")
     request.user = user
     return request
@@ -70,7 +72,9 @@ class TestRateLimitMiddleware:
     def test_authenticated_user_rate_limiting(self, middleware, auth_request):
         """Test rate limiting for authenticated users."""
         # Setup endpoint patterns
-        with patch.object(middleware, "endpoint_patterns", {"GAME": [r"^/api/games/?$"]}):
+        with patch.object(
+            middleware, "endpoint_patterns", {"GAME": [r"^/api/games/?$"]}
+        ):
             # Mock rate limit check method to not actually rate limit
             with patch.object(middleware, "_is_rate_limited", return_value=False):
                 with patch.object(
@@ -78,8 +82,12 @@ class TestRateLimitMiddleware:
                     "_get_rate_limit_config",
                     return_value={"MAX_REQUESTS": 100, "TIME_WINDOW": 3600},
                 ):
-                    with patch.object(middleware, "_get_remaining_requests", return_value=99):
-                        with patch.object(middleware, "_get_reset_time", return_value=3600):
+                    with patch.object(
+                        middleware, "_get_remaining_requests", return_value=99
+                    ):
+                        with patch.object(
+                            middleware, "_get_reset_time", return_value=3600
+                        ):
                             response = middleware(auth_request)
 
                             assert response.status_code == 200
@@ -93,7 +101,9 @@ class TestRateLimitMiddleware:
     def test_anonymous_user_rate_limiting(self, middleware, anon_request):
         """Test rate limiting for anonymous users (IP-based)."""
         # Setup endpoint patterns
-        with patch.object(middleware, "endpoint_patterns", {"GAME": [r"^/api/games/?$"]}):
+        with patch.object(
+            middleware, "endpoint_patterns", {"GAME": [r"^/api/games/?$"]}
+        ):
             # Mock rate limit check method to not actually rate limit
             with patch.object(middleware, "_is_rate_limited", return_value=False):
                 with patch.object(
@@ -101,8 +111,12 @@ class TestRateLimitMiddleware:
                     "_get_rate_limit_config",
                     return_value={"MAX_REQUESTS": 100, "TIME_WINDOW": 3600},
                 ):
-                    with patch.object(middleware, "_get_remaining_requests", return_value=99):
-                        with patch.object(middleware, "_get_reset_time", return_value=3600):
+                    with patch.object(
+                        middleware, "_get_remaining_requests", return_value=99
+                    ):
+                        with patch.object(
+                            middleware, "_get_reset_time", return_value=3600
+                        ):
                             response = middleware(anon_request)
 
                             assert response.status_code == 200
@@ -116,12 +130,16 @@ class TestRateLimitMiddleware:
     def test_rate_limit_exceeded(self, middleware, auth_request):
         """Test when rate limit is exceeded."""
         # Setup endpoint patterns and rate limit config
-        with patch.object(middleware, "endpoint_patterns", {"GAME": [r"^/api/games/?$"]}):
+        with patch.object(
+            middleware, "endpoint_patterns", {"GAME": [r"^/api/games/?$"]}
+        ):
             # Mock rate limit check method to indicate rate limit exceeded
             with patch.object(middleware, "_is_rate_limited", return_value=True):
                 with patch.object(middleware, "_get_reset_time", return_value=3600):
                     with patch("core.middleware.create_error_response") as mock_error:
-                        mock_error.return_value = HttpResponse("Rate limit exceeded", status=429)
+                        mock_error.return_value = HttpResponse(
+                            "Rate limit exceeded", status=429
+                        )
                         response = middleware(auth_request)
 
                         assert response.status_code == 429
@@ -232,23 +250,33 @@ class TestRateLimitMiddleware:
 
     def test_endpoint_type_fetch_external_import(self, middleware):
         assert middleware._get_endpoint_type("/api/v1/games/fetch/") == "FETCH"
-        assert middleware._get_endpoint_type("/api/v1/games/import/external/") == "FETCH"
+        assert (
+            middleware._get_endpoint_type("/api/v1/games/import/external/") == "FETCH"
+        )
 
     def test_endpoint_type_batch_regenerate(self, middleware):
-        assert middleware._get_endpoint_type("/api/v1/batches/42/regenerate-coaching/") == "BATCH_OPS"
+        assert (
+            middleware._get_endpoint_type("/api/v1/batches/42/regenerate-coaching/")
+            == "BATCH_OPS"
+        )
 
     def test_endpoint_type_public_site_config(self, middleware):
         assert middleware._get_endpoint_type("/api/v1/public/site-config/") == "PUBLIC"
 
     def test_endpoint_type_analysis_status_separate_from_games(self, middleware):
-        assert middleware._get_endpoint_type("/api/v1/games/165/analysis/status/") == "ANALYSIS_STATUS"
+        assert (
+            middleware._get_endpoint_type("/api/v1/games/165/analysis/status/")
+            == "ANALYSIS_STATUS"
+        )
         assert middleware._get_endpoint_type("/api/v1/games/165/analysis/") == "GAMES"
 
     def test_webhook_path_excluded_from_rate_limiting(self, middleware):
         factory = RequestFactory()
         request = factory.post("/api/v1/webhooks/stripe/")
         request.user = AnonymousUser()
-        with patch.object(settings, "RATE_LIMIT_EXCLUDED_PATHS", [r"^/api(?:/v1)?/webhooks/"]):
+        with patch.object(
+            settings, "RATE_LIMIT_EXCLUDED_PATHS", [r"^/api(?:/v1)?/webhooks/"]
+        ):
             assert middleware._should_rate_limit(request.path) is False
 
     def test_decorator_endpoint_type_overrides_path(self, middleware, anon_request):

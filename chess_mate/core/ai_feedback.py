@@ -89,7 +89,11 @@ class RateLimiter:
 
     def _cleanup_old_calls(self) -> None:
         current_time = time.time()
-        self.calls = [call_time for call_time in self.calls if current_time - call_time < self.time_window]
+        self.calls = [
+            call_time
+            for call_time in self.calls
+            if current_time - call_time < self.time_window
+        ]
 
 
 class AIFeedbackGenerator:
@@ -104,7 +108,9 @@ class AIFeedbackGenerator:
             raise ValueError("OpenAI API key is required")
 
         self.openai_client = OpenAI(api_key=self.api_key)
-        self.rate_limiter = RateLimiter(max_calls=50, time_window=60)  # 50 calls per minute
+        self.rate_limiter = RateLimiter(
+            max_calls=50, time_window=60
+        )  # 50 calls per minute
         self.cache = caches["default"]
 
     def _create_analysis_prompt(self, game_analysis: List[Dict[str, Any]]) -> str:
@@ -163,12 +169,16 @@ Focus on actionable feedback that will help improve future performance."""
 
         return prompt
 
-    def _generate_ai_feedback(self, game_analysis: List[Dict[str, Any]], game: Optional[Game] = None) -> Dict[str, Any]:
+    def _generate_ai_feedback(
+        self, game_analysis: List[Dict[str, Any]], game: Optional[Game] = None
+    ) -> Dict[str, Any]:
         try:
             # Check rate limit
             if not self.rate_limiter.can_make_request():
                 logger.warning("OpenAI API rate limit reached, using fallback")
-                return cast(Dict[str, Any], self._generate_fallback_feedback(game_analysis))
+                return cast(
+                    Dict[str, Any], self._generate_fallback_feedback(game_analysis)
+                )
 
             # Try to get cached feedback if game exists
             if game is not None:
@@ -197,7 +207,9 @@ Focus on actionable feedback that will help improve future performance."""
             feedback_text = response.choices[0].message.content.strip()
 
             # Calculate metrics and structure feedback
-            feedback = cast(Dict[str, Any], self._parse_ai_response(feedback_text, game_analysis))
+            feedback = cast(
+                Dict[str, Any], self._parse_ai_response(feedback_text, game_analysis)
+            )
 
             # Cache the feedback if game exists
             if game is not None:
@@ -213,7 +225,9 @@ Focus on actionable feedback that will help improve future performance."""
             logger.error(f"Error generating AI feedback: {str(e)}")
             return cast(Dict[str, Any], self._generate_fallback_feedback(game_analysis))
 
-    def _prepare_analysis_summary(self, game_analysis: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _prepare_analysis_summary(
+        self, game_analysis: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """Prepare a summary of the game analysis for the AI prompt."""
         summary: Dict[str, Union[int, List[Dict[str, Any]]]] = {
             "total_moves": len(game_analysis),
@@ -258,7 +272,9 @@ Focus on actionable feedback that will help improve future performance."""
 
         return summary
 
-    def _parse_ai_response(self, response_text: str, game_analysis: List[Dict[str, Any]]) -> FeedbackData:
+    def _parse_ai_response(
+        self, response_text: str, game_analysis: List[Dict[str, Any]]
+    ) -> FeedbackData:
         """Parse AI response into structured feedback data."""
         try:
             sections = self._extract_sections(response_text)
@@ -301,7 +317,9 @@ Focus on actionable feedback that will help improve future performance."""
             logger.error(f"Error parsing AI response: {str(e)}")
             return self._get_default_feedback()
 
-    def _process_section_content(self, section: str, content: List[str], feedback: FeedbackData) -> None:
+    def _process_section_content(
+        self, section: str, content: List[str], feedback: FeedbackData
+    ) -> None:
         """Process content for each feedback section."""
         try:
             if not content:
@@ -317,7 +335,9 @@ Focus on actionable feedback that will help improve future performance."""
                     continue
 
                 # Check for suggestion markers
-                if line.lower().startswith(("suggestion:", "recommend:", "improve:", "- ", "• ")):
+                if line.lower().startswith(
+                    ("suggestion:", "recommend:", "improve:", "- ", "• ")
+                ):
                     current_list = suggestions
                     line = line.lstrip("- •").strip()
                     if ":" in line:
@@ -346,7 +366,9 @@ Focus on actionable feedback that will help improve future performance."""
         except Exception as e:
             logger.error(f"Error processing section {section}: {str(e)}")
 
-    def _extract_strengths_weaknesses(self, content: List[str], feedback: FeedbackData) -> None:
+    def _extract_strengths_weaknesses(
+        self, content: List[str], feedback: FeedbackData
+    ) -> None:
         """Extract strengths and weaknesses from overall performance content."""
         strengths = []
         weaknesses = []
@@ -364,11 +386,15 @@ Focus on actionable feedback that will help improve future performance."""
         feedback["overall_performance"]["strengths"] = strengths
         feedback["overall_performance"]["weaknesses"] = weaknesses
 
-    def _generate_fallback_feedback(self, game_analysis: List[Dict[str, Any]]) -> FeedbackData:
+    def _generate_fallback_feedback(
+        self, game_analysis: List[Dict[str, Any]]
+    ) -> FeedbackData:
         """Generate basic feedback when AI generation fails."""
         # Calculate phase-specific metrics
         opening_moves = game_analysis[: min(10, len(game_analysis))]
-        middlegame_moves = game_analysis[min(10, len(game_analysis)) : min(30, len(game_analysis))]
+        middlegame_moves = game_analysis[
+            min(10, len(game_analysis)) : min(30, len(game_analysis))
+        ]
         endgame_moves = game_analysis[min(30, len(game_analysis)) :]
 
         # Calculate accuracies for each phase
@@ -504,7 +530,9 @@ Focus on actionable feedback that will help improve future performance."""
         good_moves = sum(1 for move in moves if abs(move.get("score", 0)) < 100)
         return round((good_moves / len(moves)) * 100, 1)
 
-    def _calculate_tactical_metrics(self, moves: List[Dict[str, Any]]) -> tuple[float, int]:
+    def _calculate_tactical_metrics(
+        self, moves: List[Dict[str, Any]]
+    ) -> tuple[float, int]:
         """Calculate tactical score and missed wins."""
         if not moves:
             return 65.0, 0
@@ -539,7 +567,9 @@ Focus on actionable feedback that will help improve future performance."""
                         continue
 
                 # Only process if both evaluations are numeric
-                if isinstance(current_eval, (int, float)) and isinstance(next_eval, (int, float)):
+                if isinstance(current_eval, (int, float)) and isinstance(
+                    next_eval, (int, float)
+                ):
                     # Detect tactical opportunities
                     if abs(next_eval - current_eval) > 200:
                         tactical_opportunities += 1
@@ -578,7 +608,9 @@ Focus on actionable feedback that will help improve future performance."""
         try:
             # Validate input
             if not isinstance(games_analysis, list):
-                logger.error(f"games_analysis must be a list, got {type(games_analysis)}")
+                logger.error(
+                    f"games_analysis must be a list, got {type(games_analysis)}"
+                )
                 return self._get_default_feedback()
 
             logger.debug(f"Processing {len(games_analysis)} games")
@@ -604,11 +636,15 @@ Focus on actionable feedback that will help improve future performance."""
             logger.error(f"Error generating batch feedback: {str(e)}")
             return self._get_default_feedback()
 
-    def generate_feedback(self, game_analysis: List[Dict[str, Any]], game: Optional[Game] = None) -> Dict[str, Any]:
+    def generate_feedback(
+        self, game_analysis: List[Dict[str, Any]], game: Optional[Game] = None
+    ) -> Dict[str, Any]:
         """Backward-compatible alias for callers expecting a public generate_feedback method."""
         return self._generate_ai_feedback(game_analysis, game)
 
-    def _create_batch_analysis_prompt(self, metrics: Dict[str, Any], player_profile: Dict[str, Any]) -> str:
+    def _create_batch_analysis_prompt(
+        self, metrics: Dict[str, Any], player_profile: Dict[str, Any]
+    ) -> str:
         """Create a prompt for batch analysis."""
         return f"""Analyze the following chess games for player {player_profile.get('username', 'unknown')}:
 
@@ -643,7 +679,9 @@ Based on this data, provide:
 
 Format the response as a structured analysis with clear sections."""
 
-    def _parse_batch_ai_response(self, response: str, metrics: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_batch_ai_response(
+        self, response: str, metrics: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Parse the AI response for batch analysis."""
         try:
             # Extract sections from AI response
@@ -715,7 +753,9 @@ Format the response as a structured analysis with clear sections."""
 
         return sections
 
-    def _aggregate_metrics(self, games_analysis: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _aggregate_metrics(
+        self, games_analysis: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """Aggregate metrics from multiple games."""
         total_games = len(games_analysis)
         if total_games == 0:
@@ -770,8 +810,14 @@ Format the response as a structured analysis with clear sections."""
         avg_accuracy = total_accuracy / total_moves if total_moves > 0 else 0
         win_rate = (wins / total_games) * 100
         avg_time = total_time / total_moves if total_moves > 0 else 0
-        time_pressure_percentage = (time_pressure_moves / total_moves * 100) if total_moves > 0 else 0
-        tactical_success_rate = (successful_tactics / tactical_opportunities * 100) if tactical_opportunities > 0 else 0
+        time_pressure_percentage = (
+            (time_pressure_moves / total_moves * 100) if total_moves > 0 else 0
+        )
+        tactical_success_rate = (
+            (successful_tactics / tactical_opportunities * 100)
+            if tactical_opportunities > 0
+            else 0
+        )
 
         return {
             "total_games": total_games,
@@ -850,7 +896,9 @@ Format the response as a structured analysis with clear sections."""
 
         return "\n".join(summary) if summary else "No significant patterns found"
 
-    def _generate_statistical_batch_feedback(self, metrics: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_statistical_batch_feedback(
+        self, metrics: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Generate statistical feedback for a batch of games."""
         # Implementation of statistical feedback generation logic
         # This is a placeholder and should be replaced with the actual implementation
@@ -907,7 +955,9 @@ Format the response as a structured analysis with clear sections."""
         accuracy = max(0, 100 - (avg_eval_diff * 10))  # Convert eval diff to accuracy
         return round(accuracy, 2)
 
-    def _analyze_common_mistakes(self, mistakes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _analyze_common_mistakes(
+        self, mistakes: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """Analyze patterns in mistakes."""
         if not mistakes:
             return []

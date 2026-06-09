@@ -5,7 +5,9 @@ from core.single_game_moment_share import get_or_create_moment_share
 from django.urls import reverse
 
 
-def test_create_and_fetch_public_moment_share(authenticated_client, test_user, test_game):
+def test_create_and_fetch_public_moment_share(
+    authenticated_client, test_user, test_game
+):
     analysis = GameAnalysis.objects.create(
         game=test_game,
         analysis_data={
@@ -46,10 +48,15 @@ def test_create_and_fetch_public_moment_share(authenticated_client, test_user, t
     assert public_response.status_code == 200
     assert public_response.data["moment"]["move_number"] == 12
     assert "opponent" not in (public_response.data.get("game_context") or {})
-    assert public_response.data["coaching"]["takeaway"] == "The swing on move 12 decided the game."
+    assert (
+        public_response.data["coaching"]["takeaway"]
+        == "The swing on move 12 decided the game."
+    )
 
 
-def test_public_moment_share_requires_completed_analysis(authenticated_client, test_game):
+def test_public_moment_share_requires_completed_analysis(
+    authenticated_client, test_game
+):
     share_url = reverse("create_game_moment_share", kwargs={"game_id": test_game.id})
     response = authenticated_client.post(share_url, {}, format="json")
     assert response.status_code == 400

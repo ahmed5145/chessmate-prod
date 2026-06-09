@@ -84,7 +84,9 @@ def test_clean_game_schema_structure():
     # Types
     assert isinstance(res["total_moves"], int)
     assert isinstance(res["opening_name"], str)
-    assert (res["opening_accuracy"] is None) or isinstance(res["opening_accuracy"], float)
+    assert (res["opening_accuracy"] is None) or isinstance(
+        res["opening_accuracy"], float
+    )
     assert isinstance(res["phase_breakdown"], dict)
     assert isinstance(res["move_quality"], dict)
     assert isinstance(res["critical_moments"], list)
@@ -120,8 +122,14 @@ def test_moves_store_pre_and_post_evals():
 
 
 def test_infer_player_color_matches_platform_username():
-    assert infer_player_color_from_headers("Alice", "Bob", chess_com_username="alice") == "white"
-    assert infer_player_color_from_headers("Alice", "Bob", lichess_username="bob") == "black"
+    assert (
+        infer_player_color_from_headers("Alice", "Bob", chess_com_username="alice")
+        == "white"
+    )
+    assert (
+        infer_player_color_from_headers("Alice", "Bob", lichess_username="bob")
+        == "black"
+    )
     assert infer_player_color_from_headers("Alice", "Bob") == "white"
 
 
@@ -152,7 +160,9 @@ def test_move_quality_and_phases_count_player_moves_only():
     )
     player_moves = res["player_moves"]
     classified_moves = sum(res["move_quality"].values())
-    phase_moves = sum(phase.get("moves", 0) for phase in res["phase_breakdown"].values())
+    phase_moves = sum(
+        phase.get("moves", 0) for phase in res["phase_breakdown"].values()
+    )
 
     assert player_moves > 0
     assert classified_moves == player_moves

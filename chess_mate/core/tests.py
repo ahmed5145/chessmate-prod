@@ -100,16 +100,24 @@ class ChessComServiceTestCase(TestCase):
             mock_get.return_value.json.return_value = {"games": test_games}
 
             # Mock the archives endpoint
-            with patch("chess_mate.core.chess_services.ChessComService.fetch_archives") as mock_archives:
-                mock_archives.return_value = ["https://api.chess.com/pub/player/test_player/games/2024/01"]
+            with patch(
+                "chess_mate.core.chess_services.ChessComService.fetch_archives"
+            ) as mock_archives:
+                mock_archives.return_value = [
+                    "https://api.chess.com/pub/player/test_player/games/2024/01"
+                ]
 
                 # Fetch games
                 result = self.service.fetch_games(username, self.user, limit=limit)
 
                 # Verify results
-                self.assertEqual(result["saved"], limit)  # Should only save up to the limit
+                self.assertEqual(
+                    result["saved"], limit
+                )  # Should only save up to the limit
                 self.assertTrue(result["skipped"] >= 0)  # Should track skipped games
-                self.assertEqual(len(result["games"]), limit)  # Should return only up to limit games
+                self.assertEqual(
+                    len(result["games"]), limit
+                )  # Should return only up to limit games
 
                 # Verify credit deduction
                 self.profile.refresh_from_db()

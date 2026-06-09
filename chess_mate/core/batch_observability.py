@@ -37,7 +37,10 @@ def classify_analysis_error(error_message: str) -> str:
     msg = str(error_message or "").lower()
     if any(token in msg for token in ("memory", "oom", "cannot allocate", "killed")):
         return "stockfish_oom"
-    if any(token in msg for token in ("timeout", "timed out", "time limit", "soft time limit")):
+    if any(
+        token in msg
+        for token in ("timeout", "timed out", "time limit", "soft time limit")
+    ):
         return "stockfish_timeout"
     if "stockfish" in msg or "engine" in msg:
         return "stockfish_error"
@@ -73,7 +76,9 @@ def log_batch_completed(
         status=final_status,
         games_analyzed=games_analyzed,
         games_failed=games_failed,
-        duration_seconds=round(duration_seconds, 2) if duration_seconds is not None else None,
+        duration_seconds=(
+            round(duration_seconds, 2) if duration_seconds is not None else None
+        ),
         coaching_ok=coaching_ok,
         coaching_error=coaching_error,
         aggregation_failed=aggregation_failed,

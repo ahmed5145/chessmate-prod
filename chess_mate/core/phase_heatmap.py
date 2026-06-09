@@ -138,7 +138,9 @@ def _collect_batch_games(user) -> Dict[int, Dict[str, Any]]:
     return collected
 
 
-def _collect_single_game_rows(user, profile: Optional[Profile]) -> Dict[int, Dict[str, Any]]:
+def _collect_single_game_rows(
+    user, profile: Optional[Profile]
+) -> Dict[int, Dict[str, Any]]:
     collected: Dict[int, Dict[str, Any]] = {}
     analyses = (
         GameAnalysis.objects.filter(game__user=user)
@@ -161,7 +163,10 @@ def _collect_single_game_rows(user, profile: Optional[Profile]) -> Dict[int, Dic
         phase_breakdown = {}
         for phase_name in PHASES:
             phase_metrics = phases.get(phase_name)
-            if isinstance(phase_metrics, dict) and phase_metrics.get("accuracy") is not None:
+            if (
+                isinstance(phase_metrics, dict)
+                and phase_metrics.get("accuracy") is not None
+            ):
                 phase_breakdown[phase_name] = {
                     "accuracy": phase_metrics.get("accuracy"),
                     "moves": phase_metrics.get("opportunities") or phase_metrics.get("total_moves") or 1,
@@ -219,11 +224,17 @@ def _headline_for_cell(result: str, phase: str, avg_accuracy: float) -> str:
     return f"Low {phase} accuracy in draws"
 
 
-def build_phase_result_heatmap(user, profile: Optional[Profile] = None) -> Dict[str, Any]:
+def build_phase_result_heatmap(
+    user, profile: Optional[Profile] = None
+) -> Dict[str, Any]:
     counts = get_game_counts(user)
     analyzed_total = int(counts.get("analyzed") or 0)
     if analyzed_total < _MIN_GAMES:
-        return {"show": False, "reason": "insufficient_analyzed_games", "analyzed_games": analyzed_total}
+        return {
+            "show": False,
+            "reason": "insufficient_analyzed_games",
+            "analyzed_games": analyzed_total,
+        }
 
     if profile is None:
         profile = Profile.objects.filter(user=user).first()
@@ -233,7 +244,11 @@ def build_phase_result_heatmap(user, profile: Optional[Profile] = None) -> Dict[
         _collect_single_game_rows(user, profile),
     )
     if len(games) < _MIN_GAMES:
-        return {"show": False, "reason": "insufficient_phase_data", "analyzed_games": len(games)}
+        return {
+            "show": False,
+            "reason": "insufficient_phase_data",
+            "analyzed_games": len(games),
+        }
 
     cells: Dict[str, Dict[str, Any]] = {}
     for result in RESULTS:
@@ -309,7 +324,12 @@ def build_phase_result_heatmap(user, profile: Optional[Profile] = None) -> Dict[
             cell["headline"] = _headline_for_cell(cell["result"], cell["phase"], cell["avg_accuracy"])
             highlighted.append(cell)
 
-        for private_key in ("_accuracy_total", "_accuracy_count", "_eval_total", "_eval_count"):
+        for private_key in (
+            "_accuracy_total",
+            "_accuracy_count",
+            "_eval_total",
+            "_eval_count",
+        ):
             cell.pop(private_key, None)
 
     highlighted.sort(

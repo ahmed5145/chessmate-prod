@@ -30,8 +30,14 @@ logger = logging.getLogger(__name__)
 
 def generate_game_feedback(game: Game) -> tuple[Dict[str, Any], str, int]:
     """Generate high-quality game feedback, with deterministic fallback if AI cannot run."""
-    analysis_results = (game.analysis or {}).get("analysis_results", {}) if isinstance(game.analysis, dict) else {}
-    moves_analysis = analysis_results.get("moves", []) if isinstance(analysis_results, dict) else []
+    analysis_results = (
+        (game.analysis or {}).get("analysis_results", {})
+        if isinstance(game.analysis, dict)
+        else {}
+    )
+    moves_analysis = (
+        analysis_results.get("moves", []) if isinstance(analysis_results, dict) else []
+    )
 
     feedback_generator_cls = AIFeedbackGenerator
     for module_name in (
@@ -52,11 +58,15 @@ def generate_game_feedback(game: Game) -> tuple[Dict[str, Any], str, int]:
         api_key = api_key.strip() if isinstance(api_key, str) else api_key
         if moves_analysis and api_key:
             feedback_generator = feedback_generator_cls(api_key=api_key)
-            feedback_content = feedback_generator.generate_feedback(moves_analysis, game)
+            feedback_content = feedback_generator.generate_feedback(
+                moves_analysis, game
+            )
             model_name = getattr(settings, "OPENAI_MODEL", "gpt-3.5-turbo")
             return feedback_content, model_name, 2
     except Exception as exc:
-        logger.warning("Falling back to deterministic feedback for game %s: %s", game.id, exc)
+        logger.warning(
+            "Falling back to deterministic feedback for game %s: %s", game.id, exc
+        )
 
     feedback_content: Dict[str, Any] = {
         "summary": "You played a strong game overall.",
@@ -109,7 +119,9 @@ def generate_ai_feedback(request, game_id):
             "chessmate_prod.chess_mate.core.feedback_views",
         ):
             module = sys.modules.get(module_name)
-            candidate = getattr(module, "generate_game_feedback", None) if module else None
+            candidate = (
+                getattr(module, "generate_game_feedback", None) if module else None
+            )
             if callable(candidate):
                 resolved_candidates.append(candidate)
 
@@ -128,7 +140,11 @@ def generate_ai_feedback(request, game_id):
                     feedback_fn = resolved_candidates[0]
 
         feedback_content, model_used, credits_used = feedback_fn(game)
-        feedback_payload = feedback_content if isinstance(feedback_content, dict) else {"content": feedback_content}
+        feedback_payload = (
+            feedback_content
+            if isinstance(feedback_content, dict)
+            else {"content": feedback_content}
+        )
 
         with transaction.atomic():
             ai_feedback = AiFeedback.objects.create(
@@ -158,7 +174,9 @@ def generate_ai_feedback(request, game_id):
     except Game.DoesNotExist:
         return Response({"message": "Game not found"}, status=status.HTTP_404_NOT_FOUND)
     except Profile.DoesNotExist:
-        return Response({"message": "User profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"message": "User profile not found"}, status=status.HTTP_404_NOT_FOUND
+        )
     except Exception as e:
         logger.error("Error generating AI feedback: %s", e)
         return Response(
@@ -228,7 +246,9 @@ def generate_game_feedback_view(request, game_id):
         analysis_results = game.analysis.get("analysis_results", {})
 
         # Generate feedback
-        feedback = feedback_generator.generate_feedback(analysis_results, game, focus_areas)
+        feedback = feedback_generator.generate_feedback(
+            analysis_results, game, focus_areas
+        )
 
         # Update game analysis with feedback
         with transaction.atomic():
@@ -256,7 +276,9 @@ def generate_game_feedback_view(request, game_id):
             status=status.HTTP_200_OK,
         )
     except Profile.DoesNotExist:
-        return Response({"error": "User profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"error": "User profile not found"}, status=status.HTTP_404_NOT_FOUND
+        )
     except Exception as e:
         logger.error(f"Error generating AI feedback: {str(e)}")
         return Response(
@@ -315,7 +337,9 @@ def get_game_feedback(request, game_id):
 @permission_classes([IsAuthenticated])
 def get_all_feedback(request):
     """Return all feedback entries for the authenticated user."""
-    feedback_items = AiFeedback.objects.filter(user=request.user).order_by("-created_at")
+    feedback_items = AiFeedback.objects.filter(user=request.user).order_by(
+        "-created_at"
+    )
     payload = [
         {
             "id": item.id,
@@ -339,7 +363,9 @@ def rate_feedback(request, feedback_id):
     try:
         feedback = AiFeedback.objects.get(id=feedback_id)
     except AiFeedback.DoesNotExist:
-        return Response({"error": "Feedback not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"error": "Feedback not found"}, status=status.HTTP_404_NOT_FOUND
+        )
 
     if feedback.user_id != request.user.id:
         return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
@@ -357,7 +383,9 @@ def rate_feedback(request, feedback_id):
     feedback.rating_comment = comment
     feedback.save(update_fields=["rating", "rating_comment"])
 
-    return Response({"message": "Feedback rated successfully"}, status=status.HTTP_200_OK)
+    return Response(
+        {"message": "Feedback rated successfully"}, status=status.HTTP_200_OK
+    )
 
 
 @api_view(["POST"])
@@ -389,7 +417,9 @@ def generate_comparative_feedback(request):
                 # Check if game has been analyzed
                 if game.analysis_status != "analyzed" or not game.analysis:
                     return Response(
-                        {"error": f"Game {game_id} must be analyzed before generating comparative feedback"},
+                        {
+                            "error": f"Game {game_id} must be analyzed before generating comparative feedback"
+                        },
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
@@ -436,7 +466,9 @@ def generate_comparative_feedback(request):
             )
 
         # Generate comparative feedback
-        comparative_feedback = feedback_generator.generate_comparative_feedback(games_data, comparison_focus)
+        comparative_feedback = feedback_generator.generate_comparative_feedback(
+            games_data, comparison_focus
+        )
 
         # Create a unique key for this comparison
         comparison_key = f"comparative_{'_'.join(str(g.id) for g in games)}"
@@ -470,7 +502,9 @@ def generate_comparative_feedback(request):
             status=status.HTTP_200_OK,
         )
     except Profile.DoesNotExist:
-        return Response({"error": "User profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"error": "User profile not found"}, status=status.HTTP_404_NOT_FOUND
+        )
     except Exception as e:
         logger.error(f"Error generating comparative AI feedback: {str(e)}")
         return Response(
@@ -494,7 +528,9 @@ def get_improvement_suggestions(request):
 
         if analyzed_games.count() < 3:
             return Response(
-                {"error": "At least 3 analyzed games are required for improvement suggestions"},
+                {
+                    "error": "At least 3 analyzed games are required for improvement suggestions"
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -536,7 +572,9 @@ def get_improvement_suggestions(request):
             )
 
         # Generate improvement suggestions
-        improvement_suggestions = feedback_generator.generate_improvement_suggestions(games_data)
+        improvement_suggestions = feedback_generator.generate_improvement_suggestions(
+            games_data
+        )
 
         # Store suggestions in user profile
         with transaction.atomic():
@@ -565,7 +603,9 @@ def get_improvement_suggestions(request):
             status=status.HTTP_200_OK,
         )
     except Profile.DoesNotExist:
-        return Response({"error": "User profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"error": "User profile not found"}, status=status.HTTP_404_NOT_FOUND
+        )
     except Exception as e:
         logger.error(f"Error generating improvement suggestions: {str(e)}")
         return Response(

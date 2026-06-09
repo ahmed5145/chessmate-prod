@@ -20,12 +20,18 @@ def fix_legacy_rating_column(apps, schema_editor):
             WHERE rating IS NULL
             """
         )
+            """
+        )
         cursor.execute("ALTER TABLE core_profile ALTER COLUMN rating SET DEFAULT 1200")
+        cursor.execute(
+            """
         cursor.execute(
             """
             UPDATE core_profile
             SET rating = 1200
             WHERE rating IS NULL
+            """
+        )
             """
         )
 
@@ -39,7 +45,9 @@ class Migration(migrations.Migration):
     operations = [
         migrations.SeparateDatabaseAndState(
             database_operations=[
-                migrations.RunPython(fix_legacy_rating_column, migrations.RunPython.noop),
+                migrations.RunPython(
+                    fix_legacy_rating_column, migrations.RunPython.noop
+                ),
             ],
             state_operations=[
                 migrations.AddField(

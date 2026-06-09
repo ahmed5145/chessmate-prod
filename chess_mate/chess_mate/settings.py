@@ -52,7 +52,9 @@ IS_PRODUCTION = ENVIRONMENT.lower() == "production"
 if IS_PRODUCTION and not TESTING:
     SECRET_KEY = env("SECRET_KEY", default="").strip()
     if not SECRET_KEY or SECRET_KEY.startswith("django-insecure"):
-        raise ImproperlyConfigured("SECRET_KEY must be set to a strong value when ENVIRONMENT=production")
+        raise ImproperlyConfigured(
+            "SECRET_KEY must be set to a strong value when ENVIRONMENT=production"
+        )
 else:
     SECRET_KEY = env("SECRET_KEY", default="django-insecure-dev-only-change-me")
 
@@ -67,7 +69,9 @@ if not OPENAI_API_KEY:
         os.path.join(PROJECT_ROOT, ".env.production"),
     ):
         if os.path.exists(fallback_file):
-            fallback_key = (dotenv_values(fallback_file).get("OPENAI_API_KEY") or "").strip()
+            fallback_key = (
+                dotenv_values(fallback_file).get("OPENAI_API_KEY") or ""
+            ).strip()
             if fallback_key:
                 OPENAI_API_KEY = fallback_key
                 break
@@ -78,7 +82,9 @@ OPENAI_MAX_TOKENS = 500
 OPENAI_TEMPERATURE = 0.7
 OPENAI_RATE_LIMIT = {
     "max_requests": 100 if env("TEST_MODE", default="False").lower() == "true" else 50,
-    "window_seconds": (60 if env("TEST_MODE", default="False").lower() == "true" else 3600),
+    "window_seconds": (
+        60 if env("TEST_MODE", default="False").lower() == "true" else 3600
+    ),
     "min_interval": 0.1 if env("TEST_MODE", default="False").lower() == "true" else 0.5,
 }
 OPENAI_CACHE_KEY = "openai_rate_limit"
@@ -178,7 +184,9 @@ elif IS_PRODUCTION:
             "PASSWORD": env("DB_PASSWORD", default=""),
             "HOST": env("DB_HOST", default="localhost"),
             "PORT": env("DB_PORT", default="5432"),
-            "CONN_MAX_AGE": int(env("DB_CONN_MAX_AGE", default="300")),  # 5 minutes persistent connection
+            "CONN_MAX_AGE": int(
+                env("DB_CONN_MAX_AGE", default="300")
+            ),  # 5 minutes persistent connection
             "OPTIONS": {
                 "connect_timeout": 10,  # Reduced timeout for faster error detection
                 "client_encoding": "UTF8",
@@ -204,10 +212,18 @@ elif IS_PRODUCTION:
             },
             # Connection pooling settings
             "POOL_OPTIONS": {
-                "POOL_SIZE": int(env("DB_POOL_SIZE", default="20")),  # Increased pool size for higher concurrency
-                "MAX_OVERFLOW": int(env("DB_MAX_OVERFLOW", default="30")),  # Allow more overflow connections under load
-                "RECYCLE": int(env("DB_RECYCLE_SECONDS", default="300")),  # Recycle connections after 5 minutes
-                "TIMEOUT": int(env("DB_POOL_TIMEOUT", default="30")),  # Timeout for acquiring connection from pool
+                "POOL_SIZE": int(
+                    env("DB_POOL_SIZE", default="20")
+                ),  # Increased pool size for higher concurrency
+                "MAX_OVERFLOW": int(
+                    env("DB_MAX_OVERFLOW", default="30")
+                ),  # Allow more overflow connections under load
+                "RECYCLE": int(
+                    env("DB_RECYCLE_SECONDS", default="300")
+                ),  # Recycle connections after 5 minutes
+                "TIMEOUT": int(
+                    env("DB_POOL_TIMEOUT", default="30")
+                ),  # Timeout for acquiring connection from pool
                 "RETRY_ON_TIMEOUT": True,  # Retry on connection timeout
                 "MAX_RETRIES": 3,  # Maximum number of retries
                 "RETRY_DELAY": 0.1,  # Delay between retries (seconds)
@@ -449,21 +465,37 @@ RATE_LIMIT_ENDPOINT_PATTERNS = {
 
 # Abuse caps (business logic — see core/abuse_limits.py)
 SIGNUP_RATE_LIMIT_MAX_PER_IP = env.int("SIGNUP_RATE_LIMIT_MAX_PER_IP", default=5)
-SIGNUP_RATE_LIMIT_WINDOW_SECONDS = env.int("SIGNUP_RATE_LIMIT_WINDOW_SECONDS", default=3600)
+SIGNUP_RATE_LIMIT_WINDOW_SECONDS = env.int(
+    "SIGNUP_RATE_LIMIT_WINDOW_SECONDS", default=3600
+)
 LOGIN_FAILED_MAX_PER_IP = env.int("LOGIN_FAILED_MAX_PER_IP", default=20)
 LOGIN_FAILED_WINDOW_SECONDS = env.int("LOGIN_FAILED_WINDOW_SECONDS", default=3600)
 PASSWORD_RESET_MAX_PER_IP = env.int("PASSWORD_RESET_MAX_PER_IP", default=5)
 PASSWORD_RESET_WINDOW_SECONDS = env.int("PASSWORD_RESET_WINDOW_SECONDS", default=3600)
 PASSWORD_RESET_MAX_PER_EMAIL = env.int("PASSWORD_RESET_MAX_PER_EMAIL", default=3)
-PASSWORD_RESET_EMAIL_WINDOW_SECONDS = env.int("PASSWORD_RESET_EMAIL_WINDOW_SECONDS", default=86400)
+PASSWORD_RESET_EMAIL_WINDOW_SECONDS = env.int(
+    "PASSWORD_RESET_EMAIL_WINDOW_SECONDS", default=86400
+)
 MAX_BATCHES_PER_USER_PER_DAY = env.int("MAX_BATCHES_PER_USER_PER_DAY", default=3)
 ALLOW_CONCURRENT_BATCHES = env.bool("ALLOW_CONCURRENT_BATCHES", default=False)
-MAX_GAME_IMPORTS_PER_USER_PER_DAY = env.int("MAX_GAME_IMPORTS_PER_USER_PER_DAY", default=100)
-MAX_EXTERNAL_FETCH_REQUESTS_PER_USER_PER_DAY = env.int("MAX_EXTERNAL_FETCH_REQUESTS_PER_USER_PER_DAY", default=30)
-MAX_SINGLE_ANALYSES_PER_USER_PER_DAY = env.int("MAX_SINGLE_ANALYSES_PER_USER_PER_DAY", default=50)
-MAX_COACHING_REGENERATIONS_PER_USER_PER_DAY = env.int("MAX_COACHING_REGENERATIONS_PER_USER_PER_DAY", default=10)
-MAX_COACHING_REGENERATIONS_PER_BATCH_PER_DAY = env.int("MAX_COACHING_REGENERATIONS_PER_BATCH_PER_DAY", default=3)
-MAX_CHECKOUT_SESSIONS_PER_USER_PER_HOUR = env.int("MAX_CHECKOUT_SESSIONS_PER_USER_PER_HOUR", default=10)
+MAX_GAME_IMPORTS_PER_USER_PER_DAY = env.int(
+    "MAX_GAME_IMPORTS_PER_USER_PER_DAY", default=100
+)
+MAX_EXTERNAL_FETCH_REQUESTS_PER_USER_PER_DAY = env.int(
+    "MAX_EXTERNAL_FETCH_REQUESTS_PER_USER_PER_DAY", default=30
+)
+MAX_SINGLE_ANALYSES_PER_USER_PER_DAY = env.int(
+    "MAX_SINGLE_ANALYSES_PER_USER_PER_DAY", default=50
+)
+MAX_COACHING_REGENERATIONS_PER_USER_PER_DAY = env.int(
+    "MAX_COACHING_REGENERATIONS_PER_USER_PER_DAY", default=10
+)
+MAX_COACHING_REGENERATIONS_PER_BATCH_PER_DAY = env.int(
+    "MAX_COACHING_REGENERATIONS_PER_BATCH_PER_DAY", default=3
+)
+MAX_CHECKOUT_SESSIONS_PER_USER_PER_HOUR = env.int(
+    "MAX_CHECKOUT_SESSIONS_PER_USER_PER_HOUR", default=10
+)
 
 # Logging Configuration
 LOGS_DIR = BASE_DIR / "logs"
@@ -550,8 +582,12 @@ CELERY_IMPORTS = ("core.tasks",)
 # Game Analysis settings
 ANALYSIS_COST = int(env("ANALYSIS_COST", default=5))  # Credits per analysis
 ANALYSIS_DEPTH = int(env("ANALYSIS_DEPTH", default=20))  # Stockfish analysis depth
-ANALYSIS_MOVE_TIME = int(env("ANALYSIS_MOVE_TIME", default=100))  # ms per move for Stockfish
-MAX_POSITIONS_PER_GAME = int(env("MAX_POSITIONS_PER_GAME", default=300))  # Max positions to analyze per game
+ANALYSIS_MOVE_TIME = int(
+    env("ANALYSIS_MOVE_TIME", default=100)
+)  # ms per move for Stockfish
+MAX_POSITIONS_PER_GAME = int(
+    env("MAX_POSITIONS_PER_GAME", default=300)
+)  # Max positions to analyze per game
 
 # Batch coach (launch product) — depth is internal only, not user-facing
 BATCH_MIN_GAMES = env.int("BATCH_MIN_GAMES", default=5)
@@ -561,14 +597,20 @@ BATCH_DEFAULT_GAMES = env.int("BATCH_DEFAULT_GAMES", default=10)
 BATCH_CREDITS_PER_GAME = env.int("BATCH_CREDITS_PER_GAME", default=0)
 BATCH_ANALYSIS_DEPTH = env.int("BATCH_ANALYSIS_DEPTH", default=14)
 BATCH_SEND_COMPLETE_EMAIL = env.bool("BATCH_SEND_COMPLETE_EMAIL", default=True)
-SINGLE_GAME_SEND_COMPLETE_EMAIL = env.bool("SINGLE_GAME_SEND_COMPLETE_EMAIL", default=True)
+SINGLE_GAME_SEND_COMPLETE_EMAIL = env.bool(
+    "SINGLE_GAME_SEND_COMPLETE_EMAIL", default=True
+)
 # Depth-20 single-game runs can exceed the global 300s Celery default; match batch subtask budget.
-SINGLE_GAME_TASK_SOFT_TIME_LIMIT = env.int("SINGLE_GAME_TASK_SOFT_TIME_LIMIT", default=840)
+SINGLE_GAME_TASK_SOFT_TIME_LIMIT = env.int(
+    "SINGLE_GAME_TASK_SOFT_TIME_LIMIT", default=840
+)
 SINGLE_GAME_TASK_TIME_LIMIT = env.int("SINGLE_GAME_TASK_TIME_LIMIT", default=900)
 # User-facing ETA hints (sequential Stockfish @ depth 14)
 BATCH_ETA_MINUTES_PER_GAME_LOW = env.int("BATCH_ETA_MINUTES_PER_GAME_LOW", default=3)
 BATCH_ETA_MINUTES_PER_GAME_HIGH = env.int("BATCH_ETA_MINUTES_PER_GAME_HIGH", default=5)
-BATCH_ETA_COACHING_BUFFER_MINUTES = env.int("BATCH_ETA_COACHING_BUFFER_MINUTES", default=2)
+BATCH_ETA_COACHING_BUFFER_MINUTES = env.int(
+    "BATCH_ETA_COACHING_BUFFER_MINUTES", default=2
+)
 
 # Use our custom Redis client
 REDIS_CLIENT_CLASS = "chess_mate.core.redis_config.get_redis_client"
@@ -589,8 +631,12 @@ SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)
 SECURE_REDIRECT_EXEMPT = [r"^health/?$", r"^readiness/?$"]
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=False)
 CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=False)
-SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", default="31536000" if IS_PRODUCTION else "0"))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=IS_PRODUCTION)
+SECURE_HSTS_SECONDS = int(
+    env("SECURE_HSTS_SECONDS", default="31536000" if IS_PRODUCTION else "0")
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS", default=IS_PRODUCTION
+)
 SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=IS_PRODUCTION)
 
 # CSRF Configuration
@@ -656,8 +702,12 @@ CORS_ALLOW_METHODS = [
 ]
 
 # JWT refresh lifetimes for login "remember me" (session vs persistent)
-JWT_REFRESH_TOKEN_LIFETIME_REMEMBER = timedelta(days=int(os.getenv("JWT_REFRESH_REMEMBER_DAYS", "30")))
-JWT_REFRESH_TOKEN_LIFETIME_SESSION = timedelta(hours=int(os.getenv("JWT_REFRESH_SESSION_HOURS", "12")))
+JWT_REFRESH_TOKEN_LIFETIME_REMEMBER = timedelta(
+    days=int(os.getenv("JWT_REFRESH_REMEMBER_DAYS", "30"))
+)
+JWT_REFRESH_TOKEN_LIFETIME_SESSION = timedelta(
+    hours=int(os.getenv("JWT_REFRESH_SESSION_HOURS", "12"))
+)
 
 # JWT Settings (with improved security and compatibility)
 SIMPLE_JWT = {
@@ -708,7 +758,9 @@ else:
     DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@localhost")
 
 # Password reset links in email (must match template copy)
-PASSWORD_RESET_TIMEOUT = env.int("PASSWORD_RESET_TIMEOUT", default=60 * 60 * 24)  # 24 hours
+PASSWORD_RESET_TIMEOUT = env.int(
+    "PASSWORD_RESET_TIMEOUT", default=60 * 60 * 24
+)  # 24 hours
 FRONTEND_URL = env("FRONTEND_URL", default="")
 PAYMENT_SUCCESS_URL = env("PAYMENT_SUCCESS_URL", default="")
 PAYMENT_CANCEL_URL = env("PAYMENT_CANCEL_URL", default="")
@@ -742,13 +794,18 @@ try:
     DJANGO_ADMIN_PATH = resolve_admin_path(
         is_production=IS_PRODUCTION,
         testing=TESTING,
-        configured=env("DJANGO_ADMIN_PATH", default="admin" if (not IS_PRODUCTION or TESTING) else ""),
+        configured=env(
+            "DJANGO_ADMIN_PATH",
+            default="admin" if (not IS_PRODUCTION or TESTING) else "",
+        ),
     )
 except ValueError as exc:
     raise ImproperlyConfigured(str(exc)) from exc
 
 ADMIN_URL_PREFIX = f"/{DJANGO_ADMIN_PATH}/"
-ADMIN_HIDE_LEGACY_PATH = env.bool("ADMIN_HIDE_LEGACY_PATH", default=IS_PRODUCTION and not TESTING)
+ADMIN_HIDE_LEGACY_PATH = env.bool(
+    "ADMIN_HIDE_LEGACY_PATH", default=IS_PRODUCTION and not TESTING
+)
 ADMIN_ALLOWED_IPS = env.list("ADMIN_ALLOWED_IPS", default=[])
 ADMIN_LOGIN_MAX_ATTEMPTS = env.int("ADMIN_LOGIN_MAX_ATTEMPTS", default=5)
 ADMIN_LOGIN_WINDOW_SECONDS = env.int("ADMIN_LOGIN_WINDOW_SECONDS", default=900)

@@ -9,7 +9,11 @@ from .email_utils import get_frontend_base_url
 
 def build_worst_moment_deep_review_url(batch_report) -> Optional[str]:
     """First batch-wide critical moment with a saved game id."""
-    summary = batch_report.batch_summary if isinstance(batch_report.batch_summary, dict) else {}
+    summary = (
+        batch_report.batch_summary
+        if isinstance(batch_report.batch_summary, dict)
+        else {}
+    )
     moments = summary.get("top_critical_moments") or []
     if not isinstance(moments, list):
         return None
@@ -27,7 +31,11 @@ def build_worst_moment_deep_review_url(batch_report) -> Optional[str]:
             params.append(f"move={move_number}")
         return f"{base}?{'&'.join(params)}"
 
-    per_game = batch_report.per_game_results if isinstance(batch_report.per_game_results, list) else []
+    per_game = (
+        batch_report.per_game_results
+        if isinstance(batch_report.per_game_results, list)
+        else []
+    )
     for game_result in per_game:
         if not isinstance(game_result, dict):
             continue
@@ -49,7 +57,11 @@ def build_worst_moment_deep_review_url(batch_report) -> Optional[str]:
 
 
 def worst_moment_summary(batch_report) -> Dict[str, Any]:
-    summary = batch_report.batch_summary if isinstance(batch_report.batch_summary, dict) else {}
+    summary = (
+        batch_report.batch_summary
+        if isinstance(batch_report.batch_summary, dict)
+        else {}
+    )
     moments = summary.get("top_critical_moments") or []
     if isinstance(moments, list) and moments and isinstance(moments[0], dict):
         return moments[0]

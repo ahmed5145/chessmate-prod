@@ -24,7 +24,9 @@ logger = logging.getLogger(__name__)
 # no matter which package spelling the test runner imports first.
 sys.modules.setdefault("core.cache_invalidation", sys.modules[__name__])
 sys.modules.setdefault("chess_mate.core.cache_invalidation", sys.modules[__name__])
-sys.modules.setdefault("chessmate_prod.chess_mate.core.cache_invalidation", sys.modules[__name__])
+sys.modules.setdefault(
+    "chessmate_prod.chess_mate.core.cache_invalidation", sys.modules[__name__]
+)
 
 # Type variable for function return types
 T = TypeVar("T")
@@ -102,7 +104,9 @@ class CacheInvalidator:
             logger.debug(f"Invalidated cache for {entity_type}:{entity_id}")
             return True
         except Exception as error:
-            logger.error(f"Error invalidating entity cache for {entity_type}:{entity_id}: {error}")
+            logger.error(
+                f"Error invalidating entity cache for {entity_type}:{entity_id}: {error}"
+            )
             return False
 
     def initialize(self) -> None:
@@ -303,7 +307,9 @@ def with_cache_tags(*tags: str) -> Callable[[Any], Any]:
     return decorator
 
 
-def invalidates_cache(*tags: str, entities: Union[Dict[str, str], None] = None) -> Callable[[F], F]:
+def invalidates_cache(
+    *tags: str, entities: Union[Dict[str, str], None] = None
+) -> Callable[[F], F]:
     """
     Decorator to invalidate cache tags when a function is called.
 
@@ -336,7 +342,9 @@ def invalidates_cache(*tags: str, entities: Union[Dict[str, str], None] = None) 
                         if entity_id is not None:
                             CacheInvalidator.invalidate_entity(entity_type, entity_id)
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
-                logger.error("Error invalidating cache in %s: %s", func.__qualname__, error)
+                logger.error(
+                    "Error invalidating cache in %s: %s", func.__qualname__, error
+                )
 
             return result
 
@@ -405,7 +413,9 @@ class CacheTagsMiddleware:
 
                 # If no cache control is set, add a default
                 if not cache_control:
-                    if hasattr(request, "user") and getattr(request.user, "is_authenticated", False):
+                    if hasattr(request, "user") and getattr(
+                        request.user, "is_authenticated", False
+                    ):
                         # Private caching for authenticated users
                         response["Cache-Control"] = "private, max-age=60"
                     else:
