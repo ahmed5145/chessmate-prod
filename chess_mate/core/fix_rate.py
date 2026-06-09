@@ -19,16 +19,8 @@ def _normalize_label(value: Any) -> str:
 
 def _extract_patterns(batch_report: BatchAnalysisReport) -> Dict[str, Dict[str, Any]]:
     patterns: Dict[str, Dict[str, Any]] = {}
-    summary = (
-        batch_report.batch_summary
-        if isinstance(batch_report.batch_summary, dict)
-        else {}
-    )
-    coaching = (
-        batch_report.coaching_report
-        if isinstance(batch_report.coaching_report, dict)
-        else {}
-    )
+    summary = batch_report.batch_summary if isinstance(batch_report.batch_summary, dict) else {}
+    coaching = batch_report.coaching_report if isinstance(batch_report.coaching_report, dict) else {}
 
     for weakness in summary.get("recurring_weaknesses") or []:
         if not isinstance(weakness, dict):
@@ -75,16 +67,8 @@ def _proof_game_id(
     *,
     prefer_absent: bool,
 ) -> Optional[int]:
-    summary = (
-        batch_report.batch_summary
-        if isinstance(batch_report.batch_summary, dict)
-        else {}
-    )
-    per_game = (
-        batch_report.per_game_results
-        if isinstance(batch_report.per_game_results, list)
-        else []
-    )
+    summary = batch_report.batch_summary if isinstance(batch_report.batch_summary, dict) else {}
+    per_game = batch_report.per_game_results if isinstance(batch_report.per_game_results, list) else []
     normalized_label = _normalize_label(pattern_label).lower()
 
     if prefer_absent:
@@ -147,31 +131,19 @@ def build_fix_rate_payload(
     for signature, prev_row in previous_patterns.items():
         current_row = current_patterns.get(signature)
         prev_swing = _swing_value(prev_row.get("avg_eval_swing"))
-        cur_swing = _swing_value(
-            current_row.get("avg_eval_swing") if current_row else None
-        )
+        cur_swing = _swing_value(current_row.get("avg_eval_swing") if current_row else None)
 
         if current_row is None:
             status = "fixed"
             fixed_count += 1
-            proof_game_id = _proof_game_id(
-                current, prev_row["label"], prefer_absent=True
-            )
-        elif (
-            prev_swing is not None
-            and cur_swing is not None
-            and (prev_swing - cur_swing) >= 0.1
-        ):
+            proof_game_id = _proof_game_id(current, prev_row["label"], prefer_absent=True)
+        elif prev_swing is not None and cur_swing is not None and (prev_swing - cur_swing) >= 0.1:
             status = "improved"
             fixed_count += 1
-            proof_game_id = _proof_game_id(
-                current, prev_row["label"], prefer_absent=False
-            )
+            proof_game_id = _proof_game_id(current, prev_row["label"], prefer_absent=False)
         else:
             status = "persisting"
-            proof_game_id = _proof_game_id(
-                current, prev_row["label"], prefer_absent=False
-            )
+            proof_game_id = _proof_game_id(current, prev_row["label"], prefer_absent=False)
 
         rows.append(
             {
@@ -186,9 +158,7 @@ def build_fix_rate_payload(
 
     total_count = len(previous_patterns)
     month_label = (previous.created_at or previous.updated_at).strftime("%B")
-    headline = (
-        f"You fixed {fixed_count}/{total_count} patterns from your {month_label} batch."
-    )
+    headline = f"You fixed {fixed_count}/{total_count} patterns from your {month_label} batch."
 
     return {
         "show": True,
@@ -216,7 +186,9 @@ def build_dashboard_fix_rate(user) -> Dict[str, Any]:
         BatchAnalysisReport.objects.filter(
             user=user,
             status__in=["completed", "partial"],
-        ).order_by("-pk")[:2]
+        ).order_by(
+            "-pk"
+        )[:2]
     )
     if len(batches) < 2:
         return {"show": False}

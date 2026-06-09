@@ -28,17 +28,13 @@ def _opening_matches_gap(game: Dict[str, Any], gap: Dict[str, Any]) -> bool:
     gap_eco = str(gap.get("eco_code") or "").strip().upper()
     game_eco = str(game.get("eco_code") or "").strip().upper()
 
-    if gap_name and (
-        game_name == gap_name or game_name.startswith(f"{gap_name}:")
-    ):
+    if gap_name and (game_name == gap_name or game_name.startswith(f"{gap_name}:")):
         return True
     if gap_eco and game_eco and gap_eco == game_eco:
         return True
 
     eco_codes = gap.get("eco_codes") or []
-    if isinstance(eco_codes, list) and game_eco and game_eco in {
-        str(code).strip().upper() for code in eco_codes
-    }:
+    if isinstance(eco_codes, list) and game_eco and game_eco in {str(code).strip().upper() for code in eco_codes}:
         return True
     return False
 
@@ -139,15 +135,11 @@ def enrich_repertoire_gap(
     batch_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     row = dict(gap)
-    lost_games = collect_lost_games_for_gap(
-        gap, per_game_results, batch_id=batch_id
-    )
+    lost_games = collect_lost_games_for_gap(gap, per_game_results, batch_id=batch_id)
     row["lost_games"] = lost_games
     row["loss_count"] = len(lost_games)
     if row["loss_count"] > 0:
-        row["loss_copy"] = (
-            f"You lost {row['loss_count']} game{'s' if row['loss_count'] != 1 else ''} in this line"
-        )
+        row["loss_copy"] = f"You lost {row['loss_count']} game{'s' if row['loss_count'] != 1 else ''} in this line"
     else:
         row["loss_copy"] = None
     return row
@@ -164,9 +156,6 @@ def enrich_batch_summary_opening_gaps(
     gaps = summary.get("repertoire_gaps")
     if isinstance(gaps, list) and gaps:
         summary["repertoire_gaps"] = [
-            enrich_repertoire_gap(gap, games, batch_id=batch_id)
-            if isinstance(gap, dict)
-            else gap
-            for gap in gaps
+            enrich_repertoire_gap(gap, games, batch_id=batch_id) if isinstance(gap, dict) else gap for gap in gaps
         ]
     return summary

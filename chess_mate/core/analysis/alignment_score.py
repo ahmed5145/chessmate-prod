@@ -23,8 +23,7 @@ def _infer_priority_phase(
     if isinstance(priority, dict):
         blob = _normalize_text(
             " ".join(
-                str(priority.get(key) or "")
-                for key in ("title", "specific_drill", "how_to_fix", "why_it_matters")
+                str(priority.get(key) or "") for key in ("title", "specific_drill", "how_to_fix", "why_it_matters")
             )
         )
         for phase, keywords in _PHASE_KEYWORDS.items():
@@ -62,11 +61,7 @@ def compute_coach_alignment_score(
 
     alignment = moments in batch target phase / all single-game critical moments
     """
-    moments = [
-        moment
-        for moment in (single_game_moments or [])
-        if isinstance(moment, dict) and _moment_phase(moment)
-    ]
+    moments = [moment for moment in (single_game_moments or []) if isinstance(moment, dict) and _moment_phase(moment)]
     if not moments:
         return None
 
@@ -75,12 +70,8 @@ def compute_coach_alignment_score(
         return None
 
     relevant_count = len(moments)
-    confirmed_count = sum(
-        1 for moment in moments if _moment_phase(moment) == target_phase
-    )
-    alignment_pct = (
-        int(round((confirmed_count / relevant_count) * 100)) if relevant_count else 0
-    )
+    confirmed_count = sum(1 for moment in moments if _moment_phase(moment) == target_phase)
+    alignment_pct = int(round((confirmed_count / relevant_count) * 100)) if relevant_count else 0
 
     phase_counts = Counter(_moment_phase(moment) for moment in moments)
     dominant_phase = phase_counts.most_common(1)[0][0] if phase_counts else None
@@ -93,8 +84,7 @@ def compute_coach_alignment_score(
         )
 
     headline = (
-        f"Batch focused on {target_phase} — this game confirms "
-        f"{confirmed_count}/{relevant_count} critical moments."
+        f"Batch focused on {target_phase} — this game confirms " f"{confirmed_count}/{relevant_count} critical moments."
     )
 
     return {

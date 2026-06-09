@@ -29,7 +29,11 @@ class OpeningGapsGamesTests(SimpleTestCase):
                 "platform": "lichess",
                 "platform_game_url": "https://lichess.org/abc",
                 "critical_moments": [
-                    {"phase": "opening", "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", "move_number": 2}
+                    {
+                        "phase": "opening",
+                        "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+                        "move_number": 2,
+                    }
                 ],
             },
             {

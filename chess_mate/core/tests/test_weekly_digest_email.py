@@ -94,9 +94,7 @@ def test_sends_once_per_week(mock_send, _mock_render, _mock_email, digest_user):
 @patch("core.weekly_digest_email.is_email_configured", return_value=True)
 @patch("core.weekly_digest_email.render_to_string", return_value="<p>Digest</p>")
 @patch("core.weekly_digest_email.send_coaching_email", return_value=1)
-def test_skips_when_completion_notification_today(
-    mock_send, _mock_render, _mock_email, digest_user
-):
+def test_skips_when_completion_notification_today(mock_send, _mock_render, _mock_email, digest_user):
     UserNotification.objects.create(
         user=digest_user,
         notification_type=UserNotification.TYPE_SINGLE_COMPLETE,
@@ -113,9 +111,7 @@ def test_skips_when_completion_notification_today(
         "one_thing_today": {},
         "pending_inbox_count": 1,
     }
-    with patch(
-        "core.weekly_digest_email.build_weekly_digest_payload", return_value=payload
-    ):
+    with patch("core.weekly_digest_email.build_weekly_digest_payload", return_value=payload):
         assert send_weekly_digest_for_user(digest_user) is False
         mock_send.assert_not_called()
 
@@ -134,11 +130,7 @@ def test_build_payload_includes_inbox_when_pending(digest_user):
     profile = Profile.objects.get(user=digest_user)
     with patch(
         "core.weekly_digest_email.get_priority_inbox_payload",
-        return_value={
-            "pending_items": [
-                {"title": "Fix hanging pieces", "href": "/game/5/analysis?mode=review"}
-            ]
-        },
+        return_value={"pending_items": [{"title": "Fix hanging pieces", "href": "/game/5/analysis?mode=review"}]},
     ):
         payload = build_weekly_digest_payload(digest_user, profile)
     assert payload["has_content"] is True

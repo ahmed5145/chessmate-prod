@@ -76,11 +76,7 @@ def _finalize_dashboard_response(dashboard_data, user, profile):
     inbox = get_priority_inbox_payload(profile)
     payload["priority_inbox"] = inbox
     payload["one_thing_today"] = build_one_thing_today(
-        total_games=int(
-            payload.get("total_games")
-            or (payload.get("game_stats") or {}).get("total")
-            or 0
-        ),
+        total_games=int(payload.get("total_games") or (payload.get("game_stats") or {}).get("total") or 0),
         analyzed_games=int(payload.get("analyzed_games") or 0),
         priority_inbox=inbox,
         latest_batch_coach=payload.get("latest_batch_coach"),
@@ -106,9 +102,7 @@ def dashboard_view(request):
         try:
             profile = Profile.objects.select_related("user").get(user=user)  # type: ignore[attr-defined]
         except Profile.DoesNotExist:  # type: ignore[attr-defined]
-            return Response(
-                {"error": "User profile not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "User profile not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Check cache first (since_last_visit is always computed fresh per request)
         cache_key = generate_cache_key("dashboard_data", user.id)
@@ -145,9 +139,7 @@ def dashboard_view(request):
             total_games=Count("id"),
             analyzed_games=Count("id", filter=ANALYZED_GAME_Q),
             wins=Count(Case(When(result="win", then=1), output_field=IntegerField())),
-            losses=Count(
-                Case(When(result="loss", then=1), output_field=IntegerField())
-            ),
+            losses=Count(Case(When(result="loss", then=1), output_field=IntegerField())),
             draws=Count(Case(When(result="draw", then=1), output_field=IntegerField())),
         )
 
@@ -162,15 +154,9 @@ def dashboard_view(request):
             Game.objects.filter(user=user)
             .filter(ANALYZED_GAME_Q)  # type: ignore[attr-defined]
             .aggregate(
-                wins=Count(
-                    Case(When(result="win", then=1), output_field=IntegerField())
-                ),
-                losses=Count(
-                    Case(When(result="loss", then=1), output_field=IntegerField())
-                ),
-                draws=Count(
-                    Case(When(result="draw", then=1), output_field=IntegerField())
-                ),
+                wins=Count(Case(When(result="win", then=1), output_field=IntegerField())),
+                losses=Count(Case(When(result="loss", then=1), output_field=IntegerField())),
+                draws=Count(Case(When(result="draw", then=1), output_field=IntegerField())),
             )
         )
         analyzed_win_count = analyzed_game_stats["wins"]
@@ -190,9 +176,7 @@ def dashboard_view(request):
             # Query games with this time control category
             tc_stats = Game.objects.filter(user=user, time_control_category=time_control).aggregate(  # type: ignore[attr-defined]
                 count=Count("id"),
-                wins=Count(
-                    Case(When(result="win", then=1), output_field=IntegerField())
-                ),
+                wins=Count(Case(When(result="win", then=1), output_field=IntegerField())),
             )
 
             tc_count = tc_stats["count"]
@@ -214,9 +198,7 @@ def dashboard_view(request):
             .values("platform")
             .annotate(
                 count=Count("id"),
-                wins=Count(
-                    Case(When(result="win", then=1), output_field=IntegerField())
-                ),
+                wins=Count(Case(When(result="win", then=1), output_field=IntegerField())),
             )
         )
 
@@ -256,9 +238,7 @@ def dashboard_view(request):
                             "date": game.date_played,
                             "opponent": resolve_game_opponent_display(game, profile),
                             "mistake_count": len(mistakes),
-                            "summary": analysis.analysis_data.get(
-                                "summary", "No summary available"
-                            ),
+                            "summary": analysis.analysis_data.get("summary", "No summary available"),
                         }
                     )
 
@@ -267,18 +247,12 @@ def dashboard_view(request):
         latest_batch_moment = None
         latest_single_moment = fetch_latest_single_worst_moment(user, profile)
         latest_batch = (
-            BatchAnalysisReport.objects.filter(
-                user=user, status__in=["completed", "partial"]
-            )
+            BatchAnalysisReport.objects.filter(user=user, status__in=["completed", "partial"])
             .order_by("-created_at")
             .first()
         )
         if latest_batch:
-            batch_summary = (
-                latest_batch.batch_summary
-                if isinstance(latest_batch.batch_summary, dict)
-                else {}
-            )
+            batch_summary = latest_batch.batch_summary if isinstance(latest_batch.batch_summary, dict) else {}
             latest_batch_summary = batch_summary
             summary_text = _coaching_summary_snippet(latest_batch.coaching_report)
             if summary_text:
@@ -298,16 +272,10 @@ def dashboard_view(request):
                     latest_batch_moment["batch_id"] = latest_batch.id
                     saved_id = latest_batch_moment.get("saved_game_id")
                     if saved_id:
-                        batch_game = Game.objects.filter(  # type: ignore[attr-defined]
-                            id=saved_id, user=user
-                        ).first()
+                        batch_game = Game.objects.filter(id=saved_id, user=user).first()  # type: ignore[attr-defined]
                         if batch_game:
-                            latest_batch_moment["opponent"] = (
-                                resolve_game_opponent_display(batch_game, profile)
-                            )
-                            latest_batch_moment["opening_name"] = (
-                                batch_game.opening_name
-                            )
+                            latest_batch_moment["opponent"] = resolve_game_opponent_display(batch_game, profile)
+                            latest_batch_moment["opening_name"] = batch_game.opening_name
 
         # Construct the response data
         dashboard_data = {
@@ -362,9 +330,7 @@ def dashboard_view(request):
             },
         }
 
-        average_accuracy = compute_user_average_accuracy(
-            user, profile, latest_batch_summary
-        )
+        average_accuracy = compute_user_average_accuracy(user, profile, latest_batch_summary)
         dashboard_data["total_games"] = total_games
         dashboard_data["win_rate"] = round(win_rate, 1)
         dashboard_data["credits"] = profile.credits
@@ -429,9 +395,7 @@ def refresh_dashboard(request):
         cache_manager.delete(cache_key)
 
         return Response(
-            {
-                "message": "Dashboard cache cleared, data will be refreshed on next request"
-            },
+            {"message": "Dashboard cache cleared, data will be refreshed on next request"},
             status=status.HTTP_200_OK,
         )
     except DASHBOARD_EXCEPTIONS as e:
@@ -480,14 +444,8 @@ def get_performance_trend(request):
             accuracy = None
             analysis_payload = getattr(game, "analysis", None) or {}
             if isinstance(analysis_payload, dict):
-                analysis_results = analysis_payload.get(
-                    "analysis_results", analysis_payload
-                )
-                summary = (
-                    analysis_results.get("summary", {})
-                    if isinstance(analysis_results, dict)
-                    else {}
-                )
+                analysis_results = analysis_payload.get("analysis_results", analysis_payload)
+                summary = analysis_results.get("summary", {}) if isinstance(analysis_results, dict) else {}
                 if isinstance(summary, dict):
                     accuracy = summary.get("user_accuracy", summary.get("accuracy"))
 
@@ -547,9 +505,7 @@ def get_mistake_analysis(request):
         analyzed_games = Game.objects.filter(user=user).filter(ANALYZED_GAME_Q)  # type: ignore[attr-defined]
 
         if analyzed_games.count() == 0:
-            return Response(
-                {"message": "No analyzed games found"}, status=status.HTTP_200_OK
-            )
+            return Response({"message": "No analyzed games found"}, status=status.HTTP_200_OK)
 
         # Count mistakes by type
         mistake_types = {}
@@ -580,17 +536,13 @@ def get_mistake_analysis(request):
 
         # Calculate percentages
         mistake_type_analysis = []
-        for m_type, count in sorted(
-            mistake_types.items(), key=lambda x: x[1], reverse=True
-        ):
+        for m_type, count in sorted(mistake_types.items(), key=lambda x: x[1], reverse=True):
             if total_mistakes > 0:
                 percentage = (count / total_mistakes) * 100
             else:
                 percentage = 0
 
-            mistake_type_analysis.append(
-                {"type": m_type, "count": count, "percentage": round(percentage, 2)}
-            )
+            mistake_type_analysis.append({"type": m_type, "count": count, "percentage": round(percentage, 2)})
 
         phase_analysis = []
         for phase, count in phase_mistakes.items():
@@ -599,9 +551,7 @@ def get_mistake_analysis(request):
             else:
                 percentage = 0
 
-            phase_analysis.append(
-                {"phase": phase, "count": count, "percentage": round(percentage, 2)}
-            )
+            phase_analysis.append({"phase": phase, "count": count, "percentage": round(percentage, 2)})
 
         piece_analysis = {}
         for piece, count in piece_mistakes.items():
@@ -612,18 +562,14 @@ def get_mistake_analysis(request):
 
             piece_analysis[piece] = round(percentage, 2)
 
-        phase_analysis_map = {
-            item["phase"]: item["percentage"] for item in phase_analysis
-        }
+        phase_analysis_map = {item["phase"]: item["percentage"] for item in phase_analysis}
 
         # Prepare result
         result = {
             "total_mistakes": total_mistakes,
             "analyzed_games": analyzed_games.count(),
             "avg_mistakes_per_game": (
-                round(total_mistakes / analyzed_games.count(), 2)
-                if analyzed_games.count() > 0
-                else 0
+                round(total_mistakes / analyzed_games.count(), 2) if analyzed_games.count() > 0 else 0
             ),
             "by_type": mistake_type_analysis,
             "by_game_phase": phase_analysis_map,

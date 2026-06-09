@@ -59,9 +59,7 @@ def find_referrer_profile(code: str) -> Optional[Profile]:
     profile = Profile.objects.filter(referral_code__iexact=normalized).first()
     if profile:
         return profile
-    return (
-        Profile.objects.filter(preferences__referral_code__iexact=normalized).first()
-    )
+    return Profile.objects.filter(preferences__referral_code__iexact=normalized).first()
 
 
 def attach_referral_on_signup(

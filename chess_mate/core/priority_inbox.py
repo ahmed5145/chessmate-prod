@@ -61,20 +61,12 @@ def _normalize_match_text(value: Any) -> str:
 
 def _priority_text_blob(priority: Dict[str, Any]) -> str:
     return _normalize_match_text(
-        " ".join(
-            str(priority.get(key) or "")
-            for key in ("title", "specific_drill", "how_to_fix", "why_it_matters")
-        )
+        " ".join(str(priority.get(key) or "") for key in ("title", "specific_drill", "how_to_fix", "why_it_matters"))
     )
 
 
-def _parse_priority_refs(
-    priority: Dict[str, Any]
-) -> Tuple[Optional[int], Optional[int]]:
-    blob = " ".join(
-        str(priority.get(key) or "")
-        for key in ("title", "specific_drill", "how_to_fix")
-    )
+def _parse_priority_refs(priority: Dict[str, Any]) -> Tuple[Optional[int], Optional[int]]:
+    blob = " ".join(str(priority.get(key) or "") for key in ("title", "specific_drill", "how_to_fix"))
     game_idx = None
     move_number = None
 
@@ -171,11 +163,7 @@ def _iter_ranked_moments(
         for moment in game_result.get("critical_moments") or []:
             if not isinstance(moment, dict):
                 continue
-            if (
-                player_color
-                and moment.get("mover")
-                and moment.get("mover") != player_color
-            ):
+            if player_color and moment.get("mover") and moment.get("mover") != player_color:
                 continue
             ranked.append(
                 {
@@ -289,10 +277,7 @@ def _pick_proof_game_for_priority(
             game_result = moment.get("game_result")
             if game_result is None:
                 for result in per_game_results:
-                    if (
-                        isinstance(result, dict)
-                        and int(result.get("saved_game_id") or 0) == saved_id
-                    ):
+                    if isinstance(result, dict) and int(result.get("saved_game_id") or 0) == saved_id:
                         game_result = result
                         break
             move = moment.get("move_number")
@@ -302,9 +287,7 @@ def _pick_proof_game_for_priority(
             return saved_id, int(move), proof_label, game_result
         return None
 
-    picked = _pick_from_scored(allow_used_games=False) or _pick_from_scored(
-        allow_used_games=True
-    )
+    picked = _pick_from_scored(allow_used_games=False) or _pick_from_scored(allow_used_games=True)
     if picked:
         return picked
 
@@ -327,20 +310,10 @@ def _build_inbox_item(
     priority_index: int,
     used_game_ids: Set[int],
 ) -> Dict[str, Any]:
-    per_game_results = (
-        batch_report.per_game_results
-        if isinstance(batch_report.per_game_results, list)
-        else []
-    )
-    batch_summary = (
-        batch_report.batch_summary
-        if isinstance(batch_report.batch_summary, dict)
-        else {}
-    )
-    linked_game_id, linked_move, proof_label, game_result = (
-        _pick_proof_game_for_priority(
-            priority, per_game_results, batch_summary, used_game_ids
-        )
+    per_game_results = batch_report.per_game_results if isinstance(batch_report.per_game_results, list) else []
+    batch_summary = batch_report.batch_summary if isinstance(batch_report.batch_summary, dict) else {}
+    linked_game_id, linked_move, proof_label, game_result = _pick_proof_game_for_priority(
+        priority, per_game_results, batch_summary, used_game_ids
     )
     if linked_game_id is not None:
         used_game_ids.add(int(linked_game_id))
@@ -351,9 +324,7 @@ def _build_inbox_item(
         "batch_id": batch_report.id,
         "priority_index": priority_index,
         "title": str(priority.get("title") or f"Priority {priority_index}").strip(),
-        "drill": str(
-            priority.get("specific_drill") or priority.get("how_to_fix") or ""
-        ).strip(),
+        "drill": str(priority.get("specific_drill") or priority.get("how_to_fix") or "").strip(),
         "linked_game_id": linked_game_id,
         "linked_move": linked_move,
         "proof_label": proof_label,
@@ -375,11 +346,7 @@ def seed_priority_inbox_from_batch(batch_report: BatchAnalysisReport) -> int:
     if batch_report.status not in ("completed", "partial"):
         return 0
 
-    coaching_report = (
-        batch_report.coaching_report
-        if isinstance(batch_report.coaching_report, dict)
-        else {}
-    )
+    coaching_report = batch_report.coaching_report if isinstance(batch_report.coaching_report, dict) else {}
     priorities = coaching_report.get("top_3_priorities") or []
     if not isinstance(priorities, list) or not priorities:
         return 0
@@ -390,11 +357,7 @@ def seed_priority_inbox_from_batch(batch_report: BatchAnalysisReport) -> int:
         return 0
 
     inbox = _load_inbox(profile)
-    existing_by_key = {
-        item.get("id"): item
-        for item in inbox["items"]
-        if isinstance(item, dict) and item.get("id")
-    }
+    existing_by_key = {item.get("id"): item for item in inbox["items"] if isinstance(item, dict) and item.get("id")}
 
     archived_ids = set(inbox.get("archived_batch_ids") or [])
     for item in inbox["items"]:
@@ -458,11 +421,7 @@ def build_priority_inbox_link(item: Dict[str, Any]) -> Optional[str]:
 def get_priority_inbox_payload(profile: Profile) -> Dict[str, Any]:
     inbox = _load_inbox(profile)
     items = [item for item in inbox["items"] if isinstance(item, dict)]
-    pending = [
-        item
-        for item in items
-        if item.get("status") == "pending" and not item.get("archived")
-    ]
+    pending = [item for item in items if item.get("status") == "pending" and not item.get("archived")]
     pending.sort(
         key=lambda row: (
             row.get("source_batch_completed_at") or "",
@@ -480,11 +439,7 @@ def get_priority_inbox_payload(profile: Profile) -> Dict[str, Any]:
     return {
         "pending_count": len(serialized_pending),
         "pending_items": serialized_pending,
-        "reviewed_count": sum(
-            1
-            for item in items
-            if item.get("status") == "reviewed" and not item.get("archived")
-        ),
+        "reviewed_count": sum(1 for item in items if item.get("status") == "reviewed" and not item.get("archived")),
         "empty_state_cta": "/batch-analysis",
         "empty_state_label": "Start Batch Coach",
         "streak": streak,

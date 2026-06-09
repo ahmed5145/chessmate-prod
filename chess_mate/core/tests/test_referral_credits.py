@@ -76,9 +76,7 @@ def test_referral_grants_credits_on_first_batch(referrer, referee):
 
 def test_self_referral_blocked(referrer):
     profile = Profile.objects.get(user=referrer)
-    assert (
-        attach_referral_on_signup(profile, referral_code=profile.referral_code) is False
-    )
+    assert attach_referral_on_signup(profile, referral_code=profile.referral_code) is False
 
 
 def test_no_double_redemption(referrer, referee):
@@ -121,6 +119,4 @@ def test_monthly_referral_cap_blocks_referrer_reward(referrer, db):
 
     assert process_referral_on_first_batch(capped_batch) is None
     referrer_profile.refresh_from_db()
-    assert referrer_profile.credits == referrer_start + (
-        REFERRER_CREDITS * MONTHLY_REFERRAL_CAP
-    )
+    assert referrer_profile.credits == referrer_start + (REFERRER_CREDITS * MONTHLY_REFERRAL_CAP)

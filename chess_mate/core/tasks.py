@@ -168,25 +168,11 @@ def analyze_game_task(
                 force_reanalyze=force_reanalyze,
             )
 
-            analysis_payload = (
-                analysis_model.analysis_data
-                if isinstance(analysis_model.analysis_data, dict)
-                else {}
-            )
-            metrics = (
-                analysis_payload.get("metrics", {})
-                if isinstance(analysis_payload, dict)
-                else {}
-            )
-            summary = metrics.get(
-                "summary", metrics if isinstance(metrics, dict) else {}
-            )
+            analysis_payload = analysis_model.analysis_data if isinstance(analysis_model.analysis_data, dict) else {}
+            metrics = analysis_payload.get("metrics", {}) if isinstance(analysis_payload, dict) else {}
+            summary = metrics.get("summary", metrics if isinstance(metrics, dict) else {})
 
-            raw_moves = (
-                analysis_payload.get("moves", [])
-                if isinstance(analysis_payload, dict)
-                else []
-            )
+            raw_moves = analysis_payload.get("moves", []) if isinstance(analysis_payload, dict) else []
             moves = []
             for move in raw_moves:
                 if isinstance(move, dict):
@@ -201,23 +187,13 @@ def analyze_game_task(
             if not isinstance(summary, dict):
                 summary = {}
 
-            tactics = (
-                summary.get("tactics", {})
-                if isinstance(summary.get("tactics", {}), dict)
-                else {}
-            )
+            tactics = summary.get("tactics", {}) if isinstance(summary.get("tactics", {}), dict) else {}
             if "x" in (game.pgn or ""):
                 tactics["opportunities"] = max(int(tactics.get("opportunities", 0)), 1)
-                tactics["success_rate"] = max(
-                    float(tactics.get("success_rate", 0) or 0), 50.0
-                )
+                tactics["success_rate"] = max(float(tactics.get("success_rate", 0) or 0), 50.0)
             else:
-                tactics.setdefault(
-                    "opportunities", int(tactics.get("opportunities", 0) or 0)
-                )
-            tactics.setdefault(
-                "success_rate", float(tactics.get("success_rate", 0) or 0)
-            )
+                tactics.setdefault("opportunities", int(tactics.get("opportunities", 0) or 0))
+            tactics.setdefault("success_rate", float(tactics.get("success_rate", 0) or 0))
 
             compat_summary = {
                 "opening": summary.get("opening", {}),
@@ -225,9 +201,7 @@ def analyze_game_task(
                 "endgame": summary.get("endgame", {}),
                 "strengths": summary.get("strengths", []),
                 "weaknesses": summary.get("weaknesses", []),
-                "overall": summary.get(
-                    "overall", {"accuracy": 0.0, "mistakes": 0, "blunders": 0}
-                ),
+                "overall": summary.get("overall", {"accuracy": 0.0, "mistakes": 0, "blunders": 0}),
                 "phases": summary.get("phases", {}),
                 "tactics": tactics,
                 "time_management": summary.get("time_management", {}),
@@ -284,9 +258,7 @@ def analyze_game_task(
                 game.analysis_status = "failed"
                 game.save(update_fields=["status", "analysis_status"])
             except Exception:
-                _log_ignored_exception(
-                    f"Ignoring game rollback failure for game {game_id}"
-                )
+                _log_ignored_exception(f"Ignoring game rollback failure for game {game_id}")
 
             return {
                 "status": "failed",
@@ -303,9 +275,7 @@ def analyze_game_task(
     if active_tasks:
         existing_task_id = active_tasks[0]
         if existing_task_id != task_id:
-            logger.warning(
-                f"[{task_id}] Found existing task {existing_task_id} for game {game_id}"
-            )
+            logger.warning(f"[{task_id}] Found existing task {existing_task_id} for game {game_id}")
             return {
                 "status": "already_running",
                 "message": "Analysis already in progress",
@@ -324,34 +294,24 @@ def analyze_game_task(
 
     # Also create our internal task ID and create a mapping to the Celery task ID
     internal_task_id = f"analysis_{int(time.time())}_{os.urandom(4).hex()}"
-    logger.info(
-        f"[{task_id}] Created internal task ID {internal_task_id} for game {game_id}"
-    )
+    logger.info(f"[{task_id}] Created internal task ID {internal_task_id} for game {game_id}")
 
     # Store both mappings - from game_id to both task IDs
     if task_manager.redis_client:
         try:
             # Map game to Celery task ID
             game_task_key = f"{task_manager.GAME_TASK_KEY_PREFIX}{game_id}"
-            task_manager.redis_client.setex(
-                game_task_key, task_manager.task_timeout, task_id
-            )
+            task_manager.redis_client.setex(game_task_key, task_manager.task_timeout, task_id)
 
             # Store Celery task ID to internal task ID mapping
             celery_to_internal_key = f"celery_to_internal:{task_id}"
-            task_manager.redis_client.setex(
-                celery_to_internal_key, task_manager.task_timeout, internal_task_id
-            )
+            task_manager.redis_client.setex(celery_to_internal_key, task_manager.task_timeout, internal_task_id)
 
             # Store internal task ID to Celery task ID mapping
             internal_to_celery_key = f"internal_to_celery:{internal_task_id}"
-            task_manager.redis_client.setex(
-                internal_to_celery_key, task_manager.task_timeout, task_id
-            )
+            task_manager.redis_client.setex(internal_to_celery_key, task_manager.task_timeout, task_id)
 
-            logger.debug(
-                f"[{task_id}] Created mappings between Celery task ID and internal task ID {internal_task_id}"
-            )
+            logger.debug(f"[{task_id}] Created mappings between Celery task ID and internal task ID {internal_task_id}")
         except Exception as e:
             logger.error(f"[{task_id}] Error creating task ID mappings: {str(e)}")
 
@@ -411,9 +371,7 @@ def analyze_game_task(
         progress_int = max(0, min(100, progress_int))
 
         # Update task status
-        task_manager.update_task_status(
-            **status_target, status="PROCESSING", progress=progress_int, message=message
-        )
+        task_manager.update_task_status(**status_target, status="PROCESSING", progress=progress_int, message=message)
 
         # Also update the game's analysis status
         try:
@@ -481,9 +439,7 @@ def analyze_game_task(
                     priority_index=priority_index,
                 )
             except Exception:
-                _log_ignored_exception(
-                    f"Ignoring batch context lookup for game {game_id}"
-                )
+                _log_ignored_exception(f"Ignoring batch context lookup for game {game_id}")
 
         # Run the analysis
         analysis_result = game_analyzer.analyze_game(
@@ -553,13 +509,9 @@ def analyze_game_task(
                 streak_user = User.objects.select_related("profile").get(id=user_id)
                 streak_profile = getattr(streak_user, "profile", None)
                 if streak_profile is not None:
-                    player_color = build_single_game_context(game, streak_profile).get(
-                        "player_color", "white"
-                    )
+                    player_color = build_single_game_context(game, streak_profile).get("player_color", "white")
                     analysis_payload = (
-                        analysis_result.analysis_data
-                        if isinstance(analysis_result.analysis_data, dict)
-                        else {}
+                        analysis_result.analysis_data if isinstance(analysis_result.analysis_data, dict) else {}
                     )
                     update_single_game_streak(
                         streak_profile,
@@ -573,9 +525,7 @@ def analyze_game_task(
                     )
 
                     moments = extract_critical_moments_from_analysis(analysis_result)
-                    record_single_game_timeline_events(
-                        streak_profile, game, moments
-                    )
+                    record_single_game_timeline_events(streak_profile, game, moments)
             except Exception as streak_exc:
                 logger.warning(
                     "[%s] Single-game streak update failed for game %s: %s",
@@ -618,9 +568,7 @@ def analyze_game_task(
             "Try again later or contact support if this keeps happening."
         )
         error_type = type(e).__name__
-        logger.exception(
-            "[%s] single_game_analysis TIMEOUT game_id=%s", task_id, game_id
-        )
+        logger.exception("[%s] single_game_analysis TIMEOUT game_id=%s", task_id, game_id)
 
         if user_id:
             from .single_game_credits import refund_single_game_credit_on_fail
@@ -686,9 +634,7 @@ def analyze_game_task(
 @shared_task(name="core.tasks.analyze_game_task")
 def analyze_game_task_legacy_name(game_id, user_id=None, depth=20, use_ai=True):
     """Backward-compatible alias for legacy task name in queued messages."""
-    return analyze_game_task.run(
-        game_id=game_id, user_id=user_id, depth=depth, use_ai=use_ai
-    )
+    return analyze_game_task.run(game_id=game_id, user_id=user_id, depth=depth, use_ai=use_ai)
 
 
 @shared_task(base=BaseAnalysisTask)
@@ -918,14 +864,10 @@ def monitor_system_task() -> None:
 
         for component, check in checks.items():
             if check.get("status") == "critical":
-                critical_issues.append(
-                    f"{component}: {check.get('message', 'Unknown issue')}"
-                )
+                critical_issues.append(f"{component}: {check.get('message', 'Unknown issue')}")
 
         if critical_issues:
-            logger.error(
-                f"Critical system issues detected: {', '.join(critical_issues)}"
-            )
+            logger.error(f"Critical system issues detected: {', '.join(critical_issues)}")
 
             # Optional: Send alerts via email, Slack, etc.
             # This would be implemented based on your alerting system
@@ -934,8 +876,7 @@ def monitor_system_task() -> None:
 
                 mail_admins(
                     subject=f"[ChessMate] Critical system issues detected",
-                    message=f"The following critical issues were detected:\n\n"
-                    + "\n".join(critical_issues),
+                    message=f"The following critical issues were detected:\n\n" + "\n".join(critical_issues),
                 )
 
     except Exception as e:
@@ -990,9 +931,7 @@ def analyze_game(
             api_key = api_key.strip() if isinstance(api_key, str) else api_key
             if api_key:
                 feedback_generator = FeedbackGenerator(api_key=api_key)
-                feedback_result = feedback_generator.generate_feedback(
-                    analysis_result, game
-                )
+                feedback_result = feedback_generator.generate_feedback(analysis_result, game)
 
         GameAnalysis.objects.update_or_create(
             game=game,
@@ -1072,14 +1011,10 @@ def batch_analyze_games(
 # ============================================================================
 
 
-def _record_batch_game_progress(
-    batch_id: str, user_id: int, game_id: str, *, succeeded: bool
-) -> None:
+def _record_batch_game_progress(batch_id: str, user_id: int, game_id: str, *, succeeded: bool) -> None:
     """Update BatchAnalysisReport counters so /batches/{id}/status/ shows live progress."""
     try:
-        batch_report = BatchAnalysisReport.objects.get(
-            task_id=batch_id, user_id=user_id
-        )
+        batch_report = BatchAnalysisReport.objects.get(task_id=batch_id, user_id=user_id)
         if succeeded:
             completed = list(batch_report.completed_games or [])
             if game_id not in completed:
@@ -1151,9 +1086,7 @@ def analyze_single_game_subtask(
                 builder = local_builder
         except Exception:
             # fallthrough to more robust resolution below
-            _log_ignored_exception(
-                f"Ignoring local builder resolution failure for game {game_id}"
-            )
+            _log_ignored_exception(f"Ignoring local builder resolution failure for game {game_id}")
 
         try:
             # Continue resolution: import modules and discover shipped impl
@@ -1164,9 +1097,7 @@ def analyze_single_game_subtask(
                 impl_mod = _import_module("core.analysis.stockfish_game_result")
             except Exception:
                 try:
-                    impl_mod = _import_module(
-                        "chess_mate.core.analysis.stockfish_game_result"
-                    )
+                    impl_mod = _import_module("chess_mate.core.analysis.stockfish_game_result")
                 except Exception:
                     impl_mod = None
 
@@ -1182,9 +1113,7 @@ def analyze_single_game_subtask(
                     builder = candidate
             except Exception:
                 # ignore import failures
-                _log_ignored_exception(
-                    f"Ignoring core.tasks build_game_result import failure for game {game_id}"
-                )
+                _log_ignored_exception(f"Ignoring core.tasks build_game_result import failure for game {game_id}")
 
             # Next, check `chess_mate.core.tasks` (alternate package name)
             if builder is None:
@@ -1213,11 +1142,7 @@ def analyze_single_game_subtask(
                         builder = candidate
                         break
 
-                    if (
-                        callable(candidate)
-                        and shipped_impl is not None
-                        and candidate is not shipped_impl
-                    ):
+                    if callable(candidate) and shipped_impl is not None and candidate is not shipped_impl:
                         builder = candidate
                         break
 
@@ -1246,9 +1171,7 @@ def analyze_single_game_subtask(
                     builder = _cand
                     break
         except Exception:
-            _log_ignored_exception(
-                f"Ignoring loaded-module build_game_result lookup failure for game {game_id}"
-            )
+            _log_ignored_exception(f"Ignoring loaded-module build_game_result lookup failure for game {game_id}")
 
         if not callable(builder):
             raise RuntimeError("build_game_result implementation not found")
@@ -1280,24 +1203,18 @@ def analyze_single_game_subtask(
                     f"[batch={batch_id}] build_game_result_selected: name={builder_name} module={builder_module} is_mock={is_mock}\n"
                 )
             except Exception:
-                _log_ignored_exception(
-                    f"Ignoring stderr write failure for game {game_id}"
-                )
+                _log_ignored_exception(f"Ignoring stderr write failure for game {game_id}")
         except Exception:
             logger.warning(
                 f"[batch={batch_id}] analyze_single_game_subtask: selected build_game_result (logging failed)"
             )
 
         batch_depth = int(getattr(settings, "BATCH_ANALYSIS_DEPTH", 14))
-        logger.info(
-            f"[batch={batch_id}] analyzing game {game_id} at depth={batch_depth}"
-        )
+        logger.info(f"[batch={batch_id}] analyzing game {game_id} at depth={batch_depth}")
         try:
             import sys as _sys
 
-            _sys.stderr.write(
-                f"[batch={batch_id}] game={game_id} depth={batch_depth} start\n"
-            )
+            _sys.stderr.write(f"[batch={batch_id}] game={game_id} depth={batch_depth} start\n")
         except Exception:
             _log_ignored_exception(f"Ignoring stderr write failure for game {game_id}")
 
@@ -1306,18 +1223,12 @@ def analyze_single_game_subtask(
         try:
             from .models import Profile
 
-            profile = (
-                Profile.objects.filter(user_id=user_id)
-                .only("chess_com_username", "lichess_username")
-                .first()
-            )
+            profile = Profile.objects.filter(user_id=user_id).only("chess_com_username", "lichess_username").first()
             if profile:
                 chess_com_username = profile.chess_com_username or ""
                 lichess_username = profile.lichess_username or ""
         except Exception:
-            _log_ignored_exception(
-                f"Ignoring profile lookup failure for user {user_id}"
-            )
+            _log_ignored_exception(f"Ignoring profile lookup failure for user {user_id}")
 
         # Build per-game result using resolved builder
         game_result = builder(
@@ -1331,9 +1242,7 @@ def analyze_single_game_subtask(
 
         if not game_result:
             _record_batch_game_progress(batch_id, user_id, game_id, succeeded=False)
-            log_batch_game_failed(
-                batch_id, game_id, "Failed to build game result (empty output)"
-            )
+            log_batch_game_failed(batch_id, game_id, "Failed to build game result (empty output)")
             return {
                 "game_id": game_id,
                 "status": "failed",
@@ -1360,9 +1269,7 @@ def analyze_single_game_subtask(
                     if saved_row.get("opponent"):
                         game_result["opponent"] = saved_row["opponent"]
                     if saved_row.get("date_played"):
-                        game_result["date_played"] = saved_row[
-                            "date_played"
-                        ].isoformat()
+                        game_result["date_played"] = saved_row["date_played"].isoformat()
                     if saved_row.get("platform"):
                         game_result["platform"] = saved_row["platform"]
                     if saved_row.get("game_url"):
@@ -1375,16 +1282,12 @@ def analyze_single_game_subtask(
                     ):
                         from .opening_name_utils import compact_opening_name
 
-                        game_result["opening_name"] = (
-                            compact_opening_name(saved_opening) or saved_opening
-                        )
+                        game_result["opening_name"] = compact_opening_name(saved_opening) or saved_opening
                     saved_eco = (saved_row.get("eco_code") or "").strip().upper()
                     if saved_eco:
                         game_result["eco_code"] = saved_eco[:3]
             except Exception:
-                _log_ignored_exception(
-                    f"Ignoring saved game metadata lookup for {saved_game_id}"
-                )
+                _log_ignored_exception(f"Ignoring saved game metadata lookup for {saved_game_id}")
 
         _record_batch_game_progress(batch_id, user_id, game_id, succeeded=True)
         return {
@@ -1395,9 +1298,7 @@ def analyze_single_game_subtask(
 
     except Exception as exc:
         error_message = str(exc)
-        logger.exception(
-            f"Error analyzing game {game_id} in batch {batch_id}: {error_message}"
-        )
+        logger.exception(f"Error analyzing game {game_id} in batch {batch_id}: {error_message}")
         _record_batch_game_progress(batch_id, user_id, game_id, succeeded=False)
         log_batch_game_failed(batch_id, game_id, error_message)
         return {
@@ -1438,9 +1339,7 @@ def aggregate_and_report_task(
     try:
         # Lookup or create BatchAnalysisReport
         try:
-            batch_report = BatchAnalysisReport.objects.get(
-                task_id=batch_id, user_id=user_id
-            )
+            batch_report = BatchAnalysisReport.objects.get(task_id=batch_id, user_id=user_id)
         except BatchAnalysisReport.DoesNotExist:
             from django.contrib.auth.models import User
 
@@ -1462,20 +1361,14 @@ def aggregate_and_report_task(
         )
 
         # Extract per_game_results (full objects) and per-game summaries (for AI)
-        per_game_results = [
-            r.get("result") for r in successful_results if r.get("result")
-        ]
+        per_game_results = [r.get("result") for r in successful_results if r.get("result")]
 
         # If fewer than 5 games succeeded, mark batch failed and stop
         if successful_count < 5:
-            logger.warning(
-                f"Batch {batch_id}: insufficient successful games ({successful_count} < 5), marking failed"
-            )
+            logger.warning(f"Batch {batch_id}: insufficient successful games ({successful_count} < 5), marking failed")
             batch_report.status = "failed"
             batch_report.per_game_results = per_game_results
-            batch_report.save(
-                update_fields=["status", "per_game_results", "updated_at"]
-            )
+            batch_report.save(update_fields=["status", "per_game_results", "updated_at"])
             _refund_failed_batch_credits(batch_report)
             _duration = (timezone.now() - batch_report.created_at).total_seconds()
             log_batch_completed(
@@ -1511,26 +1404,16 @@ def aggregate_and_report_task(
             try:
                 _mod = _sys.modules.get("core.tasks")
                 if _mod is not None:
-                    _aggregate_batch = getattr(
-                        _mod, "aggregate_batch", _aggregate_batch
-                    )
-                    _generate_coaching_report = getattr(
-                        _mod, "generate_coaching_report", _generate_coaching_report
-                    )
+                    _aggregate_batch = getattr(_mod, "aggregate_batch", _aggregate_batch)
+                    _generate_coaching_report = getattr(_mod, "generate_coaching_report", _generate_coaching_report)
             except Exception:
-                _log_ignored_exception(
-                    f"Ignoring core.tasks aggregate/report lookup failure for batch {batch_id}"
-                )
+                _log_ignored_exception(f"Ignoring core.tasks aggregate/report lookup failure for batch {batch_id}")
 
             try:
                 _mod2 = _sys.modules.get("chess_mate.core.tasks")
                 if _mod2 is not None:
-                    _aggregate_batch = getattr(
-                        _mod2, "aggregate_batch", _aggregate_batch
-                    )
-                    _generate_coaching_report = getattr(
-                        _mod2, "generate_coaching_report", _generate_coaching_report
-                    )
+                    _aggregate_batch = getattr(_mod2, "aggregate_batch", _aggregate_batch)
+                    _generate_coaching_report = getattr(_mod2, "generate_coaching_report", _generate_coaching_report)
             except Exception:
                 _log_ignored_exception(
                     f"Ignoring chess_mate.core.tasks aggregate/report lookup failure for batch {batch_id}"
@@ -1544,9 +1427,7 @@ def aggregate_and_report_task(
                         _aggregate_batch = _cand_agg
                         break
                 except Exception:
-                    _log_ignored_exception(
-                        f"Ignoring aggregate_batch module scan failure for batch {batch_id}"
-                    )
+                    _log_ignored_exception(f"Ignoring aggregate_batch module scan failure for batch {batch_id}")
 
             for _m in list(_sys.modules.values()):
                 try:
@@ -1570,9 +1451,7 @@ def aggregate_and_report_task(
             logger.error(f"Batch {batch_id}: aggregation failed: {str(exc)}")
             batch_report.status = "failed"
             batch_report.per_game_results = per_game_results
-            batch_report.save(
-                update_fields=["status", "per_game_results", "updated_at"]
-            )
+            batch_report.save(update_fields=["status", "per_game_results", "updated_at"])
             _refund_failed_batch_credits(batch_report)
             _duration = (timezone.now() - batch_report.created_at).total_seconds()
             log_batch_completed(
@@ -1617,9 +1496,7 @@ def aggregate_and_report_task(
             # Degraded mode: coaching failure doesn't fail the entire batch
             # Save what we have (batch_summary + per_game_results) and mark as partial
             coaching_error = str(exc)
-            logger.warning(
-                f"Batch {batch_id}: coaching generation failed (degraded mode): {coaching_error}"
-            )
+            logger.warning(f"Batch {batch_id}: coaching generation failed (degraded mode): {coaching_error}")
             coaching_report = None
             final_status = "partial"
 
@@ -1628,9 +1505,7 @@ def aggregate_and_report_task(
                 per_game_results,
                 player_rating=batch_summary.get("player_rating"),
             )
-            per_game_results = attach_coach_notes_to_results(
-                per_game_results, coach_notes
-            )
+            per_game_results = attach_coach_notes_to_results(per_game_results, coach_notes)
         except Exception as exc:
             logger.warning("Batch %s: per-game coach notes failed: %s", batch_id, exc)
 
@@ -1641,10 +1516,7 @@ def aggregate_and_report_task(
         batch_report.status = final_status
         batch_report.games_count = len(task_results)
         batch_report.completed_games = [r.get("game_id") for r in successful_results]
-        batch_report.failed_games = [
-            {"game_id": r.get("game_id"), "error": r.get("error")}
-            for r in failed_results
-        ]
+        batch_report.failed_games = [{"game_id": r.get("game_id"), "error": r.get("error")} for r in failed_results]
         batch_report.save(
             update_fields=[
                 "batch_summary",
@@ -1679,9 +1551,7 @@ def aggregate_and_report_task(
 
                 send_batch_complete_email(batch_report.user, batch_report)
             except Exception as email_exc:
-                logger.warning(
-                    "Batch complete email failed for %s: %s", batch_id, email_exc
-                )
+                logger.warning("Batch complete email failed for %s: %s", batch_id, email_exc)
 
         if coaching_report is not None:
             try:
@@ -1689,9 +1559,7 @@ def aggregate_and_report_task(
 
                 seed_priority_inbox_from_batch(batch_report)
             except Exception as inbox_exc:
-                logger.warning(
-                    "Priority inbox seed failed for %s: %s", batch_id, inbox_exc
-                )
+                logger.warning("Priority inbox seed failed for %s: %s", batch_id, inbox_exc)
 
         if batch_report.status in ("completed", "partial"):
             try:
@@ -1699,9 +1567,7 @@ def aggregate_and_report_task(
 
                 record_batch_timeline_events(batch_report)
             except Exception as timeline_exc:
-                logger.warning(
-                    "Moment timeline seed failed for %s: %s", batch_id, timeline_exc
-                )
+                logger.warning("Moment timeline seed failed for %s: %s", batch_id, timeline_exc)
 
         if batch_report.status in ("completed", "partial"):
             try:
@@ -1721,9 +1587,7 @@ def aggregate_and_report_task(
 
                 process_referral_on_first_batch(batch_report)
             except Exception as referral_exc:
-                logger.warning(
-                    "Referral redemption failed for %s: %s", batch_id, referral_exc
-                )
+                logger.warning("Referral redemption failed for %s: %s", batch_id, referral_exc)
 
         return {
             "status": final_status,
@@ -1733,21 +1597,15 @@ def aggregate_and_report_task(
         }
 
     except Exception as exc:
-        logger.exception(
-            f"Error in aggregate_and_report_task for batch {batch_id}: {str(exc)}"
-        )
+        logger.exception(f"Error in aggregate_and_report_task for batch {batch_id}: {str(exc)}")
 
         try:
-            batch_report = BatchAnalysisReport.objects.get(
-                task_id=batch_id, user_id=user_id
-            )
+            batch_report = BatchAnalysisReport.objects.get(task_id=batch_id, user_id=user_id)
             batch_report.status = "failed"
             batch_report.save(update_fields=["status", "updated_at"])
             _refund_failed_batch_credits(batch_report)
         except Exception:
-            _log_ignored_exception(
-                f"Ignoring batch report failure update for batch {batch_id}"
-            )
+            _log_ignored_exception(f"Ignoring batch report failure update for batch {batch_id}")
 
         return {
             "status": "failed",
@@ -1796,15 +1654,11 @@ def analyze_batch_task(
     Returns:
         Celery task ID or status string
     """
-    logger.info(
-        f"Starting batch analysis for batch {batch_id}: {len(game_pgn_list)} games"
-    )
+    logger.info(f"Starting batch analysis for batch {batch_id}: {len(game_pgn_list)} games")
     try:
         import sys as _sys
 
-        _sys.stderr.write(
-            f"[batch={batch_id}] analyze_batch_task started games={len(game_pgn_list)}\n"
-        )
+        _sys.stderr.write(f"[batch={batch_id}] analyze_batch_task started games={len(game_pgn_list)}\n")
     except Exception:
         _log_ignored_exception(f"Ignoring stderr write failure for batch {batch_id}")
 
@@ -1824,9 +1678,7 @@ def analyze_batch_task(
             batch_report.game_ids = source_game_ids
         elif not batch_report.game_ids:
             batch_report.game_ids = [None] * len(game_pgn_list)
-        batch_report.save(
-            update_fields=["status", "games_count", "game_ids", "updated_at"]
-        )
+        batch_report.save(update_fields=["status", "games_count", "game_ids", "updated_at"])
         log_batch_started(batch_id, user_id, len(game_pgn_list))
     except Exception as exc:
         logger.error(f"Failed to create/update batch report for {batch_id}: {str(exc)}")
@@ -1853,9 +1705,7 @@ def analyze_batch_task(
                     _group = getattr(_mod, "group", _group)
                     _chord = getattr(_mod, "chord", _chord)
         except Exception:
-            _log_ignored_exception(
-                f"Ignoring core.tasks import resolution fallback for batch {batch_id}"
-            )
+            _log_ignored_exception(f"Ignoring core.tasks import resolution fallback for batch {batch_id}")
 
         try:
             try:
@@ -1868,9 +1718,7 @@ def analyze_batch_task(
                     _group = getattr(_mod2, "group", _group)
                     _chord = getattr(_mod2, "chord", _chord)
         except Exception:
-            _log_ignored_exception(
-                f"Ignoring chess_mate.core.tasks import resolution fallback for batch {batch_id}"
-            )
+            _log_ignored_exception(f"Ignoring chess_mate.core.tasks import resolution fallback for batch {batch_id}")
     except Exception:
         _group = globals().get("group")
         _chord = globals().get("chord")
@@ -1886,9 +1734,7 @@ def analyze_batch_task(
                     _group = _g
                     break
             except Exception:
-                _log_ignored_exception(
-                    f"Ignoring group lookup failure for batch {batch_id}"
-                )
+                _log_ignored_exception(f"Ignoring group lookup failure for batch {batch_id}")
         for _m in list(_sys.modules.values()):
             try:
                 _c = getattr(_m, "chord", None)
@@ -1896,13 +1742,9 @@ def analyze_batch_task(
                     _chord = _c
                     break
             except Exception:
-                _log_ignored_exception(
-                    f"Ignoring chord lookup failure for batch {batch_id}"
-                )
+                _log_ignored_exception(f"Ignoring chord lookup failure for batch {batch_id}")
     except Exception:
-        _log_ignored_exception(
-            f"Ignoring mock lookup resolution failure for batch {batch_id}"
-        )
+        _log_ignored_exception(f"Ignoring mock lookup resolution failure for batch {batch_id}")
         # Emit resolver info so CI shows which callable was selected
         try:
             g_name = getattr(_group, "__name__", repr(_group))
@@ -1922,20 +1764,12 @@ def analyze_batch_task(
             try:
                 import sys as _sys2
 
-                _sys2.stderr.write(
-                    f"[batch={batch_id}] group_selected: {g_name} module={g_mod} is_mock={g_is_mock}\n"
-                )
-                _sys2.stderr.write(
-                    f"[batch={batch_id}] chord_selected: {c_name} module={c_mod} is_mock={c_is_mock}\n"
-                )
+                _sys2.stderr.write(f"[batch={batch_id}] group_selected: {g_name} module={g_mod} is_mock={g_is_mock}\n")
+                _sys2.stderr.write(f"[batch={batch_id}] chord_selected: {c_name} module={c_mod} is_mock={c_is_mock}\n")
             except Exception:
-                _log_ignored_exception(
-                    f"Ignoring stderr write failure for batch {batch_id}"
-                )
+                _log_ignored_exception(f"Ignoring stderr write failure for batch {batch_id}")
         except Exception:
-            _log_ignored_exception(
-                f"Ignoring resolver info logging failure for batch {batch_id}"
-            )
+            _log_ignored_exception(f"Ignoring resolver info logging failure for batch {batch_id}")
     except Exception:
         _group = globals().get("group")
         _chord = globals().get("chord")
@@ -1951,16 +1785,10 @@ def analyze_batch_task(
             logger.info(f"Batch {batch_id}: starting game {i + 1}/{len(game_pgn_list)}")
             saved_id = resolved_ids[i] if i < len(resolved_ids) else None
             try:
-                results.append(
-                    analyze_single_game_subtask(
-                        pgn, f"game_{i}", batch_id, user_id, saved_id
-                    )
-                )
+                results.append(analyze_single_game_subtask(pgn, f"game_{i}", batch_id, user_id, saved_id))
             except Exception as exc:
                 logger.exception(f"Batch {batch_id} game {i} failed: {exc}")
-                results.append(
-                    {"game_id": f"game_{i}", "status": "failed", "error": str(exc)}
-                )
+                results.append({"game_id": f"game_{i}", "status": "failed", "error": str(exc)})
         aggregate_and_report_task(results, batch_id, game_pgn_list, user_id)
         return batch_id
 

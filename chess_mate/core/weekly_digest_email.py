@@ -44,12 +44,7 @@ def _activity_since(user: User, days: int = 7) -> Dict[str, int]:
         status__in=["completed", "partial"],
         updated_at__gte=since,
     ).count()
-    new_analyses = (
-        Game.objects.filter(user=user)
-        .filter(ANALYZED_GAME_Q)
-        .filter(updated_at__gte=since)
-        .count()
-    )
+    new_analyses = Game.objects.filter(user=user).filter(ANALYZED_GAME_Q).filter(updated_at__gte=since).count()
     return {"new_batches": new_batches, "new_analyses": new_analyses}
 
 
@@ -69,9 +64,7 @@ def build_weekly_digest_payload(user: User, profile: Profile) -> Dict[str, Any]:
         priority_inbox=inbox,
     )
 
-    has_streak = (
-        bool(inbox_streak.get("show")) or int(single_streak.get("count") or 0) >= 2
-    )
+    has_streak = bool(inbox_streak.get("show")) or int(single_streak.get("count") or 0) >= 2
     has_content = (
         pending_count > 0
         or has_streak
@@ -93,8 +86,7 @@ def build_weekly_digest_payload(user: User, profile: Profile) -> Dict[str, Any]:
         sections.append(
             {
                 "label": "Inbox streak",
-                "body": inbox_streak.get("label")
-                or f"{inbox_streak.get('count', 0)}-day coach streak",
+                "body": inbox_streak.get("label") or f"{inbox_streak.get('count', 0)}-day coach streak",
             }
         )
     if int(single_streak.get("count") or 0) >= 2:
@@ -108,20 +100,15 @@ def build_weekly_digest_payload(user: User, profile: Profile) -> Dict[str, Any]:
         sections.append(
             {
                 "label": "Progress",
-                "body": fix_rate.get("headline")
-                or "Patterns improved since your last batch.",
+                "body": fix_rate.get("headline") or "Patterns improved since your last batch.",
             }
         )
     if activity["new_batches"] or activity["new_analyses"]:
         parts = []
         if activity["new_batches"]:
-            parts.append(
-                f"{activity['new_batches']} new batch{'es' if activity['new_batches'] != 1 else ''}"
-            )
+            parts.append(f"{activity['new_batches']} new batch{'es' if activity['new_batches'] != 1 else ''}")
         if activity["new_analyses"]:
-            parts.append(
-                f"{activity['new_analyses']} depth-20 review{'s' if activity['new_analyses'] != 1 else ''}"
-            )
+            parts.append(f"{activity['new_analyses']} depth-20 review{'s' if activity['new_analyses'] != 1 else ''}")
         sections.append({"label": "This week", "body": " · ".join(parts)})
 
     cta_href = "/dashboard"
@@ -147,15 +134,11 @@ def build_weekly_digest_payload(user: User, profile: Profile) -> Dict[str, Any]:
 
 
 def _digest_notification_body(payload: Dict[str, Any]) -> str:
-    parts = [
-        row.get("body", "") for row in payload.get("sections") or [] if row.get("body")
-    ]
+    parts = [row.get("body", "") for row in payload.get("sections") or [] if row.get("body")]
     return " · ".join(parts)[:500]
 
 
-def seed_weekly_digest_notification(
-    user: User, payload: Dict[str, Any], week_key: str
-) -> None:
+def seed_weekly_digest_notification(user: User, payload: Dict[str, Any], week_key: str) -> None:
     if not user_wants_weekly_digest_notification(user):
         return
     href = payload.get("cta_href") or "/dashboard"
@@ -204,9 +187,7 @@ def send_weekly_digest_for_user(user: User, *, force: bool = False) -> bool:
 
     if wants_email:
         if not is_email_configured():
-            logger.error(
-                "Weekly digest not sent for %s: SMTP not configured", user.email
-            )
+            logger.error("Weekly digest not sent for %s: SMTP not configured", user.email)
             return bool(wants_notification)
 
         base_url = get_frontend_base_url()

@@ -76,9 +76,7 @@ def _analysis_completion_sent_recently(user: User) -> bool:
     ).exists()
 
 
-def _moment_sent_recently(
-    user: User, key: str, days: int = MOMENT_COOLDOWN_DAYS
-) -> bool:
+def _moment_sent_recently(user: User, key: str, days: int = MOMENT_COOLDOWN_DAYS) -> bool:
     since = timezone.now() - timedelta(days=days)
     return SpacedReminderLog.objects.filter(
         user=user,
@@ -88,11 +86,7 @@ def _moment_sent_recently(
 
 
 def find_best_spaced_moment(user: User) -> Optional[Tuple[Game, Dict[str, Any]]]:
-    games = (
-        Game.objects.filter(user=user)
-        .filter(ANALYZED_GAME_Q)
-        .order_by("-updated_at")[:20]
-    )
+    games = Game.objects.filter(user=user).filter(ANALYZED_GAME_Q).order_by("-updated_at")[:20]
     best: Optional[Tuple[Game, Dict[str, Any], float]] = None
     stale_cutoff = timezone.now() - timedelta(days=7)
 
@@ -180,9 +174,7 @@ def send_spaced_repetition_for_user(user: User, *, force: bool = False) -> bool:
         html_body = render_to_string("email/spaced_moment.html", context)
     except Exception as template_error:
         logger.warning("Spaced moment template render failed: %s", template_error)
-        html_body = (
-            f"{subject}\n\n" f"Replay the moment that swung your game: {review_url}\n"
-        )
+        html_body = f"{subject}\n\n" f"Replay the moment that swung your game: {review_url}\n"
 
     preferences_url = f"{base}/profile"
     send_coaching_email(

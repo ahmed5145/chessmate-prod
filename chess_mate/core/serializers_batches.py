@@ -345,17 +345,13 @@ class BatchAnalysisReportSerializer(serializers.ModelSerializer):
             )
             if previous:
                 data["fix_rate"] = build_fix_rate_payload(instance, previous)
-                data["moment_diff"] = build_batch_moment_diff(
-                    instance, previous, profile
-                )
+                data["moment_diff"] = build_batch_moment_diff(instance, previous, profile)
             else:
                 data["fix_rate"] = {"show": False}
                 data["moment_diff"] = {"show": False}
 
             if profile is not None and instance.status in ("completed", "partial"):
-                data["first_batch_celebration"] = build_first_batch_celebration_payload(
-                    instance, profile
-                )
+                data["first_batch_celebration"] = build_first_batch_celebration_payload(instance, profile)
             else:
                 data["first_batch_celebration"] = {"show": False}
         else:

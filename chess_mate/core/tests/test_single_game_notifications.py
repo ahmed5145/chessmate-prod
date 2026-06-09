@@ -71,9 +71,7 @@ def test_skips_when_user_opted_out(_mock_email_configured):
 
 
 @patch("core.single_game_notifications.log_email_send")
-@patch(
-    "core.single_game_notifications.coaching_email_budget_exceeded", return_value=False
-)
+@patch("core.single_game_notifications.coaching_email_budget_exceeded", return_value=False)
 @patch("core.single_game_notifications.send_coaching_email", return_value=1)
 @patch("core.single_game_notifications.render_to_string", return_value="<p>Ready</p>")
 @patch(
@@ -98,21 +96,13 @@ def test_sends_email_on_completed_single_game(
     assert kwargs["recipient_list"] == ["player@example.com"]
 
     render_context = _mock_render.call_args[0][1]
-    assert (
-        render_context["report_url"]
-        == "https://chessmate.test/game/168/analysis?mode=review"
-    )
-    assert (
-        render_context["deep_review_url"]
-        == "https://chessmate.test/game/168/analysis?mode=review&move=18"
-    )
+    assert render_context["report_url"] == "https://chessmate.test/game/168/analysis?mode=review"
+    assert render_context["deep_review_url"] == "https://chessmate.test/game/168/analysis?mode=review&move=18"
     assert kwargs["subject"] == "Move 18 swung your game"
 
 
 @patch("core.single_game_notifications.log_email_send")
-@patch(
-    "core.single_game_notifications.coaching_email_budget_exceeded", return_value=False
-)
+@patch("core.single_game_notifications.coaching_email_budget_exceeded", return_value=False)
 @patch("core.single_game_notifications.send_coaching_email", return_value=1)
 @patch("core.single_game_notifications.render_to_string", return_value="<p>Ready</p>")
 @patch(
@@ -134,9 +124,7 @@ def test_uses_coaching_headline_as_subject(
                 "headline": "You dropped the initiative on move 18",
                 "takeaway": "The knight retreat let White take over.",
             },
-            "critical_moments": [
-                {"move_number": 18, "played_move": "Nf3", "best_move": "Nd2"}
-            ],
+            "critical_moments": [{"move_number": 18, "played_move": "Nf3", "best_move": "Nd2"}],
         },
     )
 
@@ -185,9 +173,7 @@ def test_template_renders_headline_and_review_links():
 
 
 @patch("core.single_game_notifications.log_email_send")
-@patch(
-    "core.single_game_notifications.coaching_email_budget_exceeded", return_value=False
-)
+@patch("core.single_game_notifications.coaching_email_budget_exceeded", return_value=False)
 @patch(
     "core.single_game_notifications.send_coaching_email",
     side_effect=RuntimeError("SMTP down"),

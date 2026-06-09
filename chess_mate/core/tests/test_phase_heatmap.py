@@ -84,11 +84,7 @@ class TestPhaseHeatmap(TestCase):
         )
         payload = build_phase_result_heatmap(self.user)
         assert payload["show"] is True
-        loss_mid = next(
-            cell
-            for cell in payload["cells"]
-            if cell["result"] == "loss" and cell["phase"] == "middlegame"
-        )
+        loss_mid = next(cell for cell in payload["cells"] if cell["result"] == "loss" and cell["phase"] == "middlegame")
         assert loss_mid["highlight"] is True
         assert loss_mid["game_count"] >= 3
         assert loss_mid["example_games"][0]["href"].startswith("/game/101/analysis?mode=review")

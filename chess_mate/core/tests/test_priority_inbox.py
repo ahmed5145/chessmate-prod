@@ -51,11 +51,7 @@ class TestPriorityInboxService(TestCase):
             "per_game_results": [
                 {"game_id": "game_2", "saved_game_id": self.game.id},
             ],
-            "batch_summary": {
-                "top_critical_moments": [
-                    {"saved_game_id": self.game.id, "move_number": 14}
-                ]
-            },
+            "batch_summary": {"top_critical_moments": [{"saved_game_id": self.game.id, "move_number": 14}]},
         }
         defaults.update(kwargs)
         return BatchAnalysisReport.objects.create(**defaults)
@@ -72,9 +68,7 @@ class TestPriorityInboxService(TestCase):
         assert first["title"] == "Fix hanging pieces"
         assert first["linked_game_id"] == self.game.id
         assert first["linked_move"] == 14
-        assert first["href"] == (
-            f"/game/{self.game.id}/analysis?mode=review&batch={batch.id}&priority=1&move=14"
-        )
+        assert first["href"] == (f"/game/{self.game.id}/analysis?mode=review&batch={batch.id}&priority=1&move=14")
 
     def test_new_batch_archives_old_pending_items(self):
         old_batch = self._batch_with_priorities(task_id="old")
@@ -82,19 +76,13 @@ class TestPriorityInboxService(TestCase):
 
         new_batch = self._batch_with_priorities(
             task_id="new",
-            coaching_report={
-                "top_3_priorities": [
-                    {"rank": 1, "title": "New priority", "specific_drill": "Do X"}
-                ]
-            },
+            coaching_report={"top_3_priorities": [{"rank": 1, "title": "New priority", "specific_drill": "Do X"}]},
         )
         seed_priority_inbox_from_batch(new_batch)
 
         profile = Profile.objects.get(user=self.user)
         inbox = profile.get_preference("priority_inbox")
-        old_item = next(
-            item for item in inbox["items"] if item["batch_id"] == old_batch.id
-        )
+        old_item = next(item for item in inbox["items"] if item["batch_id"] == old_batch.id)
         assert old_item["archived"] is True
         payload = get_priority_inbox_payload(profile)
         assert payload["pending_count"] == 1
@@ -103,9 +91,7 @@ class TestPriorityInboxService(TestCase):
         batch = self._batch_with_priorities()
         seed_priority_inbox_from_batch(batch)
 
-        ok, message, streak = mark_priority_inbox_reviewed(
-            self.user, batch_id=batch.id, priority_index=1
-        )
+        ok, message, streak = mark_priority_inbox_reviewed(self.user, batch_id=batch.id, priority_index=1)
         assert ok is True
         assert streak["count"] == 1
 

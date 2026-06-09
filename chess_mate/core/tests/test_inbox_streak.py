@@ -36,9 +36,7 @@ class TestInboxStreak(TestCase):
 
     def test_first_review_starts_streak_at_one_not_shown(self):
         batch = self._seed_inbox()
-        ok, _, streak = mark_priority_inbox_reviewed(
-            self.user, batch_id=batch.id, priority_index=1
-        )
+        ok, _, streak = mark_priority_inbox_reviewed(self.user, batch_id=batch.id, priority_index=1)
         assert ok is True
         assert streak["count"] == 1
         assert streak["show"] is False

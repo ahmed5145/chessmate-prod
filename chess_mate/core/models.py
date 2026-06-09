@@ -69,9 +69,7 @@ class Profile(models.Model):
     # Add chess platform usernames
     chess_com_username = models.CharField(max_length=50, blank=True, default="")
     lichess_username = models.CharField(max_length=50, blank=True, default="")
-    referral_code = models.CharField(
-        max_length=40, unique=True, null=True, blank=True, db_index=True
-    )
+    referral_code = models.CharField(max_length=40, unique=True, null=True, blank=True, db_index=True)
     rating_history = models.JSONField(default=dict, blank=True)  # Store rating history
     games = models.ManyToManyField("Game", blank=True, related_name="profiles")
 
@@ -972,9 +970,7 @@ class UserNotification(models.Model):
         (TYPE_WEEKLY_DIGEST, "Weekly Digest Summary"),
     ]
 
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="notifications"
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     notification_type = models.CharField(max_length=40, db_index=True)
     entity_id = models.CharField(max_length=128, db_index=True)
     title = models.CharField(max_length=200)
@@ -988,9 +984,7 @@ class UserNotification(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["user", "read_at", "-created_at"]),
-            models.Index(
-                fields=["user", "notification_type", "entity_id", "-created_at"]
-            ),
+            models.Index(fields=["user", "notification_type", "entity_id", "-created_at"]),
         ]
 
     def __str__(self) -> str:
@@ -1000,12 +994,8 @@ class UserNotification(models.Model):
 class ReferralRedemption(models.Model):
     """Credits granted when a referred user completes their first batch (SRG-24)."""
 
-    referrer = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="referral_redemptions_given"
-    )
-    referee = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name="referral_redemption_received"
-    )
+    referrer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="referral_redemptions_given")
+    referee = models.OneToOneField(User, on_delete=models.CASCADE, related_name="referral_redemption_received")
     referrer_credits = models.PositiveSmallIntegerField(default=5)
     referee_credits = models.PositiveSmallIntegerField(default=5)
     batch_report = models.ForeignKey(
@@ -1030,9 +1020,7 @@ class ReferralRedemption(models.Model):
 class SpacedReminderLog(models.Model):
     """Idempotency for spaced moment emails — one row per user+moment send (SRG-13)."""
 
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="spaced_reminder_logs"
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="spaced_reminder_logs")
     moment_key = models.CharField(max_length=128, db_index=True)
     sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
@@ -1061,9 +1049,7 @@ class EmailSendLog(models.Model):
         (TYPE_REACTIVATION, "Reactivation"),
     ]
 
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="email_send_logs"
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="email_send_logs")
     email_type = models.CharField(max_length=40, db_index=True)
     week_key = models.CharField(max_length=16, blank=True, default="", db_index=True)
     sent_at = models.DateTimeField(auto_now_add=True, db_index=True)

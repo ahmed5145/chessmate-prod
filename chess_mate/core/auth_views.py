@@ -122,9 +122,7 @@ class EmailVerificationToken:
             if not profile.email_verification_sent_at:
                 return False, "Token has no issue date"
 
-            expiration_date = profile.email_verification_sent_at + timedelta(
-                days=max_age_days
-            )
+            expiration_date = profile.email_verification_sent_at + timedelta(days=max_age_days)
             if timezone.now() > expiration_date:
                 return False, "Token has expired"
 
@@ -173,9 +171,7 @@ def send_verification_email(user: User, profile: Profile, request) -> bool:
         return False
 
     uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
-    verification_url = build_verification_url(
-        uidb64, profile.email_verification_token, request
-    )
+    verification_url = build_verification_url(uidb64, profile.email_verification_token, request)
     mail_subject = "Verify your ChessMate account"
 
     try:
@@ -331,9 +327,7 @@ def register_view(request):
                 ),
             )
             if not profile.email_verification_token:
-                profile.email_verification_token = (
-                    EmailVerificationToken.generate_token()
-                )
+                profile.email_verification_token = EmailVerificationToken.generate_token()
                 profile.email_verification_sent_at = timezone.now()
                 profile.save(
                     update_fields=[
@@ -355,9 +349,7 @@ def register_view(request):
             )
 
         # For development, log the verification token
-        logger.info(
-            f"User {username} registered. Verification token: {profile.email_verification_token}"
-        )
+        logger.info(f"User {username} registered. Verification token: {profile.email_verification_token}")
 
         record_signup_attempt(request)
 
@@ -365,8 +357,7 @@ def register_view(request):
 
         if _requires_email_verification():
             message = (
-                "Account created. Check your inbox for a verification link, "
-                "then sign in to start using ChessMate."
+                "Account created. Check your inbox for a verification link, " "then sign in to start using ChessMate."
             )
             if not email_sent:
                 message = (
@@ -388,9 +379,7 @@ def register_view(request):
 
         profile.email_verified = True
         profile.email_verified_at = timezone.now()
-        profile.save(
-            update_fields=["email_verified", "email_verified_at", "legacy_rating"]
-        )
+        profile.save(update_fields=["email_verified", "email_verified_at", "legacy_rating"])
 
         from .welcome_email import send_welcome_email_once
 
@@ -421,13 +410,10 @@ def register_view(request):
         # Get more detailed information about the error
         error_details = {}
         if "duplicate key" in str(e):
-            error_details["message"] = (
-                "A user with this username or email already exists"
-            )
+            error_details["message"] = "A user with this username or email already exists"
         elif "NOT NULL" in str(e):
             error_details["message"] = (
-                "Account setup failed due to a database configuration issue. "
-                "Please try again or contact support."
+                "Account setup failed due to a database configuration issue. " "Please try again or contact support."
             )
         else:
             error_details["message"] = str(e)
@@ -462,9 +448,7 @@ def login_view(request):
 
         # Check required fields
         if not email or not password:
-            logger.warning(
-                f"Login attempt with missing credentials. Email provided: {bool(email)}"
-            )
+            logger.warning(f"Login attempt with missing credentials. Email provided: {bool(email)}")
             raise APIValidationError(
                 [
                     {
@@ -491,15 +475,10 @@ def login_view(request):
 
         # Check if email is verified (except in development mode where we skip this)
         profile = getattr(user, "profile", None)
-        if (
-            _requires_email_verification()
-            and profile is not None
-            and not profile.email_verified
-        ):
+        if _requires_email_verification() and profile is not None and not profile.email_verified:
             logger.warning(f"Login attempt with unverified email: {email}")
             raise AuthenticationFailed(
-                "Email not verified. Please check your inbox or use "
-                "“Resend verification email” on the login page."
+                "Email not verified. Please check your inbox or use " "“Resend verification email” on the login page."
             )
 
         remember_me = _parse_remember_me(request.data.get("remember_me", True))
@@ -513,9 +492,7 @@ def login_view(request):
                 settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"],
             )
             if remember_me
-            else getattr(
-                settings, "JWT_REFRESH_TOKEN_LIFETIME_SESSION", timedelta(hours=12)
-            )
+            else getattr(settings, "JWT_REFRESH_TOKEN_LIFETIME_SESSION", timedelta(hours=12))
         )
         refresh.set_exp(lifetime=refresh_lifetime)
         access_token = str(refresh.access_token)
@@ -581,9 +558,7 @@ def logout_view(request):
     refresh_token = data.get("refresh")
 
     if not refresh_token:
-        raise APIValidationError(
-            [{"field": "refresh", "message": "Refresh token is required"}]
-        )
+        raise APIValidationError([{"field": "refresh", "message": "Refresh token is required"}])
 
     try:
         # Get token from request
@@ -609,18 +584,14 @@ def token_refresh_view(request):
     """Refresh the JWT access token using the refresh token."""
     refresh_token = request.data.get("refresh")
     if not refresh_token:
-        raise APIValidationError(
-            [{"field": "refresh", "message": "Refresh token is required"}]
-        )
+        raise APIValidationError([{"field": "refresh", "message": "Refresh token is required"}])
 
     try:
         # Validate and refresh token
         refresh = RefreshToken(refresh_token)
         access_token = str(refresh.access_token)
 
-        return Response(
-            {"status": "success", "access": access_token, "refresh": str(refresh)}
-        )
+        return Response({"status": "success", "access": access_token, "refresh": str(refresh)})
 
     except Exception as e:
         logger.error(f"Token refresh error: {str(e)}")
@@ -696,10 +667,7 @@ def request_password_reset(request):
         )
     except Exception as template_error:
         logger.warning("Password reset template render failed: %s", template_error)
-        message = (
-            f"Use this link to reset your password (expires in {expiry_hours} hours): "
-            f"{reset_url}"
-        )
+        message = f"Use this link to reset your password (expires in {expiry_hours} hours): " f"{reset_url}"
 
     try:
         # Send email
@@ -783,9 +751,7 @@ def reset_password(request):
 
         # Verify token
         if not default_token_generator.check_token(user, token):
-            raise InvalidOperationError(
-                "reset password", "invalid or expired reset link"
-            )
+            raise InvalidOperationError("reset password", "invalid or expired reset link")
 
         # Set new password
         user.set_password(new_password)
@@ -793,9 +759,7 @@ def reset_password(request):
 
         logger.info(f"Password reset successful for user {user.email}")
 
-        return Response(
-            {"status": "success", "message": "Password has been reset successfully."}
-        )
+        return Response({"status": "success", "message": "Password has been reset successfully."})
 
     except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
         logger.error(f"Password reset error: {str(e)}")
@@ -881,9 +845,7 @@ def verify_email(request, uidb64=None, token=None):
             # Validate token
             is_valid, reason = EmailVerificationToken.is_valid(token)
             if not is_valid:
-                logger.warning(
-                    f"Invalid verification token for user {user.email}: {reason}"
-                )
+                logger.warning(f"Invalid verification token for user {user.email}: {reason}")
                 return render(
                     request,
                     "email/verification_failed.html",
@@ -919,9 +881,7 @@ def verify_email(request, uidb64=None, token=None):
             return redirect("/login?verified=success")
 
         except Exception as profile_err:
-            logger.error(
-                f"Error during profile processing: {str(profile_err)}", exc_info=True
-            )
+            logger.error(f"Error during profile processing: {str(profile_err)}", exc_info=True)
             return render(
                 request,
                 "email/verification_failed.html",
@@ -966,28 +926,20 @@ def resend_verification_email(request):
 
     user = User.objects.filter(email__iexact=email).first()
     if user is None:
-        return Response(
-            {"status": "success", "message": success_message, "email_available": True}
-        )
+        return Response({"status": "success", "message": success_message, "email_available": True})
 
     try:
         profile = Profile.objects.get(user=user)
     except Profile.DoesNotExist:
-        return Response(
-            {"status": "success", "message": success_message, "email_available": True}
-        )
+        return Response({"status": "success", "message": success_message, "email_available": True})
 
     if profile.email_verified:
-        return Response(
-            {"status": "success", "message": success_message, "email_available": True}
-        )
+        return Response({"status": "success", "message": success_message, "email_available": True})
 
     try:
         send_verification_email(user, profile, request)
     except Exception as exc:
-        logger.error(
-            "Failed to resend verification email to %s: %s", email, exc, exc_info=True
-        )
+        logger.error("Failed to resend verification email to %s: %s", email, exc, exc_info=True)
         return Response(
             {
                 "status": "error",
@@ -997,9 +949,7 @@ def resend_verification_email(request):
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
-    return Response(
-        {"status": "success", "message": success_message, "email_available": True}
-    )
+    return Response({"status": "success", "message": success_message, "email_available": True})
 
 
 @api_view(["GET"])
@@ -1057,9 +1007,7 @@ def test_authentication(request):
                 user_from_token = User.objects.get(id=user_id)
                 logger.info(f"User found from token: {user_from_token.username}")
             except User.DoesNotExist:
-                logger.warning(
-                    f"User with ID {user_id} not found in manual token check"
-                )
+                logger.warning(f"User with ID {user_id} not found in manual token check")
         except Exception as e:
             logger.warning(f"Manual token validation failed: {str(e)}")
 
@@ -1087,11 +1035,7 @@ def test_authentication(request):
                     "debug_info": {
                         "token_manually_valid": token_valid,
                         "token_details": token_debug_info,
-                        "manual_user_matches": (
-                            user_from_token == request.user
-                            if user_from_token
-                            else False
-                        ),
+                        "manual_user_matches": (user_from_token == request.user if user_from_token else False),
                     },
                 },
                 "message": "Authentication successful",
@@ -1100,9 +1044,7 @@ def test_authentication(request):
         )
     elif user_from_token:
         # Token is valid but Django auth failed - this is a useful diagnostic
-        logger.warning(
-            f"Token is valid for user {user_from_token.username} but Django auth failed"
-        )
+        logger.warning(f"Token is valid for user {user_from_token.username} but Django auth failed")
         return Response(
             {
                 "status": "partial_success",
@@ -1203,14 +1145,8 @@ def simple_test_auth(request):
 
                 # Decode header
                 try:
-                    header_padding = (
-                        parts[0] + "=" * (4 - len(parts[0]) % 4)
-                        if len(parts[0]) % 4 != 0
-                        else parts[0]
-                    )
-                    header = json.loads(
-                        base64.urlsafe_b64decode(header_padding).decode("utf-8")
-                    )
+                    header_padding = parts[0] + "=" * (4 - len(parts[0]) % 4) if len(parts[0]) % 4 != 0 else parts[0]
+                    header = json.loads(base64.urlsafe_b64decode(header_padding).decode("utf-8"))
                     response_data["token_header"] = header
                 except Exception as e:
                     response_data["token_header_error"] = str(e)
@@ -1242,9 +1178,7 @@ def simple_test_auth(request):
                         now = datetime.now()
                         response_data["token_expired"] = now > exp_time
                         response_data["token_expires_at"] = exp_time.isoformat()
-                        response_data["token_time_left"] = (
-                            str(exp_time - now) if exp_time > now else "Expired"
-                        )
+                        response_data["token_time_left"] = str(exp_time - now) if exp_time > now else "Expired"
                 except Exception as e:
                     response_data["token_payload_error"] = str(e)
 
@@ -1261,9 +1195,7 @@ def simple_test_auth(request):
                         response_data["user_exists"] = False
                         response_data["user_lookup_error"] = str(e)
             else:
-                response_data["token_error"] = (
-                    "Not a valid JWT format (should have 3 parts separated by periods)"
-                )
+                response_data["token_error"] = "Not a valid JWT format (should have 3 parts separated by periods)"
         except Exception as e:
             response_data["token_error"] = str(e)
 

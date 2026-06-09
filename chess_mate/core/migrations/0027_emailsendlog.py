@@ -28,9 +28,7 @@ class Migration(migrations.Migration):
                 ("email_type", models.CharField(db_index=True, max_length=40)),
                 (
                     "week_key",
-                    models.CharField(
-                        blank=True, db_index=True, default="", max_length=16
-                    ),
+                    models.CharField(blank=True, db_index=True, default="", max_length=16),
                 ),
                 ("sent_at", models.DateTimeField(auto_now_add=True, db_index=True)),
                 ("meta", models.JSONField(blank=True, default=dict)),

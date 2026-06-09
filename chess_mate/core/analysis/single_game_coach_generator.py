@@ -75,12 +75,8 @@ def _template_coaching(
         played = worst.get("played_move") or "your move"
         move_no = worst.get("move_number")
         swing = worst.get("eval_swing")
-        best_eval = _format_eval_pawns(
-            _player_pov_eval(worst.get("eval_after_best"), player_color)
-        )
-        after_eval = _format_eval_pawns(
-            _player_pov_eval(worst.get("eval_after"), player_color)
-        )
+        best_eval = _format_eval_pawns(_player_pov_eval(worst.get("eval_after_best"), player_color))
+        after_eval = _format_eval_pawns(_player_pov_eval(worst.get("eval_after"), player_color))
         headline = f"Move {move_no} swung the game"
         takeaway = (
             f"In {opening_name}, {played} on move {move_no} cost you "

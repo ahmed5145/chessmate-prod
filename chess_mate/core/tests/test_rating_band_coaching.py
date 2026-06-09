@@ -24,10 +24,7 @@ def test_rating_band_tailors_to_opening_weakness():
         repertoire_gaps=[{"opening_name": "Sicilian Defense"}],
     )
     assert "opening" in result["focus"].lower()
-    assert (
-        "endgame" not in result["daily_drill"].lower()
-        or "opening" in result["daily_drill"].lower()
-    )
+    assert "endgame" not in result["daily_drill"].lower() or "opening" in result["daily_drill"].lower()
 
 
 def test_rating_band_tailors_to_endgame_when_data_exists():

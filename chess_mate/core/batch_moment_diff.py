@@ -19,11 +19,7 @@ from .moment_timeline import (
 
 
 def _top_weaknesses(batch_report: BatchAnalysisReport, limit: int = 3) -> List[Dict[str, Any]]:
-    summary = (
-        batch_report.batch_summary
-        if isinstance(batch_report.batch_summary, dict)
-        else {}
-    )
+    summary = batch_report.batch_summary if isinstance(batch_report.batch_summary, dict) else {}
     weaknesses = [
         row
         for row in (summary.get("recurring_weaknesses") or [])
@@ -64,11 +60,7 @@ def _resolve_status(
 ) -> str:
     if current_row is None:
         return "resolved"
-    if (
-        previous_swing is not None
-        and current_swing is not None
-        and (previous_swing - current_swing) >= 0.1
-    ):
+    if previous_swing is not None and current_swing is not None and (previous_swing - current_swing) >= 0.1:
         return "resolved"
     return "unchanged"
 
@@ -116,13 +108,9 @@ def build_batch_moment_diff(
         previous_row = previous_patterns.get(signature, weakness)
         current_row = current_patterns.get(signature)
         previous_swing = _swing_value(
-            weakness.get("avg_eval_swing")
-            if isinstance(weakness, dict)
-            else previous_row.get("avg_eval_swing")
+            weakness.get("avg_eval_swing") if isinstance(weakness, dict) else previous_row.get("avg_eval_swing")
         )
-        current_swing = _swing_value(
-            current_row.get("avg_eval_swing") if current_row else None
-        )
+        current_swing = _swing_value(current_row.get("avg_eval_swing") if current_row else None)
         status = _resolve_status(
             current_row=current_row,
             previous_swing=previous_swing,
@@ -152,9 +140,7 @@ def build_batch_moment_diff(
                     else None
                 ),
                 "proof_game_id": proof_game_id,
-                "sparkline": _build_sparkline(
-                    profile, signature, previous_swing, current_swing
-                ),
+                "sparkline": _build_sparkline(profile, signature, previous_swing, current_swing),
             }
         )
 
@@ -175,12 +161,8 @@ def build_batch_moment_diff(
                 "previous_swing": None,
                 "current_swing": current_swing,
                 "swing_delta": None,
-                "proof_game_id": _proof_game_id(
-                    current, label, prefer_absent=False
-                ),
-                "sparkline": _build_sparkline(
-                    profile, signature, None, current_swing
-                ),
+                "proof_game_id": _proof_game_id(current, label, prefer_absent=False),
+                "sparkline": _build_sparkline(profile, signature, None, current_swing),
             }
         )
 

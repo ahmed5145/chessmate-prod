@@ -123,11 +123,7 @@ def get_inbox_streak_payload(preferences: Optional[Dict[str, Any]]) -> Dict[str,
             "can_use": can_freeze,
             "used_this_month": freeze_used,
             "label": "Use freeze (1 left this month)" if can_freeze else None,
-            "blocked_reason": (
-                "Freeze already used this month"
-                if freeze_used and not can_freeze
-                else None
-            ),
+            "blocked_reason": ("Freeze already used this month" if freeze_used and not can_freeze else None),
         },
     }
 

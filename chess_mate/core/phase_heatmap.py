@@ -106,12 +106,12 @@ def _collect_batch_games(user) -> Dict[int, Dict[str, Any]]:
     batches = BatchAnalysisReport.objects.filter(
         user=user,
         status__in=["completed", "partial"],
-    ).order_by("-created_at")[:8]
+    ).order_by(
+        "-created_at"
+    )[:8]
 
     for batch in batches:
-        per_game = (
-            batch.per_game_results if isinstance(batch.per_game_results, list) else []
-        )
+        per_game = batch.per_game_results if isinstance(batch.per_game_results, list) else []
         for row in per_game:
             if not isinstance(row, dict):
                 continue
@@ -142,11 +142,7 @@ def _collect_single_game_rows(user, profile: Optional[Profile]) -> Dict[int, Dic
     collected: Dict[int, Dict[str, Any]] = {}
     analyses = (
         GameAnalysis.objects.filter(game__user=user)
-        .filter(
-            Q(game__status="analyzed")
-            | Q(game__analysis_status="analyzed")
-            | Q(game__analysis_status="completed")
-        )
+        .filter(Q(game__status="analyzed") | Q(game__analysis_status="analyzed") | Q(game__analysis_status="completed"))
         .select_related("game")
         .order_by("-created_at")[:80]
     )
@@ -159,14 +155,8 @@ def _collect_single_game_rows(user, profile: Optional[Profile]) -> Dict[int, Dic
         if game_id in collected:
             continue
 
-        analysis_data = (
-            analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
-        )
-        metrics = (
-            analysis_data.get("metrics", {})
-            if isinstance(analysis_data.get("metrics"), dict)
-            else {}
-        )
+        analysis_data = analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
+        metrics = analysis_data.get("metrics", {}) if isinstance(analysis_data.get("metrics"), dict) else {}
         phases = metrics.get("phases") if isinstance(metrics.get("phases"), dict) else {}
         phase_breakdown = {}
         for phase_name in PHASES:
@@ -174,9 +164,7 @@ def _collect_single_game_rows(user, profile: Optional[Profile]) -> Dict[int, Dic
             if isinstance(phase_metrics, dict) and phase_metrics.get("accuracy") is not None:
                 phase_breakdown[phase_name] = {
                     "accuracy": phase_metrics.get("accuracy"),
-                    "moves": phase_metrics.get("opportunities")
-                    or phase_metrics.get("total_moves")
-                    or 1,
+                    "moves": phase_metrics.get("opportunities") or phase_metrics.get("total_moves") or 1,
                     "mistakes": phase_metrics.get("mistakes", 0),
                     "blunders": phase_metrics.get("blunders", 0),
                 }
@@ -196,9 +184,7 @@ def _collect_single_game_rows(user, profile: Optional[Profile]) -> Dict[int, Dic
         coaching = analysis_data.get("coaching")
         if not isinstance(coaching, dict):
             coaching = {}
-        moments = coaching.get("critical_moments") or analysis_data.get(
-            "critical_moments", []
-        )
+        moments = coaching.get("critical_moments") or analysis_data.get("critical_moments", [])
 
         collected[game_id] = {
             "saved_game_id": game_id,
@@ -298,18 +284,13 @@ def build_phase_result_heatmap(user, profile: Optional[Profile] = None) -> Dict[
             if opponent:
                 example["opponent"] = opponent
             if len(cell["example_games"]) < 3:
-                if not any(
-                    row.get("saved_game_id") == saved_id
-                    for row in cell["example_games"]
-                ):
+                if not any(row.get("saved_game_id") == saved_id for row in cell["example_games"]):
                     cell["example_games"].append(example)
 
     highlighted: List[Dict[str, Any]] = []
     for cell in cells.values():
         if cell["_accuracy_count"]:
-            cell["avg_accuracy"] = round(
-                cell["_accuracy_total"] / cell["_accuracy_count"], 1
-            )
+            cell["avg_accuracy"] = round(cell["_accuracy_total"] / cell["_accuracy_count"], 1)
         if cell["_eval_count"]:
             cell["avg_eval_drop"] = round(cell["_eval_total"] / cell["_eval_count"], 2)
 
@@ -325,9 +306,7 @@ def build_phase_result_heatmap(user, profile: Optional[Profile] = None) -> Dict[
         )
         cell["highlight"] = qualifies_accuracy or qualifies_eval
         if cell["highlight"] and cell["avg_accuracy"] is not None:
-            cell["headline"] = _headline_for_cell(
-                cell["result"], cell["phase"], cell["avg_accuracy"]
-            )
+            cell["headline"] = _headline_for_cell(cell["result"], cell["phase"], cell["avg_accuracy"])
             highlighted.append(cell)
 
         for private_key in ("_accuracy_total", "_accuracy_count", "_eval_total", "_eval_count"):

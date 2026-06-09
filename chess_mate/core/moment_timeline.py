@@ -34,12 +34,7 @@ def signature_from_moment(
     *,
     opening_eco: Optional[str] = None,
 ) -> str:
-    pattern = (
-        moment.get("tactical_theme")
-        or moment.get("pattern")
-        or moment.get("type")
-        or "positional_slip"
-    )
+    pattern = moment.get("tactical_theme") or moment.get("pattern") or moment.get("type") or "positional_slip"
     return build_moment_signature(pattern, moment.get("phase"), opening_eco)
 
 
@@ -117,14 +112,8 @@ def record_batch_timeline_events(batch_report: BatchAnalysisReport) -> int:
     except Profile.DoesNotExist:
         return 0
 
-    batch_summary = (
-        batch_report.batch_summary if isinstance(batch_report.batch_summary, dict) else {}
-    )
-    per_game_results = (
-        batch_report.per_game_results
-        if isinstance(batch_report.per_game_results, list)
-        else []
-    )
+    batch_summary = batch_report.batch_summary if isinstance(batch_report.batch_summary, dict) else {}
+    per_game_results = batch_report.per_game_results if isinstance(batch_report.per_game_results, list) else []
     occurred_at = (batch_report.updated_at or batch_report.created_at or timezone.now()).isoformat()
     added = 0
 
@@ -168,9 +157,7 @@ def record_batch_timeline_events(batch_report: BatchAnalysisReport) -> int:
                 if game and game.opening_name:
                     eco = getattr(game, "eco_code", None)
             signature = signature_from_moment(moment, opening_eco=eco)
-            dedupe_key = (
-                f"batch:{batch_report.id}:moment:{signature}:{moment.get('move_number')}"
-            )
+            dedupe_key = f"batch:{batch_report.id}:moment:{signature}:{moment.get('move_number')}"
             _append_event(
                 profile,
                 {
@@ -197,9 +184,7 @@ def record_batch_timeline_events(batch_report: BatchAnalysisReport) -> int:
                 if not isinstance(moment, dict):
                     continue
                 signature = signature_from_moment(moment)
-                dedupe_key = (
-                    f"batch:{batch_report.id}:fallback:{signature}:{moment.get('move_number')}"
-                )
+                dedupe_key = f"batch:{batch_report.id}:fallback:{signature}:{moment.get('move_number')}"
                 _append_event(
                     profile,
                     {
@@ -264,23 +249,13 @@ def summarize_timeline_for_signature(
     profile: Profile,
     signature: str,
 ) -> Dict[str, Any]:
-    events = [
-        event
-        for event in _load_events(profile)
-        if event.get("signature") == signature
-    ]
+    events = [event for event in _load_events(profile) if event.get("signature") == signature]
     events.sort(key=lambda row: row.get("occurred_at") or "")
 
     if len(events) < _MIN_EVENTS_TO_SHOW:
         return {"show": False, "signature": signature, "event_count": len(events)}
 
-    batch_ids = sorted(
-        {
-            int(event["batch_id"])
-            for event in events
-            if event.get("batch_id") is not None
-        }
-    )
+    batch_ids = sorted({int(event["batch_id"]) for event in events if event.get("batch_id") is not None})
     batch_count = len(batch_ids)
 
     months: List[str] = []
@@ -291,19 +266,13 @@ def summarize_timeline_for_signature(
             if label not in months:
                 months.append(label)
 
-    swings = [
-        float(event["eval_swing"])
-        for event in events
-        if event.get("eval_swing") is not None
-    ]
+    swings = [float(event["eval_swing"]) for event in events if event.get("eval_swing") is not None]
     trend_copy = None
     if len(swings) >= 2:
         delta = swings[0] - swings[-1]
         if abs(delta) >= 0.1:
             direction = "down" if delta > 0 else "up"
-            trend_copy = (
-                f"Avg swing {direction} {abs(delta):.1f} pawns since first sighting"
-            )
+            trend_copy = f"Avg swing {direction} {abs(delta):.1f} pawns since first sighting"
 
     if batch_count >= 2:
         headline = f"This pattern appeared in {batch_count} batches"

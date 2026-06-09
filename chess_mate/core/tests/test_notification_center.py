@@ -117,11 +117,7 @@ class TestNotificationCenter(TestCase):
         seed_priority_inbox_from_batch(batch)
         notify_batch_complete(self.user, batch)
 
-        types = set(
-            UserNotification.objects.filter(user=self.user).values_list(
-                "notification_type", flat=True
-            )
-        )
+        types = set(UserNotification.objects.filter(user=self.user).values_list("notification_type", flat=True))
         assert UserNotification.TYPE_BATCH_COMPLETE in types
         assert UserNotification.TYPE_INBOX_ITEM in types
 
@@ -133,9 +129,7 @@ class TestNotificationCenter(TestCase):
             title="First",
             href="/batch-report/5",
         )
-        UserNotification.objects.filter(id=row.id).update(
-            created_at=timezone.now() - timedelta(hours=25)
-        )
+        UserNotification.objects.filter(id=row.id).update(created_at=timezone.now() - timedelta(hours=25))
         second = create_user_notification(
             self.user,
             notification_type=UserNotification.TYPE_BATCH_COMPLETE,

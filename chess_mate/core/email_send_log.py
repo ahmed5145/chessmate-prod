@@ -50,9 +50,7 @@ def spaced_sent_in_last_days(user: User, days: int = 7) -> bool:
     ).exists()
 
 
-def coaching_emails_in_last_days(
-    user: User, days: int = COACHING_EMAIL_WINDOW_DAYS
-) -> int:
+def coaching_emails_in_last_days(user: User, days: int = COACHING_EMAIL_WINDOW_DAYS) -> int:
     since = timezone.now() - timedelta(days=days)
     return EmailSendLog.objects.filter(
         user=user,

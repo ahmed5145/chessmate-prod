@@ -17,9 +17,7 @@ def _has_coaching(batch_report: BatchAnalysisReport) -> bool:
     if not isinstance(coaching, dict) or not coaching:
         return False
     return bool(
-        coaching.get("executive_summary")
-        or coaching.get("top_3_priorities")
-        or coaching.get("one_thing_to_do_today")
+        coaching.get("executive_summary") or coaching.get("top_3_priorities") or coaching.get("one_thing_to_do_today")
     )
 
 

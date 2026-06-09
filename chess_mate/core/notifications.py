@@ -71,12 +71,8 @@ def serialize_notification(row: UserNotification) -> Dict[str, Any]:
 
 
 def get_notifications_payload(user: User, *, limit: int = 50) -> Dict[str, Any]:
-    rows = list(
-        UserNotification.objects.filter(user=user).order_by("-created_at")[:limit]
-    )
-    unread_count = UserNotification.objects.filter(
-        user=user, read_at__isnull=True
-    ).count()
+    rows = list(UserNotification.objects.filter(user=user).order_by("-created_at")[:limit])
+    unread_count = UserNotification.objects.filter(user=user, read_at__isnull=True).count()
     return {
         "unread_count": unread_count,
         "notifications": [serialize_notification(row) for row in rows],
@@ -84,16 +80,14 @@ def get_notifications_payload(user: User, *, limit: int = 50) -> Dict[str, Any]:
 
 
 def mark_notification_read(user: User, notification_id: int) -> bool:
-    updated = UserNotification.objects.filter(
-        user=user, id=notification_id, read_at__isnull=True
-    ).update(read_at=timezone.now())
+    updated = UserNotification.objects.filter(user=user, id=notification_id, read_at__isnull=True).update(
+        read_at=timezone.now()
+    )
     return updated > 0
 
 
 def mark_all_notifications_read(user: User) -> int:
-    return UserNotification.objects.filter(user=user, read_at__isnull=True).update(
-        read_at=timezone.now()
-    )
+    return UserNotification.objects.filter(user=user, read_at__isnull=True).update(read_at=timezone.now())
 
 
 def seed_inbox_notifications(user: User) -> int:
@@ -177,11 +171,7 @@ def notify_batch_complete(user: User, batch_report: BatchAnalysisReport) -> None
         return
 
     batch_id = batch_report.id
-    coaching = (
-        batch_report.coaching_report
-        if isinstance(batch_report.coaching_report, dict)
-        else {}
-    )
+    coaching = batch_report.coaching_report if isinstance(batch_report.coaching_report, dict) else {}
     snippet = str(coaching.get("executive_summary") or "")[:220]
     worst = worst_moment_summary(batch_report)
     deep_href = build_worst_moment_deep_review_url(batch_report)

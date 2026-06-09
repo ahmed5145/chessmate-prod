@@ -55,18 +55,14 @@ def stale_moment_game(spaced_user):
             }
         },
     )
-    GameAnalysis.objects.filter(pk=analysis.pk).update(
-        updated_at=timezone.now() - timedelta(days=10)
-    )
+    GameAnalysis.objects.filter(pk=analysis.pk).update(updated_at=timezone.now() - timedelta(days=10))
     return game
 
 
 @patch("core.spaced_repetition_email.is_email_configured", return_value=True)
 @patch("core.spaced_repetition_email.render_to_string", return_value="<p>Spaced</p>")
 @patch("core.spaced_repetition_email.send_coaching_email", return_value=1)
-def test_sends_for_eligible_moment(
-    mock_send, _mock_render, _mock_email, spaced_user, stale_moment_game
-):
+def test_sends_for_eligible_moment(mock_send, _mock_render, _mock_email, spaced_user, stale_moment_game):
     with patch(
         "core.spaced_repetition_email.received_coaching_touchpoint_today",
         return_value=False,
@@ -74,9 +70,7 @@ def test_sends_for_eligible_moment(
         assert send_spaced_repetition_for_user(spaced_user) is True
     mock_send.assert_called_once()
     assert mock_send.call_args.kwargs["subject"] == "Still thinking about move 12?"
-    assert SpacedReminderLog.objects.filter(
-        user=spaced_user, moment_key=moment_key(stale_moment_game.id, 12)
-    ).exists()
+    assert SpacedReminderLog.objects.filter(user=spaced_user, moment_key=moment_key(stale_moment_game.id, 12)).exists()
 
 
 def test_skips_when_digest_sent_this_week(spaced_user, stale_moment_game):
@@ -85,9 +79,7 @@ def test_skips_when_digest_sent_this_week(spaced_user, stale_moment_game):
         EmailSendLog.TYPE_WEEKLY_DIGEST,
         week_key="2026-W23",
     )
-    with patch(
-        "core.spaced_repetition_email.digest_already_sent_this_week", return_value=True
-    ):
+    with patch("core.spaced_repetition_email.digest_already_sent_this_week", return_value=True):
         with patch("core.spaced_repetition_email.send_coaching_email") as mock_send:
             assert send_spaced_repetition_for_user(spaced_user) is False
             mock_send.assert_not_called()

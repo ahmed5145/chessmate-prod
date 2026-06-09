@@ -26,10 +26,7 @@ def is_email_configured() -> bool:
 
 
 def password_reset_unavailable_message() -> str:
-    return (
-        "Password reset email is temporarily unavailable. "
-        "Please try again later or contact support."
-    )
+    return "Password reset email is temporarily unavailable. " "Please try again later or contact support."
 
 
 def password_reset_expiry_hours() -> int:
@@ -40,9 +37,7 @@ def password_reset_expiry_hours() -> int:
 
 def get_frontend_base_url(request=None) -> str:
     """Public SPA origin for links in emails (FRONTEND_URL or current request host)."""
-    explicit = (
-        getattr(settings, "FRONTEND_URL", None) or os.environ.get("FRONTEND_URL") or ""
-    ).strip()
+    explicit = (getattr(settings, "FRONTEND_URL", None) or os.environ.get("FRONTEND_URL") or "").strip()
     if explicit:
         return explicit.rstrip("/")
 
@@ -60,9 +55,7 @@ def build_password_reset_url(uid: str, token: str, request=None) -> str:
 
 def get_api_base_url(request=None) -> str:
     """Origin for API links in emails (verify-email hits Django, not the SPA)."""
-    explicit = (
-        getattr(settings, "API_BASE_URL", None) or os.environ.get("API_BASE_URL") or ""
-    ).strip()
+    explicit = (getattr(settings, "API_BASE_URL", None) or os.environ.get("API_BASE_URL") or "").strip()
     if explicit:
         return explicit.rstrip("/")
 
@@ -79,10 +72,7 @@ def build_verification_url(uidb64: str, token: str, request=None) -> str:
 
 
 def verification_email_unavailable_message() -> str:
-    return (
-        "Verification email is temporarily unavailable. "
-        "Please try again later or contact support."
-    )
+    return "Verification email is temporarily unavailable. " "Please try again later or contact support."
 
 
 def coaching_email_headers(preferences_url: str | None = None) -> dict[str, str]:

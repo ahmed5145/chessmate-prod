@@ -76,9 +76,7 @@ class TestDashboardOneThing(TestCase):
             analysis_data={"status": "complete"},
         )
 
-        moment = fetch_latest_single_worst_moment(
-            self.user, Profile.objects.get(user=self.user)
-        )
+        moment = fetch_latest_single_worst_moment(self.user, Profile.objects.get(user=self.user))
         assert moment["game_id"] == game.id
         assert moment["move_number"] == 22
 

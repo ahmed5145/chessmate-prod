@@ -16,9 +16,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="profile",
             name="referral_code",
-            field=models.CharField(
-                blank=True, db_index=True, max_length=40, null=True, unique=True
-            ),
+            field=models.CharField(blank=True, db_index=True, max_length=40, null=True, unique=True),
         ),
         migrations.CreateModel(
             name="ReferralRedemption",

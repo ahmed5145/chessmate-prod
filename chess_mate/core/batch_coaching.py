@@ -45,9 +45,7 @@ def regenerate_batch_coaching(batch_report: BatchAnalysisReport) -> Tuple[bool, 
             coach_persona=resolve_coach_persona(profile),
         )
     except CoachingGeneratorError as exc:
-        logger.warning(
-            "Coaching regeneration failed for batch %s: %s", batch_report.id, exc
-        )
+        logger.warning("Coaching regeneration failed for batch %s: %s", batch_report.id, exc)
         return False, f"Coaching regeneration failed: {exc}"
 
     try:

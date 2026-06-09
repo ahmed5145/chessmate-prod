@@ -40,9 +40,7 @@ def test_coaching_email_budget_exceeded_at_cap(mail_user):
 
 
 def test_coaching_email_budget_allows_under_cap(mail_user):
-    log_email_send(
-        mail_user, EmailSendLog.TYPE_ANALYSIS_COMPLETION, meta={"game_id": 1}
-    )
+    log_email_send(mail_user, EmailSendLog.TYPE_ANALYSIS_COMPLETION, meta={"game_id": 1})
     assert coaching_email_budget_exceeded(mail_user) is False
     assert coaching_emails_in_last_days(mail_user) == 1
 

@@ -63,9 +63,7 @@ class TestProofGamesInbox(TestCase):
                     "opening_name": "Sicilian Defense",
                     "opponent": "alpha",
                     "player_color": "white",
-                    "critical_moments": [
-                        self._moment(move_number=8, phase="opening", eval_swing=0.9)
-                    ],
+                    "critical_moments": [self._moment(move_number=8, phase="opening", eval_swing=0.9)],
                 },
                 {
                     "game_id": "game_1",
@@ -147,9 +145,7 @@ class TestProofGamesInbox(TestCase):
                     "opening_name": "French Defense",
                     "opponent": "delta",
                     "player_color": "black",
-                    "critical_moments": [
-                        self._moment(move_number=17, phase="middlegame", eval_swing=2.1)
-                    ],
+                    "critical_moments": [self._moment(move_number=17, phase="middlegame", eval_swing=2.1)],
                 }
             ],
         )
