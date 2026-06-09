@@ -85,6 +85,7 @@ from .single_game_moment_share import (
     find_analysis_by_share_token,
     get_or_create_moment_share,
 )
+from .inbox_streak import get_inbox_streak_payload
 from .single_game_streak import get_single_game_streak
 from .stats_helpers import build_single_game_context
 from .task_manager import TaskManager
@@ -2680,6 +2681,11 @@ def get_game_analysis(request, game_id):
             streak_state = get_single_game_streak(
                 profile.preferences if profile else {}
             )
+            inbox_streak = (
+                get_inbox_streak_payload(profile.preferences)
+                if batch_context and profile
+                else None
+            )
             response_payload = {
                 "analysis_data": payload,
                 **payload,
@@ -2690,6 +2696,7 @@ def get_game_analysis(request, game_id):
                 "batch_context": batch_context,
                 "training_block": training_block,
                 "single_game_streak": streak_state,
+                "inbox_streak": inbox_streak,
                 "rating_context": rating_context,
                 "engine_meta": {
                     "depth": getattr(analysis, "depth", 20) or 20,
@@ -2756,6 +2763,11 @@ def get_game_analysis(request, game_id):
                 streak_state = get_single_game_streak(
                     profile.preferences if profile else {}
                 )
+                inbox_streak = (
+                    get_inbox_streak_payload(profile.preferences)
+                    if batch_context and profile
+                    else None
+                )
                 response_payload = {
                     "analysis_data": payload,
                     **payload,
@@ -2768,6 +2780,7 @@ def get_game_analysis(request, game_id):
                         training_block if isinstance(training_block, dict) else {}
                     ),
                     "single_game_streak": streak_state,
+                    "inbox_streak": inbox_streak,
                     "rating_context": rating_context,
                     "engine_meta": {
                         "depth": 20,

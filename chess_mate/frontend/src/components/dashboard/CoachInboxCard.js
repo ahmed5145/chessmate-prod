@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Inbox } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { trackMarketingEvent } from '../../utils/marketingAnalytics';
+import InboxStreakChip from './InboxStreakChip';
 
 const CoachInboxCard = ({ priorityInbox }) => {
   const { isDarkMode } = useTheme();
   const pendingItems = priorityInbox?.pending_items || [];
   const pendingCount = priorityInbox?.pending_count ?? pendingItems.length;
+  const streak = priorityInbox?.streak;
 
   if (pendingCount === 0) {
     return (
@@ -16,11 +18,12 @@ const CoachInboxCard = ({ priorityInbox }) => {
           isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Inbox className={`h-5 w-5 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-600'}`} />
           <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Coach inbox
           </h2>
+          <InboxStreakChip streak={streak} />
         </div>
         <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           No priorities waiting. Run a batch to get your top 3 coaching actions.
@@ -47,13 +50,14 @@ const CoachInboxCard = ({ priorityInbox }) => {
       <div className={`flex items-center justify-between px-5 py-4 border-b ${
         isDarkMode ? 'border-gray-700' : 'border-gray-100'
       }`}>
-        <div className="flex items-center gap-2">
-          <Inbox className={`h-5 w-5 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-600'}`} />
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <Inbox className={`h-5 w-5 shrink-0 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-600'}`} />
           <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Coach inbox
           </h2>
+          <InboxStreakChip streak={streak} />
         </div>
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${
           isDarkMode ? 'bg-indigo-900/50 text-indigo-200' : 'bg-indigo-100 text-indigo-800'
         }`}>
           {pendingCount} pending

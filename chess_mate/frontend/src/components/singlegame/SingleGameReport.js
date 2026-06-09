@@ -268,6 +268,7 @@ const SingleGameReport = ({
         gameContext={gameContext}
         phaseData={phaseData}
         playerColor={playerColor}
+        inboxStreak={batchContext ? resolvedAnalysisData?.inbox_streak : null}
       />
 
       <PhaseStrip

@@ -43,6 +43,7 @@ const ReportInsightCards = ({
   gameContext = {},
   phaseData = {},
   playerColor = 'white',
+  inboxStreak = null,
 }) => {
   const { isDarkMode } = useTheme();
   const openingLabel = formatListOpeningLabel({
@@ -72,7 +73,25 @@ const ReportInsightCards = ({
   }
 
   return (
-    <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+    <div className="mb-6">
+      {inboxStreak?.show ? (
+        <p
+          className={`mb-4 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium ${
+            isDarkMode
+              ? 'bg-orange-950/30 border-orange-800/50 text-orange-200'
+              : 'bg-orange-50 border-orange-200 text-orange-900'
+          }`}
+        >
+          <span aria-hidden="true">🔥</span>
+          <span>{inboxStreak.label}</span>
+          {inboxStreak.milestone_message ? (
+            <span className={`font-normal ${isDarkMode ? 'text-orange-200/80' : 'text-orange-800/80'}`}>
+              · {inboxStreak.milestone_message}
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <InsightCard
         icon={FaChartLine}
         title="Your accuracy"
@@ -98,6 +117,7 @@ const ReportInsightCards = ({
         }
         isDarkMode={isDarkMode}
       />
+    </div>
     </div>
   );
 };

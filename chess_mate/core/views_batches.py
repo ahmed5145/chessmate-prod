@@ -82,7 +82,7 @@ def batch_inbox_review_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    ok, message = mark_priority_inbox_reviewed(
+    ok, message, inbox_streak = mark_priority_inbox_reviewed(
         request.user,
         batch_id=batch_id_int,
         priority_index=priority_index_int,
@@ -102,7 +102,12 @@ def batch_inbox_review_view(request):
         inbox = get_priority_inbox_payload(Profile(user=request.user))
 
     return Response(
-        {"detail": message, "priority_inbox": inbox}, status=status.HTTP_200_OK
+        {
+            "detail": message,
+            "priority_inbox": inbox,
+            "inbox_streak": inbox_streak or inbox.get("streak"),
+        },
+        status=status.HTTP_200_OK,
     )
 
 

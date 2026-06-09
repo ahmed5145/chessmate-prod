@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from django.contrib.auth.models import User
 from django.utils import timezone
 
+from .inbox_streak import (get_inbox_streak_payload,
+                           update_inbox_streak_on_review)
 from .models import BatchAnalysisReport, Profile
 
 INBOX_PREF_KEY = "priority_inbox"
@@ -475,6 +477,7 @@ def get_priority_inbox_payload(profile: Profile) -> Dict[str, Any]:
         row["href"] = build_priority_inbox_link(item)
         serialized_pending.append(row)
 
+    streak = get_inbox_streak_payload(profile.preferences)
     return {
         "pending_count": len(serialized_pending),
         "pending_items": serialized_pending,
@@ -485,6 +488,7 @@ def get_priority_inbox_payload(profile: Profile) -> Dict[str, Any]:
         ),
         "empty_state_cta": "/batch-analysis",
         "empty_state_label": "Start Batch Coach",
+        "streak": streak,
     }
 
 
@@ -493,15 +497,15 @@ def mark_priority_inbox_reviewed(
     *,
     batch_id: int,
     priority_index: int,
-) -> Tuple[bool, str]:
+) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     try:
         profile = Profile.objects.get(user=user)
     except Profile.DoesNotExist:
-        return False, "Profile not found"
+        return False, "Profile not found", None
 
     report = BatchAnalysisReport.objects.filter(user=user, id=batch_id).first()
     if report is None:
-        return False, "Batch not found"
+        return False, "Batch not found", None
 
     inbox = _load_inbox(profile)
     key = _item_key(batch_id, priority_index)
@@ -519,7 +523,8 @@ def mark_priority_inbox_reviewed(
             break
 
     if not updated:
-        return False, "Inbox item not found"
+        return False, "Inbox item not found", None
 
     _save_inbox(profile, inbox)
-    return True, "Priority marked reviewed"
+    streak = update_inbox_streak_on_review(profile)
+    return True, "Priority marked reviewed", streak

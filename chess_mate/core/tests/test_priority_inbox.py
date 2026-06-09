@@ -104,10 +104,11 @@ class TestPriorityInboxService(TestCase):
         batch = self._batch_with_priorities()
         seed_priority_inbox_from_batch(batch)
 
-        ok, message = mark_priority_inbox_reviewed(
+        ok, message, streak = mark_priority_inbox_reviewed(
             self.user, batch_id=batch.id, priority_index=1
         )
         assert ok is True
+        assert streak["count"] == 1
 
         profile = Profile.objects.get(user=self.user)
         payload = get_priority_inbox_payload(profile)

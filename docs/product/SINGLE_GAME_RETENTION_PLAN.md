@@ -1031,7 +1031,9 @@ flowchart TD
 - [ ] **SRG-12** **One thing today** card appears above inbox; CTA uses `mode=review` when linking a game.
 - [ ] **SRG-12** Pending inbox item wins over batch worst moment over single-game moment.
 - [ ] **SRG-12** **Snooze 24h** hides card until next day; refresh respects snooze.
-- [ ] **SRG-16** *(not shipped)* Inbox streak increments when clearing items.
+- [ ] **SRG-16** Mark 2 inbox items on **consecutive days** → dashboard shows `🔥 2-day coach streak`.
+- [ ] **SRG-16** Second review **same day** does not increment streak again.
+- [ ] **SRG-16** Batch-linked single-game report shows streak banner when ≥2 days.
 - [ ] **SRG-10** *(not shipped)* Moment timeline shows batch run count.
 - [ ] **SRG-17** *(not shipped)* Fix-rate on 2nd batch reflects improved patterns.
 - [ ] **SRG-14** Bell shows completion + inbox; mark read works.
@@ -1078,7 +1080,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | **SRG-13** | `test_spaced_moment_email.py` *(add)* | — | 7d cap + digest exclusion |
 | **SRG-14** | `test_notification_center.py` *(add)* | `NotificationCenter.test.js` *(add)* | Bell + read state |
 | **SRG-15** | `test_weekly_digest_email.py` *(add)* | — | `EmailSendLog` weekly cap |
-| **SRG-16** | `test_inbox_streak.py` *(add)* | `InboxStreak.test.js` *(add)* | Streak increment rules |
+| **SRG-16** | `test_inbox_streak.py` | `InboxStreak.test.js` | Streak increment rules |
 | **SRG-17** | `test_fix_rate.py` *(add)* | `FixRateCard.test.js` *(add)* | Batch-over-batch patterns |
 | **SRG-18** | `test_phase_heatmap.py` *(add)* | `PhaseHeatmap.test.js` *(add)* | Cell → game links |
 | **SRG-19** | `test_proof_games_inbox.py` | `CoachInboxCard.test.js` | Post-batch proof links + labels |
@@ -1116,7 +1118,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-13 | ⬜ Not started | Spaced email — ship after digest |
 | SRG-14 | ⬜ Not started | Notification center |
 | SRG-15 | ⬜ Not started | Weekly digest |
-| SRG-16 | ⬜ Not started | Inbox streak |
+| SRG-16 | ✅ Done | Inbox review streak chip + milestones |
 | SRG-17 | ⬜ Not started | Fix-rate score |
 | SRG-18 | ⬜ Not started | Phase heatmap |
 | SRG-19 | ✅ Done | Auto-pick proof games + proof_label in inbox |
