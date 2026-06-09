@@ -237,8 +237,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] From batch deep-link, CTA shows real counts when batch report has pattern metadata.
-- [ ] Without batch, shows batch upsell (not empty).
+- [x] From batch deep-link, CTA shows real counts when batch report has pattern metadata.
+- [x] Without batch, shows batch upsell (not empty).
+- [x] Tests: `singleGameBatchCta.test.js`, `SingleGameFooterCta.test.js`, `test_single_game_context.py` (§8).
 
 **Primary files:** `SingleGameFooterCta.js`, `single_game_context.py`, `SingleGameReport.js`, `BatchContextBanner.js`
 
@@ -255,9 +256,10 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Drill button text mentions opening name and mistake count when data exists.
+- [x] Drill button text mentions opening name and mistake count when data exists.
+- [x] Tests: `singleGameDrillLinks.test.js` (§8).
 
-**Primary files:** `singleGameDrillLinks.js`, `SingleGameReport.js`, metrics `phases.opening`
+**Primary files:** `singleGameDrillLinks.js`, `singleGameBatchCta.js`, `SingleGameReport.js`, metrics `phases.opening`
 
 ---
 
@@ -993,8 +995,8 @@ flowchart TD
 - [ ] **SRG-1** **Jump to move** CTA → `/game/:id/analysis?mode=review&move=N` opens at moment, **0** credit.
 - [ ] **SRG-1** **View report** on cached game → **no** second completion email.
 - [ ] **SRG-22** *(not shipped)* New signup → welcome/confirm mail (skip until shipped).
-- [ ] **SRG-3** *(not shipped)* Batch-linked report → footer CTA → batch report with pattern context.
-- [ ] **SRG-4** *(not shipped)* Opening study link opens sensible Lichess drill.
+- [ ] **SRG-3** Batch-linked report → footer shows `N of M games` → **See batch priorities** opens report.
+- [ ] **SRG-4** Opening drill button mentions ECO + opening inaccuracies when present.
 - [ ] **SRG-2** *(not shipped)* Streak card increments on clean game.
 - [ ] **SRG-6** *(not shipped)* Drill checklist persists after refresh (`localStorage`).
 - [ ] **SRG-7** *(not shipped)* Move nav plays sound once (if enabled).
@@ -1042,8 +1044,8 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | **SRG-0** | `test_single_game_analysis_cache.py`, `test_game_views.py` (cached POST), `test_single_game_credits.py` | `SingleGameAnalysis.test.js`, `Games.test.js`, `singleGameAnalysisLinks.test.js` | Cache hit = 0 credits |
 | **SRG-1** | `test_single_game_notifications.py`, `test_analysis_tasks.py` (email on SUCCESS only) | — | Assert headline, `mode=review` URLs |
 | **SRG-2** | `test_single_game_streak.py` *(add)* | `SingleGameStreak.test.js` *(add)* | Streak rules unit-tested |
-| **SRG-3** | — | `SingleGameFooterCta.test.js` *(add)* | Batch link + analytics |
-| **SRG-4** | — | `singleGameDrillLinks.test.js` *(extend)* | ECO + mistake context |
+| **SRG-3** | `test_single_game_context.py` (pattern counts) | `singleGameBatchCta.test.js`, `SingleGameFooterCta.test.js` | Batch link + analytics |
+| **SRG-4** | — | `singleGameDrillLinks.test.js`, `singleGameBatchCta.test.js` | ECO + mistake context |
 | **SRG-5** | `test_rating_band_copy.py` *(add)* | — | Template strings from rating |
 | **SRG-6** | — | `singleGameDrillChecklist.test.js`, `DrillChecklistSection.test.js` | `localStorage` persistence |
 | **SRG-7** | — | `singleGameMoveSound.test.js` *(add)* | Classification → sound map |
@@ -1081,8 +1083,8 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-0 | ✅ Done | Cached analyze + review mount + Games CTAs + tests |
 | SRG-1 | ✅ Done | Headline subject + `mode=review` moment links + tests |
 | SRG-2 | ⬜ Not started | |
-| SRG-3 | ⬜ Not started | Footer CTA exists; needs counts |
-| SRG-4 | ⬜ Not started | Drill link partial |
+| SRG-3 | ✅ Done | Pattern-count batch CTA + analytics + tests |
+| SRG-4 | ✅ Done | Opening study label with ECO + mistake count |
 | SRG-5 | ⬜ Not started | |
 | SRG-6 | ✅ Done | 5-min drill checklist + localStorage + tests |
 | SRG-7 | ⬜ Not started | |
@@ -1119,6 +1121,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-08 | Scope revision — added SRG-23…SRG-27 (celebration, referral, streak freeze, persona, reactivation); DX-01…03 deferred pending decision |
 | 2026-06-08 | Scope revision — promoted SRG-28 (PWA mobile-only, not first visit), SRG-29 (text OG; DX-02b image deferred); SRG-24 rewards → referrer 5 + referee +5 on signup stack; DX-03 `.ics` deferred |
 | 2026-06-08 | Added §7 manual smoke plan (3 sessions) + §8 automated test matrix per SRG |
+| 2026-06-08 | Shipped SRG-3 batch pattern CTA + SRG-4 opening study drill labels |
 
 ---
 

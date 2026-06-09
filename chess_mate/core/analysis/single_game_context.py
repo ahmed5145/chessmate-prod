@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.contrib.auth.models import User
 
@@ -83,6 +84,62 @@ def _find_linked_moment(
                 return moment
 
     return candidates[0]
+
+
+def _normalize_match_text(value: Any) -> str:
+    return str(value or "").replace("_", " ").strip().lower()
+
+
+def _match_recurring_weakness(
+    batch_summary: Dict[str, Any],
+    *,
+    priority: Optional[Dict[str, Any]],
+    pattern_label: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    weaknesses = batch_summary.get("recurring_weaknesses") or []
+    if not isinstance(weaknesses, list) or not weaknesses:
+        return None
+
+    needles = []
+    if priority and priority.get("title"):
+        needles.append(_normalize_match_text(priority.get("title")))
+    if pattern_label:
+        needles.append(_normalize_match_text(pattern_label))
+
+    for weakness in weaknesses:
+        if not isinstance(weakness, dict):
+            continue
+        pattern = _normalize_match_text(weakness.get("pattern"))
+        if not pattern:
+            continue
+        for needle in needles:
+            if needle and (needle in pattern or pattern in needle):
+                return weakness
+
+    if priority:
+        first = weaknesses[0]
+        return first if isinstance(first, dict) else None
+    return None
+
+
+def _parse_pattern_frequency(
+    frequency: Any,
+    *,
+    games_count: int,
+) -> Tuple[Optional[int], Optional[int]]:
+    if frequency in (None, ""):
+        return None, games_count or None
+
+    text = str(frequency)
+    ratio_match = re.search(r"(\d+)\s*/\s*(\d+)", text)
+    if ratio_match:
+        return int(ratio_match.group(1)), int(ratio_match.group(2))
+
+    count_match = re.search(r"(\d+)", text)
+    if count_match:
+        return int(count_match.group(1)), games_count or None
+
+    return None, games_count or None
 
 
 def _resolve_priority(
@@ -179,10 +236,24 @@ def resolve_batch_context_for_game(
                 )
             break
 
+    matched_weakness = _match_recurring_weakness(
+        batch_summary,
+        priority=priority,
+        pattern_label=pattern_label,
+    )
+    pattern_frequency = matched_weakness.get("frequency") if isinstance(matched_weakness, dict) else None
+    pattern_count, batch_game_count = _parse_pattern_frequency(
+        pattern_frequency,
+        games_count=report.games_count or len(per_game_results),
+    )
+
     return {
         "batch_id": report.pk,
         "task_id": report.task_id,
         "games_count": report.games_count,
+        "batch_game_count": batch_game_count,
+        "pattern_count": pattern_count,
+        "pattern_frequency": pattern_frequency,
         "priority": priority,
         "priority_rank": priority.get("rank") if isinstance(priority, dict) else priority_index,
         "pattern_label": pattern_label,

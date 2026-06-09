@@ -17,7 +17,15 @@ def test_resolve_batch_context_links_moment_and_priority(test_user):
         games_count=5,
         batch_summary={
             "worst_phase": "opening",
-            "recurring_weaknesses": [{"pattern": "hanging_pieces"}],
+            "recurring_weaknesses": [
+                {
+                    "pattern": "opening prep",
+                    "frequency": "4/5 games",
+                    "avg_eval_swing": 1.2,
+                    "impact": "high",
+                    "example_game_ids": ["game_0"],
+                }
+            ],
             "top_critical_moments": [
                 {
                     "move_number": 12,
@@ -72,6 +80,9 @@ def test_resolve_batch_context_links_moment_and_priority(test_user):
     assert context["linked_moment"]["move_number"] == 12
     assert context["opening_name"] == "Italian Game"
     assert context["pattern_label"] == "Fix opening prep"
+    assert context["pattern_count"] == 4
+    assert context["batch_game_count"] == 5
+    assert context["pattern_frequency"] == "4/5 games"
     assert "depth-14" in (context.get("classification_disclaimer") or "")
 
 

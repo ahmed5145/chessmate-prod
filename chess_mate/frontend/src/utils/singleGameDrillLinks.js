@@ -1,4 +1,5 @@
 import { lichessPuzzleUrlForTheme } from './lichessStudyLinks';
+import { buildOpeningStudyDrillLink, countOpeningInaccuracies } from './singleGameBatchCta';
 import { buildOpeningStudyQuery } from './openingNameCompact';
 
 const lichessAnalysisFromFen = (fen) => {
@@ -9,7 +10,23 @@ const lichessAnalysisFromFen = (fen) => {
   return `https://lichess.org/analysis/${encoded}`;
 };
 
-export const resolveSingleGameDrillLink = ({ moment = null, gameContext = {} } = {}) => {
+export const resolveSingleGameDrillLink = ({
+  moment = null,
+  gameContext = {},
+  moves = [],
+} = {}) => {
+  const openingMistakes = countOpeningInaccuracies(moves);
+  if (openingMistakes > 0) {
+    const openingDrill = buildOpeningStudyDrillLink({
+      gameContext,
+      moves,
+      worstMoment: moment,
+    });
+    if (openingDrill) {
+      return openingDrill;
+    }
+  }
+
   if (moment?.fen) {
     const analysisUrl = lichessAnalysisFromFen(moment.fen);
     if (analysisUrl) {

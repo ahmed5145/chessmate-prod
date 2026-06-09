@@ -203,7 +203,11 @@ const SingleGameReport = ({
     const computedStats = computePlayerMoveStats(normalizedMoves, playerSide);
     const alignedMoments = alignMomentsWithBatchContext(moments, batchCtx);
     const worstMoment = alignedMoments[0] || null;
-    const drill = resolveSingleGameDrillLink({ moment: worstMoment, gameContext: context });
+    const drill = resolveSingleGameDrillLink({
+      moment: worstMoment,
+      gameContext: context,
+      moves: normalizedMoves,
+    });
     const training = resolvedAnalysisData.training_block
       || feedback.training_block
       || {};
@@ -416,7 +420,10 @@ const SingleGameReport = ({
         </details>
       ) : null}
 
-      <SingleGameFooterCta batchId={batchId} />
+      <SingleGameFooterCta
+        batchContext={batchContext}
+        gameId={gameId || gameContext?.game_id}
+      />
     </div>
   );
 };
