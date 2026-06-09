@@ -10,7 +10,14 @@ WANTS_SPACED_REPETITION_KEY = "wants_spaced_repetition_email"
 
 
 def _profile_preferences(user: Any) -> dict:
-    profile = getattr(user, "profile", None)
+    if user is None:
+        return {}
+    try:
+        from .models import Profile
+
+        profile = Profile.objects.get(user=user)
+    except Exception:
+        profile = getattr(user, "profile", None)
     if profile is None:
         return {}
     prefs = getattr(profile, "preferences", None)

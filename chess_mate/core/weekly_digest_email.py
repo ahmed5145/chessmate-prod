@@ -22,7 +22,7 @@ from .email_send_log import (
 from .email_utils import get_frontend_base_url, is_email_configured
 from .fix_rate import build_dashboard_fix_rate
 from .inbox_streak import get_inbox_streak_payload
-from .models import BatchAnalysisReport, EmailSendLog, GameAnalysis, Profile, UserNotification
+from .models import BatchAnalysisReport, EmailSendLog, Game, Profile, UserNotification
 from .notification_preferences import (
     user_wants_weekly_digest_email,
     user_wants_weekly_digest_notification,
@@ -42,13 +42,14 @@ def _activity_since(user: User, days: int = 7) -> Dict[str, int]:
     new_batches = BatchAnalysisReport.objects.filter(
         user=user,
         status__in=["completed", "partial"],
-        completed_at__gte=since,
-    ).count()
-    new_analyses = GameAnalysis.objects.filter(
-        ANALYZED_GAME_Q,
-        game__user=user,
         updated_at__gte=since,
     ).count()
+    new_analyses = (
+        Game.objects.filter(user=user)
+        .filter(ANALYZED_GAME_Q)
+        .filter(updated_at__gte=since)
+        .count()
+    )
     return {"new_batches": new_batches, "new_analyses": new_analyses}
 
 
@@ -64,9 +65,7 @@ def build_weekly_digest_payload(user: User, profile: Profile) -> Dict[str, Any]:
 
     one_thing = build_one_thing_today(
         total_games=profile.total_games(),
-        analyzed_games=GameAnalysis.objects.filter(
-            ANALYZED_GAME_Q, game__user=user
-        ).count(),
+        analyzed_games=Game.objects.filter(user=user).filter(ANALYZED_GAME_Q).count(),
         priority_inbox=inbox,
     )
 
