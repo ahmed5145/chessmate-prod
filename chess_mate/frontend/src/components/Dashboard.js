@@ -530,7 +530,7 @@ const Dashboard = () => {
             description="Track patterns you fixed and where losses cluster by phase."
           >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              <FixRateCard fixRate={dashboardData.fix_rate} compact />
+              <FixRateCard fixRate={dashboardData.fix_rate} compact variant="dashboard" />
               <PhaseResultHeatmap phaseHeatmap={dashboardData.phase_heatmap} />
             </div>
           </DashboardSection>

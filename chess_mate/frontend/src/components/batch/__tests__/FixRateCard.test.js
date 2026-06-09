@@ -39,4 +39,25 @@ describe('FixRateCard', () => {
     expect(screen.getByText(/Still needs work/i)).toBeInTheDocument();
     expect(screen.getByText(/Endgame Slip/i)).toBeInTheDocument();
   });
+
+  it('renders dashboard tailwind variant without MUI paper', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <FixRateCard
+          variant="dashboard"
+          fixRate={{
+            show: true,
+            headline: 'You fixed 1/2 patterns from your February batch.',
+            patterns: [
+              { signature: 'a', label: 'hanging_piece', status: 'fixed' },
+            ],
+          }}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(/You fixed 1\/2 patterns/i)).toBeInTheDocument();
+    expect(container.querySelector('.MuiPaper-root')).not.toBeInTheDocument();
+    expect(container.querySelector('section')).toBeInTheDocument();
+  });
 });

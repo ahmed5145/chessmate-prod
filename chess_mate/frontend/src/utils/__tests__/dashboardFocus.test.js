@@ -108,4 +108,28 @@ describe('dashboardFocus', () => {
       { label: 'Win rate', value: '52%' },
     ]);
   });
+
+  it('prepends batch-first hero metrics for coach-active users', () => {
+    const metrics = buildHeroMetrics({
+      heroMetrics: [{ label: 'Analyzed', value: '8 / 12' }],
+      latest_batch_coach: {
+        batch_id: 42,
+        games_count: 10,
+        overall_accuracy_pct: 68.4,
+      },
+      priority_inbox: {
+        pending_items: [{ title: 'Stop hanging pieces in tactics' }],
+      },
+      fix_rate: { show: true, fixed_count: 2, total_count: 3 },
+    });
+
+    expect(metrics[0]).toEqual({
+      label: 'Top priority',
+      value: 'Stop hanging pieces in tactics',
+    });
+    expect(metrics.some((metric) => metric.label === 'Batch accuracy')).toBe(true);
+    expect(metrics.some((metric) => metric.label === 'Patterns fixed')).toBe(true);
+    expect(metrics.some((metric) => metric.label === 'Analyzed')).toBe(true);
+    expect(metrics.length).toBeLessThanOrEqual(4);
+  });
 });

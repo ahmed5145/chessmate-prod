@@ -176,15 +176,71 @@ export const resolveFocusInsight = (dashboardData = {}) => {
   };
 };
 
+const truncateMetricValue = (value, maxLength = 32) => {
+  const text = String(value || '').trim();
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.slice(0, maxLength - 1)}…`;
+};
+
+const prependBatchCoachMetrics = (metrics, dashboardData = {}) => {
+  const coach = dashboardData.latest_batch_coach;
+  if (!coach?.batch_id) {
+    return metrics;
+  }
+
+  const batchMetrics = [];
+  const topPriority = dashboardData.priority_inbox?.pending_items?.[0];
+  if (topPriority?.title) {
+    batchMetrics.push({
+      label: 'Top priority',
+      value: truncateMetricValue(topPriority.title),
+    });
+  } else if (coach.games_count) {
+    batchMetrics.push({
+      label: 'Last batch',
+      value: `${coach.games_count} games`,
+    });
+  }
+
+  if (coach.overall_accuracy_pct != null) {
+    batchMetrics.push({
+      label: 'Batch accuracy',
+      value: `${Number(coach.overall_accuracy_pct).toFixed(1)}%`,
+    });
+  }
+
+  const fixRate = dashboardData.fix_rate;
+  if (fixRate?.show && fixRate.total_count > 0) {
+    batchMetrics.push({
+      label: 'Patterns fixed',
+      value: `${fixRate.fixed_count}/${fixRate.total_count}`,
+    });
+  }
+
+  const seen = new Set();
+  return [...batchMetrics, ...metrics].filter((metric) => {
+    if (!metric?.label || seen.has(metric.label)) {
+      return false;
+    }
+    seen.add(metric.label);
+    return true;
+  }).slice(0, 4);
+};
+
 export const buildHeroMetrics = (dashboardData = {}) => {
   if (Array.isArray(dashboardData.heroMetrics) && dashboardData.heroMetrics.length > 0) {
-    return dashboardData.heroMetrics;
+    return prependBatchCoachMetrics(dashboardData.heroMetrics, dashboardData);
   }
   if (Array.isArray(dashboardData.hero_metrics) && dashboardData.hero_metrics.length > 0) {
-    return dashboardData.hero_metrics.map((metric) => ({
-      label: metric.label,
-      value: String(metric.value),
-    }));
+    return prependBatchCoachMetrics(
+      dashboardData.hero_metrics.map((metric) => ({
+        label: metric.label,
+        value: String(metric.value),
+      })),
+      dashboardData,
+    );
   }
 
   const totalGames = Number(dashboardData.total_games) || 0;
@@ -209,7 +265,7 @@ export const buildHeroMetrics = (dashboardData = {}) => {
     metrics.push({ label: 'Win rate', value: `${winRate}%` });
   }
 
-  return metrics;
+  return prependBatchCoachMetrics(metrics, dashboardData);
 };
 
 export const formatTimeControlLabel = (key = '') => (

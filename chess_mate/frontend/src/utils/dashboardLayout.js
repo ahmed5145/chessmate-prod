@@ -1,7 +1,7 @@
 /** Dashboard stage + section visibility — coach-home information architecture. */
 
 import { resolveOneThingToday } from './oneThingToday';
-import { shouldShowFocusCard } from './dashboardFocus';
+import { resolveNextAction, shouldShowFocusCard } from './dashboardFocus';
 
 export const DASHBOARD_STAGES = {
   NEW: 'new',
@@ -64,6 +64,15 @@ export const resolveCoachSectionCopy = (stage) => {
   return null;
 };
 
+export const isOneThingRedundantWithHero = (dashboardData = {}) => {
+  const oneThing = resolveOneThingToday(dashboardData);
+  if (!oneThing?.ctaTo) {
+    return false;
+  }
+  const hero = resolveNextAction(dashboardData);
+  return oneThing.ctaTo === hero.ctaTo;
+};
+
 export const resolveDashboardSections = (dashboardData = {}, user = null) => {
   const stage = resolveDashboardStage(dashboardData);
   const welcomePending = user && getUserPreferences(user).welcome_guide_seen !== true;
@@ -71,12 +80,15 @@ export const resolveDashboardSections = (dashboardData = {}, user = null) => {
   const hasProgress = Boolean(dashboardData.fix_rate?.show || dashboardData.phase_heatmap?.show);
   const showFocus = shouldShowFocusCard(dashboardData, user);
   const coachSection = resolveCoachSectionCopy(stage);
+  const oneThingRedundant = isOneThingRedundantWithHero(dashboardData);
 
   return {
     stage,
     showSinceLastVisit: stage === DASHBOARD_STAGES.COACH_ACTIVE
       && Boolean(dashboardData.sinceLastVisit?.showBanner),
-    showOneThingToday: Boolean(oneThing) && stage === DASHBOARD_STAGES.COACH_ACTIVE,
+    showOneThingToday: Boolean(oneThing)
+      && stage === DASHBOARD_STAGES.COACH_ACTIVE
+      && !oneThingRedundant,
     showCoachSection: !welcomePending && Boolean(coachSection),
     coachSection,
     showProgressSection: stage === DASHBOARD_STAGES.COACH_ACTIVE && hasProgress,

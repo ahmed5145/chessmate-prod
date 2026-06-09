@@ -53,7 +53,7 @@ const Navbar = () => {
   };
 
   const navLinks = isLoggedIn ? [
-    { to: '/dashboard', icon: <LayoutDashboard size={20} />, text: 'Dashboard' },
+    { to: '/dashboard', icon: <LayoutDashboard size={20} />, text: 'Coach home' },
     { to: '/games', icon: <Crown size={20} />, text: 'Games' },
     { to: '/batch-analysis', icon: <LineChart size={20} />, text: 'Batch Coach' },
     { to: '/profile', icon: <User size={20} />, text: 'Profile' },

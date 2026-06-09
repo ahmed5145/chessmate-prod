@@ -51,14 +51,19 @@ Coach home (eyebrow + stage-aware subtitle)
 | `components/dashboard/DashboardSection.js` | Grouped section wrapper |
 | `components/Dashboard.js` | Reordered render tree |
 | `utils/__tests__/dashboardLayout.test.js` | Stage/section tests |
-| `components/__tests__/Dashboard.test.js` | Updated assertions |
+| `components/__tests__/Dashboard.test.js` | Stage layouts (5 cases) |
+| `utils/__tests__/dashboardLayout.test.js` | Stage + section visibility (9 cases) |
+| `utils/__tests__/dashboardFocus.test.js` | Hero metrics + CTAs (12 cases) |
+| `components/dashboard/__tests__/DashboardPageHeader.test.js` | Header copy |
+| `components/dashboard/__tests__/DashboardSection.test.js` | Section wrapper |
+| `components/batch/__tests__/FixRateCard.test.js` | MUI + dashboard variant |
 
 ## Deferred (post-launch polish)
 
-- Merge hero + one-thing when they point to the same CTA
-- Tailwind-wrap `FixRateCard` (MUI) for visual consistency
-- Batch-first hero metrics (top priority chip from latest batch)
-- Nav label rename: "Dashboard" → "Coach home" in navbar
+- ~~Merge hero + one-thing when they point to the same CTA~~ ✅ `isOneThingRedundantWithHero`
+- ~~Tailwind-wrap `FixRateCard` (MUI) for visual consistency~~ ✅ `variant="dashboard"`
+- ~~Batch-first hero metrics (top priority chip from latest batch)~~ ✅ `prependBatchCoachMetrics`
+- ~~Nav label rename: "Dashboard" → "Coach home" in navbar~~ ✅
 
 ## Success signals
 

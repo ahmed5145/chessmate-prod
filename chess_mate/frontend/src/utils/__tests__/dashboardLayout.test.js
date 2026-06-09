@@ -1,5 +1,6 @@
 import {
   DASHBOARD_STAGES,
+  isOneThingRedundantWithHero,
   resolveDashboardPageCopy,
   resolveDashboardSections,
   resolveDashboardStage,
@@ -64,5 +65,43 @@ describe('dashboardLayout', () => {
     const copy = resolveDashboardPageCopy(DASHBOARD_STAGES.COACH_ACTIVE, 'alice');
     expect(copy.eyebrow).toBe('Coach home');
     expect(copy.subtitle).toContain('Welcome back, alice');
+  });
+
+  it('shows progress section only for coach-active users with data', () => {
+    const active = resolveDashboardSections(
+      {
+        ...coachActiveData,
+        fix_rate: { show: true },
+        phase_heatmap: { show: false },
+      },
+      { preferences: { welcome_guide_seen: true } },
+    );
+    expect(active.showProgressSection).toBe(true);
+
+    const ready = resolveDashboardSections(
+      { total_games: 8, batches_completed: 0, fix_rate: { show: true } },
+      { preferences: { welcome_guide_seen: true } },
+    );
+    expect(ready.showProgressSection).toBe(false);
+  });
+
+  it('hides one-thing when CTA matches hero', () => {
+    expect(isOneThingRedundantWithHero({
+      oneThingToday: { ctaTo: '/batch-report/42', headline: 'Open report' },
+      nextAction: { ctaTo: '/batch-report/42' },
+    })).toBe(true);
+
+    const sections = resolveDashboardSections(
+      {
+        ...coachActiveData,
+        one_thing_today: {
+          headline: 'Drill',
+          cta_to: '/batch-report/42',
+        },
+        nextAction: { ctaTo: '/batch-report/42' },
+      },
+      { preferences: { welcome_guide_seen: true } },
+    );
+    expect(sections.showOneThingToday).toBe(false);
   });
 });
