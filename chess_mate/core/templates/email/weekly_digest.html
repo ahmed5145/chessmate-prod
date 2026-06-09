@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;">
+    <p>Hi {{ user.username }},</p>
+    <p><strong>{{ payload.title }}</strong></p>
+    {% if payload.sections %}
+    <ul>
+      {% for section in payload.sections %}
+      <li><strong>{{ section.label }}:</strong> {{ section.body }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if payload.one_thing_today.headline %}
+    <p><strong>One thing today:</strong> {{ payload.one_thing_today.headline }}</p>
+    {% endif %}
+    <p>
+      <a href="{{ cta_url }}" style="display:inline-block;padding:10px 16px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">
+        {{ cta_label }}
+      </a>
+    </p>
+    <p style="font-size:12px;color:#6b7280;">
+      Manage email preferences on your
+      <a href="{{ preferences_url }}">profile</a>.
+      Weekly digest: max one email per week.
+    </p>
+    <p style="font-size:12px;color:#9ca3af;">&copy; {{ current_year }} ChessMate</p>
+  </body>
+</html>

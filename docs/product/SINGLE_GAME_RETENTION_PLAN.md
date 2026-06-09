@@ -1118,7 +1118,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-12 | ✅ Done | One thing today card + snooze + server selection |
 | SRG-13 | ⬜ Not started | Spaced email — ship after digest |
 | SRG-14 | ✅ Done | Notification bell + dashboard panel + deduped seeding |
-| SRG-15 | ⬜ Not started | Weekly digest |
+| SRG-15 | ✅ Done | Weekly digest email + in-app mirror + EmailSendLog |
 | SRG-16 | ✅ Done | Inbox review streak chip + milestones |
 | SRG-17 | ✅ Done | Fix-rate score on batch report + dashboard |
 | SRG-18 | ✅ Done | Win/loss × phase heatmap on dashboard |

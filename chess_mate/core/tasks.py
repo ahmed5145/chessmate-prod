@@ -1968,3 +1968,13 @@ def analyze_batch_task(
     logger.info(f"Batch {batch_id} workflow initiated: {workflow.id}")
 
     return workflow.id
+
+
+@shared_task(name="core.tasks.send_weekly_digest_task", ignore_result=True)
+def send_weekly_digest_task() -> int:
+    """Celery beat: send weekly coach digest to opted-in users (SRG-15)."""
+    from .weekly_digest_email import send_weekly_digests
+
+    sent = send_weekly_digests()
+    logger.info("Weekly digest task completed: %s sends", sent)
+    return sent

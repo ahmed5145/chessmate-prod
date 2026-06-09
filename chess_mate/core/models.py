@@ -994,6 +994,46 @@ class UserNotification(models.Model):
         return f"{self.notification_type} for {self.user.username}: {self.title[:40]}"
 
 
+class EmailSendLog(models.Model):
+    """Tracks coaching email sends for caps and idempotency (SRG-15/13/27)."""
+
+    TYPE_WEEKLY_DIGEST = "weekly_digest"
+    TYPE_SPACED_MOMENT = "spaced_moment"
+    TYPE_ANALYSIS_COMPLETION = "analysis_completion"
+    TYPE_REACTIVATION = "reactivation"
+
+    EMAIL_TYPES = [
+        (TYPE_WEEKLY_DIGEST, "Weekly Digest"),
+        (TYPE_SPACED_MOMENT, "Spaced Moment"),
+        (TYPE_ANALYSIS_COMPLETION, "Analysis Completion"),
+        (TYPE_REACTIVATION, "Reactivation"),
+    ]
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="email_send_logs"
+    )
+    email_type = models.CharField(max_length=40, db_index=True)
+    week_key = models.CharField(max_length=16, blank=True, default="", db_index=True)
+    sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    meta = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-sent_at"]
+        indexes = [
+            models.Index(fields=["user", "email_type", "week_key"]),
+            models.Index(fields=["user", "email_type", "-sent_at"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "email_type", "week_key"],
+                name="unique_user_email_type_week",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.email_type} for {self.user.username} ({self.week_key or 'once'})"
+
+
 class AnalysisCache(models.Model):
     """Model to track cache usage and implement eviction policies."""
 

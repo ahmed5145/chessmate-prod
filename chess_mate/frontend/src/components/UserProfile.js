@@ -10,6 +10,7 @@ const UserProfile = () => {
   const [saving, setSaving] = useState(false);
   const [preferences, setPreferences] = useState({
     emailNotifications: true,
+    wants_weekly_digest: false,
     darkMode: false,
     autoAnalyze: true,
   });
@@ -146,6 +147,27 @@ const UserProfile = () => {
                       <span
                         className={`${
                           preferences.emailNotifications ? "translate-x-5" : "translate-x-0"
+                        } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="flex-grow flex flex-col">
+                      <span className="text-sm font-medium text-gray-900">Weekly Coach Digest</span>
+                      <span className="text-sm text-gray-500">One Tuesday summary email per week (inbox, streak, progress)</span>
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Weekly Coach Digest"
+                      onClick={() => handlePreferenceChange("wants_weekly_digest")}
+                      className={`${
+                        preferences.wants_weekly_digest ? "bg-indigo-600" : "bg-gray-200"
+                      } relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+                    >
+                      <span
+                        className={`${
+                          preferences.wants_weekly_digest ? "translate-x-5" : "translate-x-0"
                         } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`}
                       />
                     </button>

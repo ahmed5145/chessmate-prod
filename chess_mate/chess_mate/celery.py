@@ -85,6 +85,10 @@ app.conf.beat_schedule = {
         "task": "core.tasks.health_check",
         "schedule": crontab(minute="*/5"),  # Run every 5 minutes
     },
+    "weekly-coach-digest": {
+        "task": "core.tasks.send_weekly_digest_task",
+        "schedule": crontab(hour=10, minute=0, day_of_week="tuesday"),
+    },
 }
 
 # Windows-specific settings
