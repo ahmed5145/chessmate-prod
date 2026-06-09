@@ -18,7 +18,7 @@
 | PDF export (SGA-3-05) | Deferred — print CSS covers MVP; dedicated PDF later |
 
 **Scope:** Supplementary drill-down at `/game/:gameId/analysis` — batch-connected, coaching-oriented, better than free per-game tools without competing with Batch Coach as the flagship.  
-**Related:** [PRODUCT_CONTRACT.md](./PRODUCT_CONTRACT.md), [DIFFERENTIATION_MATRIX.md](./DIFFERENTIATION_MATRIX.md), [BATCH_REPORT_UX_PLAN.md](./BATCH_REPORT_UX_PLAN.md), [PRD.md](./PRD.md)
+**Related:** [PRODUCT_CONTRACT.md](./PRODUCT_CONTRACT.md), [DIFFERENTIATION_MATRIX.md](./DIFFERENTIATION_MATRIX.md), [BATCH_REPORT_UX_PLAN.md](./BATCH_REPORT_UX_PLAN.md), [SINGLE_GAME_RETENTION_PLAN.md](./SINGLE_GAME_RETENTION_PLAN.md) 🔒, [PRD.md](./PRD.md)
 
 ---
 
