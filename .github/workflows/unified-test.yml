@@ -215,7 +215,7 @@ jobs:
     - name: Install Backend Linting Tools
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 isort black mypy bandit safety pylint pylint-django flake8-django
+        pip install flake8 isort==5.13.2 black==24.3.0 mypy bandit safety pylint pylint-django flake8-django
 
     - name: Install Frontend Linting Tools
       working-directory: chess_mate/frontend
