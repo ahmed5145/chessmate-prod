@@ -16,10 +16,31 @@ from .stats_helpers import build_single_game_context
 
 logger = logging.getLogger(__name__)
 
-SINGLE_GAME_EMAIL_SUBJECT = "Your ChessMate depth-20 game review is ready"
+DEFAULT_SINGLE_GAME_EMAIL_SUBJECT = "Your ChessMate depth-20 game review is ready"
 
 
-def _coach_snippet(feedback: Any, analysis_data: Any) -> str:
+def _coaching_payload(feedback: Any, analysis_data: Any) -> Dict[str, Any]:
+    coaching: Dict[str, Any] = {}
+    if isinstance(analysis_data, dict):
+        nested = analysis_data.get("coaching")
+        if isinstance(nested, dict):
+            coaching.update(nested)
+    if isinstance(feedback, dict):
+        nested = feedback.get("coaching")
+        if isinstance(nested, dict):
+            coaching.update(nested)
+        for key in ("headline", "takeaway", "executive_summary", "do_today"):
+            if feedback.get(key) and key not in coaching:
+                coaching[key] = feedback[key]
+    return coaching
+
+
+def _coach_snippet(coaching: Dict[str, Any], feedback: Any, analysis_data: Any) -> str:
+    for key in ("takeaway", "executive_summary", "do_today"):
+        value = coaching.get(key)
+        if value:
+            return str(value)[:220]
+
     if isinstance(feedback, dict):
         for key in ("takeaway", "executive_summary", "do_today"):
             value = feedback.get(key)
@@ -35,6 +56,23 @@ def _coach_snippet(feedback: Any, analysis_data: Any) -> str:
                     return str(value)[:220]
 
     return ""
+
+
+def _email_subject(headline: str, worst_moment: Dict[str, Any]) -> str:
+    if headline:
+        return str(headline)[:80]
+    move_number = worst_moment.get("move_number")
+    if move_number:
+        return f"Move {move_number} swung your game"
+    return DEFAULT_SINGLE_GAME_EMAIL_SUBJECT
+
+
+def _build_review_urls(game_id: int, move_number: Optional[int]) -> Dict[str, str]:
+    base = f"{get_frontend_base_url()}/game/{game_id}/analysis?mode=review"
+    deep_review_url = base
+    if move_number:
+        deep_review_url = f"{base}&move={move_number}"
+    return {"report_url": base, "deep_review_url": deep_review_url}
 
 
 def _player_accuracy(analysis_model: Any, game_context: Dict[str, Any]) -> Optional[float]:
@@ -66,20 +104,30 @@ def _player_accuracy(analysis_model: Any, game_context: Dict[str, Any]) -> Optio
     return round(value, 1)
 
 
-def _worst_moment(feedback: Any, analysis_data: Any) -> Dict[str, Any]:
-    moments = []
-    if isinstance(feedback, dict):
+def _critical_moments(feedback: Any, analysis_data: Any, coaching: Dict[str, Any]) -> list:
+    moments = coaching.get("critical_moments") or []
+    if not moments and isinstance(analysis_data, dict):
+        moments = analysis_data.get("critical_moments") or []
+    if not moments and isinstance(feedback, dict):
         moments = feedback.get("critical_moments") or []
     if not moments and isinstance(analysis_data, dict):
         nested = analysis_data.get("feedback")
         if isinstance(nested, dict):
             moments = nested.get("critical_moments") or []
+    return moments if isinstance(moments, list) else []
+
+
+def _worst_moment(feedback: Any, analysis_data: Any, coaching: Dict[str, Any]) -> Dict[str, Any]:
+    moments = _critical_moments(feedback, analysis_data, coaching)
     if not moments:
         return {}
     first = moments[0] if isinstance(moments[0], dict) else {}
     return {
         "move_number": first.get("move_number"),
         "played_move": first.get("played_move"),
+        "best_move": first.get("best_move"),
+        "eval_swing": first.get("eval_swing"),
+        "type": first.get("type"),
     }
 
 
@@ -108,14 +156,16 @@ def send_single_game_complete_email(user, game, analysis_model) -> bool:
     game_context = build_single_game_context(game, profile)
     feedback = getattr(analysis_model, "feedback", None)
     analysis_data = getattr(analysis_model, "analysis_data", None)
-    coach_snippet = _coach_snippet(feedback, analysis_data)
-    worst_moment = _worst_moment(feedback, analysis_data)
+    coaching = _coaching_payload(feedback, analysis_data)
+    coach_snippet = _coach_snippet(coaching, feedback, analysis_data)
+    worst_moment = _worst_moment(feedback, analysis_data, coaching)
     accuracy_pct = _player_accuracy(analysis_model, game_context)
+    headline = str(coaching.get("headline") or "").strip()
+    email_subject = _email_subject(headline, worst_moment)
 
-    report_url = f"{get_frontend_base_url()}/game/{game.id}/analysis"
-    deep_review_url = report_url
-    if worst_moment.get("move_number"):
-        deep_review_url = f"{report_url}?move={worst_moment['move_number']}"
+    urls = _build_review_urls(game.id, worst_moment.get("move_number"))
+    report_url = urls["report_url"]
+    deep_review_url = urls["deep_review_url"]
 
     try:
         html_body = render_to_string(
@@ -127,9 +177,13 @@ def send_single_game_complete_email(user, game, analysis_model) -> bool:
                 "report_url": report_url,
                 "deep_review_url": deep_review_url,
                 "coach_snippet": coach_snippet,
+                "headline": headline or email_subject,
                 "accuracy_pct": accuracy_pct,
                 "worst_moment_move": worst_moment.get("move_number"),
                 "worst_moment_played": worst_moment.get("played_move"),
+                "worst_moment_best": worst_moment.get("best_move"),
+                "worst_moment_swing": worst_moment.get("eval_swing"),
+                "worst_moment_type": worst_moment.get("type"),
             },
         )
     except Exception as exc:
@@ -139,7 +193,7 @@ def send_single_game_complete_email(user, game, analysis_model) -> bool:
 
     try:
         mail.send_mail(
-            subject=SINGLE_GAME_EMAIL_SUBJECT,
+            subject=email_subject,
             message=strip_tags(str(html_body)),
             from_email=None,
             recipient_list=[email],

@@ -15,14 +15,14 @@
 </head>
 <body>
     <div class="container">
-        <div class="header"><h1 style="margin:0;">Depth-20 game review ready</h1></div>
+        <div class="header"><h1 style="margin:0;">{{ headline|default:"Depth-20 game review ready" }}</h1></div>
         <div class="content">
             <p>Hello {{ user.username }},</p>
             <p>
-                Your single-game coach review
+                Your depth-20 coach review
                 {% if game_context.opponent %}vs <strong>{{ game_context.opponent }}</strong>{% endif %}
                 {% if game_context.result %} ({{ game_context.result }}){% endif %}
-                has finished.
+                is ready — revisit anytime at no extra credit.
             </p>
             {% if game_context.opening_name %}
             <p style="font-size:14px;color:#555;">Opening: {{ game_context.opening_name }}</p>
@@ -39,9 +39,15 @@
                 <a href="{{ report_url }}" class="button">View your review</a>
             </p>
             {% if worst_moment_move %}
-            <p>We flagged a critical moment at move {{ worst_moment_move }}{% if worst_moment_played %} ({{ worst_moment_played }}){% endif %}:</p>
+            <p>
+                Critical moment — move {{ worst_moment_move }}
+                {% if worst_moment_type %} ({{ worst_moment_type }}){% endif %}
+                {% if worst_moment_played %}: you played <strong>{{ worst_moment_played }}</strong>{% endif %}
+                {% if worst_moment_best %} · engine best <strong>{{ worst_moment_best }}</strong>{% endif %}
+                {% if worst_moment_swing %} · swing {{ worst_moment_swing }}{% endif %}
+            </p>
             <p style="text-align:center;">
-                <a href="{{ deep_review_url }}" class="button" style="background:#312e81;">Jump to critical moment</a>
+                <a href="{{ deep_review_url }}" class="button" style="background:#312e81;">Jump to move {{ worst_moment_move }}</a>
             </p>
             {% endif %}
             <p style="word-break:break-all;font-size:13px;color:#666;">{{ report_url }}</p>

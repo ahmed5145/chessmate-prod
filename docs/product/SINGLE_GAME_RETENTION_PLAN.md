@@ -1045,7 +1045,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | **SRG-3** | — | `SingleGameFooterCta.test.js` *(add)* | Batch link + analytics |
 | **SRG-4** | — | `singleGameDrillLinks.test.js` *(extend)* | ECO + mistake context |
 | **SRG-5** | `test_rating_band_copy.py` *(add)* | — | Template strings from rating |
-| **SRG-6** | — | `DrillChecklist.test.js` *(add)* | `localStorage` persistence |
+| **SRG-6** | — | `singleGameDrillChecklist.test.js`, `DrillChecklistSection.test.js` | `localStorage` persistence |
 | **SRG-7** | — | `singleGameMoveSound.test.js` *(add)* | Classification → sound map |
 | **SRG-8** | — | `SingleGameReportActions.test.js` | No print handler |
 | **SRG-9** | `test_priority_inbox.py` *(add)* | `PriorityInbox.test.js` *(add)* | Ownership + reviewed state |
@@ -1084,7 +1084,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-3 | ⬜ Not started | Footer CTA exists; needs counts |
 | SRG-4 | ⬜ Not started | Drill link partial |
 | SRG-5 | ⬜ Not started | |
-| SRG-6 | ⬜ Not started | |
+| SRG-6 | ✅ Done | 5-min drill checklist + localStorage + tests |
 | SRG-7 | ⬜ Not started | |
 | SRG-8 | ✅ Done | Print removed; tests in matrix §8 |
 | SRG-9 | ⬜ Not started | Priority inbox |

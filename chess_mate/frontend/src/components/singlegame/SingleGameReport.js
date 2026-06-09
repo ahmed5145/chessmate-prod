@@ -27,6 +27,7 @@ import {
 import PhaseStrip from './PhaseStrip';
 import TrainingBlockSection from './TrainingBlockSection';
 import SingleGameReportActions from './SingleGameReportActions';
+import DrillChecklistSection from './DrillChecklistSection';
 import EngineMetaNote from './EngineMetaNote';
 import { trackSingleGameEvent } from '../../utils/marketingAnalytics';
 import './singleGamePrint.css';
@@ -270,6 +271,15 @@ const SingleGameReport = ({
       </p>
 
       <SingleGameHero coaching={coaching} worstMoment={worstMoment} playerStats={playerStats} />
+
+      <DrillChecklistSection
+        gameId={gameId || gameContext?.game_id}
+        completedAt={resolvedAnalysisData.completed_at || resolvedAnalysisData.analysis_data?.completed_at}
+        coaching={coaching}
+        worstMoment={worstMoment}
+        drillLink={drillLink}
+        batchId={batchId || batchContext?.batch_id}
+      />
 
       <ReportInsightCards
         playerStats={playerStats}
