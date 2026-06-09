@@ -356,6 +356,14 @@ def register_view(request):
                 status=status.HTTP_201_CREATED,
             )
 
+        profile.email_verified = True
+        profile.email_verified_at = timezone.now()
+        profile.save(update_fields=["email_verified", "email_verified_at", "legacy_rating"])
+
+        from .welcome_email import send_welcome_email_once
+
+        send_welcome_email_once(user, profile, request)
+
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
         payload = {
@@ -757,6 +765,9 @@ def verify_email(request, uidb64=None, token=None):
             profile.email_verified = True
             profile.email_verification_token = None
             profile.save(update_fields=["email_verified", "email_verification_token"])
+            from .welcome_email import send_welcome_email_once
+
+            send_welcome_email_once(profile.user, profile, request)
             return redirect("/login?verified=success")
 
         # Special handling for test_api.py test cases
@@ -836,6 +847,10 @@ def verify_email(request, uidb64=None, token=None):
             profile.save()
 
             logger.info(f"Email verification successful for user {user.email}")
+
+            from .welcome_email import send_welcome_email_once
+
+            send_welcome_email_once(user, profile, request)
 
             # Redirect to login page with success message
             return redirect("/login?verified=success")
@@ -920,6 +935,9 @@ def verify_email_token_only(_request, token):
         profile.email_verified = True
         profile.email_verification_token = None
         profile.save(update_fields=["email_verified", "email_verification_token"])
+        from .welcome_email import send_welcome_email_once
+
+        send_welcome_email_once(profile.user, profile, _request)
     return redirect("/login?verified=success")
 
 

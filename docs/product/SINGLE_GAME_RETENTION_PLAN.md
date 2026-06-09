@@ -654,11 +654,11 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Exactly 1 welcome email per user lifetime.
-- [ ] Confirmation resend rate-limited (existing auth limits).
-- [ ] Tests: no welcome without verify; no duplicate welcome.
+- [x] Exactly 1 welcome email per user lifetime.
+- [x] Confirmation resend rate-limited (existing auth limits).
+- [x] Tests: no welcome without verify; no duplicate welcome (`test_welcome_email.py`).
 
-**Primary files:** auth signals, `templates/email/welcome.html`, `WelcomeGuide.js` copy alignment
+**Primary files:** `auth_views.py`, `welcome_email.py`, `templates/email/welcome.html`, `WelcomeGuide.js` copy alignment
 
 **Depends on:** None (P4 onboarding — can ship early)
 
@@ -997,11 +997,11 @@ flowchart TD
 - [ ] **SRG-1** Email subject = coaching **headline** or `Move N swung your game` fallback.
 - [ ] **SRG-1** **Jump to move** CTA → `/game/:id/analysis?mode=review&move=N` opens at moment, **0** credit.
 - [ ] **SRG-1** **View report** on cached game → **no** second completion email.
-- [ ] **SRG-22** *(not shipped)* New signup → welcome/confirm mail (skip until shipped).
+- [ ] **SRG-22** New signup → confirmation mail; after verify → exactly one welcome mail.
 - [ ] **SRG-3** Batch-linked report → footer shows `N of M games` → **See batch priorities** opens report.
 - [ ] **SRG-4** Opening drill button mentions ECO + opening inaccuracies when present.
 - [ ] **SRG-2** After two clean depth-20 reviews, report + Games header show streak chip.
-- [ ] **SRG-6** *(not shipped)* Drill checklist persists after refresh (`localStorage`).
+- [ ] **SRG-6** Drill checklist persists after refresh (`localStorage`).
 - [ ] **SRG-5** Critical moment shows ChessMate benchmark range when rating known.
 - [ ] **SRG-7** Enable sound → move nav plays tone once per step; blunder vibrates on mobile.
 
@@ -1067,7 +1067,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | **SRG-19** | `test_proof_games_inbox.py` *(add)* | — | Post-batch seed ≥3 games |
 | **SRG-20** | `test_batch_moment_diff.py` *(add)* | `BatchMomentDiff.test.js` *(add)* | A vs B swing trend |
 | **SRG-21** | `test_opening_gaps_games.py` *(add)* | `OpeningGapsGames.test.js` *(add)* | Gap → lost games |
-| **SRG-22** | `test_welcome_email.py` *(add)* | — | Confirm + welcome once each |
+| **SRG-22** | `test_welcome_email.py` | — | Confirm + welcome once each |
 | **SRG-23** | `test_first_batch_celebration.py` *(add)* | `FirstBatchModal.test.js` *(add)* | Show once only |
 | **SRG-24** | `test_referral_credits.py` *(add)* | `ReferralCredits.test.js` *(add)* | 5+5 on first batch; caps |
 | **SRG-25** | `test_inbox_streak_freeze.py` *(add)* | — | 1× per calendar month |
@@ -1106,7 +1106,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-19 | ⬜ Not started | Auto proof games |
 | SRG-20 | ⬜ Not started | Batch A vs B diff |
 | SRG-21 | ⬜ Not started | Opening gaps → games |
-| SRG-22 | ⬜ Not started | Welcome + confirm email |
+| SRG-22 | ✅ Done | Verify email + one-time welcome after confirm |
 | SRG-23 | ⬜ Not started | First-batch celebration |
 | SRG-24 | ⬜ Not started | Referral credits |
 | SRG-25 | ⬜ Not started | Streak freeze |
@@ -1129,6 +1129,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-08 | Shipped SRG-2 blunder-free streak (profile-backed) |
 | 2026-06-08 | Shipped SRG-5 rating-band benchmark copy on critical moments |
 | 2026-06-08 | Shipped SRG-7 move navigation sound/haptic with mute toggle |
+| 2026-06-08 | Shipped SRG-22 welcome email after email verification |
 
 ---
 
