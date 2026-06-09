@@ -52,6 +52,8 @@
 |----|------|-------|
 | **DX-02b** | Moment share **dynamic OG image** (board PNG) | Too expensive for now; ship SRG-29 text first; promote when share/referral volume justifies |
 | **DX-03** | Training plan `.ics` calendar export | Deferred — SRG-6 + SRG-12 cover daily habit |
+| **OPS-01** | Bounce/complaint auto-pause for spaced email | Requires ESP webhooks / Sentry — not launch-blocking |
+| **OPS-02** | Global 500/hour spaced send rate cap | Celery daily batch + provider limits sufficient for launch |
 
 ### Out of scope (explicit)
 
@@ -703,9 +705,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Credits apply only after referee’s first successful batch (`completed` or `partial` with ≥5 games).
-- [ ] Referrer receives 5; referee receives +5 (signup bonus unchanged at 15).
-- [ ] Referrer cannot earn &gt; monthly cap.
+- [x] Credits apply only after referee’s first successful batch (`completed` or `partial` with ≥5 games).
+- [x] Referrer receives 5; referee receives +5 (signup bonus unchanged at 15).
+- [x] Referrer cannot earn &gt; monthly cap.
 
 **Primary files:** `credit_fulfillment.py` pattern, new `referral.py`, `Credits.js`, migration `ReferralRedemption`
 
