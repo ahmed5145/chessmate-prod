@@ -21,9 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
 if not SECRET_KEY or SECRET_KEY.startswith("django-insecure"):
-    raise ImproperlyConfigured(
-        "SECRET_KEY must be configured in production and cannot use insecure defaults"
-    )
+    raise ImproperlyConfigured("SECRET_KEY must be configured in production and cannot use insecure defaults")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
@@ -73,20 +71,14 @@ INSTALLED_APPS = [
 # Allow toggling HTTPS redirect via env var. Default to True in production.
 SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True").lower() == "true"
 SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000"))  # 1 year
-SECURE_HSTS_INCLUDE_SUBDOMAINS = (
-    os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "True").lower() == "true"
-)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "True").lower() == "true"
 SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "True").lower() == "true"
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 # Only enable cookie security flags when HTTPS redirect is enabled (or explicit env)
-SESSION_COOKIE_SECURE = (
-    os.getenv("SESSION_COOKIE_SECURE", "").lower() == "true" or SECURE_SSL_REDIRECT
-)
-CSRF_COOKIE_SECURE = (
-    os.getenv("CSRF_COOKIE_SECURE", "").lower() == "true" or SECURE_SSL_REDIRECT
-)
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "").lower() == "true" or SECURE_SSL_REDIRECT
+CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "").lower() == "true" or SECURE_SSL_REDIRECT
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_HTTPONLY = True
 
@@ -147,11 +139,7 @@ else:
     REDIS_URL = f"redis://{auth}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 REDIS_DISABLED = os.getenv("REDIS_DISABLED", "False").lower() == "true"
-if (
-    not REDIS_DISABLED
-    and REDIS_HOST in ("localhost", "127.0.0.1")
-    and not (_env_redis_url and _env_redis_url.strip())
-):
+if not REDIS_DISABLED and REDIS_HOST in ("localhost", "127.0.0.1") and not (_env_redis_url and _env_redis_url.strip()):
     REDIS_DISABLED = True
 
 # Cache settings
@@ -242,12 +230,8 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_IMPORTS = ("core.tasks",)
 
 # JWT refresh lifetimes for login "remember me" (session vs persistent)
-JWT_REFRESH_TOKEN_LIFETIME_REMEMBER = timedelta(
-    days=int(os.getenv("JWT_REFRESH_REMEMBER_DAYS", "30"))
-)
-JWT_REFRESH_TOKEN_LIFETIME_SESSION = timedelta(
-    hours=int(os.getenv("JWT_REFRESH_SESSION_HOURS", "12"))
-)
+JWT_REFRESH_TOKEN_LIFETIME_REMEMBER = timedelta(days=int(os.getenv("JWT_REFRESH_REMEMBER_DAYS", "30")))
+JWT_REFRESH_TOKEN_LIFETIME_SESSION = timedelta(hours=int(os.getenv("JWT_REFRESH_SESSION_HOURS", "12")))
 
 # JWT settings
 SIMPLE_JWT = {
@@ -390,12 +374,8 @@ WORKER_TIMEOUT = int(os.getenv("WORKER_TIMEOUT", "600"))  # 10 minutes
 WORKER_MAX_TASKS = int(os.getenv("WORKER_MAX_TASKS", "1000"))
 
 # AI Feedback Settings
-AI_FEEDBACK_RATE_LIMIT_MAX_REQUESTS = int(
-    os.getenv("AI_FEEDBACK_RATE_LIMIT_MAX_REQUESTS", "100")
-)  # requests
-AI_FEEDBACK_RATE_LIMIT_WINDOW = int(
-    os.getenv("AI_FEEDBACK_RATE_LIMIT_WINDOW", "3600")
-)  # seconds
+AI_FEEDBACK_RATE_LIMIT_MAX_REQUESTS = int(os.getenv("AI_FEEDBACK_RATE_LIMIT_MAX_REQUESTS", "100"))  # requests
+AI_FEEDBACK_RATE_LIMIT_WINDOW = int(os.getenv("AI_FEEDBACK_RATE_LIMIT_WINDOW", "3600"))  # seconds
 AI_FEEDBACK_CACHE_TTL = int(os.getenv("AI_FEEDBACK_CACHE_TTL", "86400"))  # 24 hours
 
 # Test Mode Configuration

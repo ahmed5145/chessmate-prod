@@ -15,7 +15,4 @@ def test_compact_opening_name_keeps_named_variations():
 
 def test_compact_opening_name_drops_trailing_move_segments():
     raw = "Sicilian Defense: Dragon Variation, Yugoslav Attack, 10.O-O-O"
-    assert (
-        compact_opening_name(raw)
-        == "Sicilian Defense: Dragon Variation, Yugoslav Attack"
-    )
+    assert compact_opening_name(raw) == "Sicilian Defense: Dragon Variation, Yugoslav Attack"

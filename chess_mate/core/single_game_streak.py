@@ -98,10 +98,7 @@ def game_breaks_streak(analysis_data: Any, player_color: str) -> bool:
     moves = analysis_data.get("moves") or []
     if not isinstance(moves, list):
         return False
-    return any(
-        isinstance(move, dict) and move_breaks_streak(move, player_color)
-        for move in moves
-    )
+    return any(isinstance(move, dict) and move_breaks_streak(move, player_color) for move in moves)
 
 
 def update_single_game_streak(

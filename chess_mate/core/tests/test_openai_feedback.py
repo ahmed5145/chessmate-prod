@@ -47,9 +47,7 @@ TEST_SETTINGS = {
 class TestOpenAIFeedback(TestCase):
     def setUp(self):
         # Create test user
-        self.user = User.objects.create_user(
-            username="testuser", password="testpass123"
-        )
+        self.user = User.objects.create_user(username="testuser", password="testpass123")
 
         # Create test game
         self.game = Game.objects.create(
@@ -70,9 +68,7 @@ class TestOpenAIFeedback(TestCase):
         # Configure mock engine
         mock_engine_instance = MagicMock()
         mock_engine_instance.analyse.return_value = {
-            "score": MagicMock(
-                relative=MagicMock(return_value=MagicMock(cp=lambda: 100))
-            ),
+            "score": MagicMock(relative=MagicMock(return_value=MagicMock(cp=lambda: 100))),
             "depth": 20,
             "time": 0.5,
         }
@@ -119,9 +115,7 @@ class TestOpenAIFeedback(TestCase):
 
         # Configure mock OpenAI response
         mock_completion = MagicMock()
-        mock_completion.choices = [
-            MagicMock(message=MagicMock(content=json.dumps(valid_response)))
-        ]
+        mock_completion.choices = [MagicMock(message=MagicMock(content=json.dumps(valid_response)))]
         self.mock_openai_instance.chat.completions.create.return_value = mock_completion
 
         # Create analyzer instance
@@ -161,9 +155,7 @@ class TestOpenAIFeedback(TestCase):
 
         # Configure mock OpenAI response
         mock_completion = MagicMock()
-        mock_completion.choices = [
-            MagicMock(message=MagicMock(content=json.dumps(malformed_response)))
-        ]
+        mock_completion.choices = [MagicMock(message=MagicMock(content=json.dumps(malformed_response)))]
         self.mock_openai_instance.chat.completions.create.return_value = mock_completion
 
         # Create analyzer instance

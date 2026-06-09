@@ -116,9 +116,7 @@ def batch_inbox_freeze_view(request):
         profile = Profile.objects.get(user=request.user)
         streak = apply_inbox_streak_freeze(profile)
     except Profile.DoesNotExist:
-        return Response(
-            {"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 

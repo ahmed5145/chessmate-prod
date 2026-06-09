@@ -185,9 +185,7 @@ def test_format_dashboard_insights_preserves_game_id():
 
 
 def test_parse_last_dashboard_visit_reads_iso_timestamp():
-    parsed = parse_last_dashboard_visit(
-        {"last_dashboard_visit_at": "2025-06-01T12:00:00+00:00"}
-    )
+    parsed = parse_last_dashboard_visit({"last_dashboard_visit_at": "2025-06-01T12:00:00+00:00"})
     assert parsed is not None
     assert parsed.year == 2025
 

@@ -58,9 +58,7 @@ class HealthFunctionsTestCase(TestCase):
     def test_check_database_error(self, mock_connections):
         """Test database check when database has an error."""
         # Setup mock to raise an exception
-        mock_connections.__getitem__.side_effect = OperationalError(
-            "connection refused"
-        )
+        mock_connections.__getitem__.side_effect = OperationalError("connection refused")
 
         # Run the check
         result = check_database()

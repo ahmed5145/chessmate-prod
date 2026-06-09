@@ -24,9 +24,7 @@ if app_root not in sys.path:
 
 # Try to configure Django for testing
 try:
-    os.environ.setdefault(
-        "DJANGO_SETTINGS_MODULE", "chess_mate.chess_mate.test_settings"
-    )
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_mate.chess_mate.test_settings")
     django.setup()
 except ImportError:
     pass
@@ -46,9 +44,7 @@ except Exception:
 # Only import Django components when not in standalone mode
 def pytest_configure(config):
     """Configure test environment based on mode."""
-    is_standalone = any(
-        x.startswith("-p") and "no:django" in x for x in config.invocation_params.args
-    )
+    is_standalone = any(x.startswith("-p") and "no:django" in x for x in config.invocation_params.args)
     if is_standalone:
         # Skip Django imports
         return
@@ -79,9 +75,7 @@ def django_user_model():
 @pytest.fixture
 def test_user(db, django_user_model):
     """Create a test user."""
-    return django_user_model.objects.create_user(
-        username="testuser", email="test@example.com", password="password123"
-    )
+    return django_user_model.objects.create_user(username="testuser", email="test@example.com", password="password123")
 
 
 @pytest.fixture

@@ -25,9 +25,7 @@ def api_client():
 
 @pytest.fixture
 def test_user():
-    user = User.objects.create_user(
-        username="testuser", email="test@example.com", password="testpassword123"
-    )
+    user = User.objects.create_user(username="testuser", email="test@example.com", password="testpassword123")
     ensure_profile(
         user,
         email_verified=True,
@@ -78,9 +76,7 @@ class TestProfileViews:
         assert response.data["preferences"]["notifications_enabled"] is True
         assert response.data["preferences"]["analysis_depth"] == "balanced"
 
-    def test_profile_view_enriched_stats_and_achievements(
-        self, authenticated_client, test_user
-    ):
+    def test_profile_view_enriched_stats_and_achievements(self, authenticated_client, test_user):
         Game.objects.create(
             user=test_user,
             platform="chess.com",
@@ -122,13 +118,9 @@ class TestProfileViews:
         batch_names = {item["name"] for item in achievements if "Batch" in item["name"]}
         assert "Batch Starter" in batch_names
         first = achievements[0]
-        assert {"name", "description", "target", "progress", "completed"} <= set(
-            first.keys()
-        )
+        assert {"name", "description", "target", "progress", "completed"} <= set(first.keys())
 
-        linked = next(
-            item for item in achievements if item["name"] == "Chess.com Connected"
-        )
+        linked = next(item for item in achievements if item["name"] == "Chess.com Connected")
         assert linked["completed"] is True
         assert response.data["data"]["total_games"] == 2
         assert "achievements" in response.data["data"]
@@ -359,9 +351,7 @@ class TestProfileViews:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "preferences" in response.data
 
-    def test_update_preferences_welcome_guide_seen(
-        self, authenticated_client, test_user
-    ):
+    def test_update_preferences_welcome_guide_seen(self, authenticated_client, test_user):
         url = reverse("update_preferences")
         response = authenticated_client.patch(
             url,

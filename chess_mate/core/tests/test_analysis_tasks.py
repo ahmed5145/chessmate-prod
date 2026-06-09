@@ -88,9 +88,7 @@ class TestAnalysisTasks:
                 "blunders": 0,
             },
         }
-        self.mock_stockfish_instance.analyze_game.return_value = (
-            self.mock_analysis_result
-        )
+        self.mock_stockfish_instance.analyze_game.return_value = self.mock_analysis_result
 
         # Configure feedback result
         self.mock_feedback_result = {
@@ -105,9 +103,7 @@ class TestAnalysisTasks:
                 "endgames": "Focus on rook endgames",
             },
         }
-        self.mock_feedback_instance.generate_feedback.return_value = (
-            self.mock_feedback_result
-        )
+        self.mock_feedback_instance.generate_feedback.return_value = self.mock_feedback_result
 
     def teardown_method(self):
         """Clean up patches."""
@@ -173,9 +169,7 @@ class TestAnalysisTasks:
     def test_analyze_game_with_stockfish_error(self, test_game, test_user):
         """Test analysis with Stockfish error."""
         # Configure Stockfish to raise an exception
-        self.mock_stockfish_instance.analyze_game.side_effect = Exception(
-            "Stockfish error"
-        )
+        self.mock_stockfish_instance.analyze_game.side_effect = Exception("Stockfish error")
 
         # Call the task
         result = analyze_game(

@@ -25,9 +25,7 @@ def api_client():
 
 @pytest.fixture
 def test_user():
-    user = User.objects.create_user(
-        username="testuser", email="test@example.com", password="testpassword123"
-    )
+    user = User.objects.create_user(username="testuser", email="test@example.com", password="testpassword123")
     ensure_profile(
         user,
         email_verified=True,
@@ -174,9 +172,7 @@ class TestFeedbackViews:
             # Verify generate function was called with correct parameters
             mock_generate.assert_called_once_with(test_game)
 
-    def test_generate_ai_feedback_insufficient_credits(
-        self, authenticated_client, test_user, test_game
-    ):
+    def test_generate_ai_feedback_insufficient_credits(self, authenticated_client, test_user, test_game):
         # Set credits lower than required
         test_user.profile.credits = 10
         test_user.profile.save()
@@ -191,9 +187,7 @@ class TestFeedbackViews:
         # Verify no feedback was created
         assert not AiFeedback.objects.filter(game=test_game).exists()
 
-    def test_generate_ai_feedback_game_not_analyzed(
-        self, authenticated_client, test_user, test_game
-    ):
+    def test_generate_ai_feedback_game_not_analyzed(self, authenticated_client, test_user, test_game):
         # Set game as not analyzed
         test_game.analysis_status = "not_analyzed"
         test_game.save()
@@ -208,23 +202,16 @@ class TestFeedbackViews:
         # Verify no feedback was created
         assert not AiFeedback.objects.filter(game=test_game).exists()
 
-    def test_get_game_feedback(
-        self, authenticated_client, test_user, test_game, test_feedback
-    ):
+    def test_get_game_feedback(self, authenticated_client, test_user, test_game, test_feedback):
         url = reverse("get_game_feedback", args=[test_game.id])
         response = authenticated_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
 
         # Check feedback content
-        assert (
-            response.data["content"]["summary"] == "You played a strong game overall."
-        )
+        assert response.data["content"]["summary"] == "You played a strong game overall."
         assert len(response.data["content"]["key_moments"]) == 2
-        assert (
-            response.data["content"]["improvement_areas"][0]
-            == "Tactical awareness in complex positions"
-        )
+        assert response.data["content"]["improvement_areas"][0] == "Tactical awareness in complex positions"
 
         # Check metadata
         assert response.data["model_used"] == "gpt-4-turbo"
@@ -232,9 +219,7 @@ class TestFeedbackViews:
         assert response.data["created_at"] is not None
         assert response.data["rating"] is None
 
-    def test_get_game_feedback_not_found(
-        self, authenticated_client, test_user, test_game
-    ):
+    def test_get_game_feedback_not_found(self, authenticated_client, test_user, test_game):
         # Delete existing feedback
         AiFeedback.objects.all().delete()
 
@@ -243,9 +228,7 @@ class TestFeedbackViews:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_get_all_feedback(
-        self, authenticated_client, test_user, test_game, test_feedback
-    ):
+    def test_get_all_feedback(self, authenticated_client, test_user, test_game, test_feedback):
         # Create another game and feedback for the same user
         game2 = Game.objects.create(
             user=test_user,
@@ -295,9 +278,7 @@ class TestFeedbackViews:
         assert test_feedback.rating == 4
         assert test_feedback.rating_comment == "Very helpful analysis!"
 
-    def test_rate_feedback_invalid_rating(
-        self, authenticated_client, test_user, test_feedback
-    ):
+    def test_rate_feedback_invalid_rating(self, authenticated_client, test_user, test_feedback):
         url = reverse("rate_feedback", args=[test_feedback.id])
         data = {
             "rating": 6,
@@ -315,9 +296,7 @@ class TestFeedbackViews:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_rate_feedback_unauthorized(
-        self, authenticated_client, test_user, test_feedback
-    ):
+    def test_rate_feedback_unauthorized(self, authenticated_client, test_user, test_feedback):
         # Create another user and feedback
         other_user = User.objects.create_user(
             username="otheruser", email="other@example.com", password="otherpassword123"

@@ -42,12 +42,7 @@ def patch_vine():
                 if kwonlyargs:
                     if not varargs:
                         parts.append("*")
-                    parts.extend(
-                        [
-                            f"{arg}={kwonlydefaults.get(arg, 'None')}"
-                            for arg in kwonlyargs
-                        ]
-                    )
+                    parts.extend([f"{arg}={kwonlydefaults.get(arg, 'None')}" for arg in kwonlyargs])
                 if varkw:
                     parts.append(f"**{varkw}")
 
@@ -86,9 +81,7 @@ def patch_vine():
 
             # Set the formatargspec in vine.five
             vine.five.formatargspec = formatargspec
-            vine.five.getargspec = (
-                getargspec if hasattr(inspect, "getargspec") else inspect.getargspec
-            )
+            vine.five.getargspec = getargspec if hasattr(inspect, "getargspec") else inspect.getargspec
 
             warnings.warn(
                 "Applied monkey patch for vine.five to work with Python 3.12+. "

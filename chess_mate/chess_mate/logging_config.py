@@ -27,8 +27,7 @@ SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
 
 # Common log format with all necessary information
 DETAILED_FORMAT = (
-    "%(levelname)s %(asctime)s %(name)s %(process)d %(thread)d "
-    "%(module)s:%(lineno)d [%(request_id)s] %(message)s"
+    "%(levelname)s %(asctime)s %(name)s %(process)d %(thread)d " "%(module)s:%(lineno)d [%(request_id)s] %(message)s"
 )
 
 # JSON format for machine processing
@@ -196,9 +195,7 @@ if SENTRY_DSN:
         root_level = LOGGING.get("root", {}).get("level", DEBUG_LEVEL)
 
         # Get the numeric logging level for the specified level string
-        root_level_int = (
-            getattr(logging, root_level) if isinstance(root_level, str) else root_level
-        )
+        root_level_int = getattr(logging, root_level) if isinstance(root_level, str) else root_level
 
         # Set up Sentry SDK
         sentry_sdk.init(
@@ -212,9 +209,7 @@ if SENTRY_DSN:
             ],
             # Set traces_sample_rate to 1.0 to capture 100% of transactions for performance monitoring
             # We recommend adjusting this value in production
-            traces_sample_rate=float(
-                os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")
-            ),
+            traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
             # Send environment to Sentry to differentiate between environments
             environment=os.environ.get("ENVIRONMENT", "development"),
             # If you wish to associate users to errors (assuming you are using

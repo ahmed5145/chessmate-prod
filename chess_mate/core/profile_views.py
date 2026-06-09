@@ -64,9 +64,7 @@ def get_basic_profile(user):
             "email": user.email,
             "first_name": user.first_name,
             "last_name": user.last_name,
-            "date_joined": (
-                user.date_joined.isoformat() if hasattr(user, "date_joined") else None
-            ),
+            "date_joined": (user.date_joined.isoformat() if hasattr(user, "date_joined") else None),
             "is_active": user.is_active,
             "elo_rating": 1200,
             "analysis_count": 0,
@@ -88,24 +86,14 @@ def get_basic_profile(user):
             try:
                 profile = user.profile
                 response_data["profile"]["credits"] = getattr(profile, "credits", 0)
-                response_data["profile"]["chess_com_username"] = getattr(
-                    profile, "chess_com_username", ""
-                )
-                response_data["profile"]["lichess_username"] = getattr(
-                    profile, "lichess_username", ""
-                )
-                response_data["profile"]["preferences"] = getattr(
-                    profile, "preferences", {}
-                )
+                response_data["profile"]["chess_com_username"] = getattr(profile, "chess_com_username", "")
+                response_data["profile"]["lichess_username"] = getattr(profile, "lichess_username", "")
+                response_data["profile"]["preferences"] = getattr(profile, "preferences", {})
                 response_data["elo_rating"] = getattr(profile, "elo_rating", 1200)
                 response_data["analysis_count"] = getattr(profile, "analysis_count", 0)
                 response_data["credits"] = getattr(profile, "credits", 0)
-                response_data["chess_com_username"] = getattr(
-                    profile, "chess_com_username", ""
-                )
-                response_data["lichess_username"] = getattr(
-                    profile, "lichess_username", ""
-                )
+                response_data["chess_com_username"] = getattr(profile, "chess_com_username", "")
+                response_data["lichess_username"] = getattr(profile, "lichess_username", "")
                 response_data["preferences"] = getattr(profile, "preferences", {})
             except Exception as e:
                 logger.error(f"Error accessing profile attributes: {e}")
@@ -225,17 +213,13 @@ def profile_view(request):
             from .single_game_streak import get_single_game_streak
 
             response_payload.update(enrich_profile_payload(request.user, profile))
-            response_payload["single_game_streak"] = get_single_game_streak(
-                profile.preferences
-            )
+            response_payload["single_game_streak"] = get_single_game_streak(profile.preferences)
             combined_data.update(
                 {
                     "total_games": response_payload["total_games"],
                     "win_rate": response_payload["win_rate"],
                     "performance_stats": response_payload["performance_stats"],
-                    "time_control_distribution": response_payload[
-                        "time_control_distribution"
-                    ],
+                    "time_control_distribution": response_payload["time_control_distribution"],
                     "achievements": response_payload["achievements"],
                 }
             )
@@ -255,41 +239,21 @@ def profile_view(request):
                         },
                         "profile": {
                             "credits": getattr(request.user.profile, "credits", 10),
-                            "chess_com_username": getattr(
-                                request.user.profile, "chess_com_username", ""
-                            )
-                            or "",
-                            "lichess_username": getattr(
-                                request.user.profile, "lichess_username", ""
-                            )
-                            or "",
-                            "email_verified": getattr(
-                                request.user.profile, "email_verified", False
-                            ),
+                            "chess_com_username": getattr(request.user.profile, "chess_com_username", "") or "",
+                            "lichess_username": getattr(request.user.profile, "lichess_username", "") or "",
+                            "email_verified": getattr(request.user.profile, "email_verified", False),
                             "rating": 1200,  # Default rating
-                            "elo_rating": getattr(
-                                request.user.profile, "elo_rating", 1200
-                            ),
-                            "analysis_count": getattr(
-                                request.user.profile, "analysis_count", 0
-                            ),
+                            "elo_rating": getattr(request.user.profile, "elo_rating", 1200),
+                            "analysis_count": getattr(request.user.profile, "analysis_count", 0),
                         },
                     },
                     "username": request.user.username,
                     "email": request.user.email,
                     "credits": getattr(request.user.profile, "credits", 10),
-                    "chess_com_username": getattr(
-                        request.user.profile, "chess_com_username", ""
-                    )
-                    or "",
-                    "lichess_username": getattr(
-                        request.user.profile, "lichess_username", ""
-                    )
-                    or "",
+                    "chess_com_username": getattr(request.user.profile, "chess_com_username", "") or "",
+                    "lichess_username": getattr(request.user.profile, "lichess_username", "") or "",
                     "elo_rating": getattr(request.user.profile, "elo_rating", 1200),
-                    "analysis_count": getattr(
-                        request.user.profile, "analysis_count", 0
-                    ),
+                    "analysis_count": getattr(request.user.profile, "analysis_count", 0),
                     "preferences": getattr(request.user.profile, "preferences", {}),
                 },
                 status=status.HTTP_200_OK,
@@ -308,35 +272,19 @@ def profile_view(request):
                     },
                     "profile": {
                         "credits": getattr(request.user.profile, "credits", 10),
-                        "chess_com_username": getattr(
-                            request.user.profile, "chess_com_username", ""
-                        )
-                        or "",
-                        "lichess_username": getattr(
-                            request.user.profile, "lichess_username", ""
-                        )
-                        or "",
-                        "email_verified": getattr(
-                            request.user.profile, "email_verified", False
-                        ),
+                        "chess_com_username": getattr(request.user.profile, "chess_com_username", "") or "",
+                        "lichess_username": getattr(request.user.profile, "lichess_username", "") or "",
+                        "email_verified": getattr(request.user.profile, "email_verified", False),
                         "rating": 1200,  # Default rating
                         "elo_rating": getattr(request.user.profile, "elo_rating", 1200),
-                        "analysis_count": getattr(
-                            request.user.profile, "analysis_count", 0
-                        ),
+                        "analysis_count": getattr(request.user.profile, "analysis_count", 0),
                     },
                 },
                 "username": request.user.username,
                 "email": request.user.email,
                 "credits": getattr(request.user.profile, "credits", 10),
-                "chess_com_username": getattr(
-                    request.user.profile, "chess_com_username", ""
-                )
-                or "",
-                "lichess_username": getattr(
-                    request.user.profile, "lichess_username", ""
-                )
-                or "",
+                "chess_com_username": getattr(request.user.profile, "chess_com_username", "") or "",
+                "lichess_username": getattr(request.user.profile, "lichess_username", "") or "",
                 "elo_rating": getattr(request.user.profile, "elo_rating", 1200),
                 "analysis_count": getattr(request.user.profile, "analysis_count", 0),
                 "preferences": getattr(request.user.profile, "preferences", {}),
@@ -380,9 +328,7 @@ def fallback_profile_view(request):
                 "chess_com_username": profile.chess_com_username or "",
                 "lichess_username": profile.lichess_username or "",
                 "email_verified": profile.email_verified,
-                "rating": max(
-                    profile.blitz_rating, profile.rapid_rating, profile.classical_rating
-                ),
+                "rating": max(profile.blitz_rating, profile.rapid_rating, profile.classical_rating),
             }
         except Exception as e:
             logger.warning(f"Error getting profile data: {str(e)}")
@@ -538,9 +484,7 @@ def add_credits(request):
 
         if credit_plan not in CREDIT_VALUES:
             return Response(
-                {
-                    "error": f'Invalid credit plan. Available plans: {", ".join(CREDIT_VALUES.keys())}'
-                },
+                {"error": f'Invalid credit plan. Available plans: {", ".join(CREDIT_VALUES.keys())}'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -626,9 +570,7 @@ def subscribe_pro_plan(request):
         )
 
     tier = _get_or_create_legacy_tier(plan)
-    payment_intent = stripe.PaymentIntent.create(
-        amount=999, currency="usd", payment_method=payment_method_id
-    )
+    payment_intent = stripe.PaymentIntent.create(amount=999, currency="usd", payment_method=payment_method_id)
 
     Subscription.objects.create(
         user=request.user,
@@ -660,13 +602,9 @@ def confirm_subscription(request):
         )
 
     try:
-        subscription = Subscription.objects.get(
-            user=request.user, stripe_subscription_id=subscription_id
-        )
+        subscription = Subscription.objects.get(user=request.user, stripe_subscription_id=subscription_id)
     except Subscription.DoesNotExist:
-        return Response(
-            {"error": "Subscription not found"}, status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"error": "Subscription not found"}, status=status.HTTP_404_NOT_FOUND)
 
     stripe_status = stripe.Subscription.retrieve(subscription_id).get("status")
     if stripe_status == "active":
@@ -678,9 +616,7 @@ def confirm_subscription(request):
             status=status.HTTP_200_OK,
         )
 
-    return Response(
-        {"error": "Subscription is not active"}, status=status.HTTP_400_BAD_REQUEST
-    )
+    return Response({"error": "Subscription is not active"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["POST"])
@@ -740,24 +676,16 @@ def confirm_credit_purchase(request):
         )
 
     try:
-        payment = Payment.objects.get(
-            user=request.user, stripe_payment_id=payment_intent_id
-        )
+        payment = Payment.objects.get(user=request.user, stripe_payment_id=payment_intent_id)
     except Payment.DoesNotExist:
-        return Response(
-            {"error": "Payment not found"}, status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"error": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
 
     payment_status = stripe.PaymentIntent.retrieve(payment_intent_id).get("status")
     if payment_status != "succeeded":
-        return Response(
-            {"error": "Payment not completed"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "Payment not completed"}, status=status.HTTP_400_BAD_REQUEST)
 
     with transaction.atomic():
-        profile, _ = Profile.objects.select_for_update().get_or_create(
-            user=request.user
-        )
+        profile, _ = Profile.objects.select_for_update().get_or_create(user=request.user)
         profile.credits = F("credits") + payment.credit_amount
         profile.save(update_fields=["credits"])
         payment.status = "completed"
@@ -788,9 +716,7 @@ def update_preferences(request):
 
     preferences = request.data.get("preferences")
     if not isinstance(preferences, dict):
-        return Response(
-            {"preferences": ["Must be an object"]}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"preferences": ["Must be an object"]}, status=status.HTTP_400_BAD_REQUEST)
 
     allowed_themes = {"light", "dark", "system"}
     theme = preferences.get("theme")
@@ -844,9 +770,7 @@ def user_progress(request):
     # If we have game analyses, calculate accuracy trends
     if analysis_count > 0:
         # Get recent analyses
-        recent_analyses = GameAnalysis.objects.filter(game__user=user).order_by(
-            "-created_at"
-        )[:10]
+        recent_analyses = GameAnalysis.objects.filter(game__user=user).order_by("-created_at")[:10]
 
         # Extract accuracy data
         accuracies = []
@@ -883,9 +807,7 @@ def user_progress(request):
                 second_avg = sum(second_half) / len(second_half)
 
                 # Determine trend based on difference
-                improvement_data["accuracy_improvement"] = round(
-                    second_avg - first_avg, 1
-                )
+                improvement_data["accuracy_improvement"] = round(second_avg - first_avg, 1)
 
                 # Set trend status
                 diff = second_avg - first_avg
@@ -898,12 +820,8 @@ def user_progress(request):
 
             # Most common mistakes
             if mistakes_counter:
-                sorted_mistakes = sorted(
-                    mistakes_counter.items(), key=lambda x: x[1], reverse=True
-                )
-                improvement_data["common_mistakes"] = [
-                    {"type": k, "count": v} for k, v in sorted_mistakes[:3]
-                ]
+                sorted_mistakes = sorted(mistakes_counter.items(), key=lambda x: x[1], reverse=True)
+                improvement_data["common_mistakes"] = [{"type": k, "count": v} for k, v in sorted_mistakes[:3]]
 
     return create_success_response(data=improvement_data)
 
@@ -922,9 +840,7 @@ def get_user_statistics(request):
 
     # Retrieve game statistics
     game_count = Game.objects.filter(user=user).count()
-    analyzed_game_count = Game.objects.filter(
-        user=user, analysis_status="analyzed"
-    ).count()
+    analyzed_game_count = Game.objects.filter(user=user, analysis_status="analyzed").count()
 
     # Get win/loss/draw statistics
     win_count = Game.objects.filter(user=user, result="win").count()
@@ -963,9 +879,7 @@ def get_user_statistics(request):
         except Subscription.DoesNotExist:
             pass
         except Exception as e:
-            logger.error(
-                f"Error fetching subscription for statistics for user {user.id}: {e}"
-            )
+            logger.error(f"Error fetching subscription for statistics for user {user.id}: {e}")
             statistics["subscription"] = {
                 "status": "error",
                 "message": "Subscription data unavailable",
@@ -1003,14 +917,10 @@ def get_subscription_tiers(request):
         return create_success_response(data=serializer.data)
     except ImportError as e:
         logger.error(f"Import error when trying to access SubscriptionTier model: {e}")
-        return create_success_response(
-            data=[], message="Subscription tiers unavailable"
-        )
+        return create_success_response(data=[], message="Subscription tiers unavailable")
     except Exception as e:
         logger.error(f"Error fetching subscription tiers: {e}")
-        return create_success_response(
-            data=[], message="Error fetching subscription tiers"
-        )
+        return create_success_response(data=[], message="Error fetching subscription tiers")
 
 
 @api_view(["POST"])
@@ -1037,9 +947,7 @@ def create_subscription(request):
             )
 
         # Check if user already has an active subscription
-        existing_subscription = Subscription.objects.filter(
-            user=user, is_active=True
-        ).first()
+        existing_subscription = Subscription.objects.filter(user=user, is_active=True).first()
 
         if existing_subscription:
             return Response(
@@ -1092,14 +1000,11 @@ def create_subscription(request):
                     end_date=timezone.now() + timedelta(days=tier.period_length),
                     is_active=True,
                     status="active",
-                    next_billing_date=timezone.now()
-                    + timedelta(days=tier.period_length),
+                    next_billing_date=timezone.now() + timedelta(days=tier.period_length),
                 )
 
                 # Credit user's account
-                profile, _ = Profile.objects.select_for_update().get_or_create(
-                    user=user
-                )
+                profile, _ = Profile.objects.select_for_update().get_or_create(user=user)
                 profile.credits = F("credits") + tier.credits_per_period
                 profile.save(update_fields=["credits"])
 
@@ -1151,9 +1056,7 @@ def cancel_subscription(request):
         # Get user's active subscription and update it atomically.
         try:
             with transaction.atomic():
-                subscription = Subscription.objects.select_for_update().get(
-                    user=user, is_active=True
-                )
+                subscription = Subscription.objects.select_for_update().get(user=user, is_active=True)
 
                 # Cancel subscription in Stripe
                 stripe.Subscription.modify(
@@ -1209,9 +1112,7 @@ def webhook_handler(request):
         # Get payload and verify signature
         payload = request.body
         sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)
 
         # Process the event
         event_type = event["type"]
@@ -1248,36 +1149,26 @@ def handle_subscription_payment(event):
 
         # Find matching subscription in database
         try:
-            subscription = Subscription.objects.get(
-                stripe_subscription_id=subscription_id, is_active=True
-            )
+            subscription = Subscription.objects.get(stripe_subscription_id=subscription_id, is_active=True)
 
             with transaction.atomic():
                 # Extend subscription end date and reset credits
-                subscription.end_date = timezone.now() + timedelta(
-                    days=subscription.tier.period_length
-                )
+                subscription.end_date = timezone.now() + timedelta(days=subscription.tier.period_length)
                 subscription.next_billing_date = subscription.end_date
                 subscription.credits_remaining = subscription.credits_per_period
                 subscription.last_credit_reset = timezone.now()
                 subscription.save()
 
                 # Add credits to user's account
-                profile = Profile.objects.select_for_update().get(
-                    user=subscription.user
-                )
+                profile = Profile.objects.select_for_update().get(user=subscription.user)
                 profile.credits = F("credits") + subscription.credits_per_period
                 profile.save(update_fields=["credits"])
 
             logger.info(f"Subscription {subscription_id} renewed successfully")
         except Subscription.DoesNotExist:
-            logger.warning(
-                f"Subscription {subscription_id} not found for payment {invoice['id']}"
-            )
+            logger.warning(f"Subscription {subscription_id} not found for payment {invoice['id']}")
         except Profile.DoesNotExist:
-            logger.warning(
-                f"Profile not found for user from subscription {subscription_id}"
-            )
+            logger.warning(f"Profile not found for user from subscription {subscription_id}")
         except Exception as e:
             logger.error(f"Error processing subscription payment details: {str(e)}")
     except ImportError as e:
@@ -1314,9 +1205,7 @@ def handle_subscription_canceled(event):
         except Subscription.DoesNotExist:
             logger.warning(f"Subscription {subscription_id} not found for cancellation")
         except Exception as e:
-            logger.error(
-                f"Error processing subscription cancellation details: {str(e)}"
-            )
+            logger.error(f"Error processing subscription cancellation details: {str(e)}")
     except ImportError as e:
         logger.error(f"Import error in handle_subscription_canceled: {str(e)}")
     except Exception as e:
@@ -1354,9 +1243,7 @@ def minimal_profile_view(request):
 
                 # Fetch the user
                 user = User.objects.get(id=user_id)
-                logger.info(
-                    f"Manual token authentication successful for user: {user.username}"
-                )
+                logger.info(f"Manual token authentication successful for user: {user.username}")
             except Exception as e:
                 logger.warning(f"Manual token authentication failed: {str(e)}")
                 return Response(
@@ -1379,9 +1266,7 @@ def minimal_profile_view(request):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "is_active": user.is_active,
-            "date_joined": (
-                user.date_joined.isoformat() if hasattr(user, "date_joined") else None
-            ),
+            "date_joined": (user.date_joined.isoformat() if hasattr(user, "date_joined") else None),
         }
 
         # Try to get profile data if available
@@ -1414,9 +1299,7 @@ def minimal_profile_view(request):
                     profile_data["classical_rating"],
                 )
         except Exception as e:
-            logger.warning(
-                f"Error retrieving profile for user {user.username}: {str(e)}"
-            )
+            logger.warning(f"Error retrieving profile for user {user.username}: {str(e)}")
             # Continue with default profile data
 
         # Log success for monitoring

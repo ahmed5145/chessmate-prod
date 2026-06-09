@@ -41,9 +41,7 @@ def test_classify_endgame_material_minor_piece():
 
 
 def test_classify_tactical_theme_prefers_missed_fork_on_best_move():
-    board = chess.Board(
-        "r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 4 4"
-    )
+    board = chess.Board("r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 4 4")
     legal = list(board.legal_moves)
     assert len(legal) >= 1
     best = legal[0].uci()

@@ -38,16 +38,12 @@ def get_redis_connection():
             )
         else:
             redis_host = getattr(settings, "REDIS_HOST", "localhost")
-            redis_port = int(
-                getattr(settings, "REDIS_PORT", 6379)
-            )  # Default Redis port
+            redis_port = int(getattr(settings, "REDIS_PORT", 6379))  # Default Redis port
             redis_db = int(getattr(settings, "REDIS_DB", 0))
             redis_password = getattr(settings, "REDIS_PASSWORD", None)
 
             # Log connection details without password
-            logger.info(
-                f"Creating Redis connection pool for {redis_host}:{redis_port} (attempt 1)"
-            )
+            logger.info(f"Creating Redis connection pool for {redis_host}:{redis_port} (attempt 1)")
 
             # Create a connection pool for better performance
             pool = redis.ConnectionPool(

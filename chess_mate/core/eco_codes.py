@@ -220,9 +220,7 @@ def get_opening_name(eco_code):
         logger.warning("Empty ECO code provided")
         return "Unknown Opening"
 
-    logger.info(
-        f"Looking up opening name for ECO code: {eco_code!r}"
-    )  # Use repr to show exact string
+    logger.info(f"Looking up opening name for ECO code: {eco_code!r}")  # Use repr to show exact string
 
     # Normalize ECO code
     eco_code = eco_code.strip().upper()
@@ -244,12 +242,8 @@ def get_opening_name(eco_code):
                 return parent_name
 
     if eco_code and len(eco_code) >= 1:
-        similar_codes = [
-            code for code in ECO_OPENINGS.keys() if code.startswith(eco_code[0])
-        ]
-        logger.warning(
-            f"No opening name found for ECO code: {eco_code}. Similar codes: {similar_codes}"
-        )
+        similar_codes = [code for code in ECO_OPENINGS.keys() if code.startswith(eco_code[0])]
+        logger.warning(f"No opening name found for ECO code: {eco_code}. Similar codes: {similar_codes}")
     else:
         logger.warning(f"No opening name found for ECO code: {eco_code}")
     return "Unknown Opening"

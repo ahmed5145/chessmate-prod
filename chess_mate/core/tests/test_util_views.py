@@ -23,9 +23,7 @@ def api_client():
 
 @pytest.fixture
 def test_user():
-    user = User.objects.create_user(
-        username="testuser", email="test@example.com", password="testpassword123"
-    )
+    user = User.objects.create_user(username="testuser", email="test@example.com", password="testpassword123")
     return user
 
 
@@ -43,13 +41,9 @@ class TestUtilViews:
     def test_health_check(self, api_client):
         # Mock psutil and redis functionality
         with patch.object(psutil, "virtual_memory") as mock_memory:
-            mock_memory.return_value = MagicMock(
-                total=16000000000, available=8000000000
-            )  # 16GB  # 8GB
+            mock_memory.return_value = MagicMock(total=16000000000, available=8000000000)  # 16GB  # 8GB
 
-            with patch.object(
-                util_views, "get_redis_connection"
-            ) as mock_redis_connection:
+            with patch.object(util_views, "get_redis_connection") as mock_redis_connection:
                 mock_redis = MagicMock()
                 mock_redis.ping.return_value = True
                 mock_redis_connection.return_value = mock_redis
@@ -75,17 +69,11 @@ class TestUtilViews:
     def test_health_check_redis_error(self, api_client):
         # Mock psutil and redis functionality with redis failure
         with patch.object(psutil, "virtual_memory") as mock_memory:
-            mock_memory.return_value = MagicMock(
-                total=16000000000, available=8000000000
-            )  # 16GB  # 8GB
+            mock_memory.return_value = MagicMock(total=16000000000, available=8000000000)  # 16GB  # 8GB
 
-            with patch.object(
-                util_views, "get_redis_connection"
-            ) as mock_redis_connection:
+            with patch.object(util_views, "get_redis_connection") as mock_redis_connection:
                 mock_redis = MagicMock()
-                mock_redis.ping.side_effect = redis.ConnectionError(
-                    "Connection refused"
-                )
+                mock_redis.ping.side_effect = redis.ConnectionError("Connection refused")
                 mock_redis_connection.return_value = mock_redis
 
                 with patch.object(psutil, "cpu_percent", return_value=25.0):
@@ -107,13 +95,9 @@ class TestUtilViews:
             mock_db_check.return_value = (False, "Connection failed")
 
             with patch.object(psutil, "virtual_memory") as mock_memory:
-                mock_memory.return_value = MagicMock(
-                    total=16000000000, available=8000000000
-                )  # 16GB  # 8GB
+                mock_memory.return_value = MagicMock(total=16000000000, available=8000000000)  # 16GB  # 8GB
 
-                with patch.object(
-                    util_views, "get_redis_connection"
-                ) as mock_redis_connection:
+                with patch.object(util_views, "get_redis_connection") as mock_redis_connection:
                     mock_redis = MagicMock()
                     mock_redis.ping.return_value = True
                     mock_redis_connection.return_value = mock_redis

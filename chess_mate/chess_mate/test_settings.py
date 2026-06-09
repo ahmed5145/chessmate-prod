@@ -82,9 +82,7 @@ MIDDLEWARE = [m for m in MIDDLEWARE if m != "django.middleware.csrf.CsrfViewMidd
 # Make sure RequestIDMiddleware is first
 if "core.middleware.RequestIDMiddleware" not in MIDDLEWARE:
     MIDDLEWARE.insert(0, "core.middleware.RequestIDMiddleware")
-MIDDLEWARE.append(
-    "core.middleware.RequestValidationMiddleware"
-)  # Add validation middleware for testing
+MIDDLEWARE.append("core.middleware.RequestValidationMiddleware")  # Add validation middleware for testing
 
 # Reduce rate limiting for tests
 RATE_LIMIT = {
@@ -164,9 +162,7 @@ LOGGING = {
 }
 
 # Test-specific Stockfish settings
-STOCKFISH_PATH = (
-    "C:/Program Files/Stockfish/stockfish/stockfish-windows-x86-64-avx2.exe"
-)
+STOCKFISH_PATH = "C:/Program Files/Stockfish/stockfish/stockfish-windows-x86-64-avx2.exe"
 STOCKFISH_THREADS = 1
 STOCKFISH_HASH_SIZE = 32
 STOCKFISH_SKILL_LEVEL = 20

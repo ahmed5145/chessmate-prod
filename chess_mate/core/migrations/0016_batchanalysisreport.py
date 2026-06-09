@@ -47,20 +47,14 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="batchanalysisreport",
-            index=models.Index(
-                fields=["user", "created_at"], name="core_batcha_user_id_ae6e17_idx"
-            ),
+            index=models.Index(fields=["user", "created_at"], name="core_batcha_user_id_ae6e17_idx"),
         ),
         migrations.AddIndex(
             model_name="batchanalysisreport",
-            index=models.Index(
-                fields=["task_id"], name="core_batcha_task_id_dd8906_idx"
-            ),
+            index=models.Index(fields=["task_id"], name="core_batcha_task_id_dd8906_idx"),
         ),
         migrations.AddConstraint(
             model_name="batchanalysisreport",
-            constraint=models.UniqueConstraint(
-                fields=("user", "task_id"), name="unique_user_batch_report_task"
-            ),
+            constraint=models.UniqueConstraint(fields=("user", "task_id"), name="unique_user_batch_report_task"),
         ),
     ]

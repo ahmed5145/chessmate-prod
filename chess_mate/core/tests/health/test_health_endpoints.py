@@ -35,9 +35,7 @@ class HealthEndpointsTestCase(TestCase):
     @patch("core.health_checks.check_database")
     @patch("core.health_checks.check_cache")
     @patch("core.health_checks.check_redis")
-    def test_basic_health_check(
-        self, mock_check_redis, mock_check_cache, mock_check_db
-    ):
+    def test_basic_health_check(self, mock_check_redis, mock_check_cache, mock_check_db):
         """Test the basic health check endpoint."""
         # Configure mocks
         mock_check_db.return_value = {"status": STATUS_OK}

@@ -72,17 +72,13 @@ def test_initialize_openai(feedback_generator):
         mock_openai.assert_called_once()
 
 
-def test_generate_feedback_with_openai(
-    feedback_generator, game_metrics, mock_openai_response
-):
+def test_generate_feedback_with_openai(feedback_generator, game_metrics, mock_openai_response):
     """Test feedback generation with OpenAI."""
     with patch("core.analysis.feedback_generator.OpenAI") as mock_openai:
         # Setup mock OpenAI client
         mock_client = MagicMock()
         mock_completion = MagicMock()
-        mock_completion.choices = [
-            MagicMock(message=MagicMock(content=json.dumps(mock_openai_response)))
-        ]
+        mock_completion.choices = [MagicMock(message=MagicMock(content=json.dumps(mock_openai_response)))]
         mock_client.chat.completions.create.return_value = mock_completion
         feedback_generator.openai_client = mock_client
 
@@ -108,9 +104,7 @@ def test_generate_feedback_with_openai(
         assert feedback["source"] == "openai"
         assert feedback["strengths"] == mock_openai_response["feedback"]["strengths"]
         assert feedback["weaknesses"] == mock_openai_response["feedback"]["weaknesses"]
-        assert len(feedback["critical_moments"]) == len(
-            mock_openai_response["feedback"]["critical_moments"]
-        )
+        assert len(feedback["critical_moments"]) == len(mock_openai_response["feedback"]["critical_moments"])
         assert feedback["metrics"] == {
             "total_moves": 40,
             "accuracy": 85.5,

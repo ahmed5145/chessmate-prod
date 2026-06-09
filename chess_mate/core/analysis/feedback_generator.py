@@ -83,35 +83,20 @@ class FeedbackGenerator:
 
     @staticmethod
     def _metric_phase_name(game_metrics: Dict[str, Any]) -> str:
-        phases = (
-            game_metrics.get("phases", {})
-            if isinstance(game_metrics.get("phases", {}), dict)
-            else {}
-        )
+        phases = game_metrics.get("phases", {}) if isinstance(game_metrics.get("phases", {}), dict) else {}
         if not phases:
             return "middlegame"
 
         phase_name, _ = min(
-            (
-                (name, FeedbackGenerator._safe_number(data.get("accuracy", 0.0), 0.0))
-                for name, data in phases.items()
-            ),
+            ((name, FeedbackGenerator._safe_number(data.get("accuracy", 0.0), 0.0)) for name, data in phases.items()),
             key=lambda item: item[1],
         )
         return str(phase_name)
 
     @classmethod
     def _derive_impact_metrics(cls, game_metrics: Dict[str, Any]) -> Dict[str, Any]:
-        overall = (
-            game_metrics.get("overall", {})
-            if isinstance(game_metrics.get("overall", {}), dict)
-            else {}
-        )
-        phases = (
-            game_metrics.get("phases", {})
-            if isinstance(game_metrics.get("phases", {}), dict)
-            else {}
-        )
+        overall = game_metrics.get("overall", {}) if isinstance(game_metrics.get("overall", {}), dict) else {}
+        phases = game_metrics.get("phases", {}) if isinstance(game_metrics.get("phases", {}), dict) else {}
 
         total_moves = max(1.0, cls._safe_number(overall.get("total_moves", 0.0), 0.0))
         mistakes = cls._safe_number(overall.get("mistakes", 0.0), 0.0)
@@ -123,9 +108,7 @@ class FeedbackGenerator:
         for phase_name, data in phases.items():
             phase_accuracy = cls._safe_number(data.get("accuracy", 0.0), 0.0)
             best_moves = cls._safe_number(data.get("best_moves", 0.0), 0.0)
-            opportunities = max(
-                0.0, cls._safe_number(data.get("opportunities", 0.0), 0.0)
-            )
+            opportunities = max(0.0, cls._safe_number(data.get("opportunities", 0.0), 0.0))
             missed = max(0.0, opportunities - best_moves)
             phase_risk[phase_name] = round(
                 max(
@@ -137,14 +120,8 @@ class FeedbackGenerator:
                 1,
             )
 
-        critical_error_rate = round(
-            ((blunders * 3.0) + (mistakes * 2.0) + inaccuracies) / total_moves, 2
-        )
-        phase_risk_index = (
-            round(sum(phase_risk.values()) / max(1, len(phase_risk)), 1)
-            if phase_risk
-            else 0.0
-        )
+        critical_error_rate = round(((blunders * 3.0) + (mistakes * 2.0) + inaccuracies) / total_moves, 2)
+        phase_risk_index = round(sum(phase_risk.values()) / max(1, len(phase_risk)), 1) if phase_risk else 0.0
 
         return {
             "critical_error_rate": critical_error_rate,
@@ -154,22 +131,15 @@ class FeedbackGenerator:
         }
 
     @classmethod
-    def _build_phase_motifs(
-        cls, game_metrics: Dict[str, Any], max_motifs: int = 2
-    ) -> Dict[str, Any]:
-        moves = (
-            game_metrics.get("moves", [])
-            if isinstance(game_metrics.get("moves", []), list)
-            else []
-        )
+    def _build_phase_motifs(cls, game_metrics: Dict[str, Any], max_motifs: int = 2) -> Dict[str, Any]:
+        moves = game_metrics.get("moves", []) if isinstance(game_metrics.get("moves", []), list) else []
         target_phase = cls._metric_phase_name(game_metrics)
         if not moves:
             return {
                 "weakest_phase": target_phase,
                 "motifs": [],
                 "correction_rule": (
-                    "Review the phase without overloading on engine lines; "
-                    "focus on one repeatable checklist."
+                    "Review the phase without overloading on engine lines; " "focus on one repeatable checklist."
                 ),
             }
 
@@ -189,11 +159,7 @@ class FeedbackGenerator:
 
         for move in phase_moves:
             classification = FeedbackGenerator._normalized_classification(move)
-            eval_change = abs(
-                cls._eval_change_to_cp(
-                    move.get("eval_change", move.get("evaluation_drop", 0))
-                )
-            )
+            eval_change = abs(cls._eval_change_to_cp(move.get("eval_change", move.get("evaluation_drop", 0))))
             is_critical = bool(move.get("is_critical", False))
             is_best = bool(move.get("is_best", False))
             best_move_present = bool(move.get("best_move") or move.get("best_move_san"))
@@ -240,8 +206,7 @@ class FeedbackGenerator:
 
         rule_library = {
             "tactical slip": (
-                "Scan for checks, captures, and forcing replies before committing "
-                "to the first promising move."
+                "Scan for checks, captures, and forcing replies before committing " "to the first promising move."
             ),
             "positional drift": (
                 "When there is no forcing tactic, improve piece activity, king safety, "
@@ -258,9 +223,7 @@ class FeedbackGenerator:
         }
 
         motifs = []
-        for name, data in sorted(
-            motif_counts.items(), key=lambda item: (-item[1]["count"], item[0])
-        )[:max_motifs]:
+        for name, data in sorted(motif_counts.items(), key=lambda item: (-item[1]["count"], item[0]))[:max_motifs]:
             motifs.append(
                 {
                     "name": name,
@@ -268,8 +231,7 @@ class FeedbackGenerator:
                     "evidence": data["evidence"],
                     "correction_rule": rule_library.get(
                         name,
-                        "Pause, review candidate moves, and pick the line "
-                        "that keeps the position stable.",
+                        "Pause, review candidate moves, and pick the line " "that keeps the position stable.",
                     ),
                 }
             )
@@ -284,11 +246,7 @@ class FeedbackGenerator:
                 }
             ]
 
-        primary_rule = (
-            motifs[0]["correction_rule"]
-            if motifs
-            else "Review the phase with a structured checklist."
-        )
+        primary_rule = motifs[0]["correction_rule"] if motifs else "Review the phase with a structured checklist."
         return {
             "weakest_phase": target_phase,
             "motifs": motifs,
@@ -297,35 +255,21 @@ class FeedbackGenerator:
 
     @classmethod
     def _build_training_block(cls, game_metrics: Dict[str, Any]) -> Dict[str, Any]:
-        overall = (
-            game_metrics.get("overall", {})
-            if isinstance(game_metrics.get("overall", {}), dict)
-            else {}
-        )
-        phases = (
-            game_metrics.get("phases", {})
-            if isinstance(game_metrics.get("phases", {}), dict)
-            else {}
-        )
+        overall = game_metrics.get("overall", {}) if isinstance(game_metrics.get("overall", {}), dict) else {}
+        phases = game_metrics.get("phases", {}) if isinstance(game_metrics.get("phases", {}), dict) else {}
         time_mgmt = (
-            game_metrics.get("time_management", {})
-            if isinstance(game_metrics.get("time_management", {}), dict)
-            else {}
+            game_metrics.get("time_management", {}) if isinstance(game_metrics.get("time_management", {}), dict) else {}
         )
 
         impact = cls._derive_impact_metrics(game_metrics)
         motif_block = cls._build_phase_motifs(game_metrics)
         weakest_phase = motif_block["weakest_phase"]
 
-        phase_accuracy = cls._safe_number(
-            phases.get(weakest_phase, {}).get("accuracy", 0.0), 0.0
-        )
+        phase_accuracy = cls._safe_number(phases.get(weakest_phase, {}).get("accuracy", 0.0), 0.0)
         total_moves = max(1.0, cls._safe_number(overall.get("total_moves", 0.0), 0.0))
         inaccuracies = cls._safe_number(overall.get("inaccuracies", 0.0), 0.0)
         blunders = cls._safe_number(overall.get("blunders", 0.0), 0.0)
-        time_pressure = cls._safe_number(
-            time_mgmt.get("time_pressure_percentage", 0.0), 0.0
-        )
+        time_pressure = cls._safe_number(time_mgmt.get("time_pressure_percentage", 0.0), 0.0)
         time_status = str(time_mgmt.get("data_status", "unavailable") or "unavailable")
 
         focus_areas = []
@@ -358,28 +302,22 @@ class FeedbackGenerator:
 
         drill_library = {
             "opening": [
-                "Play through 5 master games in your main opening "
-                "and note where development slows down.",
-                "After each opening move, ask whether every piece has a job"
-                "and every pawn move has a reason.",
+                "Play through 5 master games in your main opening " "and note where development slows down.",
+                "After each opening move, ask whether every piece has a job" "and every pawn move has a reason.",
             ],
             "middlegame": [
-                "For 10 tactical positions, "
-                "write down two candidate moves before looking at engine lines.",
+                "For 10 tactical positions, " "write down two candidate moves before looking at engine lines.",
                 "Review your last 5 middlegame inaccuracies and classify each "
                 "as tactical, positional, or time-related.",
             ],
             "endgame": [
-                "Practice 5 endgames where the plan is to trade into the simplest winning"
-                "conversion.",
-                "Before every endgame move, verify king activity, passed pawns, "
-                "and whether you can simplify.",
+                "Practice 5 endgames where the plan is to trade into the simplest winning" "conversion.",
+                "Before every endgame move, verify king activity, passed pawns, " "and whether you can simplify.",
             ],
             "time_pressure": [
                 "Use a fixed decision budget per move in practical games "
                 "and stop at the budget before overchecking.",
-                "Track where time is lost and compare it to the phase where "
-                "accuracy drops the most.",
+                "Track where time is lost and compare it to the phase where " "accuracy drops the most.",
             ],
             "blunder_check": [
                 "Run a 3-step pre-move check: opponent threats, forcing moves, your hanging pieces.",
@@ -407,13 +345,10 @@ class FeedbackGenerator:
             "Pause on every critical move and compare at least two candidate lines.",
         ]
         if time_status == "available" and time_pressure >= 20:
-            checklist.append(
-                "Set a time budget and keep one reserve minute for the final phase."
-            )
+            checklist.append("Set a time budget and keep one reserve minute for the final phase.")
         if phase_accuracy < 65:
             checklist.append(
-                f"Spend extra review time on {weakest_phase} positions "
-                "until accuracy reaches at least 70%."
+                f"Spend extra review time on {weakest_phase} positions " "until accuracy reaches at least 70%."
             )
 
         phase_risk_value = impact["phase_risk"].get(weakest_phase, 0.0)
@@ -433,11 +368,7 @@ class FeedbackGenerator:
             "weekly_target": weekly_target,
             "phase_motifs": motif_block,
             "impact_metrics": impact,
-            "data_confidence": (
-                "high"
-                if total_moves >= 30
-                else "medium" if total_moves >= 12 else "low"
-            ),
+            "data_confidence": ("high" if total_moves >= 30 else "medium" if total_moves >= 12 else "low"),
         }
 
     @classmethod
@@ -474,9 +405,7 @@ class FeedbackGenerator:
             # 1) {"overall": ..., "phases": ...}
             # 2) {"metrics": {"summary": {...}}}
             game_metrics = analysis_result
-            if isinstance(analysis_result, dict) and isinstance(
-                analysis_result.get("metrics"), dict
-            ):
+            if isinstance(analysis_result, dict) and isinstance(analysis_result.get("metrics"), dict):
                 summary = analysis_result["metrics"].get("summary")
                 if isinstance(summary, dict):
                     game_metrics = summary
@@ -500,25 +429,15 @@ class FeedbackGenerator:
                         ],
                         temperature=getattr(settings, "OPENAI_TEMPERATURE", 0.2),
                     )
-                    content = (
-                        response.choices[0].message.content
-                        if response and response.choices
-                        else ""
-                    )
+                    content = response.choices[0].message.content if response and response.choices else ""
                     parsed = self._parse_ai_response(content or "")
                     if parsed and isinstance(parsed.get("feedback"), dict):
                         ai_feedback = cast(Dict[str, Any], parsed["feedback"])
-                        ai_feedback["metrics"] = self._calculate_statistical_metrics(
-                            game_metrics
-                        )
+                        ai_feedback["metrics"] = self._calculate_statistical_metrics(game_metrics)
                         training_block = self._build_training_block(game_metrics)
                         ai_feedback.setdefault("training_block", training_block)
-                        ai_feedback.setdefault(
-                            "phase_motifs", training_block.get("phase_motifs", {})
-                        )
-                        ai_feedback.setdefault(
-                            "impact_metrics", training_block.get("impact_metrics", {})
-                        )
+                        ai_feedback.setdefault("phase_motifs", training_block.get("phase_motifs", {}))
+                        ai_feedback.setdefault("impact_metrics", training_block.get("impact_metrics", {}))
                         ai_feedback.setdefault("source", "openai")
                         return ai_feedback
 
@@ -532,31 +451,18 @@ class FeedbackGenerator:
             OpenAIError,
         ) as e:
             logger.error("Error generating feedback: %s", e)
-            return self._generate_statistical_feedback(
-                analysis_result if isinstance(analysis_result, dict) else {}
-            )
+            return self._generate_statistical_feedback(analysis_result if isinstance(analysis_result, dict) else {})
 
     def _analyze_phase(self, moves: List[Dict[str, Any]]) -> str:
         """Analyze a specific phase of the game."""
         if not moves:
             return "No moves in this phase"
 
-        good_moves = sum(
-            1
-            for m in moves
-            if self._normalized_classification(m) in ["good", "excellent"]
-        )
-        mistakes = sum(
-            1
-            for m in moves
-            if self._normalized_classification(m)
-            in ["mistake", "blunder", "inaccuracy"]
-        )
+        good_moves = sum(1 for m in moves if self._normalized_classification(m) in ["good", "excellent"])
+        mistakes = sum(1 for m in moves if self._normalized_classification(m) in ["mistake", "blunder", "inaccuracy"])
         accuracy = (good_moves / len(moves) * 100) if moves else 0.0
 
-        return (
-            f"Accuracy: {accuracy:.1f}%, Good moves: {good_moves}, Mistakes: {mistakes}"
-        )
+        return f"Accuracy: {accuracy:.1f}%, Good moves: {good_moves}, Mistakes: {mistakes}"
 
     def _calculate_consistency(self, moves: List[Dict[str, Any]]) -> float:
         """Calculate basic consistency score."""
@@ -662,9 +568,7 @@ class FeedbackGenerator:
                     "time_management": {
                         "time_pressure_moves": time_mgmt.get("time_pressure_moves", 0),
                         "average_time": time_mgmt.get("average_time", 0),
-                        "time_management_score": time_mgmt.get(
-                            "time_management_score", 0
-                        ),
+                        "time_management_score": time_mgmt.get("time_management_score", 0),
                     },
                     "tactics": {
                         "opportunities": tactics.get("opportunities", 0),
@@ -820,9 +724,7 @@ class FeedbackGenerator:
                 logger.warning("AI JSON response missing required feedback fields")
                 return None
             except json.JSONDecodeError:
-                logger.warning(
-                    "Response is not valid JSON, attempting to extract sections"
-                )
+                logger.warning("Response is not valid JSON, attempting to extract sections")
 
             # Fall back to section extraction for plain-text responses.
             sections = self._extract_sections(response)
@@ -837,23 +739,13 @@ class FeedbackGenerator:
                         "critical_moments": sections.get("critical_moments", []),
                         "improvement_areas": sections.get("improvement_areas", []),
                         "opening": {
-                            "analysis": (
-                                sections.get("opening", [""])[0]
-                                if sections.get("opening", [])
-                                else ""
-                            ),
+                            "analysis": (sections.get("opening", [""])[0] if sections.get("opening", []) else ""),
                             "suggestion": (
-                                sections.get("opening", ["", ""])[1]
-                                if len(sections.get("opening", [])) > 1
-                                else ""
+                                sections.get("opening", ["", ""])[1] if len(sections.get("opening", [])) > 1 else ""
                             ),
                         },
                         "middlegame": {
-                            "analysis": (
-                                sections.get("middlegame", [""])[0]
-                                if sections.get("middlegame", [])
-                                else ""
-                            ),
+                            "analysis": (sections.get("middlegame", [""])[0] if sections.get("middlegame", []) else ""),
                             "suggestion": (
                                 sections.get("middlegame", ["", ""])[1]
                                 if len(sections.get("middlegame", [])) > 1
@@ -861,15 +753,9 @@ class FeedbackGenerator:
                             ),
                         },
                         "endgame": {
-                            "analysis": (
-                                sections.get("endgame", [""])[0]
-                                if sections.get("endgame", [])
-                                else ""
-                            ),
+                            "analysis": (sections.get("endgame", [""])[0] if sections.get("endgame", []) else ""),
                             "suggestion": (
-                                sections.get("endgame", ["", ""])[1]
-                                if len(sections.get("endgame", [])) > 1
-                                else ""
+                                sections.get("endgame", ["", ""])[1] if len(sections.get("endgame", [])) > 1 else ""
                             ),
                         },
                     }
@@ -884,9 +770,7 @@ class FeedbackGenerator:
             logger.error("Error parsing AI response: %s", e)
             return None
 
-    def _generate_statistical_feedback(
-        self, game_metrics: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _generate_statistical_feedback(self, game_metrics: Dict[str, Any]) -> Dict[str, Any]:
         """Generate feedback based on statistical analysis when AI is unavailable."""
         try:
             if not isinstance(game_metrics, dict):
@@ -896,50 +780,27 @@ class FeedbackGenerator:
             normalized_metrics = game_metrics
             if "overall" not in normalized_metrics:
                 metrics_wrapper = (
-                    game_metrics.get("metrics", {})
-                    if isinstance(game_metrics.get("metrics"), dict)
-                    else {}
+                    game_metrics.get("metrics", {}) if isinstance(game_metrics.get("metrics"), dict) else {}
                 )
                 summary_wrapper = (
-                    metrics_wrapper.get("summary", {})
-                    if isinstance(metrics_wrapper.get("summary"), dict)
-                    else {}
+                    metrics_wrapper.get("summary", {}) if isinstance(metrics_wrapper.get("summary"), dict) else {}
                 )
                 if isinstance(summary_wrapper, dict) and "overall" in summary_wrapper:
                     normalized_metrics = summary_wrapper
 
-            moves = (
-                game_metrics.get("moves", [])
-                if isinstance(game_metrics.get("moves"), list)
-                else []
-            )
+            moves = game_metrics.get("moves", []) if isinstance(game_metrics.get("moves"), list) else []
             if "overall" not in normalized_metrics and moves:
                 total_moves = len(moves)
-                good_moves = sum(
-                    1
-                    for m in moves
-                    if self._normalized_classification(m) in {"good", "excellent"}
-                )
+                good_moves = sum(1 for m in moves if self._normalized_classification(m) in {"good", "excellent"})
                 mistakes = sum(
-                    1
-                    for m in moves
-                    if self._normalized_classification(m)
-                    in {"mistake", "blunder", "inaccuracy"}
+                    1 for m in moves if self._normalized_classification(m) in {"mistake", "blunder", "inaccuracy"}
                 )
                 normalized_metrics = {
                     "overall": {
                         "total_moves": total_moves,
-                        "accuracy": (
-                            (good_moves / total_moves * 100.0)
-                            if total_moves > 0
-                            else 0.0
-                        ),
+                        "accuracy": ((good_moves / total_moves * 100.0) if total_moves > 0 else 0.0),
                         "mistakes": mistakes,
-                        "blunders": sum(
-                            1
-                            for m in moves
-                            if self._normalized_classification(m) == "blunder"
-                        ),
+                        "blunders": sum(1 for m in moves if self._normalized_classification(m) == "blunder"),
                         "time_management_score": 0.0,
                     },
                     "phases": {},
@@ -1011,22 +872,10 @@ class FeedbackGenerator:
             feedback = {
                 "source": "statistical",
                 "data_status": "available",
-                "strengths": (
-                    strengths
-                    if strengths
-                    else ["Basic understanding of chess principles"]
-                ),
-                "weaknesses": (
-                    weaknesses
-                    if weaknesses
-                    else ["Areas for improvement not identified"]
-                ),
+                "strengths": (strengths if strengths else ["Basic understanding of chess principles"]),
+                "weaknesses": (weaknesses if weaknesses else ["Areas for improvement not identified"]),
                 "critical_moments": [],  # Statistical analysis doesn't identify specific moments
-                "improvement_areas": (
-                    improvement_areas
-                    if improvement_areas
-                    else ["General chess fundamentals"]
-                ),
+                "improvement_areas": (improvement_areas if improvement_areas else ["General chess fundamentals"]),
                 "opening": {
                     "analysis": f"Opening play shows {opening_accuracy}% accuracy",
                     "suggestion": (
@@ -1055,9 +904,7 @@ class FeedbackGenerator:
 
             # Add metrics in the wrapped shape the rest of the codebase expects.
             training_block = self._build_training_block(normalized_metrics)
-            feedback["metrics"] = self._calculate_statistical_metrics(
-                normalized_metrics
-            )
+            feedback["metrics"] = self._calculate_statistical_metrics(normalized_metrics)
             feedback["training_block"] = training_block
             feedback["phase_motifs"] = training_block.get("phase_motifs", {})
             feedback["impact_metrics"] = training_block.get("impact_metrics", {})
@@ -1097,14 +944,10 @@ class FeedbackGenerator:
                 },
                 "training_block": self._build_training_block({}),
                 "phase_motifs": self._build_training_block({}).get("phase_motifs", {}),
-                "impact_metrics": self._build_training_block({}).get(
-                    "impact_metrics", {}
-                ),
+                "impact_metrics": self._build_training_block({}).get("impact_metrics", {}),
             }
 
-    def _calculate_statistical_metrics(
-        self, game_metrics: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _calculate_statistical_metrics(self, game_metrics: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate statistical metrics from game data."""
         try:
             overall = game_metrics.get("overall", {})
@@ -1120,9 +963,7 @@ class FeedbackGenerator:
             logger.error("Error calculating statistical metrics: %s", e)
             return {}
 
-    def _generate_opening_feedback(
-        self, opening_metrics: Dict[str, Any]
-    ) -> Dict[str, str]:
+    def _generate_opening_feedback(self, opening_metrics: Dict[str, Any]) -> Dict[str, str]:
         """Generate feedback for the opening phase."""
         try:
             if not opening_metrics:
@@ -1152,9 +993,7 @@ class FeedbackGenerator:
                 "quality": "unknown",
             }
 
-    def _generate_middlegame_feedback(
-        self, middlegame_metrics: Dict[str, Any]
-    ) -> Dict[str, str]:
+    def _generate_middlegame_feedback(self, middlegame_metrics: Dict[str, Any]) -> Dict[str, str]:
         """Generate feedback for the middlegame phase."""
         try:
             if not middlegame_metrics:
@@ -1179,11 +1018,7 @@ class FeedbackGenerator:
                 feedback += f" Made {mistakes} mistakes in the middlegame phase."
 
             if tactical_opportunities > 0:
-                success_rate = (
-                    (tactical_success / tactical_opportunities * 100)
-                    if tactical_opportunities > 0
-                    else 0
-                )
+                success_rate = (tactical_success / tactical_opportunities * 100) if tactical_opportunities > 0 else 0
                 feedback += (
                     f" Found {tactical_success} out of {tactical_opportunities} "
                     f"tactical opportunities ({success_rate:.1f}%)."
@@ -1197,9 +1032,7 @@ class FeedbackGenerator:
                 "quality": "unknown",
             }
 
-    def _generate_endgame_feedback(
-        self, endgame_metrics: Dict[str, Any]
-    ) -> Dict[str, str]:
+    def _generate_endgame_feedback(self, endgame_metrics: Dict[str, Any]) -> Dict[str, str]:
         """Generate feedback for the endgame phase."""
         try:
             if not endgame_metrics:
@@ -1247,29 +1080,21 @@ class FeedbackGenerator:
             for phase_name, phase_data in phases.items():
                 phase_accuracy = phase_data.get("accuracy", 0)
                 if phase_accuracy > 75:
-                    strengths.append(
-                        f"Strong {phase_name} play ({phase_accuracy:.1f}% accuracy)"
-                    )
+                    strengths.append(f"Strong {phase_name} play ({phase_accuracy:.1f}% accuracy)")
 
             # Check tactical awareness
             tactical_success = tactics.get("success_rate", 0)
             if tactical_success > 70:
-                strengths.append(
-                    f"Good tactical awareness ({tactical_success:.1f}% success rate)"
-                )
+                strengths.append(f"Good tactical awareness ({tactical_success:.1f}% success rate)")
 
             # Check time management
             time_score = time_mgmt.get("time_management_score", 0)
             if time_score > 70:
-                strengths.append(
-                    f"Effective time management ({time_score:.1f}% efficiency)"
-                )
+                strengths.append(f"Effective time management ({time_score:.1f}% efficiency)")
 
             # If no strengths identified, add a generic one
             if not strengths and accuracy > 40:
-                strengths.append(
-                    f"Reasonable overall play with {accuracy:.1f}% accuracy"
-                )
+                strengths.append(f"Reasonable overall play with {accuracy:.1f}% accuracy")
 
             return strengths
         except (AttributeError, TypeError, ValueError) as e:
@@ -1288,9 +1113,7 @@ class FeedbackGenerator:
             # Check overall accuracy
             accuracy = overall.get("accuracy", 0)
             if accuracy < 50:
-                weaknesses.append(
-                    f"Inconsistent overall play ({accuracy:.1f}% accuracy)"
-                )
+                weaknesses.append(f"Inconsistent overall play ({accuracy:.1f}% accuracy)")
 
             # Check mistakes and blunders
             mistakes = overall.get("mistakes", 0)
@@ -1302,39 +1125,29 @@ class FeedbackGenerator:
             for phase_name, phase_data in phases.items():
                 phase_accuracy = phase_data.get("accuracy", 0)
                 if phase_accuracy < 50:
-                    weaknesses.append(
-                        f"Struggles in {phase_name} ({phase_accuracy:.1f}% accuracy)"
-                    )
+                    weaknesses.append(f"Struggles in {phase_name} ({phase_accuracy:.1f}% accuracy)")
 
             # Check tactical awareness
             tactical_success = tactics.get("success_rate", 0)
             tactical_opportunities = tactics.get("opportunities", 0)
             if tactical_success < 40 and tactical_opportunities > 2:
-                weaknesses.append(
-                    f"Missed tactical opportunities ({tactical_success:.1f}% success rate)"
-                )
+                weaknesses.append(f"Missed tactical opportunities ({tactical_success:.1f}% success rate)")
 
             # Check time management
             time_score = time_mgmt.get("time_management_score", 0)
             if time_score < 40:
-                weaknesses.append(
-                    f"Poor time management ({time_score:.1f}% efficiency)"
-                )
+                weaknesses.append(f"Poor time management ({time_score:.1f}% efficiency)")
 
             # If no weaknesses identified, add a generic one
             if not weaknesses and accuracy < 80:
-                weaknesses.append(
-                    f"Could improve overall accuracy (currently {accuracy:.1f}%)"
-                )
+                weaknesses.append(f"Could improve overall accuracy (currently {accuracy:.1f}%)")
 
             return weaknesses
         except (AttributeError, TypeError, ValueError) as e:
             logger.error("Error identifying weaknesses: %s", e)
             return ["Unable to determine weaknesses"]
 
-    def _find_critical_moments(
-        self, moves: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    def _find_critical_moments(self, moves: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Find critical moments in the game."""
         try:
             critical_moments: List[Dict[str, Any]] = []
@@ -1384,9 +1197,7 @@ class FeedbackGenerator:
             logger.error("Error finding critical moments: %s", e)
             return []
 
-    def _generate_improvement_areas(
-        self, metrics: Dict[str, Any], _weaknesses: List[str]
-    ) -> List[str]:
+    def _generate_improvement_areas(self, metrics: Dict[str, Any], _weaknesses: List[str]) -> List[str]:
         """Generate suggested improvement areas based on metrics and identified weaknesses."""
         try:
             improvement_areas = []
@@ -1405,35 +1216,25 @@ class FeedbackGenerator:
 
             # Add phase-specific improvement suggestion
             if weakest_phase and lowest_accuracy < 70:
-                improvement_areas.append(
-                    f"Study {weakest_phase} positions and principles"
-                )
+                improvement_areas.append(f"Study {weakest_phase} positions and principles")
 
             # Look at overall metrics
             mistakes = overall.get("mistakes", 0)
             blunders = overall.get("blunders", 0)
 
             if blunders > 2:
-                improvement_areas.append(
-                    "Practice calculation and double-check moves before playing them"
-                )
+                improvement_areas.append("Practice calculation and double-check moves before playing them")
 
             if mistakes > 3:
-                improvement_areas.append(
-                    "Practice tactical exercises to improve pattern recognition"
-                )
+                improvement_areas.append("Practice tactical exercises to improve pattern recognition")
 
             # Add general improvement areas
             if not improvement_areas:
                 accuracy = overall.get("accuracy", 0)
                 if accuracy < 90:
-                    improvement_areas.append(
-                        "Continue practicing tactics and game analysis"
-                    )
+                    improvement_areas.append("Continue practicing tactics and game analysis")
                 if accuracy < 70:
-                    improvement_areas.append(
-                        "Study basic chess principles and common patterns"
-                    )
+                    improvement_areas.append("Study basic chess principles and common patterns")
 
             return improvement_areas
         except (AttributeError, TypeError, ValueError) as e:

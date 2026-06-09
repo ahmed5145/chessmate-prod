@@ -19,9 +19,7 @@ class TestGameAnalyzer:
     def setup_method(self):
         """Set up test data before each test method."""
         # Create test user and game
-        self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="testpassword123"
-        )
+        self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpassword123")
         self.game = Game.objects.create(
             user=self.user,
             platform="chess.com",
@@ -68,9 +66,7 @@ class TestGameAnalyzer:
         mock_settings.STOCKFISH_PATH = "/path/to/stockfish"
 
         # Call the method
-        task = self.analyzer.analyze_game_async(
-            game_id=self.game.id, user_id=self.user.id, use_ai=True
-        )
+        task = self.analyzer.analyze_game_async(game_id=self.game.id, user_id=self.user.id, use_ai=True)
 
         # Check that the Celery task was called with the correct arguments
         self.mock_analyze_task.delay.assert_called_once()
@@ -133,9 +129,7 @@ class TestGameAnalyzer:
 
         # Call the method with both game IDs
         game_ids = [self.game.id, game2.id]
-        task = self.analyzer.batch_analyze_games_async(
-            game_ids=game_ids, user_id=self.user.id, use_ai=True
-        )
+        task = self.analyzer.batch_analyze_games_async(game_ids=game_ids, user_id=self.user.id, use_ai=True)
 
         # Check that the Celery task was called with the correct arguments
         self.mock_batch_analyze_task.delay.assert_called_once()
@@ -194,9 +188,7 @@ class TestGameAnalyzer:
         """Test batch analyzing with non-existent game IDs."""
         # Call the method with non-existent game IDs
         with pytest.raises(Exception):
-            self.analyzer.batch_analyze_games_async(
-                game_ids=[999999, 888888], user_id=self.user.id
-            )
+            self.analyzer.batch_analyze_games_async(game_ids=[999999, 888888], user_id=self.user.id)
 
     @patch("core.game_analyzer.settings")
     def test_analyze_game_async_with_openai_integration(self, mock_settings):
@@ -217,9 +209,7 @@ class TestGameAnalyzer:
             analyzer = GameAnalyzer()
 
             # Call the method
-            task = analyzer.analyze_game_async(
-                game_id=self.game.id, user_id=self.user.id, use_ai=True
-            )
+            task = analyzer.analyze_game_async(game_id=self.game.id, user_id=self.user.id, use_ai=True)
 
             # Check that OpenAI was initialized
             mock_openai_class.assert_called_once()

@@ -4,9 +4,7 @@ import os
 import sys
 
 # Add the parent directory to the path so we can import our modules
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from core.utils import is_valid_move
 

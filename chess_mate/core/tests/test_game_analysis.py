@@ -26,9 +26,7 @@ def api_client():
 def user():
     with transaction.atomic():
         username = f"testuser_{uuid.uuid4().hex[:8]}"
-        user = User.objects.create_user(
-            username=username, password="testpass123", email=f"{username}@test.com"
-        )
+        user = User.objects.create_user(username=username, password="testpass123", email=f"{username}@test.com")
         ensure_profile(user, credits=10)
         return user
 
@@ -68,9 +66,7 @@ def mock_stockfish_engine():
 @pytest.fixture(scope="function")
 def game_analyzer(mock_stockfish_engine):
     """Create a GameAnalyzer with a mock Stockfish engine."""
-    with patch(
-        "chess.engine.SimpleEngine.popen_uci", return_value=mock_stockfish_engine
-    ):
+    with patch("chess.engine.SimpleEngine.popen_uci", return_value=mock_stockfish_engine):
         analyzer = GameAnalyzer(stockfish_path="/mock/path/to/stockfish")
         yield analyzer
         try:
@@ -143,9 +139,7 @@ class TestGameAnalysis:
         mock_task.id = "mock-task-id"
 
         with patch("core.tasks.analyze_game_task.delay", return_value=mock_task):
-            response = api_client.post(
-                url, {"depth": 20, "use_ai": True}, format="json"
-            )
+            response = api_client.post(url, {"depth": 20, "use_ai": True}, format="json")
 
         assert response.status_code in (status.HTTP_200_OK, status.HTTP_202_ACCEPTED)
         assert isinstance(response.data, dict)
@@ -169,9 +163,7 @@ class TestGameAnalysis:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @override_settings(SINGLE_GAME_FIRST_FREE=False)
-    def test_analyze_game_view_insufficient_credits(
-        self, api_client, user, game, mock_stockfish_engine
-    ):
+    def test_analyze_game_view_insufficient_credits(self, api_client, user, game, mock_stockfish_engine):
         with transaction.atomic():
             profile = Profile.objects.get(user=user)
             profile.credits = 0
@@ -204,9 +196,7 @@ class TestGameAnalysis:
         mock_task.id = "mock-batch-task-id"
 
         with patch("core.tasks.analyze_batch_games_task.delay", return_value=mock_task):
-            response = api_client.post(
-                url, {"game_ids": [game.id], "depth": 20, "use_ai": True}, format="json"
-            )
+            response = api_client.post(url, {"game_ids": [game.id], "depth": 20, "use_ai": True}, format="json")
 
         assert response.status_code == status.HTTP_202_ACCEPTED
         assert isinstance(response.data, dict)
@@ -224,9 +214,7 @@ class TestGameAnalysis:
         assert game_analyzer is not None
         assert game_analyzer.engine is not None
 
-    def test_game_analyzer_feedback_generation(
-        self, game_analyzer, game, mock_analysis_results
-    ):
+    def test_game_analyzer_feedback_generation(self, game_analyzer, game, mock_analysis_results):
         analysis_results = {game.id: mock_analysis_results}
         feedback = game_analyzer.generate_feedback(analysis_results[game.id])
 
@@ -245,9 +233,7 @@ class TestGameAnalysis:
             game_analyzer.analyze_games([])
 
         # Test with invalid PGN
-        test_user = User.objects.create_user(
-            username=f"testuser_{uuid.uuid4().hex[:8]}"
-        )
+        test_user = User.objects.create_user(username=f"testuser_{uuid.uuid4().hex[:8]}")
         invalid_game = Game.objects.create(
             user=test_user,
             platform="chess.com",

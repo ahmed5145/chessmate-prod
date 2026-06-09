@@ -112,9 +112,7 @@ class TestAggregateAndReportTask(TestCase):
                 mock_agg.return_value = {"games_analyzed": 5}
                 mock_coach.return_value = {"executive_summary": "Good"}
 
-                result = aggregate_and_report_task(
-                    task_results, batch_id, game_pgn_list, user_id
-                )
+                result = aggregate_and_report_task(task_results, batch_id, game_pgn_list, user_id)
 
                 # Verify coaching was called once
                 assert mock_coach.call_count == 1
@@ -161,9 +159,7 @@ class TestAggregateAndReportTask(TestCase):
                 mock_agg.return_value = {"games_analyzed": 7}
                 mock_coach.return_value = {"executive_summary": "Good"}
 
-                result = aggregate_and_report_task(
-                    task_results, batch_id, game_pgn_list, user_id
-                )
+                result = aggregate_and_report_task(task_results, batch_id, game_pgn_list, user_id)
 
                 # Verify status is partial
                 assert result["status"] == "partial"
@@ -205,9 +201,7 @@ class TestAggregateAndReportTask(TestCase):
 
         with patch("core.tasks.aggregate_batch") as mock_agg:
             with patch("core.tasks.generate_coaching_report") as mock_coach:
-                result = aggregate_and_report_task(
-                    task_results, batch_id, game_pgn_list, user_id
-                )
+                result = aggregate_and_report_task(task_results, batch_id, game_pgn_list, user_id)
 
                 # Verify status is failed
                 assert result["status"] == "failed"
@@ -254,9 +248,7 @@ class TestAggregateAndReportTask(TestCase):
                 mock_agg.return_value = {"games_analyzed": 5, "overall_accuracy": 0.85}
                 mock_coach.side_effect = CoachingGeneratorError("OpenAI API timeout")
 
-                result = aggregate_and_report_task(
-                    task_results, batch_id, game_pgn_list, user_id
-                )
+                result = aggregate_and_report_task(task_results, batch_id, game_pgn_list, user_id)
 
                 assert result["status"] == "partial"
                 assert result["batch_id"] == batch_id

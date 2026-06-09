@@ -257,9 +257,7 @@ class BatchAnalysisReportAdmin(admin.ModelAdmin):
             text = f"{text[:500]}…"
         return text
 
-    @admin.action(
-        description="Re-run Stockfish analysis (classification fixes, no credits)"
-    )
+    @admin.action(description="Re-run Stockfish analysis (classification fixes, no credits)")
     def rerun_stockfish_analysis(self, request, queryset):
         ok_count = 0
         for batch_report in queryset:

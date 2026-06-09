@@ -170,9 +170,7 @@ def create_error_response(
     return APIJsonResponse(response_data, status=status_code)
 
 
-def handle_view_exception(
-    exc: Exception, request_id: Optional[str] = None
-) -> JsonResponse:
+def handle_view_exception(exc: Exception, request_id: Optional[str] = None) -> JsonResponse:
     """
     Handle exceptions raised in view functions.
 
@@ -262,13 +260,9 @@ def api_error_handler(view_func: Callable) -> Callable:
         try:
             response = view_func(request, *args, **kwargs)
             # Convert DRF Response to JsonResponse if needed
-            if isinstance(response, Response) and not isinstance(
-                response, JsonResponse
-            ):
+            if isinstance(response, Response) and not isinstance(response, JsonResponse):
                 # Convert DRF Response to JsonResponse
-                json_response = APIJsonResponse(
-                    response.data, status=response.status_code
-                )
+                json_response = APIJsonResponse(response.data, status=response.status_code)
                 return json_response
             return response
         except HANDLED_EXCEPTION_TYPES as exc:
@@ -277,9 +271,7 @@ def api_error_handler(view_func: Callable) -> Callable:
     return wrapper
 
 
-def handle_api_error(
-    exc: Exception, request_id: Optional[str] = None
-) -> Dict[str, Any]:
+def handle_api_error(exc: Exception, request_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Handle API exceptions and return a standardized error response dictionary.
 
@@ -328,9 +320,7 @@ def handle_api_error(
         # Use generic message in production for security
         if settings.DEBUG:
             message = str(exc)
-            details = str(
-                traceback.format_exc()
-            )  # Convert to string instead of keeping as object
+            details = str(traceback.format_exc())  # Convert to string instead of keeping as object
         else:
             message = "An unexpected error occurred"
             details = None
@@ -383,9 +373,7 @@ def exception_handler(exc: Exception, context: Dict[str, Any]) -> JsonResponse:
                 if "detail" in response.data:
                     message = str(response.data["detail"])
                     # Extract all fields except 'detail' as additional details
-                    other_fields = {
-                        k: v for k, v in response.data.items() if k != "detail"
-                    }
+                    other_fields = {k: v for k, v in response.data.items() if k != "detail"}
                     details = other_fields if other_fields else None
                 else:
                     message = "Validation error"
@@ -427,9 +415,7 @@ class BaseError(APIException):
     default_detail = "An error occurred"
     error_type = "internal_error"
 
-    def __init__(
-        self, detail: Optional[str] = None, details: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, detail: Optional[str] = None, details: Optional[Dict[str, Any]] = None):
         """
         Initialize the exception.
 
@@ -724,9 +710,7 @@ def handle_throttled_error(wait_time=None, scope=None):
     if wait_time:
         headers["Retry-After"] = str(int(wait_time))
 
-    return Response(
-        error_data, status=status.HTTP_429_TOO_MANY_REQUESTS, headers=headers
-    )
+    return Response(error_data, status=status.HTTP_429_TOO_MANY_REQUESTS, headers=headers)
 
 
 # Add this decorator for standardized auth error handling

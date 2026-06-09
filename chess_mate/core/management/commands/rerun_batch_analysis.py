@@ -11,9 +11,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         group = parser.add_mutually_exclusive_group(required=True)
-        group.add_argument(
-            "--id", type=int, dest="batch_id", help="BatchAnalysisReport primary key"
-        )
+        group.add_argument("--id", type=int, dest="batch_id", help="BatchAnalysisReport primary key")
         group.add_argument(
             "--all-completed",
             action="store_true",
@@ -49,18 +47,14 @@ class Command(BaseCommand):
         self._rerun_one(report, options)
 
     def _rerun_all(self, options):
-        qs = BatchAnalysisReport.objects.filter(
-            status__in=["completed", "partial"]
-        ).order_by("-created_at")
+        qs = BatchAnalysisReport.objects.filter(status__in=["completed", "partial"]).order_by("-created_at")
         limit = int(options.get("limit") or 0)
         if limit > 0:
             qs = qs[:limit]
         reports = list(qs)
 
         if not reports:
-            self.stdout.write(
-                self.style.WARNING("No completed/partial batches to rerun.")
-            )
+            self.stdout.write(self.style.WARNING("No completed/partial batches to rerun."))
             return
 
         self.stdout.write(f"Found {len(reports)} batch(es) to rerun.")
@@ -82,9 +76,7 @@ class Command(BaseCommand):
             except BatchRerunError as exc:
                 self.stdout.write(self.style.ERROR(f"Batch {report.pk}: {exc}"))
 
-        self.stdout.write(
-            self.style.SUCCESS(f"Queued or ran {ok}/{len(reports)} batch(es).")
-        )
+        self.stdout.write(self.style.SUCCESS(f"Queued or ran {ok}/{len(reports)} batch(es)."))
 
     def _rerun_one(self, report: BatchAnalysisReport, options):
         if options.get("dry_run"):

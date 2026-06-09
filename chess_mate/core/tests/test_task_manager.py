@@ -174,9 +174,7 @@ class TestTaskManager:
         task_id = self.task_manager.create_task(game_id=123)
 
         # Update task status
-        self.task_manager.update_task_status(
-            task_id=task_id, status=TaskManager.STATUS_RUNNING
-        )
+        self.task_manager.update_task_status(task_id=task_id, status=TaskManager.STATUS_RUNNING)
 
         # Get the updated task
         task = self.task_manager.get_task(task_id)
@@ -191,9 +189,7 @@ class TestTaskManager:
         task_id = self.task_manager.create_task(game_id=game_id)
 
         # Update task status using game_id
-        self.task_manager.update_task_status(
-            game_id=game_id, status=TaskManager.STATUS_COMPLETED, result={"score": 95}
-        )
+        self.task_manager.update_task_status(game_id=game_id, status=TaskManager.STATUS_COMPLETED, result={"score": 95})
 
         # Get the updated task
         task = self.task_manager.get_task(task_id)
@@ -224,9 +220,7 @@ class TestTaskManager:
     def test_update_nonexistent_task(self):
         """Test updating a non-existent task."""
         with pytest.raises(ResourceNotFoundError):
-            self.task_manager.update_task_status(
-                task_id="nonexistent_task_id", status=TaskManager.STATUS_RUNNING
-            )
+            self.task_manager.update_task_status(task_id="nonexistent_task_id", status=TaskManager.STATUS_RUNNING)
 
     def test_update_task_without_id_or_game_id(self):
         """Test updating a task without providing task_id or game_id."""
@@ -260,9 +254,7 @@ class TestTaskManager:
         task_id = "test_task_1"
         task_type = TaskManager.TYPE_ANALYSIS
 
-        self.task_manager.register_task(
-            game_id=game_id, task_id=task_id, task_type=task_type, user_id=user_id
-        )
+        self.task_manager.register_task(game_id=game_id, task_id=task_id, task_type=task_type, user_id=user_id)
 
         # Verify game to task mapping
         game_key = f"{TaskManager.GAME_TASK_KEY_PREFIX}{game_id}"
@@ -279,9 +271,7 @@ class TestTaskManager:
         task_id = "test_task_2"
         task_type = TaskManager.TYPE_ANALYSIS
 
-        self.task_manager.register_task(
-            game_id=game_id, task_id=task_id, task_type=task_type
-        )
+        self.task_manager.register_task(game_id=game_id, task_id=task_id, task_type=task_type)
 
         # Verify game to task mapping
         game_key = f"{TaskManager.GAME_TASK_KEY_PREFIX}{game_id}"
@@ -294,9 +284,7 @@ class TestTaskManager:
         user_id = 456
         task_id = "batch_task_1"
 
-        self.task_manager.register_batch_task(
-            task_id=task_id, game_ids=game_ids, user_id=user_id
-        )
+        self.task_manager.register_batch_task(task_id=task_id, game_ids=game_ids, user_id=user_id)
 
         # Verify batch task data
         batch_key = f"{TaskManager.BATCH_KEY_PREFIX}{task_id}"

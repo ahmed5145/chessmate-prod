@@ -92,14 +92,10 @@ class TestCacheModule:
 
         assert get_redis_connection() == mock_redis
 
-    @pytest.mark.parametrize(
-        "cache_attr,expected", [("client", True), ("_client", True), (None, False)]
-    )
+    @pytest.mark.parametrize("cache_attr,expected", [("client", True), ("_client", True), (None, False)])
     @override_settings(USE_REDIS=True)
     @patch("core.cache.get_cache_instance")
-    def test_get_redis_connection_different_attrs(
-        self, mock_get_cache, cache_attr, expected
-    ):
+    def test_get_redis_connection_different_attrs(self, mock_get_cache, cache_attr, expected):
         """Test Redis connection with different client attribute names"""
         mock_redis = MagicMock()
         mock_cache = MagicMock()

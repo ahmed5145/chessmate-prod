@@ -24,9 +24,7 @@ def api_client():
 
 @pytest.fixture
 def test_user():
-    user = User.objects.create_user(
-        username="testuser", email="test@example.com", password="testpassword123"
-    )
+    user = User.objects.create_user(username="testuser", email="test@example.com", password="testpassword123")
     ensure_profile(user, email_verified=True, credits=10)
     return user
 
@@ -68,9 +66,7 @@ class TestGameViews:
         assert response.data[0]["black"] == "opponent"
 
     @patch("core.chess_services.ChessComService.fetch_games")
-    def test_fetch_games_chess_com(
-        self, mock_fetch_games, authenticated_client, test_user
-    ):
+    def test_fetch_games_chess_com(self, mock_fetch_games, authenticated_client, test_user):
         mock_fetch_games.return_value = {
             "saved": 2,
             "games": [{"game_id": "1"}, {"game_id": "2"}],
@@ -100,9 +96,7 @@ class TestGameViews:
         assert profile.credits == 8  # Started with 10, imported 2 games
 
     @patch("core.chess_services.LichessService.fetch_games")
-    def test_fetch_games_lichess(
-        self, mock_fetch_games, authenticated_client, test_user
-    ):
+    def test_fetch_games_lichess(self, mock_fetch_games, authenticated_client, test_user):
         mock_fetch_games.return_value = {
             "games_saved": 1,
             "games_skipped": 0,
@@ -132,9 +126,7 @@ class TestGameViews:
         assert profile.credits == 9  # Started with 10, imported 1 game
 
     @override_settings(SINGLE_GAME_FIRST_FREE=False)
-    def test_analyze_game_returns_cached_when_complete(
-        self, authenticated_client, test_user, test_game
-    ):
+    def test_analyze_game_returns_cached_when_complete(self, authenticated_client, test_user, test_game):
         test_game.analysis_status = "analyzed"
         test_game.save()
         GameAnalysis.objects.create(
@@ -180,9 +172,7 @@ class TestGameViews:
                     "get_active_tasks_for_game",
                     return_value=[],
                 ):
-                    with patch.object(
-                        game_views.task_manager, "register_task"
-                    ) as mock_register:
+                    with patch.object(game_views.task_manager, "register_task") as mock_register:
                         url = reverse("analyze_game", kwargs={"game_id": test_game.id})
                         response = authenticated_client.post(url)
 
@@ -202,9 +192,7 @@ class TestGameViews:
                         test_game.refresh_from_db()
                         assert test_game.analysis_status == "analyzing"
 
-    def test_analyze_game_passes_named_delay_kwargs(
-        self, authenticated_client, test_user, test_game
-    ):
+    def test_analyze_game_passes_named_delay_kwargs(self, authenticated_client, test_user, test_game):
         test_game.analysis_status = "not_analyzed"
         test_game.save()
 
@@ -222,9 +210,7 @@ class TestGameViews:
                 ):
                     with patch.object(game_views.task_manager, "register_task"):
                         url = reverse("analyze_game", kwargs={"game_id": test_game.id})
-                        response = authenticated_client.post(
-                            url, {"depth": 26, "use_ai": False}, format="json"
-                        )
+                        response = authenticated_client.post(url, {"depth": 26, "use_ai": False}, format="json")
 
                         assert response.status_code == status.HTTP_202_ACCEPTED
                         mock_task.assert_called_once()
@@ -233,9 +219,7 @@ class TestGameViews:
                         assert mock_task.call_args.kwargs["depth"] == 26
                         assert mock_task.call_args.kwargs["use_ai"] is False
 
-    def test_analyze_game_deduplicates_active_task(
-        self, authenticated_client, test_user, test_game
-    ):
+    def test_analyze_game_deduplicates_active_task(self, authenticated_client, test_user, test_game):
         test_game.analysis_status = "not_analyzed"
         test_game.save()
 
@@ -249,9 +233,7 @@ class TestGameViews:
                     "get_active_tasks_for_game",
                     return_value=["existing-task-id"],
                 ):
-                    with patch.object(
-                        game_views.task_manager, "register_task"
-                    ) as mock_register:
+                    with patch.object(game_views.task_manager, "register_task") as mock_register:
                         url = reverse("analyze_game", kwargs={"game_id": test_game.id})
                         response = authenticated_client.post(url)
 
@@ -267,16 +249,12 @@ class TestGameViews:
                         test_game.refresh_from_db()
                         assert test_game.analysis_status == "not_analyzed"
 
-    def test_analyze_game_dedup_survives_manager_lookup_error(
-        self, authenticated_client, test_user, test_game
-    ):
+    def test_analyze_game_dedup_survives_manager_lookup_error(self, authenticated_client, test_user, test_game):
         test_game.analysis_status = "not_analyzed"
         test_game.save()
 
         failing_manager = MagicMock()
-        failing_manager.get_active_tasks_for_game.side_effect = RuntimeError(
-            "cache temporary failure"
-        )
+        failing_manager.get_active_tasks_for_game.side_effect = RuntimeError("cache temporary failure")
         healthy_manager = MagicMock()
         healthy_manager.get_active_tasks_for_game.return_value = ["existing-task-id"]
 
@@ -296,9 +274,7 @@ class TestGameViews:
                 healthy_manager.register_task.assert_not_called()
 
     @override_settings(SINGLE_GAME_FIRST_FREE=False)
-    def test_analyze_game_rapid_repeat_returns_already_running(
-        self, authenticated_client, test_user, test_game
-    ):
+    def test_analyze_game_rapid_repeat_returns_already_running(self, authenticated_client, test_user, test_game):
         test_game.analysis_status = "not_analyzed"
         test_game.save()
 
@@ -314,9 +290,7 @@ class TestGameViews:
                     "get_active_tasks_for_game",
                     side_effect=[[], ["first-task-id"]],
                 ):
-                    with patch.object(
-                        game_views.task_manager, "register_task"
-                    ) as mock_register:
+                    with patch.object(game_views.task_manager, "register_task") as mock_register:
                         url = reverse("analyze_game", kwargs={"game_id": test_game.id})
 
                         first_response = authenticated_client.post(url)
@@ -368,9 +342,7 @@ class TestGameViews:
         lock.acquire.assert_called_once_with(blocking=True)
         lock.release.assert_called_once()
 
-    def test_enqueue_analysis_task_releases_lock_for_already_running(
-        self, test_user, test_game
-    ):
+    def test_enqueue_analysis_task_releases_lock_for_already_running(self, test_user, test_game):
         lock = MagicMock()
         lock.acquire.return_value = True
 
@@ -412,16 +384,9 @@ class TestGameViews:
 
         assert response.status_code == status.HTTP_200_OK
         assert "analysis_data" in response.data
-        assert (
-            response.data["analysis_data"]["analysis_results"]["summary"][
-                "user_accuracy"
-            ]
-            == 85.5
-        )
+        assert response.data["analysis_data"]["analysis_results"]["summary"]["user_accuracy"] == 85.5
 
-    def test_get_game_analysis_includes_batch_context(
-        self, authenticated_client, test_user, test_game
-    ):
+    def test_get_game_analysis_includes_batch_context(self, authenticated_client, test_user, test_game):
         report = BatchAnalysisReport.objects.create(
             user=test_user,
             task_id="batch_get_ctx",
@@ -458,9 +423,7 @@ class TestGameViews:
         )
 
         url = reverse("get_game_analysis", kwargs={"game_id": test_game.id})
-        response = authenticated_client.get(
-            f"{url}?batch={report.id}&move=12&priority=1"
-        )
+        response = authenticated_client.get(f"{url}?batch={report.id}&move=12&priority=1")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["batch_context"]["batch_id"] == report.id
@@ -472,9 +435,7 @@ class TestGameViews:
         task_id = "mock-task-id"
         game_id = 123
 
-        with patch.object(
-            game_views.task_manager, "get_task_info"
-        ) as mock_get_task_info:
+        with patch.object(game_views.task_manager, "get_task_info") as mock_get_task_info:
             mock_get_task_info.return_value = {
                 "user_id": test_user.id,
                 "game_id": game_id,
@@ -517,9 +478,7 @@ class TestGameViews:
         with patch("core.tasks.analyze_batch_games_task.delay") as mock_task:
             mock_task.return_value = MagicMock(id="mock-batch-task-id")
 
-            with patch.object(
-                game_views.task_manager, "register_batch_task"
-            ) as mock_register:
+            with patch.object(game_views.task_manager, "register_batch_task") as mock_register:
                 url = reverse("batch_analyze")
                 data = {"game_ids": [game1.id, game2.id]}
 
@@ -530,9 +489,7 @@ class TestGameViews:
                 assert sorted(mock_task.call_args[0][0]) == sorted([game1.id, game2.id])
                 assert mock_register.called
                 assert mock_register.call_args[0][0] == "mock-batch-task-id"
-                assert sorted(mock_register.call_args[0][1]) == sorted(
-                    [game1.id, game2.id]
-                )
+                assert sorted(mock_register.call_args[0][1]) == sorted([game1.id, game2.id])
                 assert mock_register.call_args[0][2] == test_user.id
 
                 # Check if credits were deducted (2 games = 2 credits)
@@ -545,9 +502,7 @@ class TestGameViews:
                 assert game1.analysis_status == "analyzing"
                 assert game2.analysis_status == "analyzing"
 
-    def test_batch_analyze_returns_json_error_when_enqueue_fails(
-        self, authenticated_client, test_user
-    ):
+    def test_batch_analyze_returns_json_error_when_enqueue_fails(self, authenticated_client, test_user):
         game = Game.objects.create(
             user=test_user,
             platform="chess.com",
@@ -562,9 +517,7 @@ class TestGameViews:
             side_effect=Exception("broker unavailable"),
         ):
             url = reverse("batch_analyze")
-            response = authenticated_client.post(
-                url, {"game_ids": [game.id]}, format="json"
-            )
+            response = authenticated_client.post(url, {"game_ids": [game.id]}, format="json")
 
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "error" in response.data
@@ -575,9 +528,7 @@ class TestGameViews:
         task_id = "mock-batch-task-id"
         game_ids = [101, 102]
 
-        with patch.object(
-            game_views.task_manager, "get_task_info"
-        ) as mock_get_task_info:
+        with patch.object(game_views.task_manager, "get_task_info") as mock_get_task_info:
             mock_get_task_info.return_value = {
                 "user_id": test_user.id,
                 "game_ids": game_ids,
@@ -589,9 +540,7 @@ class TestGameViews:
                 mock_result.state = "PROGRESS"
                 mock_async_result.return_value = mock_result
 
-                url = reverse(
-                    "check_batch_analysis_status", kwargs={"task_id": task_id}
-                )
+                url = reverse("check_batch_analysis_status", kwargs={"task_id": task_id})
                 response = authenticated_client.get(url)
 
                 assert response.status_code == status.HTTP_200_OK
@@ -628,10 +577,7 @@ class TestGameViews:
             assert response.status_code == status.HTTP_201_CREATED
             assert mock_generate.called
             assert "feedback" in response.data
-            assert (
-                response.data["feedback"]["content"]
-                == "This is AI feedback for your game."
-            )
+            assert response.data["feedback"]["content"] == "This is AI feedback for your game."
 
             # Check if credits were deducted (feedback costs 25)
             profile = Profile.objects.get(user=test_user)
@@ -640,7 +586,4 @@ class TestGameViews:
             # Check if feedback was saved to the game
             test_game.refresh_from_db()
             assert "feedback" in test_game.analysis
-            assert (
-                test_game.analysis["feedback"]["content"]
-                == "This is AI feedback for your game."
-            )
+            assert test_game.analysis["feedback"]["content"] == "This is AI feedback for your game."

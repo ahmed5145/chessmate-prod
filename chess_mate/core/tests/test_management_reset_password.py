@@ -22,9 +22,7 @@ def test_reset_user_password_by_user_id():
     User = get_user_model()
     user = User.objects.create_user(username="admin1", email="a@b.com", password="old")
 
-    call_command(
-        "reset_user_password", "", "newpass123", user_id=user.id, superuser=True
-    )
+    call_command("reset_user_password", "", "newpass123", user_id=user.id, superuser=True)
 
     user.refresh_from_db()
     assert user.is_superuser is True

@@ -36,9 +36,7 @@ class TestBatchCreateSerializer(TestCase):
             serializer = BatchCreateSerializer(data={"games": pgn_data})
 
             assert not serializer.is_valid()
-            assert "Batch Coach requires at least 5 games to detect patterns." in str(
-                serializer.errors
-            )
+            assert "Batch Coach requires at least 5 games to detect patterns." in str(serializer.errors)
 
     def test_rejects_more_than_30_games(self):
         """Batch with > 30 games rejected with specific message."""
@@ -50,9 +48,7 @@ class TestBatchCreateSerializer(TestCase):
             serializer = BatchCreateSerializer(data={"games": pgn_data})
 
             assert not serializer.is_valid()
-            assert "Batch Coach supports a maximum of 30 games." in str(
-                serializer.errors
-            )
+            assert "Batch Coach supports a maximum of 30 games." in str(serializer.errors)
 
     def test_rejects_invalid_pgn_with_index(self):
         """Invalid PGN rejected with index information."""

@@ -18,9 +18,7 @@ DEFAULT_USE_AI = True
 TASK_START_EXCEPTIONS = (ValueError, TypeError, RuntimeError, OSError)
 
 
-def analyze_game_safely(
-    game_id, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use_ai=DEFAULT_USE_AI
-):
+def analyze_game_safely(game_id, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use_ai=DEFAULT_USE_AI):
     """
     A safer version of game analysis that doesn't rely on existing GameAnalysis table.
 
@@ -61,9 +59,7 @@ def analyze_game_safely(
         lock = None
         lock_acquired = False
         if task_manager.redis_client is not None:
-            lock = task_manager.redis_client.lock(
-                f"analysis_lock:game:{game_id}", timeout=15, blocking_timeout=3
-            )
+            lock = task_manager.redis_client.lock(f"analysis_lock:game:{game_id}", timeout=15, blocking_timeout=3)
 
         try:
             if lock is not None:
@@ -73,9 +69,7 @@ def analyze_game_safely(
             active_tasks = task_manager.get_active_tasks_for_game(game_id)
             if active_tasks:
                 existing_task_id = active_tasks[0]
-                logger.warning(
-                    "Found existing task %s for game %s", existing_task_id, game_id
-                )
+                logger.warning("Found existing task %s for game %s", existing_task_id, game_id)
                 return {
                     "status": "already_running",
                     "message": "Analysis already in progress",
@@ -125,9 +119,7 @@ def analyze_game_safely(
             "timestamp": timezone.now().isoformat(),
         }
     except TASK_START_EXCEPTIONS as err:
-        logger.error(
-            "Error starting analysis for game %s: %s", game_id, err, exc_info=True
-        )
+        logger.error("Error starting analysis for game %s: %s", game_id, err, exc_info=True)
         return {
             "status": "error",
             "message": f"Error starting analysis: {err}",
@@ -136,9 +128,7 @@ def analyze_game_safely(
         }
 
 
-def batch_analyze_games_safely(
-    game_ids, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use_ai=DEFAULT_USE_AI
-):
+def batch_analyze_games_safely(game_ids, user_id=None, depth=DEFAULT_ANALYSIS_DEPTH, use_ai=DEFAULT_USE_AI):
     """
     Safely analyze multiple games without relying on GameAnalysis table.
 

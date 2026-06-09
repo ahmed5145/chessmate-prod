@@ -68,9 +68,7 @@ class TelemetryMiddleware:
         except Exception as e:
             logger.error(f"Error collecting pre-request metrics: {e}")
 
-    def _collect_post_request_metrics(
-        self, request: HttpRequest, response: HttpResponse, start_time: float
-    ) -> None:
+    def _collect_post_request_metrics(self, request: HttpRequest, response: HttpResponse, start_time: float) -> None:
         """Collect metrics after processing the request."""
         try:
             duration = time.time() - start_time
@@ -94,10 +92,7 @@ class TelemetryMiddleware:
 
             # Log slow requests
             if duration > config["SLOW_REQUEST_THRESHOLD"]:
-                logger.warning(
-                    f"Slow request detected: {request.method} {request.path} "
-                    f"took {duration:.2f}s"
-                )
+                logger.warning(f"Slow request detected: {request.method} {request.path} " f"took {duration:.2f}s")
 
         except Exception as e:
             logger.error(f"Error collecting post-request metrics: {e}")
@@ -117,9 +112,7 @@ class TelemetryMiddleware:
         except Exception as e:
             logger.error(f"Error processing exception in middleware: {e}")
 
-    def process_template_response(
-        self, request: HttpRequest, response: HttpResponse
-    ) -> HttpResponse:
+    def process_template_response(self, request: HttpRequest, response: HttpResponse) -> HttpResponse:
         """Process template response for additional metrics."""
         try:
             # Add template rendering time if available

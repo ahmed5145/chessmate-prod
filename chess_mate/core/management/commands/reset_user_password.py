@@ -40,9 +40,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        password = (
-            options.get("password_flag") or options.get("password") or ""
-        ).strip()
+        password = (options.get("password_flag") or options.get("password") or "").strip()
         if not password:
             raise CommandError(
                 "Password cannot be empty. Example (PowerShell):\n"
@@ -67,8 +65,7 @@ class Command(BaseCommand):
             except User.MultipleObjectsReturned as exc:
                 matches = User.objects.filter(email__iexact=email).order_by("id")
                 lines = [
-                    f"  id={u.id} username={u.username!r} staff={u.is_staff} super={u.is_superuser}"
-                    for u in matches
+                    f"  id={u.id} username={u.username!r} staff={u.is_staff} super={u.is_superuser}" for u in matches
                 ]
                 raise CommandError(
                     f"Multiple users have email {email}. Pick one with --user-id:\n"
@@ -81,9 +78,7 @@ class Command(BaseCommand):
             user.is_staff = True
             user.is_superuser = True
             user.is_active = True
-            user.save(
-                update_fields=["password", "is_staff", "is_superuser", "is_active"]
-            )
+            user.save(update_fields=["password", "is_staff", "is_superuser", "is_active"])
         else:
             user.save(update_fields=["password"])
 

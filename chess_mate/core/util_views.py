@@ -128,11 +128,7 @@ def health_check(request):
         memory = psutil.virtual_memory()
         total_gb = round(memory.total / 1_000_000_000, 1)
         available_gb = round(memory.available / 1_000_000_000, 1)
-        usage_percent = (
-            round(((memory.total - memory.available) / memory.total) * 100, 1)
-            if memory.total
-            else 0.0
-        )
+        usage_percent = round(((memory.total - memory.available) / memory.total) * 100, 1) if memory.total else 0.0
         cpu_usage = psutil.cpu_percent()
     else:
         total_gb = 0.0
@@ -404,11 +400,8 @@ def check_version(request):
             "client_version": client_version,
             "latest_version": latest_version,
             "needs_update": needs_update,
-            "update_url": (
-                getattr(settings, "CLIENT_UPDATE_URL", None) if needs_update else None
-            ),
-            "force_update": getattr(settings, "FORCE_CLIENT_UPDATE", False)
-            and needs_update,
+            "update_url": (getattr(settings, "CLIENT_UPDATE_URL", None) if needs_update else None),
+            "force_update": getattr(settings, "FORCE_CLIENT_UPDATE", False) and needs_update,
         }
     )
 

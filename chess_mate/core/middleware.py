@@ -123,10 +123,7 @@ VALIDATION_SCHEMAS: Dict[str, MethodSchema] = {
                 "last_name": str,
             },
             "custom_validators": {
-                "email": lambda x: re.match(
-                    r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", x
-                )
-                is not None,
+                "email": lambda x: re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", x) is not None,
                 "password": lambda x: len(x) >= 8,
             },
         }
@@ -280,9 +277,7 @@ class RequestIDMiddleware:
         return response
 
 
-def get_method_schema(
-    method_schemas: MethodSchema, method: str
-) -> Optional[SchemaOptions]:
+def get_method_schema(method_schemas: MethodSchema, method: str) -> Optional[SchemaOptions]:
     """Get schema options for a specific HTTP method safely."""
     if method == "POST" and "POST" in method_schemas:
         return method_schemas["POST"]
@@ -388,9 +383,7 @@ class RequestValidationMiddleware:
 
                                     if not is_valid_type:
                                         type_name = (
-                                            field_type.__name__
-                                            if hasattr(field_type, "__name__")
-                                            else str(field_type)
+                                            field_type.__name__ if hasattr(field_type, "__name__") else str(field_type)
                                         )
                                         value_type = type(data[field]).__name__
 
@@ -415,9 +408,7 @@ class RequestValidationMiddleware:
                         for field, validator in value_validation.items():
                             if field in data and data[field] is not None:
                                 try:
-                                    if callable(validator) and not validator(
-                                        data[field]
-                                    ):
+                                    if callable(validator) and not validator(data[field]):
                                         errors.append(
                                             {
                                                 "field": field,
@@ -439,9 +430,7 @@ class RequestValidationMiddleware:
                         for field, validator in custom_validators.items():
                             if field in data and data[field] is not None:
                                 try:
-                                    if callable(validator) and not validator(
-                                        data[field]
-                                    ):
+                                    if callable(validator) and not validator(data[field]):
                                         errors.append(
                                             {
                                                 "field": field,
@@ -509,9 +498,7 @@ class RateLimitMiddleware:
             return self.get_response(request)
 
         # Get endpoint type and rate limit keys
-        endpoint_type = getattr(
-            request, "rate_limit_endpoint_type", None
-        ) or self._get_endpoint_type(request.path)
+        endpoint_type = getattr(request, "rate_limit_endpoint_type", None) or self._get_endpoint_type(request.path)
         keys = self._get_rate_limit_keys(request, endpoint_type)
 
         # Check rate limits for each key
@@ -532,9 +519,7 @@ class RateLimitMiddleware:
         if not path.startswith("/api/"):
             return False
 
-        excluded_paths = getattr(
-            settings, "RATE_LIMIT_EXCLUDED_PATHS", [r"^/api/health/?$"]
-        )
+        excluded_paths = getattr(settings, "RATE_LIMIT_EXCLUDED_PATHS", [r"^/api/health/?$"])
         for pattern in excluded_paths:
             if re.search(pattern, path):
                 return False
@@ -579,15 +564,9 @@ class RateLimitMiddleware:
 
     def _get_rate_limit_config(self, endpoint_type):
         """Get rate limit configuration for endpoint type."""
-        config_source = (
-            getattr(settings, "RATE_LIMIT_CONFIG", None)
-            or getattr(settings, "RATE_LIMIT", None)
-            or {}
-        )
+        config_source = getattr(settings, "RATE_LIMIT_CONFIG", None) or getattr(settings, "RATE_LIMIT", None) or {}
         default_config = {"MAX_REQUESTS": 100, "TIME_WINDOW": 3600}
-        endpoint_config = config_source.get(
-            endpoint_type, config_source.get("DEFAULT", {})
-        )
+        endpoint_config = config_source.get(endpoint_type, config_source.get("DEFAULT", {}))
         default_config.update(endpoint_config)
         return default_config
 
@@ -662,10 +641,7 @@ class RateLimitMiddleware:
     def _add_rate_limit_headers(self, response, keys, endpoint_type):
         """Add rate limit headers to response."""
         key = next(
-            (
-                f"rate_limit:{endpoint_type}:{kt}:{identifier}"
-                for kt, identifier in keys.items()
-            ),
+            (f"rate_limit:{endpoint_type}:{kt}:{identifier}" for kt, identifier in keys.items()),
             None,
         )
         if key is None:
@@ -673,9 +649,7 @@ class RateLimitMiddleware:
 
         config = self._get_rate_limit_config(endpoint_type)
         response["X-RateLimit-Limit"] = str(config.get("MAX_REQUESTS", 100))
-        response["X-RateLimit-Remaining"] = str(
-            self._get_remaining_requests(key, endpoint_type)
-        )
+        response["X-RateLimit-Remaining"] = str(self._get_remaining_requests(key, endpoint_type))
         response["X-RateLimit-Reset"] = str(self._get_reset_time(key, endpoint_type))
 
         return response
@@ -716,13 +690,9 @@ class SecurityHeadersMiddleware:
             if "Access-Control-Allow-Headers" in response:
                 # Ensure Access-Control-Allow-Credentials is in the allowed headers
                 allowed_headers = response["Access-Control-Allow-Headers"].split(", ")
-                if "access-control-allow-credentials" not in [
-                    h.lower() for h in allowed_headers
-                ]:
+                if "access-control-allow-credentials" not in [h.lower() for h in allowed_headers]:
                     allowed_headers.append("access-control-allow-credentials")
-                    response["Access-Control-Allow-Headers"] = ", ".join(
-                        allowed_headers
-                    )
+                    response["Access-Control-Allow-Headers"] = ", ".join(allowed_headers)
 
         return response
 
@@ -770,31 +740,21 @@ class RequestFixMiddleware:
         if "HTTP_AUTHORIZATION" in request.META:
             auth_header = request.META["HTTP_AUTHORIZATION"]
             original_auth = "HTTP_AUTHORIZATION"
-            self.logger.debug(
-                f"Found HTTP_AUTHORIZATION header: {auth_header[:20]}..."
-                if auth_header
-                else "None"
-            )
+            self.logger.debug(f"Found HTTP_AUTHORIZATION header: {auth_header[:20]}..." if auth_header else "None")
 
         # Then check for Authorization in headers (common with JavaScript fetch)
         elif hasattr(request, "headers") and "Authorization" in request.headers:
             auth_header = request.headers.get("Authorization")
             original_auth = "headers.Authorization"
             self.logger.debug(
-                f"Found Authorization in request.headers: {auth_header[:20]}..."
-                if auth_header
-                else "None"
+                f"Found Authorization in request.headers: {auth_header[:20]}..." if auth_header else "None"
             )
 
         # Next check for Authorization in cookies (possible alternative auth method)
         elif "Authorization" in request.COOKIES:
             auth_header = request.COOKIES.get("Authorization")
             original_auth = "COOKIES.Authorization"
-            self.logger.debug(
-                f"Found Authorization in cookies: {auth_header[:20]}..."
-                if auth_header
-                else "None"
-            )
+            self.logger.debug(f"Found Authorization in cookies: {auth_header[:20]}..." if auth_header else "None")
 
         # Check for access_token in cookies (used with simplejwt cookie auth)
         elif "access_token" in request.COOKIES:
@@ -832,11 +792,7 @@ class RequestFixMiddleware:
             if not auth_header.startswith("Bearer ") and " " not in auth_header:
                 # Looks like a raw token without 'Bearer' prefix
                 auth_header = f"Bearer {auth_header}"
-                self.logger.debug(
-                    f"Added Bearer prefix to raw token: {auth_header[:20]}..."
-                    if auth_header
-                    else "None"
-                )
+                self.logger.debug(f"Added Bearer prefix to raw token: {auth_header[:20]}..." if auth_header else "None")
 
             # Set the authorization header in multiple places to ensure it's recognized
             request.META["HTTP_AUTHORIZATION"] = auth_header
@@ -854,16 +810,8 @@ class RequestFixMiddleware:
             request.META["Authorization"] = auth_header
 
             # Log the token for debugging
-            token = (
-                auth_header.split(" ")[1]
-                if auth_header.startswith("Bearer ")
-                else auth_header
-            )
-            self.logger.debug(
-                f"Auth normalized from {original_auth} - Token: {token[:15]}..."
-                if token
-                else "None"
-            )
+            token = auth_header.split(" ")[1] if auth_header.startswith("Bearer ") else auth_header
+            self.logger.debug(f"Auth normalized from {original_auth} - Token: {token[:15]}..." if token else "None")
 
             # Try to decode the token payload (without verification) for debugging
             if auth_header.startswith("Bearer "):
@@ -886,9 +834,7 @@ class RequestFixMiddleware:
                             decoded = base64.urlsafe_b64decode(payload).decode("utf-8")
                             payload_data = json.loads(decoded)
                             if "user_id" in payload_data:
-                                self.logger.debug(
-                                    f"Token contains user_id: {payload_data['user_id']}"
-                                )
+                                self.logger.debug(f"Token contains user_id: {payload_data['user_id']}")
 
                                 # For debugging only - load user info
                                 try:
@@ -902,19 +848,13 @@ class RequestFixMiddleware:
                                     request.user = user
                                     request._force_auth_user = user
                                 except Exception as user_e:
-                                    self.logger.debug(
-                                        f"Could not load user from token: {str(user_e)}"
-                                    )
+                                    self.logger.debug(f"Could not load user from token: {str(user_e)}")
                             elif "id" in payload_data:
-                                self.logger.debug(
-                                    f"Token contains id: {payload_data['id']}"
-                                )
+                                self.logger.debug(f"Token contains id: {payload_data['id']}")
                         except Exception as e:
                             self.logger.debug(f"Error decoding token payload: {str(e)}")
                 except Exception as e:
-                    self.logger.debug(
-                        f"Error processing token (for debugging only): {str(e)}"
-                    )
+                    self.logger.debug(f"Error processing token (for debugging only): {str(e)}")
 
         # Process the request
         response = self.get_response(request)

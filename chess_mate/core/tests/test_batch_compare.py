@@ -39,9 +39,7 @@ def test_weakness_themes_extracts_pattern_theme_type_label():
 
 
 def test_metric_delta_returns_none_on_missing_or_invalid():
-    assert (
-        metric_delta({}, {"overall_accuracy_pct": 50}, "overall_accuracy_pct") is None
-    )
+    assert metric_delta({}, {"overall_accuracy_pct": 50}, "overall_accuracy_pct") is None
     assert (
         metric_delta(
             {"overall_accuracy_pct": "bad"},

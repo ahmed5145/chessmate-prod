@@ -44,9 +44,7 @@ if not hasattr(inspect, "formatargspec"):
         if kwonlyargs:
             if not varargs:
                 parts.append("*")
-            parts.extend(
-                [f"{arg}={kwonlydefaults.get(arg, 'None')}" for arg in kwonlyargs]
-            )
+            parts.extend([f"{arg}={kwonlydefaults.get(arg, 'None')}" for arg in kwonlyargs])
         if varkw:
             parts.append(f"**{varkw}")
         sig = "(" + ", ".join(parts) + ")"
@@ -67,9 +65,7 @@ if not hasattr(inspect, "getargspec"):
 
     def getargspec(func):
         """Replacement for inspect.getargspec removed in Python 3.12"""
-        args, varargs, varkw, defaults, kwonlyargs, kwonlydefaults, annotations = (
-            inspect.getfullargspec(func)
-        )
+        args, varargs, varkw, defaults, kwonlyargs, kwonlydefaults, annotations = inspect.getfullargspec(func)
         del kwonlyargs, kwonlydefaults, annotations
         return ArgSpec(args, varargs, varkw, defaults or ())
 

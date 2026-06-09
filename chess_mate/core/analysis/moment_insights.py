@@ -82,12 +82,8 @@ ENDGAME_STUDY_HINTS = {
         "Study rook-and-pawn endgames: Lucena (building a bridge), Philidor (rook on 3rd rank), "
         "and keeping the rook behind the passed pawn."
     ),
-    "king_and_pawn": (
-        "Study king-and-pawn endgames: opposition, key squares, and pawn breakthroughs."
-    ),
-    "queen_endgame": (
-        "Study queen endgames: centralization, checks, and converting extra material without stalemate."
-    ),
+    "king_and_pawn": ("Study king-and-pawn endgames: opposition, key squares, and pawn breakthroughs."),
+    "queen_endgame": ("Study queen endgames: centralization, checks, and converting extra material without stalemate."),
     "rook_endgame": (
         "Study rook endgames: active rook placement, cutting the enemy king off, and seventh-rank activity."
     ),

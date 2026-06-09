@@ -37,16 +37,12 @@ class TestCreditsViews:
 
     def test_purchase_without_stripe_returns_503(self, settings):
         settings.STRIPE_SECRET_KEY = ""
-        response = self.client.post(
-            "/api/v1/purchase-credits/", {"package_id": "basic"}
-        )
+        response = self.client.post("/api/v1/purchase-credits/", {"package_id": "basic"})
         assert response.status_code == 503
 
     def test_purchase_invalid_package(self, settings):
         settings.STRIPE_SECRET_KEY = "sk_test_x"
-        response = self.client.post(
-            "/api/v1/purchase-credits/", {"package_id": "invalid"}
-        )
+        response = self.client.post("/api/v1/purchase-credits/", {"package_id": "invalid"})
         assert response.status_code == 400
 
     def test_confirm_purchase_applies_credits(self, settings, monkeypatch):
@@ -61,13 +57,9 @@ class TestCreditsViews:
                 "package_id": "basic",
             }
 
-        monkeypatch.setattr(
-            "core.views_credits.PaymentProcessor.verify_payment", fake_verify
-        )
+        monkeypatch.setattr("core.views_credits.PaymentProcessor.verify_payment", fake_verify)
 
-        response = self.client.post(
-            "/api/v1/confirm-purchase/", {"payment_id": "cs_test_abc"}
-        )
+        response = self.client.post("/api/v1/confirm-purchase/", {"payment_id": "cs_test_abc"})
         assert response.status_code == 200
         assert response.data["credits_added"] == 50
 
@@ -85,12 +77,8 @@ class TestCreditsViews:
                 "package_id": "basic",
             }
 
-        monkeypatch.setattr(
-            "core.views_credits.PaymentProcessor.verify_payment", fake_verify
-        )
+        monkeypatch.setattr("core.views_credits.PaymentProcessor.verify_payment", fake_verify)
 
-        response = self.client.post(
-            "/api/v1/confirm-purchase/", {"payment_id": "cs_test_wrong"}
-        )
+        response = self.client.post("/api/v1/confirm-purchase/", {"payment_id": "cs_test_wrong"})
         assert response.status_code == 400
         assert "different account" in response.data["detail"].lower()

@@ -127,9 +127,7 @@ def test_generate_coaching_report_raises_on_api_error(monkeypatch):
 def test_validate_coaching_citations_requires_game_and_move():
     batch_summary = {
         "opening_insights": [{"opening_name": "Italian Game", "status": "struggling"}],
-        "endgame_insights": [
-            {"label": "rook and pawn", "study_focus": "Lucena bridge building"}
-        ],
+        "endgame_insights": [{"label": "rook and pawn", "study_focus": "Lucena bridge building"}],
     }
     summaries = [{"game_id": "game_0", "critical_moments": [{"move_number": 22}]}]
     weak = {

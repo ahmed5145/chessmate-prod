@@ -156,18 +156,14 @@ class Profile(models.Model):
                             and game.white
                             and self.chess_com_username
                         ):
-                            is_white = (
-                                game.white.lower() == self.chess_com_username.lower()
-                            )
+                            is_white = game.white.lower() == self.chess_com_username.lower()
                         elif (
                             game.platform == "lichess"
                             and self.lichess_username
                             and game.white
                             and self.lichess_username
                         ):
-                            is_white = (
-                                game.white.lower() == self.lichess_username.lower()
-                            )
+                            is_white = game.white.lower() == self.lichess_username.lower()
                     except AttributeError as e:
                         logger.error(
                             f"Error comparing usernames in get_rating_history: game={game.id}, "
@@ -308,8 +304,7 @@ class Profile(models.Model):
             if self.lichess_username:
                 platform_games.extend(
                     games.filter(platform="lichess").filter(
-                        models.Q(white__iexact=self.lichess_username)
-                        | models.Q(black__iexact=self.lichess_username)
+                        models.Q(white__iexact=self.lichess_username) | models.Q(black__iexact=self.lichess_username)
                     )
                 )
 
@@ -327,22 +322,10 @@ class Profile(models.Model):
                     # Determine if user was white or black
                     is_white = False
                     try:
-                        if (
-                            game.platform == "chess.com"
-                            and self.chess_com_username
-                            and game.white
-                        ):
-                            is_white = (
-                                game.white.lower() == self.chess_com_username.lower()
-                            )
-                        elif (
-                            game.platform == "lichess"
-                            and self.lichess_username
-                            and game.white
-                        ):
-                            is_white = (
-                                game.white.lower() == self.lichess_username.lower()
-                            )
+                        if game.platform == "chess.com" and self.chess_com_username and game.white:
+                            is_white = game.white.lower() == self.chess_com_username.lower()
+                        elif game.platform == "lichess" and self.lichess_username and game.white:
+                            is_white = game.white.lower() == self.lichess_username.lower()
                     except AttributeError as e:
                         logger.error(f"Error determining player color: {str(e)}")
                         continue
@@ -376,9 +359,7 @@ class Profile(models.Model):
                         # Save after each game to ensure we don't lose progress
                         self.save()
 
-                        logger.info(
-                            f"Updated {time_category} rating to {rating} for game on {date}"
-                        )
+                        logger.info(f"Updated {time_category} rating to {rating} for game on {date}")
 
                 except Exception as e:
                     logger.error(f"Error processing game {game.id}: {str(e)}")
@@ -420,32 +401,17 @@ class Profile(models.Model):
                         # Get player's rating from this game
                         try:
                             is_white = False
-                            if (
-                                game.platform == "chess.com"
-                                and self.chess_com_username
-                                and game.white
-                            ):
-                                is_white = (
-                                    game.white.lower()
-                                    == self.chess_com_username.lower()
-                                )
-                            elif (
-                                game.platform == "lichess"
-                                and self.lichess_username
-                                and game.white
-                            ):
-                                is_white = (
-                                    game.white.lower() == self.lichess_username.lower()
-                                )
+                            if game.platform == "chess.com" and self.chess_com_username and game.white:
+                                is_white = game.white.lower() == self.chess_com_username.lower()
+                            elif game.platform == "lichess" and self.lichess_username and game.white:
+                                is_white = game.white.lower() == self.lichess_username.lower()
 
                             rating = game.white_elo if is_white else game.black_elo
                             if rating is not None:
                                 total_rating += rating
                                 peak_rating = max(peak_rating, rating)
                         except Exception as e:
-                            logger.error(
-                                f"Error getting rating from game {game.id}: {str(e)}"
-                            )
+                            logger.error(f"Error getting rating from game {game.id}: {str(e)}")
                             continue
 
                 if not time_control_games:
@@ -472,22 +438,10 @@ class Profile(models.Model):
                     # Determine if user was white or black
                     is_white = False
                     try:
-                        if (
-                            game.platform == "chess.com"
-                            and self.chess_com_username
-                            and game.white
-                        ):
-                            is_white = (
-                                game.white.lower() == self.chess_com_username.lower()
-                            )
-                        elif (
-                            game.platform == "lichess"
-                            and self.lichess_username
-                            and game.white
-                        ):
-                            is_white = (
-                                game.white.lower() == self.lichess_username.lower()
-                            )
+                        if game.platform == "chess.com" and self.chess_com_username and game.white:
+                            is_white = game.white.lower() == self.chess_com_username.lower()
+                        elif game.platform == "lichess" and self.lichess_username and game.white:
+                            is_white = game.white.lower() == self.lichess_username.lower()
                     except AttributeError as e:
                         logger.error(
                             f"Error comparing usernames in get_performance_stats: game={game.id}, "
@@ -557,18 +511,14 @@ def profile_creation_defaults(**overrides: Any) -> Dict[str, Any]:
 
 
 @receiver(post_save, sender=User)
-def create_or_save_user_profile(
-    sender: Any, instance: User, created: bool, **kwargs: Any
-) -> None:
+def create_or_save_user_profile(sender: Any, instance: User, created: bool, **kwargs: Any) -> None:
     """Create a Profile when a User is created."""
     if kwargs.get("raw"):
         return
     if not created:
         return
     try:
-        Profile.objects.get_or_create(
-            user=instance, defaults=profile_creation_defaults()
-        )
+        Profile.objects.get_or_create(user=instance, defaults=profile_creation_defaults())
     except Exception as exc:
         logger.error(
             "Failed to create profile for user %s: %s",
@@ -600,9 +550,7 @@ class Game(models.Model):
         ("failed", "Failed"),
     ]
 
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="games", default=get_default_user
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="games", default=get_default_user)
     platform = models.CharField(max_length=20)  # 'chess.com' or 'lichess'
     game_id = models.CharField(max_length=100)
     pgn = models.TextField()
@@ -612,29 +560,19 @@ class Game(models.Model):
     opponent = models.CharField(max_length=100, default="Unknown")
     opening_name = models.CharField(max_length=200, default="Unknown Opening")
     date_played = models.DateTimeField(default=timezone.now)
-    game_url = models.CharField(
-        max_length=255, null=True, blank=True
-    )  # URL to the game on the platform
+    game_url = models.CharField(max_length=255, null=True, blank=True)  # URL to the game on the platform
 
     # Enhanced fields
     time_control = models.CharField(max_length=50, default="blitz")
-    time_control_type = models.CharField(
-        max_length=20, choices=TIME_CONTROL_CHOICES, default="blitz"
-    )
-    time_control_category = models.CharField(
-        max_length=20, choices=TIME_CONTROL_CHOICES, default="blitz"
-    )
+    time_control_type = models.CharField(max_length=20, choices=TIME_CONTROL_CHOICES, default="blitz")
+    time_control_category = models.CharField(max_length=20, choices=TIME_CONTROL_CHOICES, default="blitz")
     eco_code = models.CharField(max_length=3, null=True)  # ECO code for the opening
     opening_played = models.CharField(max_length=200, default="Unknown Opening")
     opening_variation = models.CharField(max_length=200, default="Unknown Variation")
-    opponent_opening = models.CharField(
-        max_length=200, default="Unknown Opponent Opening"
-    )
+    opponent_opening = models.CharField(max_length=200, default="Unknown Opponent Opening")
     analysis_version = models.IntegerField(default=1)
     last_analysis_date = models.DateTimeField(null=True)
-    analysis_status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default="pending"
-    )
+    analysis_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     analysis_priority = models.IntegerField(default=0)  # For batch processing
 
     # Existing fields
@@ -645,9 +583,7 @@ class Game(models.Model):
     white_elo = models.IntegerField(null=True, blank=True)
     black_elo = models.IntegerField(null=True, blank=True)
 
-    player_color = models.CharField(
-        max_length=5, choices=[("white", "White"), ("black", "Black")], default="white"
-    )
+    player_color = models.CharField(max_length=5, choices=[("white", "White"), ("black", "Black")], default="white")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     analysis_completed_at = models.DateTimeField(null=True, blank=True)
 
@@ -802,14 +738,10 @@ class Game(models.Model):
                 if match:
                     base_seconds = int(match.group(1))
                     increment = int(match.group(2)) if match.group(2) else 0
-                    total_minutes = (
-                        base_seconds + (increment * 40)
-                    ) / 60  # Assume 40 moves
+                    total_minutes = (base_seconds + (increment * 40)) / 60  # Assume 40 moves
                 else:
                     # Try Event tag for time control info
-                    event_pattern = (
-                        r'\[Event "[^"]*?(?:Bullet|Blitz|Rapid|Classical)[^"]*?"'
-                    )
+                    event_pattern = r'\[Event "[^"]*?(?:Bullet|Blitz|Rapid|Classical)[^"]*?"'
                     event_match = re.search(event_pattern, self.pgn, re.IGNORECASE)
                     if event_match:
                         event = event_match.group(0).lower()
@@ -829,14 +761,10 @@ class Game(models.Model):
                 if match:
                     base_minutes = int(match.group(1))
                     increment = int(match.group(2))
-                    total_minutes = base_minutes + (
-                        increment * 40 / 60
-                    )  # Assume 40 moves
+                    total_minutes = base_minutes + (increment * 40 / 60)  # Assume 40 moves
                 else:
                     # Try Event tag for time control info
-                    event_pattern = (
-                        r'\[Event "[^"]*?(?:Bullet|Blitz|Rapid|Classical)[^"]*?"'
-                    )
+                    event_pattern = r'\[Event "[^"]*?(?:Bullet|Blitz|Rapid|Classical)[^"]*?"'
                     event_match = re.search(event_pattern, self.pgn, re.IGNORECASE)
                     if event_match:
                         event = event_match.group(0).lower()
@@ -904,9 +832,7 @@ class Game(models.Model):
 class GameAnalysis(models.Model):
     """Analysis results for a chess game."""
 
-    game = models.OneToOneField(
-        "Game", on_delete=models.CASCADE, related_name="gameanalysis"
-    )
+    game = models.OneToOneField("Game", on_delete=models.CASCADE, related_name="gameanalysis")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -951,9 +877,7 @@ class GameAnalysis(models.Model):
         """Backward-compatible alias for legacy test expectations."""
         if not hasattr(self, "analysis_data") or not self.analysis_data:
             return {}
-        return self.analysis_data.get(
-            "moves_analysis", self.analysis_data.get("moves", {})
-        )
+        return self.analysis_data.get("moves_analysis", self.analysis_data.get("moves", {}))
 
     @moves_analysis.setter
     def moves_analysis(self, value):
@@ -998,9 +922,7 @@ class BatchAnalysisReport(models.Model):
         ("failed", "Failed"),
     ]
 
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="batch_analysis_reports"
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="batch_analysis_reports")
     task_id = models.CharField(max_length=255, db_index=True)
     game_ids = models.JSONField(default=list, blank=True)
     games_count = models.IntegerField(default=0)
@@ -1029,9 +951,7 @@ class BatchAnalysisReport(models.Model):
             models.Index(fields=["task_id"]),
         ]
         constraints = [
-            models.UniqueConstraint(
-                fields=["user", "task_id"], name="unique_user_batch_report_task"
-            ),
+            models.UniqueConstraint(fields=["user", "task_id"], name="unique_user_batch_report_task"),
         ]
 
     def __str__(self) -> str:
@@ -1201,9 +1121,7 @@ class Transaction(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:
-        return (
-            f"{self.transaction_type} - {self.credits} credits for {self.user.username}"
-        )
+        return f"{self.transaction_type} - {self.credits} credits for {self.user.username}"
 
     class Meta:
         db_table = "transactions"
@@ -1263,9 +1181,7 @@ class BatchAnalysis(models.Model):
     games = models.ManyToManyField(Game, related_name="batch_analyses")
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(
-        max_length=20, default="pending"
-    )  # e.g., 'pending', 'completed'
+    status = models.CharField(max_length=20, default="pending")  # e.g., 'pending', 'completed'
 
     def __str__(self):
         return self.name
@@ -1305,12 +1221,8 @@ class Subscription(models.Model):
         ("unpaid", "Unpaid"),
     ]
 
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="subscriptions"
-    )
-    tier = models.ForeignKey(
-        SubscriptionTier, on_delete=models.PROTECT, null=True, blank=True
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="subscriptions")
+    tier = models.ForeignKey(SubscriptionTier, on_delete=models.PROTECT, null=True, blank=True)
     stripe_subscription_id = models.CharField(max_length=100, blank=True, null=True)
     stripe_customer_id = models.CharField(max_length=100, blank=True, null=True)
     plan = models.CharField(max_length=100)

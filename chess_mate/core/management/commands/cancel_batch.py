@@ -11,12 +11,8 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         group = parser.add_mutually_exclusive_group(required=True)
-        group.add_argument(
-            "--id", type=int, dest="batch_id", help="BatchAnalysisReport primary key"
-        )
-        group.add_argument(
-            "--task-id", type=str, dest="task_id", help="Batch task_id (UUID string)"
-        )
+        group.add_argument("--id", type=int, dest="batch_id", help="BatchAnalysisReport primary key")
+        group.add_argument("--task-id", type=str, dest="task_id", help="Batch task_id (UUID string)")
         group.add_argument(
             "--all-in-progress",
             action="store_true",
@@ -59,9 +55,7 @@ class Command(BaseCommand):
             task_id = options["task_id"].strip()
             qs = BatchAnalysisReport.objects.filter(task_id=task_id)
             if qs.count() != 1:
-                raise CommandError(
-                    f"Expected exactly one batch for task_id={task_id}, found {qs.count()}"
-                )
+                raise CommandError(f"Expected exactly one batch for task_id={task_id}, found {qs.count()}")
             report = qs.get()
 
         self._cancel_report(report, options["reason"])
@@ -71,9 +65,7 @@ class Command(BaseCommand):
         if options.get("include_pending"):
             statuses.append("pending")
 
-        qs = BatchAnalysisReport.objects.filter(status__in=statuses).order_by(
-            "created_at"
-        )
+        qs = BatchAnalysisReport.objects.filter(status__in=statuses).order_by("created_at")
         older_than_hours = float(options.get("older_than_hours") or 0)
         if older_than_hours > 0:
             cutoff = timezone.now() - timedelta(hours=older_than_hours)
@@ -104,19 +96,13 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"Cancelled {cancelled} batch(es)."
-                + (
-                    f" Refunded {refunded_total} credits total."
-                    if refunded_total
-                    else ""
-                )
+                + (f" Refunded {refunded_total} credits total." if refunded_total else "")
             )
         )
 
     def _cancel_report(self, report: BatchAnalysisReport, reason: str) -> int:
         if report.status in ("completed", "partial"):
-            raise CommandError(
-                f"Batch id={report.pk} is already {report.status}; not cancelling."
-            )
+            raise CommandError(f"Batch id={report.pk} is already {report.status}; not cancelling.")
 
         previous = report.status
         report.status = "failed"

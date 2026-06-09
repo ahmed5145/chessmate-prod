@@ -63,14 +63,10 @@ def leaderboard(request):
         # Default to analysis leaderboard
         leaders = _get_analysis_leaderboard(time_filter, limit)
 
-    return create_success_response(
-        data={"type": board_type, "period": time_period, "leaders": leaders}
-    )
+    return create_success_response(data={"type": board_type, "period": time_period, "leaders": leaders})
 
 
-def _get_analysis_leaderboard(
-    time_filter: Optional[timezone.datetime], limit: int
-) -> List[Dict[str, Any]]:
+def _get_analysis_leaderboard(time_filter: Optional[timezone.datetime], limit: int) -> List[Dict[str, Any]]:
     """
     Get leaderboard based on number of analyses performed.
     """
@@ -103,17 +99,11 @@ def _get_analysis_leaderboard(
     return results
 
 
-def _get_games_leaderboard(
-    time_filter: Optional[timezone.datetime], limit: int
-) -> List[Dict[str, Any]]:
+def _get_games_leaderboard(time_filter: Optional[timezone.datetime], limit: int) -> List[Dict[str, Any]]:
     """
     Get leaderboard based on number of games imported.
     """
-    query = (
-        Game.objects.values("user__username", "user__id")
-        .annotate(count=Count("id"))
-        .order_by("-count")
-    )
+    query = Game.objects.values("user__username", "user__id").annotate(count=Count("id")).order_by("-count")
 
     # Apply time filter if specified
     if time_filter:
@@ -137,9 +127,7 @@ def _get_games_leaderboard(
     return results
 
 
-def _get_accuracy_leaderboard(
-    time_filter: Optional[timezone.datetime], limit: int
-) -> List[Dict[str, Any]]:
+def _get_accuracy_leaderboard(time_filter: Optional[timezone.datetime], limit: int) -> List[Dict[str, Any]]:
     """
     Get leaderboard based on average accuracy in analyzed games.
     """
@@ -204,9 +192,7 @@ def _get_accuracy_leaderboard(
     return results
 
 
-def _get_improvement_leaderboard(
-    time_filter: Optional[timezone.datetime], limit: int
-) -> List[Dict[str, Any]]:
+def _get_improvement_leaderboard(time_filter: Optional[timezone.datetime], limit: int) -> List[Dict[str, Any]]:
     """
     Get leaderboard based on improvement over time.
     This is more complex and requires comparing older and newer analyses.
@@ -256,9 +242,7 @@ def _get_improvement_leaderboard(
         additional_cutoff = timezone.now() - timedelta(days=365)
 
         recent_analyses = (
-            GameAnalysis.objects.filter(
-                created_at__gte=improvement_cutoff, result__has_key="accuracy"
-            )
+            GameAnalysis.objects.filter(created_at__gte=improvement_cutoff, result__has_key="accuracy")
             .values("game__user__username", "game__user__id", "created_at", "result")
             .order_by("created_at")
         )
@@ -310,14 +294,8 @@ def _get_improvement_leaderboard(
             }
 
             # Set baseline if available
-            if (
-                user_id in baseline_accuracies
-                and baseline_accuracies[user_id]["count"] > 0
-            ):
-                baseline_avg = (
-                    baseline_accuracies[user_id]["total"]
-                    / baseline_accuracies[user_id]["count"]
-                )
+            if user_id in baseline_accuracies and baseline_accuracies[user_id]["count"] > 0:
+                baseline_avg = baseline_accuracies[user_id]["total"] / baseline_accuracies[user_id]["count"]
                 user_improvements[user_id]["baseline_avg"] = baseline_avg
 
         # Add recent accuracy data

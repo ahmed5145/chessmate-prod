@@ -30,9 +30,7 @@ class ChessMateConfig(AppConfig):
 
             client = get_redis_client()
             info = client.info()
-            logger.info(
-                f"Redis connection established: {info.get('redis_version', 'unknown')}"
-            )
+            logger.info(f"Redis connection established: {info.get('redis_version', 'unknown')}")
         except Exception as e:
             logger.error(f"Failed to initialize Redis connection: {str(e)}")
 

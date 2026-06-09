@@ -72,9 +72,7 @@ class Migration(migrations.Migration):
                         ),
                         (
                             "amount",
-                            models.DecimalField(
-                                decimal_places=2, default=0, max_digits=10
-                            ),
+                            models.DecimalField(decimal_places=2, default=0, max_digits=10),
                         ),
                         ("credit_amount", models.IntegerField(default=0)),
                         (

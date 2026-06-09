@@ -97,9 +97,7 @@ class Migration(migrations.Migration):
                 ),
                 migrations.AddIndex(
                     model_name="gameanalysis",
-                    index=models.Index(
-                        fields=["game"], name="core_gamean_game_id_dc376d_idx"
-                    ),
+                    index=models.Index(fields=["game"], name="core_gamean_game_id_dc376d_idx"),
                 ),
                 migrations.AlterModelTable(
                     name="gameanalysis",

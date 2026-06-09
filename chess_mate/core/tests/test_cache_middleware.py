@@ -26,21 +26,11 @@ class TestCacheInvalidation:
     def setup_method(self):
         """Set up test data and mocks before each test."""
         # Patch the cache functions
-        self.invalidate_by_tags_patch = patch(
-            "core.cache_middleware.redis_invalidate_by_tags"
-        )
-        self.invalidate_game_patch = patch(
-            "core.cache_middleware.invalidate_game_cache"
-        )
-        self.invalidate_user_games_patch = patch(
-            "core.cache_middleware.invalidate_user_games_cache"
-        )
-        self.invalidate_analysis_patch = patch(
-            "core.cache_middleware.invalidate_analysis_cache"
-        )
-        self.invalidate_prefix_patch = patch(
-            "core.cache_middleware.redis_invalidate_by_prefix"
-        )
+        self.invalidate_by_tags_patch = patch("core.cache_middleware.redis_invalidate_by_tags")
+        self.invalidate_game_patch = patch("core.cache_middleware.invalidate_game_cache")
+        self.invalidate_user_games_patch = patch("core.cache_middleware.invalidate_user_games_cache")
+        self.invalidate_analysis_patch = patch("core.cache_middleware.invalidate_analysis_cache")
+        self.invalidate_prefix_patch = patch("core.cache_middleware.redis_invalidate_by_prefix")
 
         # Start patches
         self.mock_invalidate_by_tags = self.invalidate_by_tags_patch.start()
@@ -123,9 +113,7 @@ class TestCacheInvalidation:
             lichess_username="testuser_lichess",
             credits=100,
         )
-        player = Player.objects.create(
-            game=game, user=user, username="testuser", color="white", rating=1500
-        )
+        player = Player.objects.create(game=game, user=user, username="testuser", color="white", rating=1500)
 
         # Get user ID through game relationship
         values = get_related_values(player, "game__user__id")
@@ -215,9 +203,7 @@ class TestCacheInvalidation:
             pgn='[Event "Test"]\n1. e4 e5',
             result="win",
         )
-        player = Player.objects.create(
-            game=game, user=user, username="testuser", color="white", rating=1500
-        )
+        player = Player.objects.create(game=game, user=user, username="testuser", color="white", rating=1500)
 
         # Reset mocks
         self.mock_invalidate_by_tags.reset_mock()
@@ -346,9 +332,7 @@ class TestCacheInvalidation:
         mock_game_model.__name__ = "Game"
 
         # Make the first app config return our mock Game model
-        mock_app_config1.get_model.side_effect = lambda name: (
-            mock_game_model if name == "Game" else None
-        )
+        mock_app_config1.get_model.side_effect = lambda name: (mock_game_model if name == "Game" else None)
 
         # Make the second app config raise LookupError
         mock_app_config2.get_model.side_effect = LookupError

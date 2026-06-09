@@ -66,9 +66,7 @@ def purchase_credits_checkout_view(request):
     package_id = request.data.get("package_id")
     package = get_package(package_id)
     if not package:
-        return Response(
-            {"detail": "Invalid package selection."}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"detail": "Invalid package selection."}, status=status.HTTP_400_BAD_REQUEST)
 
     if not getattr(settings, "STRIPE_SECRET_KEY", ""):
         return Response(
@@ -111,9 +109,7 @@ def confirm_purchase_view(request):
     """
     session_id = request.data.get("payment_id") or request.data.get("session_id")
     if not session_id:
-        return Response(
-            {"detail": "payment_id is required."}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"detail": "payment_id is required."}, status=status.HTTP_400_BAD_REQUEST)
 
     if not getattr(settings, "STRIPE_SECRET_KEY", ""):
         return Response(
@@ -133,9 +129,7 @@ def confirm_purchase_view(request):
             session_id,
             exc,
         )
-        return Response(
-            {"detail": "Could not verify payment."}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"detail": "Could not verify payment."}, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(result, status=status.HTTP_200_OK)
 
@@ -151,9 +145,7 @@ def stripe_webhook_view(request):
     """
     webhook_secret = getattr(settings, "STRIPE_WEBHOOK_SECRET", "").strip()
     if not webhook_secret:
-        logger.warning(
-            "Stripe webhook received but STRIPE_WEBHOOK_SECRET is not configured"
-        )
+        logger.warning("Stripe webhook received but STRIPE_WEBHOOK_SECRET is not configured")
         return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     payload = request.body

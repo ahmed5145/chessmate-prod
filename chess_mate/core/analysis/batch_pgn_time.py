@@ -62,9 +62,7 @@ def compute_time_management_from_pgn(
 
         if is_white == player_is_white and time_spent is not None:
             move_number = half_move_index // 2 + 1
-            phase = phase_for_half_move_index(
-                half_move_index, opening_end, endgame_start
-            )
+            phase = phase_for_half_move_index(half_move_index, opening_end, endgame_start)
             player_spends.append(
                 {
                     "move_number": move_number,

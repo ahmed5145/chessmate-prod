@@ -55,25 +55,17 @@ def resolve_admin_path(*, is_production: bool, testing: bool, configured: str) -
                 "Do not use the default /admin/ URL on a public site."
             )
         if path.lower() in _BLOCKED_ADMIN_PATHS:
-            raise ValueError(
-                f"DJANGO_ADMIN_PATH '{path}' is not allowed in production."
-            )
+            raise ValueError(f"DJANGO_ADMIN_PATH '{path}' is not allowed in production.")
         if len(path) < 8:
-            raise ValueError(
-                "DJANGO_ADMIN_PATH must be at least 8 characters in production."
-            )
+            raise ValueError("DJANGO_ADMIN_PATH must be at least 8 characters in production.")
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", path):
-            raise ValueError(
-                "DJANGO_ADMIN_PATH may only contain letters, numbers, hyphens, and underscores."
-            )
+            raise ValueError("DJANGO_ADMIN_PATH may only contain letters, numbers, hyphens, and underscores.")
 
     return path or "admin"
 
 
 def admin_url_prefix(admin_path: Optional[str] = None) -> str:
-    segment = normalize_admin_path(
-        admin_path or getattr(settings, "DJANGO_ADMIN_PATH", "admin")
-    )
+    segment = normalize_admin_path(admin_path or getattr(settings, "DJANGO_ADMIN_PATH", "admin"))
     return f"/{segment}/"
 
 
@@ -125,12 +117,8 @@ class AdminSecurityMiddleware(MiddlewareMixin):
     def process_request(self, request: HttpRequest) -> Optional[HttpResponse]:
         path = request.path
 
-        if getattr(settings, "ADMIN_HIDE_LEGACY_PATH", False) and is_legacy_admin_path(
-            path
-        ):
-            logger.warning(
-                "Blocked legacy admin path access from %s", get_client_ip(request)
-            )
+        if getattr(settings, "ADMIN_HIDE_LEGACY_PATH", False) and is_legacy_admin_path(path):
+            logger.warning("Blocked legacy admin path access from %s", get_client_ip(request))
             return HttpResponseNotFound()
 
         if not is_admin_path(path):

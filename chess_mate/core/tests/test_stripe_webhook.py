@@ -51,17 +51,13 @@ class TestStripeWebhook:
         class FakeStripeError(Exception):
             pass
 
-        FakeStripeError.SignatureVerificationError = type(
-            "SignatureVerificationError", (Exception,), {}
-        )
+        FakeStripeError.SignatureVerificationError = type("SignatureVerificationError", (Exception,), {})
 
         def fake_construct(payload, sig, secret):
             assert secret == "whsec_test"
             return event
 
-        monkeypatch.setattr(
-            "core.views_credits.stripe.Webhook.construct_event", fake_construct
-        )
+        monkeypatch.setattr("core.views_credits.stripe.Webhook.construct_event", fake_construct)
 
         response = self.client.post(
             "/api/v1/webhooks/stripe/",
@@ -73,9 +69,7 @@ class TestStripeWebhook:
 
         self.user.profile.refresh_from_db()
         assert self.user.profile.credits == 55
-        assert Transaction.objects.filter(
-            stripe_payment_id="cs_test_webhook_1"
-        ).exists()
+        assert Transaction.objects.filter(stripe_payment_id="cs_test_webhook_1").exists()
 
     def test_webhook_idempotent(self, settings, monkeypatch):
         settings.STRIPE_SECRET_KEY = "sk_test_x"
@@ -108,9 +102,7 @@ class TestStripeWebhook:
         def fake_construct(payload, sig, secret):
             return event
 
-        monkeypatch.setattr(
-            "core.views_credits.stripe.Webhook.construct_event", fake_construct
-        )
+        monkeypatch.setattr("core.views_credits.stripe.Webhook.construct_event", fake_construct)
 
         response = self.client.post(
             "/api/v1/webhooks/stripe/",

@@ -50,9 +50,7 @@ logger = logging.getLogger(__name__)
 # no matter which package spelling the test runner imports first.
 sys.modules.setdefault("core.game_analyzer", sys.modules[__name__])
 sys.modules.setdefault("chess_mate.core.game_analyzer", sys.modules[__name__])
-sys.modules.setdefault(
-    "chessmate_prod.chess_mate.core.game_analyzer", sys.modules[__name__]
-)
+sys.modules.setdefault("chessmate_prod.chess_mate.core.game_analyzer", sys.modules[__name__])
 
 
 class _TaskProxy:
@@ -158,21 +156,15 @@ class GameAnalyzer:
         """Legacy async API that dispatches a Celery task for a single game."""
         game = Game.objects.get(id=game_id)
         if game.user_id != user_id:
-            raise ResourceNotFoundError(
-                f"Game {game_id} does not belong to user {user_id}"
-            )
+            raise ResourceNotFoundError(f"Game {game_id} does not belong to user {user_id}")
 
         task_kwargs = {
             "game_id": game_id,
             "user_id": user_id,
             "use_ai": use_ai,
-            "depth": (
-                depth if depth is not None else getattr(settings, "ANALYSIS_DEPTH", 20)
-            ),
+            "depth": (depth if depth is not None else getattr(settings, "ANALYSIS_DEPTH", 20)),
             "stockfish_path": (
-                stockfish_path
-                if stockfish_path is not None
-                else getattr(settings, "STOCKFISH_PATH", "")
+                stockfish_path if stockfish_path is not None else getattr(settings, "STOCKFISH_PATH", "")
             ),
         }
         analyze_task = _resolve_compat_symbol(
@@ -201,21 +193,15 @@ class GameAnalyzer:
 
         user_game_count = Game.objects.filter(id__in=game_ids, user_id=user_id).count()
         if user_game_count != len(game_ids):
-            raise ResourceNotFoundError(
-                "One or more games were not found for the given user"
-            )
+            raise ResourceNotFoundError("One or more games were not found for the given user")
 
         task_kwargs = {
             "game_ids": game_ids,
             "user_id": user_id,
             "use_ai": use_ai,
-            "depth": (
-                depth if depth is not None else getattr(settings, "ANALYSIS_DEPTH", 20)
-            ),
+            "depth": (depth if depth is not None else getattr(settings, "ANALYSIS_DEPTH", 20)),
             "stockfish_path": (
-                stockfish_path
-                if stockfish_path is not None
-                else getattr(settings, "STOCKFISH_PATH", "")
+                stockfish_path if stockfish_path is not None else getattr(settings, "STOCKFISH_PATH", "")
             ),
         }
         batch_task = _resolve_compat_symbol(
@@ -237,17 +223,11 @@ class GameAnalyzer:
     ) -> Dict[str, Any]:
         """Backward-compatible wrapper used by legacy analysis tests."""
         if isinstance(analysis_results, list):
-            feedback = self.feedback_generator.generate_feedback(
-                {"moves": analysis_results}
-            )
+            feedback = self.feedback_generator.generate_feedback({"moves": analysis_results})
             if not isinstance(feedback, dict):
                 feedback = {}
 
-            opening = (
-                feedback.get("opening")
-                if isinstance(feedback.get("opening"), dict)
-                else {}
-            )
+            opening = feedback.get("opening") if isinstance(feedback.get("opening"), dict) else {}
             opening.setdefault("accuracy", 0)
             feedback["opening"] = opening
             feedback.setdefault("mistakes", 0)
@@ -259,21 +239,13 @@ class GameAnalyzer:
         if isinstance(analysis_results, dict):
             if "analysis_results" in analysis_results:
                 analysis_payload = analysis_results.get("analysis_results", {})
-                metrics = (
-                    analysis_payload.get("metrics", {})
-                    if isinstance(analysis_payload, dict)
-                    else {}
-                )
-                summary = metrics.get(
-                    "summary", metrics if isinstance(metrics, dict) else {}
-                )
+                metrics = analysis_payload.get("metrics", {}) if isinstance(analysis_payload, dict) else {}
+                summary = metrics.get("summary", metrics if isinstance(metrics, dict) else {})
                 if not isinstance(summary, dict):
                     summary = {}
 
                 canonical_summary = {
-                    "overall": summary.get(
-                        "overall", {"accuracy": 0.0, "mistakes": 0, "blunders": 0}
-                    ),
+                    "overall": summary.get("overall", {"accuracy": 0.0, "mistakes": 0, "blunders": 0}),
                     "phases": summary.get("phases", {}),
                     "tactics": summary.get("tactics", {}),
                     "time_management": summary.get("time_management", {}),
@@ -307,11 +279,7 @@ class GameAnalyzer:
             if not isinstance(feedback, dict):
                 feedback = {}
 
-            opening = (
-                feedback.get("opening")
-                if isinstance(feedback.get("opening"), dict)
-                else {}
-            )
+            opening = feedback.get("opening") if isinstance(feedback.get("opening"), dict) else {}
             opening.setdefault("accuracy", 0)
             feedback["opening"] = opening
             feedback.setdefault("mistakes", 0)
@@ -324,9 +292,7 @@ class GameAnalyzer:
         if not isinstance(feedback, dict):
             feedback = {}
 
-        opening = (
-            feedback.get("opening") if isinstance(feedback.get("opening"), dict) else {}
-        )
+        opening = feedback.get("opening") if isinstance(feedback.get("opening"), dict) else {}
         opening.setdefault("accuracy", 0)
         feedback["opening"] = opening
         feedback.setdefault("mistakes", 0)
@@ -364,9 +330,7 @@ class GameAnalyzer:
 
             content = response.choices[0].message.content or ""
             parsed = json.loads(content)
-            feedback = (
-                parsed.get("feedback", parsed) if isinstance(parsed, dict) else {}
-            )
+            feedback = parsed.get("feedback", parsed) if isinstance(parsed, dict) else {}
 
             required_sections = {
                 "overall_performance",
@@ -376,9 +340,7 @@ class GameAnalyzer:
                 "tactics",
                 "time_management",
             }
-            if isinstance(feedback, dict) and required_sections.issubset(
-                feedback.keys()
-            ):
+            if isinstance(feedback, dict) and required_sections.issubset(feedback.keys()):
                 return feedback
 
             logger.warning("OpenAI feedback response missing required sections")
@@ -456,9 +418,7 @@ class GameAnalyzer:
                     return existing_analysis
 
                 # Otherwise, continue with new analysis
-                logger.info(
-                    f"Existing analysis is incomplete, recreating for game {game.id}"
-                )
+                logger.info(f"Existing analysis is incomplete, recreating for game {game.id}")
                 analysis_result = existing_analysis
                 # Mark as in progress
                 analysis_result.analysis_data["status"] = "in_progress"
@@ -466,9 +426,7 @@ class GameAnalyzer:
             except GameAnalysis.DoesNotExist:
                 # Create a new analysis
                 logger.info(f"Creating new analysis for game {game.id}")
-                analysis_result = GameAnalysis.objects.create(
-                    game=game, analysis_data={"status": "in_progress"}
-                )
+                analysis_result = GameAnalysis.objects.create(game=game, analysis_data={"status": "in_progress"})
 
             # Initialize Stockfish analyzer
             if progress_callback:
@@ -491,17 +449,11 @@ class GameAnalyzer:
             analyzed_moves = self.engine.analyze_pgn_game(
                 pgn,
                 depth=depth,
-                callback=lambda p, m: (
-                    progress_callback(20 + int(p * 0.5), m)
-                    if progress_callback
-                    else None
-                ),
+                callback=lambda p, m: (progress_callback(20 + int(p * 0.5), m) if progress_callback else None),
             )
 
             if analysis_timer:
-                analysis_timer.mark(
-                    "stockfish_done", moves=len(analyzed_moves) if analyzed_moves else 0
-                )
+                analysis_timer.mark("stockfish_done", moves=len(analyzed_moves) if analyzed_moves else 0)
 
             # Backward-compatible fallback used by legacy unit tests where the
             # engine mock does not provide structured move analysis.
@@ -510,9 +462,7 @@ class GameAnalyzer:
                     analysis = self.engine.analyze_game(pgn, depth=depth)
                     result = {"analysis": analysis}
                     if use_ai:
-                        result["feedback"] = self.feedback_generator.generate_feedback(
-                            analysis, game
-                        )
+                        result["feedback"] = self.feedback_generator.generate_feedback(analysis, game)
                     return result
                 except Exception as legacy_error:
                     return {"error": str(legacy_error)}
@@ -531,9 +481,7 @@ class GameAnalyzer:
             # Calculate metrics
             time_data = []  # Extract time data if available
             try:
-                metrics = self.metrics_calculator.calculate_game_metrics(
-                    analyzed_moves, time_data
-                )
+                metrics = self.metrics_calculator.calculate_game_metrics(analyzed_moves, time_data)
                 if analysis_timer:
                     analysis_timer.mark("metrics_done")
             except MetricsError as me:
@@ -641,9 +589,7 @@ class GameAnalyzer:
                 critical_moments=critical_moments,
                 game_context=game_context,
                 existing_feedback=feedback if isinstance(feedback, dict) else None,
-                batch_context=(
-                    batch_context if isinstance(batch_context, dict) else None
-                ),
+                batch_context=(batch_context if isinstance(batch_context, dict) else None),
                 coach_persona=resolve_coach_persona(profile),
             )
             if analysis_timer:
@@ -667,24 +613,16 @@ class GameAnalyzer:
                 analysis_data["feedback"] = feedback
 
             analysis_result.analysis_data = analysis_data
-            analysis_result.feedback = (
-                feedback
-                if isinstance(feedback, dict)
-                else {"raw_feedback": str(feedback)}
-            )
+            analysis_result.feedback = feedback if isinstance(feedback, dict) else {"raw_feedback": str(feedback)}
 
             # Save moves separately using moves property
             analysis_result.analysis_data["moves"] = analyzed_moves
 
             # If the model has accuracy fields, update them
             if hasattr(analysis_result, "accuracy_white") and "overall" in metrics:
-                analysis_result.accuracy_white = metrics.get("overall", {}).get(
-                    "white_accuracy", 0
-                )
+                analysis_result.accuracy_white = metrics.get("overall", {}).get("white_accuracy", 0)
             if hasattr(analysis_result, "accuracy_black") and "overall" in metrics:
-                analysis_result.accuracy_black = metrics.get("overall", {}).get(
-                    "black_accuracy", 0
-                )
+                analysis_result.accuracy_black = metrics.get("overall", {}).get("black_accuracy", 0)
 
             analysis_result.save()
             if analysis_timer:
@@ -739,9 +677,7 @@ class GameAnalyzer:
                 logger.error(f"Error during cleanup: {str(cleanup_error)}")
                 # Don't raise here to avoid masking the original error
 
-    def _perform_analysis(
-        self, game: Game, depth: int, progress_callback=None
-    ) -> Dict[str, Any]:
+    def _perform_analysis(self, game: Game, depth: int, progress_callback=None) -> Dict[str, Any]:
         """
         Perform the actual game analysis.
 
@@ -766,9 +702,7 @@ class GameAnalyzer:
             if progress_callback:
                 progress_callback(30, "Analyzing moves")
 
-            moves_analysis = self._analyze_moves(
-                game_data["moves"], depth, progress_callback
-            )
+            moves_analysis = self._analyze_moves(game_data["moves"], depth, progress_callback)
             if not moves_analysis:
                 raise AnalysisError("Failed to analyze moves")
 
@@ -776,9 +710,7 @@ class GameAnalyzer:
             if progress_callback:
                 progress_callback(60, "Analyzing positions")
 
-            positions_analysis = self._analyze_positions(
-                game_data["positions"], depth, progress_callback
-            )
+            positions_analysis = self._analyze_positions(game_data["positions"], depth, progress_callback)
             if not positions_analysis:
                 raise AnalysisError("Failed to analyze positions")
 
@@ -896,9 +828,7 @@ class GameAnalyzer:
         except Exception as e:
             raise TaskError(f"Failed to extract game data: {str(e)}")
 
-    def _analyze_moves(
-        self, moves: List[Dict[str, Any]], depth: int, progress_callback=None
-    ) -> List[Dict[str, Any]]:
+    def _analyze_moves(self, moves: List[Dict[str, Any]], depth: int, progress_callback=None) -> List[Dict[str, Any]]:
         """
         Analyze each move in the game.
 
@@ -922,9 +852,7 @@ class GameAnalyzer:
                 # Calculate progress percentage for this move
                 if progress_callback and total_moves > 0:
                     move_progress = progress_base + (progress_range * i) // total_moves
-                    progress_callback(
-                        move_progress, f"Analyzing move {i+1}/{total_moves}"
-                    )
+                    progress_callback(move_progress, f"Analyzing move {i+1}/{total_moves}")
 
                 move_number = move_data["move_number"]
                 move_uci = move_data["move"]
@@ -945,9 +873,7 @@ class GameAnalyzer:
                 # Calculate evaluation change
                 eval_before = position_before.get("score", 0)
                 eval_after = position_after.get("score", 0)
-                eval_change = (
-                    eval_after - eval_before if is_white else eval_before - eval_after
-                )
+                eval_change = eval_after - eval_before if is_white else eval_before - eval_after
 
                 # Determine move classification
                 classification = self._classify_move(eval_change)
@@ -995,12 +921,8 @@ class GameAnalyzer:
             for i, position_data in enumerate(positions):
                 # Calculate progress percentage for this position
                 if progress_callback and total_positions > 0:
-                    position_progress = (
-                        progress_base + (progress_range * i) // total_positions
-                    )
-                    progress_callback(
-                        position_progress, f"Analyzing position {i+1}/{total_positions}"
-                    )
+                    position_progress = progress_base + (progress_range * i) // total_positions
+                    progress_callback(position_progress, f"Analyzing position {i+1}/{total_positions}")
 
                 fen = position_data["fen"]
                 move_number = position_data["move_number"]
@@ -1016,9 +938,7 @@ class GameAnalyzer:
                     "move_number": move_number,
                     "fen": fen,
                     "score": analysis.get("score", 0),
-                    "best_move": (
-                        analysis.get("pv", [])[0] if analysis.get("pv") else None
-                    ),
+                    "best_move": (analysis.get("pv", [])[0] if analysis.get("pv") else None),
                     "position_metrics": analysis.get("position_metrics", {}),
                 }
 
@@ -1053,9 +973,7 @@ class GameAnalyzer:
         else:
             return "neutral"
 
-    def analyze_batch(
-        self, game_ids: List[int], depth: int = 20, use_ai: bool = True
-    ) -> Dict[int, Dict[str, Any]]:
+    def analyze_batch(self, game_ids: List[int], depth: int = 20, use_ai: bool = True) -> Dict[int, Dict[str, Any]]:
         """
         Analyze a batch of games.
 
@@ -1082,9 +1000,7 @@ class GameAnalyzer:
                 )
 
                 # Analyze game - pass the task_id
-                analysis_result = self.analyze_game(
-                    game, depth, use_ai, task_id=task_id
-                )
+                analysis_result = self.analyze_game(game, depth, use_ai, task_id=task_id)
 
                 # Task status already updated in analyze_game
 
@@ -1100,9 +1016,7 @@ class GameAnalyzer:
 
         return results
 
-    def analyze_batch_games(
-        self, games: List[Game], depth: int = 20, use_ai: bool = True
-    ) -> List[Dict[str, Any]]:
+    def analyze_batch_games(self, games: List[Game], depth: int = 20, use_ai: bool = True) -> List[Dict[str, Any]]:
         """
         Backward-compatible wrapper for analyzing a batch of Game objects.
 
@@ -1119,9 +1033,7 @@ class GameAnalyzer:
             results.append(self.analyze_game(game, depth=depth, use_ai=use_ai))
         return results
 
-    def analyze_games(
-        self, games: List[Game], depth: int = 20, use_ai: bool = True
-    ) -> List[Dict[str, Any]]:
+    def analyze_games(self, games: List[Game], depth: int = 20, use_ai: bool = True) -> List[Dict[str, Any]]:
         """
         Alias for analyze_batch_games - validate input and call batch analyzer.
 

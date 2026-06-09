@@ -67,18 +67,12 @@ class CoreConfig(AppConfig):
                             "rest_framework_simplejwt.authentication.JWTAuthentication",
                             "rest_framework.authentication.SessionAuthentication",
                         ),
-                        "DEFAULT_PERMISSION_CLASSES": (
-                            "rest_framework.permissions.IsAuthenticated",
-                        ),
+                        "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
                     }
                 )
-                logger.info(
-                    "REST Framework authentication classes configured successfully"
-                )
+                logger.info("REST Framework authentication classes configured successfully")
             except Exception as e:
                 # Log the error but don't prevent app startup
                 logger.error(f"Error configuring REST Framework: {e}")
         else:
-            logger.warning(
-                "REST_FRAMEWORK setting not found. Authentication classes not configured."
-            )
+            logger.warning("REST_FRAMEWORK setting not found. Authentication classes not configured.")

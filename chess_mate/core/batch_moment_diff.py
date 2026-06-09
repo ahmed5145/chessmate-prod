@@ -4,12 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from .fix_rate import (
-    _extract_patterns,
-    _normalize_label,
-    _proof_game_id,
-    _swing_value,
-)
+from .fix_rate import _extract_patterns, _normalize_label, _proof_game_id, _swing_value
 from .models import BatchAnalysisReport, Profile
 from .moment_timeline import (
     _infer_phase_from_pattern,

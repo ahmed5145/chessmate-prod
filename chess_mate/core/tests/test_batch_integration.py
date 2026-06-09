@@ -186,9 +186,7 @@ class TestBatchIntegration(TestCase):
             )
 
             # Assert 202 response
-            assert (
-                response.status_code == 202
-            ), f"Expected 202, got {response.status_code}: {response.data}"
+            assert response.status_code == 202, f"Expected 202, got {response.status_code}: {response.data}"
             batch_id = response.data["batch_id"]
             task_id = response.data["task_id"]
             assert response.data["status"] == "pending"
@@ -211,9 +209,7 @@ class TestBatchIntegration(TestCase):
             "date_range": "2025-01-01 to 2025-01-05",
             "win_loss_draw": {"wins": 2, "losses": 2, "draws": 1},
         }
-        batch.per_game_results = [
-            get_per_game_result_fixture(f"game_{i}") for i in range(5)
-        ]
+        batch.per_game_results = [get_per_game_result_fixture(f"game_{i}") for i in range(5)]
         batch.coaching_report = get_coaching_report_fixture()
         batch.save()
 

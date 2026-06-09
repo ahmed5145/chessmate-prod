@@ -69,15 +69,9 @@ def _make_game_result(
 
 
 def test_opening_insights_include_neutral_and_group_eco_variants():
-    queens_base = _make_game_result(
-        "qp-1", "1-0", "Queen's Pawn Game", 0.2, 0.3, "pin", "D00"
-    )
-    queens_london = _make_game_result(
-        "qp-2", "0-1", "Queen's Pawn Game: London System", 0.25, 0.35, "fork", "D00"
-    )
-    sicilian = _make_game_result(
-        "sic-1", "0-1", "Sicilian Defense", 0.22, 0.4, "pin", "B90"
-    )
+    queens_base = _make_game_result("qp-1", "1-0", "Queen's Pawn Game", 0.2, 0.3, "pin", "D00")
+    queens_london = _make_game_result("qp-2", "0-1", "Queen's Pawn Game: London System", 0.25, 0.35, "fork", "D00")
+    sicilian = _make_game_result("sic-1", "0-1", "Sicilian Defense", 0.22, 0.4, "pin", "B90")
 
     insights = _compute_opening_insights([queens_base, queens_london, sicilian])
     assert len(insights) >= 2
@@ -95,21 +89,11 @@ def test_opening_insights_include_neutral_and_group_eco_variants():
 def test_batch_aggregator_schema_structure():
     """Test that batch aggregator produces all required fields with correct types."""
     # Use lightweight fixtures instead of engine-backed analysis to keep test deterministic.
-    clean_result = _make_game_result(
-        "clean-1", "1-0", "Italian Game", 0.18, 0.22, "pin", "C50"
-    )
-    blunder_result = _make_game_result(
-        "blunder-1", "0-1", "Sicilian Defense", 0.38, 0.70, "fork", "B90"
-    )
-    clean_result_2 = _make_game_result(
-        "clean-2", "1-0", "Italian Game", 0.12, 0.25, "pin", "C50"
-    )
-    clean_result_3 = _make_game_result(
-        "clean-3", "1/2-1/2", "French Defense", 0.20, 0.28, "hanging_piece", "C00"
-    )
-    blunder_result_2 = _make_game_result(
-        "blunder-2", "0-1", "Caro-Kann Defense", 0.42, 0.75, "fork", "B12"
-    )
+    clean_result = _make_game_result("clean-1", "1-0", "Italian Game", 0.18, 0.22, "pin", "C50")
+    blunder_result = _make_game_result("blunder-1", "0-1", "Sicilian Defense", 0.38, 0.70, "fork", "B90")
+    clean_result_2 = _make_game_result("clean-2", "1-0", "Italian Game", 0.12, 0.25, "pin", "C50")
+    clean_result_3 = _make_game_result("clean-3", "1/2-1/2", "French Defense", 0.20, 0.28, "hanging_piece", "C00")
+    blunder_result_2 = _make_game_result("blunder-2", "0-1", "Caro-Kann Defense", 0.42, 0.75, "fork", "B12")
 
     per_game_results = [
         clean_result,
@@ -141,11 +125,7 @@ def test_batch_aggregator_schema_structure():
     assert "phase_performance" in batch_summary
     assert "recurring_weaknesses" in batch_summary
     assert "opening_insights" in batch_summary
-    italian = next(
-        i
-        for i in batch_summary["opening_insights"]
-        if i["opening_name"] == "Italian Game"
-    )
+    italian = next(i for i in batch_summary["opening_insights"] if i["opening_name"] == "Italian Game")
     assert italian.get("eco_code") == "C50"
     assert "repertoire_gaps" in batch_summary
     assert isinstance(batch_summary["repertoire_gaps"], list)
@@ -159,9 +139,7 @@ def test_batch_aggregator_schema_structure():
     assert isinstance(batch_summary["top_critical_moments"], list)
     assert len(batch_summary["top_critical_moments"]) <= 3
     assert "time_management_summary" in batch_summary
-    assert batch_summary.get("rating_band_coaching") is None or isinstance(
-        batch_summary["rating_band_coaching"], dict
-    )
+    assert batch_summary.get("rating_band_coaching") is None or isinstance(batch_summary["rating_band_coaching"], dict)
 
     # Verify field types
     assert isinstance(batch_summary["games_analyzed"], int)
@@ -259,21 +237,11 @@ def test_batch_aggregator_schema_structure():
 
 def test_batch_aggregator_data_consistency():
     """Test that aggregated data makes logical sense."""
-    clean_result = _make_game_result(
-        "clean-1", "1-0", "Italian Game", 0.18, 0.22, "pin"
-    )
-    blunder_result = _make_game_result(
-        "blunder-1", "0-1", "Sicilian Defense", 0.38, 0.70, "fork"
-    )
-    clean_result_2 = _make_game_result(
-        "clean-2", "1-0", "Italian Game", 0.12, 0.25, "pin"
-    )
-    clean_result_3 = _make_game_result(
-        "clean-3", "1/2-1/2", "French Defense", 0.20, 0.28, "hanging_piece"
-    )
-    blunder_result_2 = _make_game_result(
-        "blunder-2", "0-1", "Caro-Kann Defense", 0.42, 0.75, "fork"
-    )
+    clean_result = _make_game_result("clean-1", "1-0", "Italian Game", 0.18, 0.22, "pin")
+    blunder_result = _make_game_result("blunder-1", "0-1", "Sicilian Defense", 0.38, 0.70, "fork")
+    clean_result_2 = _make_game_result("clean-2", "1-0", "Italian Game", 0.12, 0.25, "pin")
+    clean_result_3 = _make_game_result("clean-3", "1/2-1/2", "French Defense", 0.20, 0.28, "hanging_piece")
+    blunder_result_2 = _make_game_result("blunder-2", "0-1", "Caro-Kann Defense", 0.42, 0.75, "fork")
 
     per_game_results = [
         clean_result,
@@ -318,9 +286,7 @@ def test_strength_patterns_omit_opening_prep_when_opening_is_worst_phase():
     games = []
     for index in range(6):
         opening_drop = 0.55 if index < 2 else 0.15
-        game = _make_game_result(
-            f"g-{index}", "1-0", "Italian Game", opening_drop, 0.08, "pin", "C50"
-        )
+        game = _make_game_result(f"g-{index}", "1-0", "Italian Game", opening_drop, 0.08, "pin", "C50")
         game["phase_breakdown"]["middlegame"] = {
             "moves": 12,
             "avg_eval_drop": 0.1,

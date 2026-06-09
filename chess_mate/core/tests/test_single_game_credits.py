@@ -23,9 +23,7 @@ LOC_MEM_CACHES = {
 @override_settings(SINGLE_GAME_ANALYSIS_CREDITS=1, CACHES=LOC_MEM_CACHES)
 class TestSingleGameCreditRefund(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
-            username="sg_refund_user", password="testpass"
-        )
+        self.user = User.objects.create_user(username="sg_refund_user", password="testpass")
         self.profile = ensure_profile(self.user, credits=10)
         self.game_id = 42
 
@@ -67,9 +65,7 @@ class TestSingleGameCreditRefund(TestCase):
             force_reanalyze=False,
         )
         assert waiver == "first_free"
-        charged = charge_single_game_credit(
-            self.user, self.game_id, self.profile, waiver=waiver
-        )
+        charged = charge_single_game_credit(self.user, self.game_id, self.profile, waiver=waiver)
         assert charged == 0
         self.profile.refresh_from_db()
         assert qualifies_for_first_single_game_free(self.profile) is False

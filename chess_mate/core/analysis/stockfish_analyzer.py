@@ -87,9 +87,7 @@ class StockfishAnalyzer:
         if os.path.isabs(normalized_path):
             return os.path.exists(normalized_path)
 
-        if os.path.sep in normalized_path or (
-            os.path.altsep and os.path.altsep in normalized_path
-        ):
+        if os.path.sep in normalized_path or (os.path.altsep and os.path.altsep in normalized_path):
             return os.path.exists(normalized_path)
 
         return shutil.which(normalized_path) is not None
@@ -111,13 +109,9 @@ class StockfishAnalyzer:
                 "/usr/games/stockfish",  # Another common Unix location
             ]
 
-            viable_paths = [
-                path for path in stockfish_paths if self._is_viable_stockfish_path(path)
-            ]
+            viable_paths = [path for path in stockfish_paths if self._is_viable_stockfish_path(path)]
             if not viable_paths:
-                raise ValueError(
-                    "Could not find Stockfish engine in any standard location"
-                )
+                raise ValueError("Could not find Stockfish engine in any standard location")
 
             for path in viable_paths:
                 try:
@@ -126,14 +120,10 @@ class StockfishAnalyzer:
                         self._engine.configure({"Threads": 4, "Hash": 128})
                         self._initialized = True
                         self._init_failed = False
-                        logger.info(
-                            f"Successfully initialized Stockfish engine from path: {path}"
-                        )
+                        logger.info(f"Successfully initialized Stockfish engine from path: {path}")
                         return
                 except Exception as e:
-                    logger.debug(
-                        f"Failed to initialize Stockfish at path {path}: {str(e)}"
-                    )
+                    logger.debug(f"Failed to initialize Stockfish at path {path}: {str(e)}")
                     continue
 
             raise ValueError("Could not find Stockfish engine in any standard location")
@@ -165,9 +155,7 @@ class StockfishAnalyzer:
                     raise ValueError("STOCKFISH_PATH not configured")
 
                 if not self._is_viable_stockfish_path(stockfish_path):
-                    raise ValueError(
-                        f"Stockfish binary not found at configured path: {stockfish_path}"
-                    )
+                    raise ValueError(f"Stockfish binary not found at configured path: {stockfish_path}")
 
                 try:
                     # Create engine instance
@@ -180,9 +168,7 @@ class StockfishAnalyzer:
                         "Threads": getattr(settings, "STOCKFISH_THREADS", 1),
                         "Hash": getattr(settings, "STOCKFISH_HASH_SIZE", 128),
                         "Skill Level": getattr(settings, "STOCKFISH_SKILL_LEVEL", 20),
-                        "Move Overhead": getattr(
-                            settings, "STOCKFISH_MOVE_OVERHEAD", 30
-                        ),
+                        "Move Overhead": getattr(settings, "STOCKFISH_MOVE_OVERHEAD", 30),
                         "Clear Hash": True,
                     }
 
@@ -247,9 +233,7 @@ class StockfishAnalyzer:
         """Analyze a chess position using Stockfish engine."""
         try:
             if self._init_failed:
-                return self._create_neutral_evaluation(
-                    "Engine initialization previously failed"
-                )
+                return self._create_neutral_evaluation("Engine initialization previously failed")
 
             if not self._engine or not self._initialized:
                 # Try to initialize engine if not already initialized
@@ -327,11 +311,7 @@ class StockfishAnalyzer:
 
                     # Fallback to basic mate score
                     try:
-                        mate_cp = (
-                            score.score(mate_score=10000)
-                            if hasattr(score, "score")
-                            else None
-                        )
+                        mate_cp = score.score(mate_score=10000) if hasattr(score, "score") else None
                         return float(mate_cp) / 100.0 if mate_cp is not None else 0.0
                     except Exception as e:
                         logger.error(f"Error getting score sign for mate: {e}")
@@ -357,11 +337,7 @@ class StockfishAnalyzer:
                 return float(score) / 100.0  # Convert centipawns to pawns
 
             # Handle Mate object directly
-            elif (
-                hasattr(score, "moves")
-                and hasattr(score, "__class__")
-                and "Mate" in score.__class__.__name__
-            ):
+            elif hasattr(score, "moves") and hasattr(score, "__class__") and "Mate" in score.__class__.__name__:
                 try:
                     moves = score.moves
                     sign = 1 if moves > 0 else -1
@@ -392,9 +368,7 @@ class StockfishAnalyzer:
             return 0.0
 
         except Exception as e:
-            logger.error(
-                f"Unexpected error converting score: {str(e)}, score type: {type(score)}"
-            )
+            logger.error(f"Unexpected error converting score: {str(e)}, score type: {type(score)}")
             return 0.0
 
     def _create_neutral_evaluation(self, error_msg: str = None) -> Dict[str, Any]:
@@ -488,12 +462,8 @@ class StockfishAnalyzer:
             position_metrics = eval_after.get("position_metrics", {})
 
             # Determine if move is tactical or critical
-            is_tactical = self._is_tactical_move(
-                board, move, eval_improvement, position_metrics
-            )
-            is_critical = self._is_critical_move(
-                board, move, eval_before["score"], eval_after["score"]
-            )
+            is_tactical = self._is_tactical_move(board, move, eval_improvement, position_metrics)
+            is_critical = self._is_critical_move(board, move, eval_before["score"], eval_after["score"])
 
             return {
                 "move": move.uci(),
@@ -504,9 +474,7 @@ class StockfishAnalyzer:
                 "is_tactical": is_tactical,
                 "is_critical": is_critical,
                 "position_metrics": position_metrics,
-                "time_metrics": self._calculate_time_metrics(
-                    time_spent, total_time, increment
-                ),
+                "time_metrics": self._calculate_time_metrics(time_spent, total_time, increment),
                 "time_spent": time_spent,
                 "material_change": self._calculate_material_change(board_after, move),
                 "is_check": board_after.is_check(),
@@ -524,9 +492,7 @@ class StockfishAnalyzer:
                 "is_tactical": False,
                 "is_critical": False,
                 "position_metrics": {},
-                "time_metrics": self._calculate_time_metrics(
-                    time_spent, total_time, increment
-                ),
+                "time_metrics": self._calculate_time_metrics(time_spent, total_time, increment),
                 "time_spent": time_spent,
                 "material_change": 0,
                 "is_check": False,
@@ -544,9 +510,7 @@ class StockfishAnalyzer:
         try:
             # Validate move first
             if move not in board.legal_moves:
-                logger.error(
-                    f"Move {move.uci()} is not legal in position {board.fen()}"
-                )
+                logger.error(f"Move {move.uci()} is not legal in position {board.fen()}")
                 # Keep heuristic detection active for legacy test fixtures that include invalid UCI samples.
                 return abs(eval_improvement) >= 1.0
 
@@ -585,16 +549,12 @@ class StockfishAnalyzer:
             position_complexity = position_metrics.get("position_complexity", 0)
 
             # Complex position with significant evaluation change
-            if (
-                position_complexity > 0.6 and abs(eval_improvement) >= 0.8
-            ):  # Reduced from 1.0 to 0.8
+            if position_complexity > 0.6 and abs(eval_improvement) >= 0.8:  # Reduced from 1.0 to 0.8
                 return True
 
             # High piece activity in a complex position with moderate eval change
             if (
-                piece_activity > 0.6
-                and position_complexity > 0.5
-                and abs(eval_improvement) >= 0.6
+                piece_activity > 0.6 and position_complexity > 0.5 and abs(eval_improvement) >= 0.6
             ):  # Reduced from 0.8 to 0.6
                 return True
 
@@ -716,9 +676,7 @@ class StockfishAnalyzer:
             logger.error(f"Error in _is_critical_move: {str(e)}")
             return False
 
-    def _calculate_time_metrics(
-        self, time_spent: float, total_time: float, increment: float
-    ) -> Dict[str, Any]:
+    def _calculate_time_metrics(self, time_spent: float, total_time: float, increment: float) -> Dict[str, Any]:
         """Calculate time management metrics."""
         try:
             # Calculate time pressure thresholds based on game phase
@@ -739,13 +697,8 @@ class StockfishAnalyzer:
             # Compatibility behavior: older tests treat very low spend ratios as pressure,
             # while newer tests treat high spend ratios as pressure.
             low_pressure_threshold = 0.1 if total_time < 60 else 0.05
-            time_pressure = (
-                time_ratio < low_pressure_threshold or time_ratio > pressure_threshold
-            )
-            critical_time = (
-                time_ratio < (low_pressure_threshold / 2)
-                or time_ratio > critical_threshold
-            )
+            time_pressure = time_ratio < low_pressure_threshold or time_ratio > pressure_threshold
+            critical_time = time_ratio < (low_pressure_threshold / 2) or time_ratio > critical_threshold
 
             # Calculate normalized time (0-1 scale)
             normalized_time = min(1.0, time_ratio / pressure_threshold)
@@ -794,9 +747,7 @@ class StockfishAnalyzer:
 
             for square in chess.SQUARES:
                 # Count squares attacked by either side
-                if board.attackers(chess.WHITE, square) or board.attackers(
-                    chess.BLACK, square
-                ):
+                if board.attackers(chess.WHITE, square) or board.attackers(chess.BLACK, square):
                     controlled_squares += 1
 
             # Normalize to 0-1 range
@@ -984,9 +935,7 @@ class StockfishAnalyzer:
 
                 previous_clock = previous_clock_by_color.get(is_white)
                 time_spent = None
-                if isinstance(previous_clock, (int, float)) and isinstance(
-                    move_clock, (int, float)
-                ):
+                if isinstance(previous_clock, (int, float)) and isinstance(move_clock, (int, float)):
                     # Guard against malformed PGN clock jumps.
                     estimated_spent = float(previous_clock) - float(move_clock)
                     if estimated_spent >= 0:
@@ -1009,11 +958,7 @@ class StockfishAnalyzer:
                 eval_before = position_before.get("score", 0)
 
                 # Classify move with best-move and mate-aware context.
-                best_move = (
-                    position_before.get("pv", [])[0]
-                    if position_before.get("pv")
-                    else None
-                )
+                best_move = position_before.get("pv", [])[0] if position_before.get("pv") else None
                 best_move_san = None
                 eval_after_best = None
                 if best_move:
@@ -1024,9 +969,7 @@ class StockfishAnalyzer:
                             if move.uci() != best_move:
                                 best_board = board.copy()
                                 best_board.push(best_move_obj)
-                                position_best = self.analyze_position(
-                                    best_board, depth=depth
-                                )
+                                position_best = self.analyze_position(best_board, depth=depth)
                                 eval_after_best = position_best.get("score", 0)
                     except Exception:
                         best_move_san = None
@@ -1067,11 +1010,7 @@ class StockfishAnalyzer:
                     "best_move_san": best_move_san,
                     "is_best": bool(best_move and move.uci() == best_move),
                     "is_critical": abs(float(eval_change)) >= 1.0,
-                    "best_line": (
-                        position_before.get("pv", [])[:5]
-                        if position_before.get("pv")
-                        else []
-                    ),
+                    "best_line": (position_before.get("pv", [])[:5] if position_before.get("pv") else []),
                     "position": position_before.get("fen", board.fen()),
                     "time": time_spent,
                     "time_spent": time_spent,
@@ -1118,24 +1057,15 @@ class StockfishAnalyzer:
         in_mate_band_after = False
         in_mate_band_before = False
         try:
-            in_mate_band_after = (
-                eval_after is not None and abs(float(eval_after)) >= 900.0
-            )
-            in_mate_band_before = (
-                eval_before is not None and abs(float(eval_before)) >= 900.0
-            )
+            in_mate_band_after = eval_after is not None and abs(float(eval_after)) >= 900.0
+            in_mate_band_before = eval_before is not None and abs(float(eval_before)) >= 900.0
         except (TypeError, ValueError):
             in_mate_band_after = False
             in_mate_band_before = False
 
         # If the played move matches engine best move and does not worsen sharply,
         # avoid classifying it as neutral.
-        if (
-            played_move
-            and best_move
-            and played_move == best_move
-            and eval_change_cp >= -50
-        ):
+        if played_move and best_move and played_move == best_move and eval_change_cp >= -50:
             if eval_change_cp >= -20:
                 return "best"
             if in_mate_band_after and (not in_mate_band_before or raw_change > 0):

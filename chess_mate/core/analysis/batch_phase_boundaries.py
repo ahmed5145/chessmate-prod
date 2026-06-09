@@ -51,9 +51,7 @@ def normalize_phase_boundaries(
     endgame = min(endgame, total - MIN_ENDGAME_HALF_MOVES)
 
     if endgame <= opening:
-        endgame = min(
-            total, opening + max(MIN_MIDDLEGAME_HALF_MOVES, (total - opening) // 2)
-        )
+        endgame = min(total, opening + max(MIN_MIDDLEGAME_HALF_MOVES, (total - opening) // 2))
 
     if total - endgame < MIN_ENDGAME_HALF_MOVES:
         endgame = total

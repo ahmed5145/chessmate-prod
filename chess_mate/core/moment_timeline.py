@@ -24,9 +24,7 @@ def build_moment_signature(
 ) -> str:
     pattern = _normalize_token(pattern_or_type) or "positional_slip"
     pattern = pattern.replace(" ", "_")
-    phase_name = (
-        phase if phase in ("opening", "middlegame", "endgame") else "middlegame"
-    )
+    phase_name = phase if phase in ("opening", "middlegame", "endgame") else "middlegame"
     eco = str(opening_eco or "").strip().upper()[:10]
     return f"{pattern}|{phase_name}|{eco}"
 

@@ -98,9 +98,7 @@ class CacheInvalidationTestCase(TestCase):
         invalidate_cache(tag)
 
         # Verify the tag keys are gone
-        after_invalidation_tag_keys = len(
-            self.redis_client.keys(f"*{self.tag_separator}{tag}")
-        )
+        after_invalidation_tag_keys = len(self.redis_client.keys(f"*{self.tag_separator}{tag}"))
         self.assertEqual(after_invalidation_tag_keys, 0)
 
         # Verify the original keys are still there (implementation dependent)
@@ -199,9 +197,7 @@ class CacheInvalidationTestCase(TestCase):
         # Set up a test admin user
         from django.contrib.auth.models import User
 
-        admin = User.objects.create_superuser(
-            username="admin", email="admin@example.com", password="adminpassword"
-        )
+        admin = User.objects.create_superuser(username="admin", email="admin@example.com", password="adminpassword")
 
         # Login
         self.client.login(username="admin", password="adminpassword")

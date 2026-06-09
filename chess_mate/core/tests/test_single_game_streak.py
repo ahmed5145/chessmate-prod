@@ -79,9 +79,7 @@ class TestSingleGameStreak:
         profile.preferences = {"single_game_streak": {"count": 2, "last_game_id": 30}}
         profile.save(update_fields=["preferences"])
 
-        analysis_data = {
-            "moves": [{"is_white": True, "eval_change": 0.05, "classification": "good"}]
-        }
+        analysis_data = {"moves": [{"is_white": True, "eval_change": 0.05, "classification": "good"}]}
         state = update_single_game_streak(
             profile,
             game_id=30,

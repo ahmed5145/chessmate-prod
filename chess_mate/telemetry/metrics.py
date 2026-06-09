@@ -31,9 +31,7 @@ class Metric:
 class Counter(Metric):
     """Counter metric type."""
 
-    def increment(
-        self, value: float = 1.0, labels: Optional[Dict[str, str]] = None
-    ) -> None:
+    def increment(self, value: float = 1.0, labels: Optional[Dict[str, str]] = None) -> None:
         """Increment counter by value."""
         self.value += value
         self.timestamp = time.time()
@@ -92,15 +90,9 @@ class Histogram(Metric):
 
 # System Metrics
 SYSTEM_METRICS = {
-    "system_memory_usage": Gauge(
-        name="system_memory_usage", value=0.0, labels={"unit": "bytes"}
-    ),
-    "system_cpu_usage": Gauge(
-        name="system_cpu_usage", value=0.0, labels={"unit": "percentage"}
-    ),
-    "system_disk_usage": Gauge(
-        name="system_disk_usage", value=0.0, labels={"unit": "bytes"}
-    ),
+    "system_memory_usage": Gauge(name="system_memory_usage", value=0.0, labels={"unit": "bytes"}),
+    "system_cpu_usage": Gauge(name="system_cpu_usage", value=0.0, labels={"unit": "percentage"}),
+    "system_disk_usage": Gauge(name="system_disk_usage", value=0.0, labels={"unit": "bytes"}),
 }
 
 # Request Metrics
@@ -139,12 +131,8 @@ PERFORMANCE_METRICS = {
         buckets=create_db_buckets(),
         labels={"query_type": "", "table": ""},
     ),
-    "cache_operations_total": Counter(
-        name="cache_operations_total", value=0, labels={"operation": "", "status": ""}
-    ),
-    "celery_tasks_total": Counter(
-        name="celery_tasks_total", value=0, labels={"task_name": "", "status": ""}
-    ),
+    "cache_operations_total": Counter(name="cache_operations_total", value=0, labels={"operation": "", "status": ""}),
+    "celery_tasks_total": Counter(name="celery_tasks_total", value=0, labels={"task_name": "", "status": ""}),
 }
 
 # Game Analysis Metrics
@@ -155,17 +143,13 @@ GAME_METRICS = {
         buckets=create_analysis_buckets(),
         labels={"depth": "", "game_length": ""},
     ),
-    "analysis_quality_score": Gauge(
-        name="analysis_quality_score", value=0.0, labels={"analysis_type": ""}
-    ),
+    "analysis_quality_score": Gauge(name="analysis_quality_score", value=0.0, labels={"analysis_type": ""}),
     "games_analyzed_total": Counter(
         name="games_analyzed_total",
         value=0,
         labels={"analysis_type": "", "game_type": ""},
     ),
-    "stockfish_errors_total": Counter(
-        name="stockfish_errors_total", value=0, labels={"error_type": ""}
-    ),
+    "stockfish_errors_total": Counter(name="stockfish_errors_total", value=0, labels={"error_type": ""}),
 }
 
 # Combine all metrics

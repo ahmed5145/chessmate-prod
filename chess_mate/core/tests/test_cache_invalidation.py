@@ -60,9 +60,7 @@ class TestCacheInvalidator:
 
     def setup_method(self):
         """Set up test data and mocks."""
-        self.invalidate_pattern_patch = patch(
-            "core.cache_invalidation.invalidate_pattern"
-        )
+        self.invalidate_pattern_patch = patch("core.cache_invalidation.invalidate_pattern")
         self.mock_invalidate_pattern = self.invalidate_pattern_patch.start()
 
         self.logger_patch = patch("core.cache_invalidation.logger")
@@ -88,9 +86,7 @@ class TestCacheInvalidator:
             for prefix in ENTITY_KEY_PREFIXES.get(dep_type, []):
                 expected_calls.append(call(f"{prefix}*1*", "redis"))
 
-        assert self.mock_invalidate_pattern.call_count >= len(
-            ENTITY_KEY_PREFIXES["User"]
-        )
+        assert self.mock_invalidate_pattern.call_count >= len(ENTITY_KEY_PREFIXES["User"])
         # We don't check exact matches because of recursive calls and potential duplicate patterns
 
         # Check that logger.debug was called
@@ -106,10 +102,7 @@ class TestCacheInvalidator:
 
         # Check that logger.error was called
         self.mock_logger.error.assert_called_once()
-        assert (
-            "Error invalidating entity cache for User:1"
-            in self.mock_logger.error.call_args[0][0]
-        )
+        assert "Error invalidating entity cache for User:1" in self.mock_logger.error.call_args[0][0]
 
     def test_invalidate_tag(self):
         """Test invalidating cache for a specific tag."""
@@ -126,15 +119,11 @@ class TestCacheInvalidator:
             for prefix in TAG_KEY_PREFIXES.get(dep_tag, []):
                 expected_calls.append(call(f"{prefix}*", "redis"))
 
-        assert self.mock_invalidate_pattern.call_count >= len(
-            TAG_KEY_PREFIXES["user_games"]
-        )
+        assert self.mock_invalidate_pattern.call_count >= len(TAG_KEY_PREFIXES["user_games"])
         # We don't check exact matches because of recursive calls and potential duplicate patterns
 
         # Check that logger.debug was called
-        self.mock_logger.debug.assert_called_with(
-            "Invalidated cache for tag: user_games"
-        )
+        self.mock_logger.debug.assert_called_with("Invalidated cache for tag: user_games")
 
     def test_invalidate_tag_with_exception(self):
         """Test invalidating cache for a tag when an exception occurs."""
@@ -146,10 +135,7 @@ class TestCacheInvalidator:
 
         # Check that logger.error was called
         self.mock_logger.error.assert_called_once()
-        assert (
-            "Error invalidating tag cache for user_games"
-            in self.mock_logger.error.call_args[0][0]
-        )
+        assert "Error invalidating tag cache for user_games" in self.mock_logger.error.call_args[0][0]
 
     def test_invalidate_user_cache(self):
         """Test invalidating all cache entries for a user."""

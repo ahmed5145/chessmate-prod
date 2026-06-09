@@ -92,9 +92,7 @@ def fulfill_checkout_session(
     }
 
 
-def fulfill_checkout_from_webhook_event(
-    event: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
+def fulfill_checkout_from_webhook_event(event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
     Apply credits for checkout.session.completed (mode=payment).
     Returns fulfillment result or None if event was ignored.
@@ -112,9 +110,7 @@ def fulfill_checkout_from_webhook_event(
     metadata = session.get("metadata") or {}
     user_id = metadata.get("user_id")
     if not user_id:
-        logger.warning(
-            "checkout.session.completed missing user_id metadata: %s", session_id
-        )
+        logger.warning("checkout.session.completed missing user_id metadata: %s", session_id)
         return None
 
     User = get_user_model()

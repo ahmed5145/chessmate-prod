@@ -76,9 +76,7 @@ class CacheMetricCollector(MetricCollector):
             stats = cache.get_statistics() if hasattr(cache, "get_statistics") else {}
 
             for operation, count in stats.items():
-                self.metrics["cache_operations_total"].increment(
-                    count, labels={"operation": operation}
-                )
+                self.metrics["cache_operations_total"].increment(count, labels={"operation": operation})
         except Exception as e:
             logger.error(f"Error collecting cache metrics: {e}")
 
@@ -102,9 +100,7 @@ class GameAnalysisMetricCollector(MetricCollector):
     def record_analysis_quality(self, score: float, analysis_type: str) -> None:
         """Record the quality score of an analysis."""
         try:
-            self.metrics["analysis_quality_score"].set(
-                score, labels={"analysis_type": analysis_type}
-            )
+            self.metrics["analysis_quality_score"].set(score, labels={"analysis_type": analysis_type})
         except Exception as e:
             logger.error(f"Error recording analysis quality: {e}")
 
@@ -132,9 +128,7 @@ class BusinessMetricCollector(MetricCollector):
     def record_analysis_request(self, status: str, user_type: str) -> None:
         """Record a game analysis request."""
         try:
-            self.metrics["game_analysis_requests_total"].increment(
-                labels={"status": status, "user_type": user_type}
-            )
+            self.metrics["game_analysis_requests_total"].increment(labels={"status": status, "user_type": user_type})
         except Exception as e:
             logger.error(f"Error recording analysis request: {e}")
 

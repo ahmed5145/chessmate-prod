@@ -25,9 +25,7 @@ def api_client():
 
 @pytest.fixture
 def test_user():
-    user = User.objects.create_user(
-        username="testuser", email="test@example.com", password="testpassword123"
-    )
+    user = User.objects.create_user(username="testuser", email="test@example.com", password="testpassword123")
     ensure_profile(
         user,
         email_verified=True,
@@ -118,9 +116,7 @@ def sample_games(test_user):
             analysis={
                 "analysis_results": {
                     "summary": {"user_accuracy": 90.1},
-                    "mistakes": [
-                        {"type": "inaccuracy", "move_number": 20, "piece": "pawn"}
-                    ],
+                    "mistakes": [{"type": "inaccuracy", "move_number": 20, "piece": "pawn"}],
                 }
             },
         )
@@ -174,9 +170,7 @@ def sample_games(test_user):
 
 @pytest.mark.django_db
 class TestDashboardViews:
-    def test_dashboard_view_cache_miss(
-        self, authenticated_client, test_user, sample_games
-    ):
+    def test_dashboard_view_cache_miss(self, authenticated_client, test_user, sample_games):
         # Mock the cache to always miss
         with patch.object(dashboard_views.cache_manager, "get", return_value=None):
             with patch.object(dashboard_views.cache_manager, "set") as mock_set:
@@ -256,9 +250,7 @@ class TestDashboardViews:
             assert "message" in response.data
             assert mock_delete.called
 
-    def test_get_performance_trend_cache_miss(
-        self, authenticated_client, test_user, sample_games
-    ):
+    def test_get_performance_trend_cache_miss(self, authenticated_client, test_user, sample_games):
         # Mock the cache to always miss
         with patch.object(dashboard_views.cache_manager, "get", return_value=None):
             with patch.object(dashboard_views.cache_manager, "set") as mock_set:
@@ -300,9 +292,7 @@ class TestDashboardViews:
             assert response.status_code == status.HTTP_200_OK
             assert response.data == mock_data
 
-    def test_get_mistake_analysis_cache_miss(
-        self, authenticated_client, test_user, sample_games
-    ):
+    def test_get_mistake_analysis_cache_miss(self, authenticated_client, test_user, sample_games):
         # Mock the cache to always miss
         with patch.object(dashboard_views.cache_manager, "get", return_value=None):
             with patch.object(dashboard_views.cache_manager, "set") as mock_set:

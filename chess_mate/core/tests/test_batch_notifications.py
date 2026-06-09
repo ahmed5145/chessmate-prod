@@ -87,8 +87,6 @@ def test_template_render_failure_uses_plaintext_fallback(
 @patch("core.batch_notifications.mail.send_mail", side_effect=RuntimeError("SMTP down"))
 @patch("core.batch_notifications.render_to_string", return_value="<p>Ready</p>")
 @patch("core.batch_notifications.is_email_configured", return_value=True)
-def test_returns_false_when_send_mail_fails(
-    _mock_email_configured, _mock_render, _mock_send_mail
-):
+def test_returns_false_when_send_mail_fails(_mock_email_configured, _mock_render, _mock_send_mail):
     user = MagicMock(email="player@example.com")
     assert send_batch_complete_email(user, _batch_report()) is False

@@ -14,9 +14,7 @@ class Command(BaseCommand):
             type=str,
             help="User email (case-insensitive)",
         )
-        parser.add_argument(
-            "amount", type=int, help="Credits to add (can be negative to deduct)"
-        )
+        parser.add_argument("amount", type=int, help="Credits to add (can be negative to deduct)")
         parser.add_argument(
             "--user-id",
             type=int,
@@ -53,7 +51,5 @@ class Command(BaseCommand):
         profile.save(update_fields=["credits"])
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"User {user.username} ({email}): credits {before} -> {profile.credits} ({amount:+d})"
-            )
+            self.style.SUCCESS(f"User {user.username} ({email}): credits {before} -> {profile.credits} ({amount:+d})")
         )

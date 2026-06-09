@@ -158,6 +158,4 @@ def test_invalid_moves(move):
 def test_edge_case_moves(move, expected, description):
     """Test edge cases for chess move notation."""
     result = is_valid_move(move)
-    assert (
-        result == expected
-    ), f"Move '{move}' ({description}): expected {expected}, got {result}"
+    assert result == expected, f"Move '{move}' ({description}): expected {expected}, got {result}"

@@ -183,9 +183,7 @@ class TestStockfishAnalyzer(TransactionTestCase):
             self.assertIn("material_count", metrics)
 
             # Verify evaluator was called
-            self.analyzer.position_evaluator.evaluate_position.assert_called_once_with(
-                self.test_board
-            )
+            self.analyzer.position_evaluator.evaluate_position.assert_called_once_with(self.test_board)
 
         except Exception as e:
             logger.error(f"Test failed with error: {str(e)}")
@@ -276,9 +274,7 @@ class TestStockfishAnalyzer(TransactionTestCase):
                     # Mock score creation
                     mock_score_before = MockScore(case["before_score"])
                     mock_score_after = (
-                        MockScore(None, case["is_mate_in"])
-                        if "is_mate_in" in case
-                        else MockScore(case["after_score"])
+                        MockScore(None, case["is_mate_in"]) if "is_mate_in" in case else MockScore(case["after_score"])
                     )
 
                     # Mock engine responses
@@ -358,9 +354,7 @@ class TestStockfishAnalyzer(TransactionTestCase):
 
                 # Calculate expected time pressure based on the ratio
                 time_ratio = case["time_spent"] / max(case["total_time"], 1)
-                expected_pressure = (
-                    time_ratio < 0.1 if case["total_time"] < 60 else time_ratio < 0.05
-                )
+                expected_pressure = time_ratio < 0.1 if case["total_time"] < 60 else time_ratio < 0.05
 
                 self.assertIn("time_pressure", metrics)
                 self.assertEqual(metrics["time_pressure"], expected_pressure)
