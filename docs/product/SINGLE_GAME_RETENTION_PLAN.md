@@ -43,16 +43,15 @@
 | **SRG-25** | Inbox streak freeze (1× per calendar month) |
 | **SRG-26** | Coach persona tone (direct vs encouraging) |
 | **SRG-27** | Inactive 30-day reactivation email (strict opt-in) |
+| **SRG-28** | PWA install prompt (mobile only, after first batch — not on first visit) |
+| **SRG-29** | Moment share text preview (OG title/description); image deferred |
 
-### Deferred — product decision pending (not locked)
+### Deferred — not building now
 
-See **§9** for plain-language explainers. Promote to SRG-28+ only after explicit approval.
-
-| ID | Idea |
-|----|------|
-| **DX-01** | PWA “Add to Home Screen” install prompt |
-| **DX-02** | Moment share as social OG preview image |
-| **DX-03** | Training plan `.ics` calendar export |
+| ID | Idea | Notes |
+|----|------|-------|
+| **DX-02b** | Moment share **dynamic OG image** (board PNG) | Too expensive for now; ship SRG-29 text first; promote when share/referral volume justifies |
+| **DX-03** | Training plan `.ics` calendar export | Deferred — SRG-6 + SRG-12 cover daily habit |
 
 ### Out of scope (explicit)
 
