@@ -334,7 +334,7 @@ const SingleGameAnalysis = () => {
   const analysisCompleted = useRef(false);
   const analysisErrorRef = useRef(false);
   const pollingTimeoutRef = useRef(null);
-  const pollDelayRef = useRef(5000);
+  const pollDelayRef = useRef(3000);
   const activeTaskIdRef = useRef(null);
   const timeoutIds = useRef([]);
   const POLL_MIN_DELAY = 5000;
@@ -370,28 +370,28 @@ const SingleGameAnalysis = () => {
       });
       console.log(`Analysis status for game ${gameId}:`, statusResponse);
 
-      const isTransientPollingIssue = statusResponse.rateLimited
-        || statusResponse.status === 'RATE_LIMITED'
-        || statusResponse.status === 'POLLING_TRANSIENT';
+      if (statusResponse.rateLimited || statusResponse.status === 'RATE_LIMITED') {
+        const retryAfter = statusResponse.retryAfterSeconds || 20;
+        pollDelayRef.current = computeNextPollDelay({
+          currentDelay: pollDelayRef.current,
+          minDelay: POLL_MIN_DELAY,
+          maxDelay: POLL_MAX_DELAY,
+          rateLimitSeconds: retryAfter,
+        });
+        setStatusMessage('Taking a short pause');
+        setLoadingMessage(
+          `Status checks paused for about ${retryAfter} seconds — your review is still running in the background.`
+        );
+        return;
+      }
 
       pollDelayRef.current = computeNextPollDelay({
         currentDelay: pollDelayRef.current,
         minDelay: POLL_MIN_DELAY,
         maxDelay: POLL_MAX_DELAY,
-        hadError: statusResponse.status === 'POLLING_TRANSIENT',
-        retryAfterSeconds: statusResponse.retryAfterSeconds,
+        hadError: statusResponse.status === 'POLL_ERROR',
       });
 
-      if (isTransientPollingIssue) {
-        if (statusResponse.rateLimited || statusResponse.status === 'RATE_LIMITED') {
-          setLoadingMessage('Status checks paused briefly while the server catches up. Your review is still running.');
-        } else {
-          setLoadingMessage('Reconnecting to analysis status…');
-        }
-        return;
-      }
-
-      pollingErrorCount.current = 0;
       const classification = classifyAnalysisPollingStatus(statusResponse.status, statusResponse.progress);
 
       // If we have a complete analysis, fetch it

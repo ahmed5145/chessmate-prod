@@ -6,28 +6,6 @@ const inFlightAnalysisFetches = new Map();
 
 const SUCCESS_STATUSES = new Set(['SUCCESS', 'COMPLETED']);
 const TERMINAL_FAILURE_STATUSES = new Set(['FAILURE', 'FAILED', 'ERROR', 'REVOKED', 'AUTH_ERROR']);
-const TRANSIENT_POLLING_STATUSES = new Set(['RATE_LIMITED', 'POLLING_TRANSIENT']);
-
-export const isRateLimitError = (error) => {
-    if (error?.response?.status === 429) {
-        return true;
-    }
-    const code = error?.response?.data?.code;
-    return code === 'RATE_001';
-};
-
-export const parseRateLimitRetrySeconds = (error, fallbackSeconds = 20) => {
-    const details = error?.response?.data?.details;
-    const headerReset = error?.response?.headers?.['x-ratelimit-reset'];
-    const candidates = [details?.reset_time, headerReset];
-    for (const candidate of candidates) {
-        const parsed = Number(candidate);
-        if (Number.isFinite(parsed) && parsed > 0) {
-            return Math.ceil(parsed);
-        }
-    }
-    return fallbackSeconds;
-};
 
 export const isInsufficientCreditsError = (error) => {
     const statusCode = error?.response?.status;
@@ -67,6 +45,23 @@ export const parseAnalysisStartError = (error) => {
     return { message: typeof message === 'string' ? message : 'Failed to start analysis' };
 };
 
+export const parseRateLimitPollError = (error) => {
+    if (error?.response?.status !== 429) {
+        return null;
+    }
+    const payload = error?.response?.data || {};
+    const resetTime = Number(
+        payload?.details?.reset_time
+        ?? payload?.reset_time
+        ?? error?.response?.headers?.['x-ratelimit-reset']
+        ?? 30
+    );
+    return {
+        retryAfterSeconds: Number.isFinite(resetTime) && resetTime > 0 ? resetTime : 30,
+        message: payload?.message || payload?.error || 'Rate limit exceeded',
+    };
+};
+
 export const classifyAnalysisPollingStatus = (status, progress = 0) => {
     const normalizedStatus = String(status || '').toUpperCase();
     const numericProgress = Number(progress) || 0;
@@ -83,12 +78,11 @@ export const computeNextPollDelay = ({
     minDelay,
     maxDelay,
     hadError,
-    retryAfterSeconds = null,
+    rateLimitSeconds,
 }) => {
-    if (retryAfterSeconds != null && retryAfterSeconds > 0) {
-        return Math.min(maxDelay, Math.max(minDelay, (retryAfterSeconds * 1000) + 500));
+    if (rateLimitSeconds != null && Number(rateLimitSeconds) > 0) {
+        return Math.min(maxDelay, Math.max(minDelay, Number(rateLimitSeconds) * 1000 + 500));
     }
-
     if (!hadError) {
         return minDelay;
     }
@@ -108,10 +102,6 @@ export const shouldPollStatus = (status, progress = 0) => {
     // Stop polling if status is a terminal state (success or failure)
     if (SUCCESS_STATUSES.has(normalizedStatus) || TERMINAL_FAILURE_STATUSES.has(normalizedStatus)) {
         return false;
-    }
-
-    if (TRANSIENT_POLLING_STATUSES.has(normalizedStatus)) {
-        return true;
     }
 
     // Continue polling for all other states (PENDING, STARTED, PROCESSING, etc.)
@@ -456,24 +446,23 @@ export const checkAnalysisStatus = async (gameId, options = {}) => {
         };
     } catch (error) {
         console.error('Error checking analysis status:', error);
-        const cachedProgress = Number(localStorage.getItem(`last_known_progress_${gameId}`)) || 0;
-
-        if (isRateLimitError(error)) {
-            const retryAfterSeconds = parseRateLimitRetrySeconds(error);
+        const rateLimit = parseRateLimitPollError(error);
+        if (rateLimit) {
+            const cachedProgress = Number(localStorage.getItem(`last_known_progress_${gameId}`)) || 0;
             return {
                 status: 'RATE_LIMITED',
                 progress: cachedProgress,
-                message: `Status checks paused (${retryAfterSeconds}s) — analysis still running`,
-                retryAfterSeconds,
+                message: rateLimit.message,
+                retryAfterSeconds: rateLimit.retryAfterSeconds,
                 rateLimited: true,
             };
         }
-
+        const cachedProgress = Number(localStorage.getItem(`last_known_progress_${gameId}`)) || 0;
         return {
-            status: 'POLLING_TRANSIENT',
+            status: 'POLL_ERROR',
             error: error.message || 'Error checking status',
             progress: cachedProgress,
-            message: 'Reconnecting to analysis status…',
+            transient: true,
         };
     }
 };
@@ -650,30 +639,30 @@ export const fetchGameAnalysis = async (gameId, retry = 0, options = {}) => {
         };
     } catch (error) {
         console.error(`Error fetching analysis for game ${gameId}:`, error);
-
-        if (isRateLimitError(error)) {
+        const rateLimit = parseRateLimitPollError(error);
+        if (rateLimit) {
             const cachedProgress = Number(localStorage.getItem(`last_known_progress_${gameId}`)) || 0;
             return {
                 error: null,
                 status: 'IN_PROGRESS',
                 progress: cachedProgress,
+                rateLimited: true,
+                retryAfterSeconds: rateLimit.retryAfterSeconds,
                 metrics: {},
                 movesAnalysis: [],
                 ai_feedback: null,
                 isComplete: false,
-                rateLimited: true,
             };
         }
 
-        localStorage.setItem(`analysis_error_${gameId}`, error.message || 'Failed to fetch analysis');
-
         return {
             error: error.message || 'Failed to fetch analysis',
-            status: 'ERROR',
+            status: 'POLL_ERROR',
             metrics: {},
             movesAnalysis: [],
             ai_feedback: null,
-            isComplete: false
+            isComplete: false,
+            transient: true,
         };
     } finally {
         inFlightAnalysisFetches.delete(dedupKey);

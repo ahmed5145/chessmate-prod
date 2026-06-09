@@ -240,11 +240,8 @@ class TestRateLimitMiddleware:
     def test_endpoint_type_public_site_config(self, middleware):
         assert middleware._get_endpoint_type("/api/v1/public/site-config/") == "PUBLIC"
 
-    def test_endpoint_type_polling_status(self, middleware):
-        assert middleware._get_endpoint_type("/api/v1/games/165/analysis/status/") == "POLLING"
-        assert middleware._get_endpoint_type("/api/v1/games/batch-status/") == "POLLING"
-
-    def test_endpoint_type_games_analysis_fetch(self, middleware):
+    def test_endpoint_type_analysis_status_separate_from_games(self, middleware):
+        assert middleware._get_endpoint_type("/api/v1/games/165/analysis/status/") == "ANALYSIS_STATUS"
         assert middleware._get_endpoint_type("/api/v1/games/165/analysis/") == "GAMES"
 
     def test_webhook_path_excluded_from_rate_limiting(self, middleware):

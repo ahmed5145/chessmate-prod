@@ -15,6 +15,15 @@ export const humanizeAnalysisStatusMessage = (message, progress = 0) => {
   const raw = String(message || '').trim();
   const normalized = raw.toLowerCase();
 
+  if (normalized.includes('rate limit')) {
+    return {
+      status: 'Taking a short pause',
+      detail:
+        'We are spacing out status checks so the server stays responsive. Your depth-20 review is still running — no action needed.',
+      queued: false,
+    };
+  }
+
   if (QUEUED_PATTERNS.some((pattern) => normalized.includes(pattern))) {
     return {
       status: 'Queued — starting soon',
