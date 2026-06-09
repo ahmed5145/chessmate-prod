@@ -2,12 +2,6 @@
 
 from datetime import timedelta
 
-from django.contrib.auth.models import User
-from django.test import TestCase
-from django.utils import timezone
-from rest_framework.test import APIClient
-from rest_framework_simplejwt.tokens import RefreshToken
-
 from core.models import BatchAnalysisReport, Game, UserNotification
 from core.notifications import (
     create_user_notification,
@@ -16,6 +10,11 @@ from core.notifications import (
 )
 from core.priority_inbox import seed_priority_inbox_from_batch
 from core.tests.profile_helpers import ensure_profile
+from django.contrib.auth.models import User
+from django.test import TestCase
+from django.utils import timezone
+from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class TestNotificationCenter(TestCase):

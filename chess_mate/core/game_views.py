@@ -66,6 +66,7 @@ from .error_handling import (
     create_error_response,
     handle_api_error,
 )
+from .inbox_streak import get_inbox_streak_payload
 
 # Local application imports
 from .models import BatchAnalysisReport, Game, GameAnalysis, Player, Profile, User
@@ -86,7 +87,6 @@ from .single_game_moment_share import (
     find_analysis_by_share_token,
     get_or_create_moment_share,
 )
-from .inbox_streak import get_inbox_streak_payload
 from .single_game_streak import get_single_game_streak
 from .stats_helpers import build_single_game_context
 from .task_manager import TaskManager
@@ -2049,8 +2049,8 @@ def check_analysis_status(request, task_id):
 
     try:
         from chess_mate.celery import (
-            app as celery_app,
-        )  # type: ignore[import-not-found]
+            app as celery_app,  # type: ignore[import-not-found]
+        )
     except ImportError:
         async_result = async_result_cls(task_id)
     else:
@@ -2100,8 +2100,8 @@ def check_batch_analysis_status(request, task_id):
 
     try:
         from chess_mate.celery import (
-            app as celery_app,
-        )  # type: ignore[import-not-found]
+            app as celery_app,  # type: ignore[import-not-found]
+        )
     except ImportError:
         async_result = async_result_cls(task_id)
     else:

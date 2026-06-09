@@ -1,8 +1,5 @@
 """Tests for coach persona preference (SRG-26)."""
 
-from django.contrib.auth.models import User
-from django.test import TestCase
-
 from core.coach_persona import (
     COACH_PERSONA_KEY,
     coach_persona_prompt_modifier,
@@ -10,6 +7,8 @@ from core.coach_persona import (
 )
 from core.models import Profile
 from core.tests.profile_helpers import ensure_profile
+from django.contrib.auth.models import User
+from django.test import TestCase
 
 
 class TestCoachPersona(TestCase):

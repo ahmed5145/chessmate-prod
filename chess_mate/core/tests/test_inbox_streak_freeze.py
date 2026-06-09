@@ -2,11 +2,6 @@
 
 from datetime import timedelta
 
-from django.contrib.auth.models import User
-from django.test import TestCase
-from django.utils import timezone
-from rest_framework.test import APIClient
-
 from core.inbox_streak import (
     FREEZE_MONTH_KEY,
     apply_inbox_streak_freeze,
@@ -15,6 +10,10 @@ from core.inbox_streak import (
 )
 from core.models import Profile
 from core.tests.profile_helpers import ensure_profile
+from django.contrib.auth.models import User
+from django.test import TestCase
+from django.utils import timezone
+from rest_framework.test import APIClient
 
 
 class TestInboxStreakFreeze(TestCase):

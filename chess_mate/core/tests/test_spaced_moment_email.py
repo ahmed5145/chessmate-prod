@@ -5,11 +5,9 @@ from unittest.mock import patch
 
 import pytest
 from core.email_send_log import log_email_send
-from core.models import (EmailSendLog, Game, GameAnalysis, Profile,
-                         SpacedReminderLog)
+from core.models import EmailSendLog, Game, GameAnalysis, Profile, SpacedReminderLog
 from core.notification_preferences import WANTS_SPACED_REPETITION_KEY
-from core.spaced_repetition_email import (moment_key,
-                                          send_spaced_repetition_for_user)
+from core.spaced_repetition_email import moment_key, send_spaced_repetition_for_user
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 

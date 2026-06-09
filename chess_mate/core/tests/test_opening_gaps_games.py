@@ -1,12 +1,11 @@
 """Tests for repertoire gap lost-game enrichment (SRG-21)."""
 
-from django.test import SimpleTestCase
-
 from core.opening_gaps_games import (
     collect_lost_games_for_gap,
     enrich_batch_summary_opening_gaps,
     enrich_repertoire_gap,
 )
+from django.test import SimpleTestCase
 
 
 class OpeningGapsGamesTests(SimpleTestCase):

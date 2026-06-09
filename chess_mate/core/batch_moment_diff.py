@@ -10,12 +10,12 @@ from .fix_rate import (
     _proof_game_id,
     _swing_value,
 )
+from .models import BatchAnalysisReport, Profile
 from .moment_timeline import (
     _infer_phase_from_pattern,
     build_moment_signature,
     summarize_timeline_for_signature,
 )
-from .models import BatchAnalysisReport, Profile
 
 
 def _top_weaknesses(batch_report: BatchAnalysisReport, limit: int = 3) -> List[Dict[str, Any]]:

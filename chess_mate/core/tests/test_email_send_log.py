@@ -3,10 +3,13 @@
 from datetime import timedelta
 
 import pytest
-from core.email_send_log import (MAX_COACHING_EMAILS_PER_7_DAYS,
-                                 coaching_email_budget_exceeded,
-                                 coaching_emails_in_last_days, log_email_send,
-                                 user_active_within_hours)
+from core.email_send_log import (
+    MAX_COACHING_EMAILS_PER_7_DAYS,
+    coaching_email_budget_exceeded,
+    coaching_emails_in_last_days,
+    log_email_send,
+    user_active_within_hours,
+)
 from core.models import EmailSendLog
 from django.contrib.auth import get_user_model
 from django.utils import timezone

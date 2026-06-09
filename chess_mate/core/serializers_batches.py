@@ -11,10 +11,10 @@ from rest_framework import serializers
 
 from .batch_labels import BATCH_COACH_MAX_GAMES, BATCH_COACH_REQUIRES_MIN
 from .batch_moment_diff import build_batch_moment_diff
-from .fix_rate import build_fix_rate_payload
 from .first_batch_celebration import build_first_batch_celebration_payload
-from .opening_gaps_games import enrich_batch_summary_opening_gaps
+from .fix_rate import build_fix_rate_payload
 from .models import BatchAnalysisReport, Game
+from .opening_gaps_games import enrich_batch_summary_opening_gaps
 
 
 def failed_games_to_errors(failed_list: List) -> List[Dict[str, Any]]:

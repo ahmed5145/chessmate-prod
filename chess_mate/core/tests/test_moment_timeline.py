@@ -1,8 +1,5 @@
 """Tests for cross-batch moment timeline (SRG-10)."""
 
-from django.contrib.auth.models import User
-from django.test import TestCase
-
 from core.models import BatchAnalysisReport, Game, Profile
 from core.moment_timeline import (
     build_moment_signature,
@@ -12,6 +9,8 @@ from core.moment_timeline import (
     summarize_timeline_for_signature,
 )
 from core.tests.profile_helpers import ensure_profile
+from django.contrib.auth.models import User
+from django.test import TestCase
 
 
 class TestMomentTimeline(TestCase):

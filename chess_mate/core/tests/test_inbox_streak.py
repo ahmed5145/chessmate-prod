@@ -2,16 +2,16 @@
 
 from datetime import timedelta
 
+from core.inbox_streak import get_inbox_streak_payload, update_inbox_streak_on_review
+from core.models import BatchAnalysisReport, Profile
+from core.priority_inbox import (
+    mark_priority_inbox_reviewed,
+    seed_priority_inbox_from_batch,
+)
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
-
-from core.inbox_streak import (get_inbox_streak_payload,
-                               update_inbox_streak_on_review)
-from core.models import BatchAnalysisReport, Profile
-from core.priority_inbox import (mark_priority_inbox_reviewed,
-                                 seed_priority_inbox_from_batch)
-from core.tests.profile_helpers import ensure_profile
 
 
 class TestInboxStreak(TestCase):

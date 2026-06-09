@@ -12,15 +12,16 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.html import strip_tags
 
-from .email_send_log import (coaching_email_budget_exceeded,
-                             digest_already_sent_this_week, log_email_send,
-                             received_coaching_touchpoint_today,
-                             spaced_sent_in_last_days,
-                             user_active_within_hours)
-from .email_utils import (get_frontend_base_url, is_email_configured,
-                          send_coaching_email)
-from .models import (EmailSendLog, Game, GameAnalysis, Profile,
-                     SpacedReminderLog)
+from .email_send_log import (
+    coaching_email_budget_exceeded,
+    digest_already_sent_this_week,
+    log_email_send,
+    received_coaching_touchpoint_today,
+    spaced_sent_in_last_days,
+    user_active_within_hours,
+)
+from .email_utils import get_frontend_base_url, is_email_configured, send_coaching_email
+from .models import EmailSendLog, Game, GameAnalysis, Profile, SpacedReminderLog
 from .notification_preferences import user_wants_spaced_repetition_email
 from .stats_helpers import ANALYZED_GAME_Q
 

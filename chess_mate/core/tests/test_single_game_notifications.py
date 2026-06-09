@@ -3,8 +3,10 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from core.single_game_notifications import (_email_subject,
-                                            send_single_game_complete_email)
+from core.single_game_notifications import (
+    _email_subject,
+    send_single_game_complete_email,
+)
 from django.template.loader import render_to_string
 from django.test import override_settings
 

@@ -22,8 +22,8 @@ from .abuse_limits import (
 from .batch_coaching import regenerate_batch_coaching
 from .batch_compare import build_compare_narrative, metric_delta, weakness_themes
 from .decorators import rate_limit
-from .models import BatchAnalysisReport, Profile
 from .inbox_streak import apply_inbox_streak_freeze
+from .models import BatchAnalysisReport, Profile
 from .priority_inbox import get_priority_inbox_payload, mark_priority_inbox_reviewed
 from .serializers_batches import (
     BatchAnalysisReportSerializer,

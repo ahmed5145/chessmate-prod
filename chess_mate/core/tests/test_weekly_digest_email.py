@@ -4,12 +4,17 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
-from core.email_send_log import (digest_already_sent_this_week, iso_week_key,
-                                 log_email_send)
+from core.email_send_log import (
+    digest_already_sent_this_week,
+    iso_week_key,
+    log_email_send,
+)
 from core.models import EmailSendLog, Profile, UserNotification
 from core.notification_preferences import WANTS_WEEKLY_DIGEST_KEY
-from core.weekly_digest_email import (build_weekly_digest_payload,
-                                      send_weekly_digest_for_user)
+from core.weekly_digest_email import (
+    build_weekly_digest_payload,
+    send_weekly_digest_for_user,
+)
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 

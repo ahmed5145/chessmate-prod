@@ -1,12 +1,11 @@
 """Tests for batch A vs B moment diff (SRG-20)."""
 
-from django.contrib.auth.models import User
-from django.test import TestCase
-
 from core.batch_moment_diff import build_batch_moment_diff
 from core.models import BatchAnalysisReport, Profile
 from core.moment_timeline import record_batch_timeline_events
 from core.tests.profile_helpers import ensure_profile
+from django.contrib.auth.models import User
+from django.test import TestCase
 
 
 class TestBatchMomentDiff(TestCase):

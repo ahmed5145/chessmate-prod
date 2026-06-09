@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from .moment_timeline import _infer_phase_from_pattern, build_moment_signature
 from .models import BatchAnalysisReport
+from .moment_timeline import _infer_phase_from_pattern, build_moment_signature
 
 FIX_RATE_TOOLTIP = (
     "Fixed means a recurring pattern from your previous batch no longer appears, "

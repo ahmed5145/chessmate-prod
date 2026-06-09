@@ -1,12 +1,13 @@
 """Tests for SRG-19 auto-picked proof games in the priority inbox."""
 
+from core.models import BatchAnalysisReport, Profile
+from core.priority_inbox import (
+    get_priority_inbox_payload,
+    seed_priority_inbox_from_batch,
+)
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.test import TestCase
-
-from core.models import BatchAnalysisReport, Profile
-from core.priority_inbox import (get_priority_inbox_payload,
-                                 seed_priority_inbox_from_batch)
-from core.tests.profile_helpers import ensure_profile
 
 
 class TestProofGamesInbox(TestCase):

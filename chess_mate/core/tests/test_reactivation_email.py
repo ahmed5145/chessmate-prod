@@ -4,9 +4,6 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-
 from core.email_send_log import log_email_send
 from core.models import EmailSendLog, Profile
 from core.notification_preferences import WANTS_REACTIVATION_KEY
@@ -15,6 +12,8 @@ from core.reactivation_email import (
     reactivation_sent_recently,
     send_reactivation_for_user,
 )
+from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 User = get_user_model()
 

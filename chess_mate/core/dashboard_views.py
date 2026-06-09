@@ -12,25 +12,31 @@ from datetime import timedelta
 from django.db.models import Case, Count, IntegerField, Q, When
 from django.utils import timezone
 from rest_framework import status
+
 # Third-party imports
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .cache import cache_delete, cache_get, cache_set, generate_cache_key
+
 # Local application imports
 from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 from .serializers_batches import _coaching_summary_snippet
-from .stats_helpers import (ANALYZED_GAME_Q, build_dashboard_focus_insight,
-                            build_dashboard_hero_metrics,
-                            build_dashboard_next_action,
-                            build_dashboard_since_last_visit,
-                            build_one_thing_today,
-                            compute_user_average_accuracy,
-                            fetch_latest_single_worst_moment,
-                            format_dashboard_insights, mark_dashboard_visit,
-                            parse_last_dashboard_visit,
-                            resolve_game_opponent_display)
+from .stats_helpers import (
+    ANALYZED_GAME_Q,
+    build_dashboard_focus_insight,
+    build_dashboard_hero_metrics,
+    build_dashboard_next_action,
+    build_dashboard_since_last_visit,
+    build_one_thing_today,
+    compute_user_average_accuracy,
+    fetch_latest_single_worst_moment,
+    format_dashboard_insights,
+    mark_dashboard_visit,
+    parse_last_dashboard_visit,
+    resolve_game_opponent_display,
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)

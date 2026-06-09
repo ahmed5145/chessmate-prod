@@ -1,12 +1,11 @@
 """Tests for batch fix-rate score (SRG-17)."""
 
-from django.contrib.auth.models import User
-from django.test import TestCase
-from django.utils import timezone
-
 from core.fix_rate import build_dashboard_fix_rate, build_fix_rate_payload
 from core.models import BatchAnalysisReport
 from core.tests.profile_helpers import ensure_profile
+from django.contrib.auth.models import User
+from django.test import TestCase
+from django.utils import timezone
 
 
 class TestFixRate(TestCase):

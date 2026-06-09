@@ -1,11 +1,10 @@
 """Tests for win/loss × phase heatmap (SRG-18)."""
 
-from django.contrib.auth.models import User
-from django.test import TestCase
-
 from core.models import BatchAnalysisReport, Game
 from core.phase_heatmap import build_phase_result_heatmap
 from core.tests.profile_helpers import ensure_profile
+from django.contrib.auth.models import User
+from django.test import TestCase
 
 
 def _phase(moves, accuracy, avg_eval_drop=0.1):

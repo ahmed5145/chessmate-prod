@@ -1,12 +1,10 @@
 """Tests for dashboard one thing today (SRG-12)."""
 
+from core.models import BatchAnalysisReport, Game, GameAnalysis, Profile
+from core.stats_helpers import build_one_thing_today, fetch_latest_single_worst_moment
+from core.tests.profile_helpers import ensure_profile
 from django.contrib.auth.models import User
 from django.test import TestCase
-
-from core.models import BatchAnalysisReport, Game, GameAnalysis, Profile
-from core.stats_helpers import (build_one_thing_today,
-                                fetch_latest_single_worst_moment)
-from core.tests.profile_helpers import ensure_profile
 
 
 class TestDashboardOneThing(TestCase):

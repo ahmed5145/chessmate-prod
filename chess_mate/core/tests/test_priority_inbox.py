@@ -1,10 +1,5 @@
 """Tests for coach priority inbox (SRG-9)."""
 
-from django.contrib.auth.models import User
-from django.test import TestCase
-from rest_framework.test import APIClient
-from rest_framework_simplejwt.tokens import RefreshToken
-
 from core.models import BatchAnalysisReport, Game, Profile
 from core.priority_inbox import (
     build_priority_inbox_link,
@@ -13,6 +8,10 @@ from core.priority_inbox import (
     seed_priority_inbox_from_batch,
 )
 from core.tests.profile_helpers import ensure_profile
+from django.contrib.auth.models import User
+from django.test import TestCase
+from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class TestPriorityInboxService(TestCase):

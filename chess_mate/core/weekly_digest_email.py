@@ -12,18 +12,21 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.html import strip_tags
 
-from .email_send_log import (coaching_email_budget_exceeded,
-                             digest_already_sent_this_week, iso_week_key,
-                             log_email_send,
-                             received_coaching_touchpoint_today)
-from .email_utils import (get_frontend_base_url, is_email_configured,
-                          send_coaching_email)
+from .email_send_log import (
+    coaching_email_budget_exceeded,
+    digest_already_sent_this_week,
+    iso_week_key,
+    log_email_send,
+    received_coaching_touchpoint_today,
+)
+from .email_utils import get_frontend_base_url, is_email_configured, send_coaching_email
 from .fix_rate import build_dashboard_fix_rate
 from .inbox_streak import get_inbox_streak_payload
-from .models import (BatchAnalysisReport, EmailSendLog, Game, Profile,
-                     UserNotification)
-from .notification_preferences import (user_wants_weekly_digest_email,
-                                       user_wants_weekly_digest_notification)
+from .models import BatchAnalysisReport, EmailSendLog, Game, Profile, UserNotification
+from .notification_preferences import (
+    user_wants_weekly_digest_email,
+    user_wants_weekly_digest_notification,
+)
 from .notifications import create_user_notification
 from .priority_inbox import get_priority_inbox_payload
 from .single_game_streak import get_single_game_streak

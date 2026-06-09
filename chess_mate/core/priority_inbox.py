@@ -8,8 +8,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from .inbox_streak import (get_inbox_streak_payload,
-                           update_inbox_streak_on_review)
+from .inbox_streak import get_inbox_streak_payload, update_inbox_streak_on_review
 from .models import BatchAnalysisReport, Profile
 
 INBOX_PREF_KEY = "priority_inbox"

@@ -2,10 +2,14 @@
 
 import pytest
 from core.models import BatchAnalysisReport, Profile, ReferralRedemption
-from core.referral import (MONTHLY_REFERRAL_CAP, REFEREE_BONUS_CREDITS,
-                           REFERRER_CREDITS, attach_referral_on_signup,
-                           ensure_referral_code,
-                           process_referral_on_first_batch)
+from core.referral import (
+    MONTHLY_REFERRAL_CAP,
+    REFEREE_BONUS_CREDITS,
+    REFERRER_CREDITS,
+    attach_referral_on_signup,
+    ensure_referral_code,
+    process_referral_on_first_batch,
+)
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
