@@ -1054,7 +1054,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | **SRG-6** | — | `singleGameDrillChecklist.test.js`, `DrillChecklistSection.test.js` | `localStorage` persistence |
 | **SRG-7** | — | `singleGameMoveSound.test.js` | Classification → sound map |
 | **SRG-8** | — | `SingleGameReportActions.test.js` | No print handler |
-| **SRG-9** | `test_priority_inbox.py` *(add)* | `PriorityInbox.test.js` *(add)* | Ownership + reviewed state |
+| **SRG-9** | `test_priority_inbox.py` | `CoachInboxCard.test.js`, `BatchContextBanner.test.js` | Ownership + reviewed state |
 | **SRG-10** | `test_moment_timeline.py` *(add)* | `MomentTimeline.test.js` *(add)* | Cross-batch counts |
 | **SRG-11** | `test_alignment_score.py` *(add)* | `AlignmentScore.test.js` *(add)* | Batch vs single match |
 | **SRG-12** | `test_dashboard_one_thing.py` *(add)* | `DashboardOneThing.test.js` *(add)* | Worst moment link |
@@ -1093,7 +1093,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-6 | ✅ Done | 5-min drill checklist + localStorage + tests |
 | SRG-7 | ✅ Done | Move nav sound/haptic + mute toggle |
 | SRG-8 | ✅ Done | Print removed; tests in matrix §8 |
-| SRG-9 | ⬜ Not started | Priority inbox |
+| SRG-9 | ✅ Done | Inbox seed on batch complete/regenerate; dashboard card; mark reviewed |
 | SRG-10 | ⬜ Not started | Moment timeline |
 | SRG-11 | ⬜ Not started | Alignment score |
 | SRG-12 | ⬜ Not started | Dashboard one thing |

@@ -20,13 +20,10 @@ from .abuse_limits import (
     record_coaching_regenerate,
 )
 from .batch_coaching import regenerate_batch_coaching
-from .batch_compare import (
-    build_compare_narrative,
-    metric_delta,
-    weakness_themes,
-)
+from .batch_compare import build_compare_narrative, metric_delta, weakness_themes
 from .decorators import rate_limit
 from .models import BatchAnalysisReport, Profile
+from .priority_inbox import get_priority_inbox_payload, mark_priority_inbox_reviewed
 from .serializers_batches import (
     BatchAnalysisReportSerializer,
     BatchCreateSerializer,
@@ -48,6 +45,65 @@ def _build_share_url(request, share_token) -> str:
         return request.build_absolute_uri(path)
     except Exception:
         return path
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def batch_inbox_view(request):
+    """GET /api/v1/batches/inbox/ — pending coach priorities for the authenticated user."""
+    try:
+        profile = Profile.objects.get(user=request.user)
+    except Profile.DoesNotExist:
+        return Response(
+            get_priority_inbox_payload(Profile(user=request.user)),
+            status=status.HTTP_200_OK,
+        )
+
+    return Response(get_priority_inbox_payload(profile), status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def batch_inbox_review_view(request):
+    """POST /api/v1/batches/inbox/review/ — mark one priority item reviewed."""
+    batch_id = request.data.get("batch_id")
+    priority_index = request.data.get("priority_index")
+    if batch_id is None or priority_index is None:
+        return Response(
+            {"detail": "batch_id and priority_index are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        batch_id_int = int(batch_id)
+        priority_index_int = int(priority_index)
+    except (TypeError, ValueError):
+        return Response(
+            {"detail": "Invalid batch_id or priority_index."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    ok, message = mark_priority_inbox_reviewed(
+        request.user,
+        batch_id=batch_id_int,
+        priority_index=priority_index_int,
+    )
+    if not ok:
+        status_code = (
+            status.HTTP_404_NOT_FOUND
+            if "not found" in message.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        return Response({"detail": message}, status=status_code)
+
+    try:
+        profile = Profile.objects.get(user=request.user)
+        inbox = get_priority_inbox_payload(profile)
+    except Profile.DoesNotExist:
+        inbox = get_priority_inbox_payload(Profile(user=request.user))
+
+    return Response(
+        {"detail": message, "priority_inbox": inbox}, status=status.HTTP_200_OK
+    )
 
 
 @api_view(["GET", "POST"])
@@ -72,9 +128,14 @@ def _batch_list_response(request):
         limit = 20
     limit = max(1, min(limit, 50))
 
-    queryset = BatchAnalysisReport.objects.filter(user=request.user).order_by("-created_at")[:limit]
+    queryset = BatchAnalysisReport.objects.filter(user=request.user).order_by(
+        "-created_at"
+    )[:limit]
     serializer = BatchListItemSerializer(queryset, many=True)
-    return Response({"results": serializer.data, "count": len(serializer.data)}, status=status.HTTP_200_OK)
+    return Response(
+        {"results": serializer.data, "count": len(serializer.data)},
+        status=status.HTTP_200_OK,
+    )
 
 
 def _batch_create_response(request):
@@ -102,7 +163,9 @@ def _batch_create_response(request):
 
     # Extract validated PGN list
     pgn_list = serializer.validated_data["pgn_list"]
-    source_game_ids = serializer.validated_data.get("source_game_ids") or [None] * len(pgn_list)
+    source_game_ids = serializer.validated_data.get("source_game_ids") or [None] * len(
+        pgn_list
+    )
     games_count = len(pgn_list)
     credits_per_game = int(getattr(settings, "BATCH_CREDITS_PER_GAME", 1))
     credits_required = games_count * credits_per_game
@@ -148,7 +211,9 @@ def _batch_create_response(request):
         )
 
     # Queue the analysis task (requires Celery worker — see docker-entrypoint.sh)
-    async_result = analyze_batch_task.delay(batch_id, pgn_list, request.user.id, source_game_ids)
+    async_result = analyze_batch_task.delay(
+        batch_id, pgn_list, request.user.id, source_game_ids
+    )
     logger.info(
         "Queued batch %s (report id=%s) celery_id=%s games=%s user=%s",
         batch_id,
@@ -281,7 +346,9 @@ def batch_regenerate_coaching_view(request, batch_id):
     try:
         batch_report = BatchAnalysisReport.objects.get(id=batch_id, user=request.user)
     except BatchAnalysisReport.DoesNotExist:
-        return Response({"detail": "Batch not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"detail": "Batch not found."}, status=status.HTTP_404_NOT_FOUND
+        )
 
     if batch_report.status not in ("completed", "partial"):
         return Response(
@@ -289,7 +356,9 @@ def batch_regenerate_coaching_view(request, batch_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    regen_allowed, regen_info = check_coaching_regenerate_allowed(request.user, batch_report.id)
+    regen_allowed, regen_info = check_coaching_regenerate_allowed(
+        request.user, batch_report.id
+    )
     if not regen_allowed:
         return coaching_regenerate_limit_response(regen_info)
 
@@ -319,7 +388,9 @@ def batch_compare_view(request, batch_id):
     try:
         current = BatchAnalysisReport.objects.get(id=batch_id, user=request.user)
     except BatchAnalysisReport.DoesNotExist:
-        return Response({"detail": "Batch not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"detail": "Batch not found."}, status=status.HTTP_404_NOT_FOUND
+        )
 
     if current.status not in ("completed", "partial"):
         return Response(
@@ -347,24 +418,39 @@ def batch_compare_view(request, batch_id):
         try:
             other_id = int(other_param)
         except (TypeError, ValueError):
-            return Response({"detail": "Invalid other batch id."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid other batch id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             other = BatchAnalysisReport.objects.get(id=other_id, user=request.user)
         except BatchAnalysisReport.DoesNotExist:
-            return Response({"detail": "Comparison batch not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Comparison batch not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
     if other.id == current.id:
-        return Response({"detail": "Choose a different batch to compare."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "Choose a different batch to compare."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
-    current_summary = current.batch_summary if isinstance(current.batch_summary, dict) else {}
+    current_summary = (
+        current.batch_summary if isinstance(current.batch_summary, dict) else {}
+    )
     other_summary = other.batch_summary if isinstance(other.batch_summary, dict) else {}
 
     current_themes = weakness_themes(current_summary)
     other_themes = weakness_themes(other_summary)
 
     metrics = {
-        "overall_accuracy_pct_delta": metric_delta(current_summary, other_summary, "overall_accuracy_pct"),
-        "overall_eval_stability_delta": metric_delta(current_summary, other_summary, "overall_eval_stability"),
+        "overall_accuracy_pct_delta": metric_delta(
+            current_summary, other_summary, "overall_accuracy_pct"
+        ),
+        "overall_eval_stability_delta": metric_delta(
+            current_summary, other_summary, "overall_eval_stability"
+        ),
     }
     weaknesses = {
         "persisting": sorted(current_themes & other_themes),
@@ -400,7 +486,9 @@ def batch_share_view(request, batch_id):
     try:
         batch_report = BatchAnalysisReport.objects.get(id=batch_id, user=request.user)
     except BatchAnalysisReport.DoesNotExist:
-        return Response({"detail": "Batch not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"detail": "Batch not found."}, status=status.HTTP_404_NOT_FOUND
+        )
 
     if batch_report.status not in ("completed", "partial"):
         return Response(
@@ -442,7 +530,9 @@ def batch_public_report_view(request, share_token):
             status__in=["completed", "partial"],
         )
     except BatchAnalysisReport.DoesNotExist:
-        return Response({"detail": "Shared report not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"detail": "Shared report not found."}, status=status.HTTP_404_NOT_FOUND
+        )
 
     payload = BatchPublicReportSerializer.from_batch_report(batch_report)
     serializer = BatchPublicReportSerializer(payload)

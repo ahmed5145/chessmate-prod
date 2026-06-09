@@ -16,7 +16,7 @@ import BatchContextBanner from './singlegame/BatchContextBanner';
 import AnalyzeGameConfirmDialog from './AnalyzeGameConfirmDialog';
 import { parseSingleGameAnalysisSearch } from '../utils/singleGameAnalysisLinks';
 import { humanizeAnalysisStatusMessage } from '../utils/singleGameAnalysisStatus';
-import { trackSingleGameEvent } from '../utils/marketingAnalytics';
+import { trackMarketingEvent, trackSingleGameEvent } from '../utils/marketingAnalytics';
 import { UserContext } from '../contexts/UserContext';
 import api from '../services/api';
 import './SingleGameAnalysis.css';
@@ -668,6 +668,19 @@ const SingleGameAnalysis = () => {
       priority,
     });
   }, [analysisData, loading, batchId, gameId, move, priority, analysisMode]);
+
+  useEffect(() => {
+    if (!analysisData || loading || !batchId || !priority) {
+      return;
+    }
+    trackMarketingEvent('priority_inbox_open', {
+      batch_id: batchId,
+      priority_index: priority,
+      game_id: gameId,
+      move,
+      surface: 'single_game',
+    });
+  }, [analysisData, loading, batchId, priority, gameId, move]);
 
   const startAnalysis = async ({ forceReanalyze = false } = {}) => {
     try {

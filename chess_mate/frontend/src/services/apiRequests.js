@@ -904,6 +904,33 @@ export const getPublicBatchReport = async (shareToken) => {
     }
 };
 
+/**
+ * GET /api/v1/batches/inbox/
+ */
+export const fetchPriorityInbox = async () => {
+    try {
+        const response = await api.get('/api/v1/batches/inbox/');
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error('Failed to load coach inbox');
+    }
+};
+
+/**
+ * POST /api/v1/batches/inbox/review/
+ */
+export const markPriorityInboxReviewed = async ({ batchId, priorityIndex }) => {
+    try {
+        const response = await api.post('/api/v1/batches/inbox/review/', {
+            batch_id: batchId,
+            priority_index: priorityIndex,
+        });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || new Error('Failed to mark priority reviewed');
+    }
+};
+
 export const fetchBatchCompare = async (batchId, other = 'previous') => {
     try {
         const response = await api.get(`/api/v1/batches/${batchId}/compare/`, {

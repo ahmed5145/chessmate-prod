@@ -41,7 +41,9 @@ def regenerate_batch_coaching(batch_report: BatchAnalysisReport) -> Tuple[bool, 
             player_rating=batch_summary.get("player_rating"),
         )
     except CoachingGeneratorError as exc:
-        logger.warning("Coaching regeneration failed for batch %s: %s", batch_report.id, exc)
+        logger.warning(
+            "Coaching regeneration failed for batch %s: %s", batch_report.id, exc
+        )
         return False, f"Coaching regeneration failed: {exc}"
 
     try:
@@ -65,4 +67,14 @@ def regenerate_batch_coaching(batch_report: BatchAnalysisReport) -> Tuple[bool, 
         batch_report.status = "completed"
         update_fields.append("status")
     batch_report.save(update_fields=update_fields)
+    try:
+        from .priority_inbox import seed_priority_inbox_from_batch
+
+        seed_priority_inbox_from_batch(batch_report)
+    except Exception as exc:
+        logger.warning(
+            "Priority inbox seed failed after coaching regenerate for batch %s: %s",
+            batch_report.id,
+            exc,
+        )
     return True, "Coaching regenerated successfully."

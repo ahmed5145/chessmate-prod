@@ -8,6 +8,8 @@ from . import views_batches
 
 urlpatterns = [
     path("", views_batches.batch_collection_view, name="batch-collection"),
+    path("inbox/", views_batches.batch_inbox_view, name="batch-inbox"),
+    path("inbox/review/", views_batches.batch_inbox_review_view, name="batch-inbox-review"),
     path(
         "public/<uuid:share_token>/report/",
         views_batches.batch_public_report_view,

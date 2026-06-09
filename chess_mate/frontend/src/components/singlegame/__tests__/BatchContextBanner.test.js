@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import BatchContextBanner from '../BatchContextBanner';
 
@@ -7,7 +8,23 @@ jest.mock('../../../context/ThemeContext', () => ({
   useTheme: () => ({ isDarkMode: false }),
 }));
 
+jest.mock('../../../services/apiRequests', () => ({
+  markPriorityInboxReviewed: jest.fn(),
+}));
+
+jest.mock('../../../utils/marketingAnalytics', () => ({
+  trackMarketingEvent: jest.fn(),
+}));
+
+const { markPriorityInboxReviewed } = require('../../../services/apiRequests');
+const { trackMarketingEvent } = require('../../../utils/marketingAnalytics');
+
 describe('BatchContextBanner', () => {
+  beforeEach(() => {
+    markPriorityInboxReviewed.mockReset();
+    trackMarketingEvent.mockReset();
+  });
+
   it('renders priority, pattern, and opening from batch_context', () => {
     render(
       <MemoryRouter>
@@ -36,6 +53,33 @@ describe('BatchContextBanner', () => {
     expect(screen.getByText(/Sicilian Defense \(B90\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Batch depth-14 differs/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Back to batch report/i })).toHaveAttribute('href', '/batch-report/9');
+    expect(screen.getByRole('button', { name: /Mark reviewed/i })).toBeInTheDocument();
+  });
+
+  it('marks priority reviewed via API', async () => {
+    const user = userEvent.setup();
+    markPriorityInboxReviewed.mockResolvedValue({ detail: 'Priority marked reviewed' });
+
+    render(
+      <MemoryRouter>
+        <BatchContextBanner batchId={9} priority={2} />
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByRole('button', { name: /Mark reviewed/i }));
+
+    await waitFor(() => {
+      expect(markPriorityInboxReviewed).toHaveBeenCalledWith({
+        batchId: 9,
+        priorityIndex: 2,
+      });
+    });
+    expect(trackMarketingEvent).toHaveBeenCalledWith('priority_inbox_reviewed', {
+      batch_id: 9,
+      priority_index: 2,
+      surface: 'single_game',
+    });
+    expect(screen.getByRole('button', { name: /Marked reviewed/i })).toBeDisabled();
   });
 
   it('returns null without batch id', () => {

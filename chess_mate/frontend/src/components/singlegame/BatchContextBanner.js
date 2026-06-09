@@ -1,9 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { markPriorityInboxReviewed } from '../../services/apiRequests';
+import { trackMarketingEvent } from '../../utils/marketingAnalytics';
 
-const BatchContextBanner = ({ batchId, batchContext = null, move, priority }) => {
+const BatchContextBanner = ({
+  batchId,
+  batchContext = null,
+  move,
+  priority,
+  onPriorityReviewed,
+}) => {
   const { isDarkMode } = useTheme();
+  const [reviewState, setReviewState] = useState('idle');
+  const [reviewError, setReviewError] = useState('');
 
   const resolvedBatchId = batchContext?.batch_id || batchId;
   if (!resolvedBatchId) {
@@ -18,6 +28,7 @@ const BatchContextBanner = ({ batchId, batchContext = null, move, priority }) =>
   const openingEco = batchContext?.opening_eco;
   const gameResult = batchContext?.game_result;
   const linkedMove = batchContext?.linked_moment?.move_number || move;
+  const showMarkReviewed = Boolean(priorityRank);
 
   const metaParts = [
     priorityRank ? `Priority #${priorityRank}` : null,
@@ -26,6 +37,32 @@ const BatchContextBanner = ({ batchId, batchContext = null, move, priority }) =>
     openingName ? `${openingName}${openingEco ? ` (${openingEco})` : ''}` : null,
     gameResult ? `Result ${gameResult}` : null,
   ].filter(Boolean);
+
+  const handleMarkReviewed = async () => {
+    if (!priorityRank || reviewState === 'loading' || reviewState === 'done') {
+      return;
+    }
+    setReviewState('loading');
+    setReviewError('');
+    try {
+      await markPriorityInboxReviewed({
+        batchId: resolvedBatchId,
+        priorityIndex: priorityRank,
+      });
+      trackMarketingEvent('priority_inbox_reviewed', {
+        batch_id: resolvedBatchId,
+        priority_index: priorityRank,
+        surface: 'single_game',
+      });
+      setReviewState('done');
+      if (typeof onPriorityReviewed === 'function') {
+        onPriorityReviewed();
+      }
+    } catch (error) {
+      setReviewState('idle');
+      setReviewError(error?.detail || error?.message || 'Could not mark reviewed.');
+    }
+  };
 
   return (
     <div
@@ -64,14 +101,35 @@ const BatchContextBanner = ({ batchId, batchContext = null, move, priority }) =>
         </p>
       ) : null}
 
-      <Link
-        to={`/batch-report/${resolvedBatchId}`}
-        className={`mt-2 inline-block text-sm font-semibold underline ${
-          isDarkMode ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-700 hover:text-indigo-900'
-        }`}
-      >
-        Back to batch report
-      </Link>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Link
+          to={`/batch-report/${resolvedBatchId}`}
+          className={`text-sm font-semibold underline ${
+            isDarkMode ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-700 hover:text-indigo-900'
+          }`}
+        >
+          Back to batch report
+        </Link>
+        {showMarkReviewed ? (
+          <button
+            type="button"
+            onClick={handleMarkReviewed}
+            disabled={reviewState === 'loading' || reviewState === 'done'}
+            className={`text-sm font-semibold px-3 py-1 rounded-md transition ${
+              reviewState === 'done'
+                ? (isDarkMode ? 'bg-green-900/40 text-green-200' : 'bg-green-100 text-green-800')
+                : (isDarkMode
+                  ? 'bg-indigo-800 text-indigo-100 hover:bg-indigo-700 disabled:opacity-60'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60')
+            }`}
+          >
+            {reviewState === 'done' ? 'Marked reviewed' : reviewState === 'loading' ? 'Saving…' : 'Mark reviewed'}
+          </button>
+        ) : null}
+      </div>
+      {reviewError ? (
+        <p className={`mt-2 text-xs ${isDarkMode ? 'text-red-300' : 'text-red-700'}`}>{reviewError}</p>
+      ) : null}
     </div>
   );
 };

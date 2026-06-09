@@ -26,6 +26,7 @@ import {
 import LoadingSpinner from './LoadingSpinner';
 import WelcomeGuide from './WelcomeGuide';
 import GamePlatformBadge from './GamePlatformBadge';
+import CoachInboxCard from './dashboard/CoachInboxCard';
 
 const formatResultLabel = (result) => {
   const normalized = String(result || '').toLowerCase();
@@ -476,6 +477,7 @@ const Dashboard = () => {
       <WelcomeGuide />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <DashboardSinceLastVisit sinceLastVisit={dashboardData.sinceLastVisit} />
+        <CoachInboxCard priorityInbox={dashboardData.priority_inbox} />
         <DashboardHero dashboardData={dashboardData} username={user?.username || 'there'} />
         {shouldShowFocusCard(dashboardData, user) ? (
           <DashboardFocusCard dashboardData={dashboardData} />
