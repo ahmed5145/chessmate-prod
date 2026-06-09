@@ -36,10 +36,16 @@ export const mapClassificationToFeedbackTone = (classification) => {
   return 'neutral';
 };
 
-const TONE_FREQUENCIES = {
-  error: 220,
-  positive: 660,
-  neutral: 440,
+const TONE_NOTES = {
+  neutral: [{ frequency: 520, type: 'triangle', gain: 0.05, duration: 0.05 }],
+  positive: [
+    { frequency: 660, type: 'triangle', gain: 0.045, duration: 0.05 },
+    { frequency: 880, type: 'triangle', gain: 0.04, duration: 0.07, delay: 0.045 },
+  ],
+  error: [
+    { frequency: 280, type: 'square', gain: 0.04, duration: 0.07 },
+    { frequency: 180, type: 'square', gain: 0.035, duration: 0.09, delay: 0.06 },
+  ],
 };
 
 let audioContext = null;
@@ -58,6 +64,21 @@ const getAudioContext = () => {
   return audioContext;
 };
 
+const playToneNote = (ctx, { frequency, type, gain, duration, delay = 0 }) => {
+  const startAt = ctx.currentTime + delay;
+  const oscillator = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, startAt);
+  gainNode.gain.setValueAtTime(0.0001, startAt);
+  gainNode.gain.exponentialRampToValueAtTime(Math.max(gain, 0.0002), startAt + 0.008);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+  oscillator.connect(gainNode);
+  gainNode.connect(ctx.destination);
+  oscillator.start(startAt);
+  oscillator.stop(startAt + duration + 0.01);
+};
+
 export const playMoveFeedbackTone = (classification, { force = false } = {}) => {
   if (!force && (!readSoundEnabled() || prefersReducedMotionFeedback())) {
     return;
@@ -69,22 +90,13 @@ export const playMoveFeedbackTone = (classification, { force = false } = {}) => 
   }
 
   const tone = mapClassificationToFeedbackTone(classification);
-  const frequency = TONE_FREQUENCIES[tone];
+  const notes = TONE_NOTES[tone] || TONE_NOTES.neutral;
 
   if (ctx.state === 'suspended') {
     ctx.resume().catch(() => {});
   }
 
-  const oscillator = ctx.createOscillator();
-  const gain = ctx.createGain();
-  oscillator.type = 'sine';
-  oscillator.frequency.value = frequency;
-  gain.gain.setValueAtTime(0.08, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-  oscillator.connect(gain);
-  gain.connect(ctx.destination);
-  oscillator.start(ctx.currentTime);
-  oscillator.stop(ctx.currentTime + 0.09);
+  notes.forEach((note) => playToneNote(ctx, note));
 };
 
 export const triggerMoveFeedbackHaptic = (classification) => {

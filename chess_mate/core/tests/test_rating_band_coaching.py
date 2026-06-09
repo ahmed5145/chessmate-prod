@@ -69,3 +69,11 @@ def test_attach_moment_benchmarks_enriches_moments():
         1250,
     )
     assert moments[0]["rating_benchmark"]["copy"]
+
+
+def test_moment_benchmark_uses_tactical_theme_after_opening():
+    opening = single_game_moment_benchmark(1300, "inaccuracy", move_number=8)
+    late = single_game_moment_benchmark(1300, "inaccuracy", move_number=22)
+    assert opening["moment_theme"] == "opening_inaccuracy"
+    assert late["moment_theme"] == "positional_slip"
+    assert opening["copy"] != late["copy"]

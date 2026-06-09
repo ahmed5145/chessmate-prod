@@ -11,5 +11,6 @@ describe('singleGameDrillLinks', () => {
     expect(link.kind).toBe('opening');
     expect(link.label).toContain('French Defense');
     expect(link.label).toContain('inaccurac');
+    expect(link.url).toContain('lichess.org/study/search');
   });
 });

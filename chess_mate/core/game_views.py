@@ -212,13 +212,22 @@ def _enqueue_analysis_task(
                 existing_task_id = active_tasks[0]
                 break
 
-        if existing_task_id:
+        if existing_task_id and not force_reanalyze:
             return {
                 "status": "already_running",
                 "message": "Analysis already in progress",
                 "task_id": existing_task_id,
                 "game_id": game_id,
             }
+
+        if force_reanalyze:
+            for manager in managers:
+                clear_mapping = getattr(manager, "_clear_game_task_mapping", None)
+                if callable(clear_mapping):
+                    try:
+                        clear_mapping(game_id)
+                    except Exception:
+                        pass
 
         task_kwargs: Dict[str, Any] = {
             "user_id": user_id,
@@ -955,6 +964,9 @@ class GameViewSet(viewsets.ModelViewSet):
                 payload["credit_waiver"] = "cached"
                 return Response(payload)
 
+            if force_reanalyze:
+                _mark_analysis_reanalysis_started(game.id)
+
             enqueue_result = _enqueue_analysis_task(
                 game_id=game.id,
                 user_id=request.user.id,
@@ -1085,22 +1097,28 @@ class GameViewSet(viewsets.ModelViewSet):
             game = self.get_object()
 
             # First check if we already have a complete analysis in the database
-            try:
-                analysis = GameAnalysis.objects.get(game_id=game.id)
-                if (
-                    analysis.analysis_data
-                    and analysis.analysis_data.get("status") == "complete"
-                ):
-                    return Response(
-                        {
-                            "status": "SUCCESS",
-                            "message": "Analysis completed",
-                            "progress": 100,
-                        }
-                    )
-            except GameAnalysis.DoesNotExist:
-                # No completed analysis exists, continue with task status
-                pass
+            game_status = str(game.analysis_status or "").lower()
+            analysis_in_flight = game_status in (
+                "analyzing",
+                "in_progress",
+            ) or game_status.startswith("in_progress")
+            if not analysis_in_flight:
+                try:
+                    analysis = GameAnalysis.objects.get(game_id=game.id)
+                    if (
+                        analysis.analysis_data
+                        and analysis.analysis_data.get("status") == "complete"
+                    ):
+                        return Response(
+                            {
+                                "status": "SUCCESS",
+                                "message": "Analysis completed",
+                                "progress": 100,
+                            }
+                        )
+                except GameAnalysis.DoesNotExist:
+                    # No completed analysis exists, continue with task status
+                    pass
 
             # Get task status for the game (passing game_id instead of task_id)
             task_info = task_manager.get_task_status(game_id=game.id)
@@ -1545,6 +1563,9 @@ def analyze_game(request, game_id=None):
         )
         compat_task_managers = _get_compat_task_managers()
 
+        if force_reanalyze:
+            _mark_analysis_reanalysis_started(game.id)
+
         enqueue_result = _enqueue_analysis_task(
             game_id=game.id,
             user_id=request.user.id,
@@ -1834,6 +1855,49 @@ def import_external_games(request):
         )
 
 
+def _mark_analysis_reanalysis_started(game_id: int) -> None:
+    """Invalidate cached-complete status while a forced re-run is queued."""
+    try:
+        analysis = GameAnalysis.objects.get(game_id=game_id)
+        data = (
+            analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
+        )
+        data = dict(data)
+        data["status"] = "in_progress"
+        analysis.analysis_data = data
+        analysis.save(update_fields=["analysis_data"])
+    except GameAnalysis.DoesNotExist:
+        pass
+
+
+def _task_status_from_completed_analysis(
+    game_id: int,
+    preferred_task_id: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Recover polling when task cache expired but analysis rows are complete."""
+    try:
+        game = Game.objects.get(id=game_id)
+    except Game.DoesNotExist:
+        return None
+
+    status_value = str(game.analysis_status or "").lower()
+    in_flight = status_value in ("analyzing", "in_progress") or status_value.startswith(
+        "in_progress"
+    )
+    if in_flight:
+        return None
+    if not has_complete_cached_analysis(game_id):
+        return None
+
+    return {
+        "status": "SUCCESS",
+        "message": "Analysis completed",
+        "progress": 100,
+        "task_id": preferred_task_id,
+        "game_id": game_id,
+    }
+
+
 @csrf_exempt
 @require_GET
 @ensure_csrf_cookie
@@ -1850,6 +1914,17 @@ def get_task_status(request, game_id=None):
             else:
                 # Resolve by game ID, not positional task_id.
                 task_info = task_manager.get_task_status(game_id=game_id)
+
+            if (
+                task_info
+                and "not found or not started"
+                in str(task_info.get("message", "")).lower()
+            ):
+                recovered = _task_status_from_completed_analysis(
+                    game_id, preferred_task_id
+                )
+                if recovered:
+                    task_info = recovered
 
             if not task_info:
                 # No task found for this game
@@ -1972,8 +2047,8 @@ def check_analysis_status(request, task_id):
 
     try:
         from chess_mate.celery import (
-            app as celery_app,  # type: ignore[import-not-found]
-        )
+            app as celery_app,
+        )  # type: ignore[import-not-found]
     except ImportError:
         async_result = async_result_cls(task_id)
     else:
@@ -2023,8 +2098,8 @@ def check_batch_analysis_status(request, task_id):
 
     try:
         from chess_mate.celery import (
-            app as celery_app,  # type: ignore[import-not-found]
-        )
+            app as celery_app,
+        )  # type: ignore[import-not-found]
     except ImportError:
         async_result = async_result_cls(task_id)
     else:

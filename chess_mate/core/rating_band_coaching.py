@@ -81,7 +81,13 @@ def resolve_rating_band(player_rating: Optional[int]) -> Optional[Dict[str, Any]
     return {"key": "2000_plus", "label": "2000+", "near_rating": 2100}
 
 
-def normalize_moment_benchmark_theme(moment_type: Optional[str]) -> Optional[str]:
+OPENING_MOVE_CUTOFF = 12
+
+
+def normalize_moment_benchmark_theme(
+    moment_type: Optional[str],
+    move_number: Optional[int] = None,
+) -> Optional[str]:
     """Map single-game / batch moment labels to benchmark theme keys."""
     if not moment_type:
         return None
@@ -95,24 +101,56 @@ def normalize_moment_benchmark_theme(moment_type: Optional[str]) -> Optional[str
         "tactical_oversight": "tactical_oversight",
         "missed_tactic": "missed_tactic",
         "positional_slip": "positional_slip",
+        "moment": "positional_slip",
     }
-    return aliases.get(normalized)
+    theme = aliases.get(normalized)
+    if not theme:
+        return None
+
+    try:
+        move_no = int(move_number) if move_number is not None else None
+    except (TypeError, ValueError):
+        move_no = None
+
+    if (
+        normalized == "inaccuracy"
+        and move_no is not None
+        and move_no > OPENING_MOVE_CUTOFF
+    ):
+        return "positional_slip"
+    if (
+        normalized in {"opening_inaccuracy"}
+        and move_no is not None
+        and move_no > OPENING_MOVE_CUTOFF
+    ):
+        return "positional_slip"
+    if (
+        normalized == "inaccuracy"
+        and move_no is not None
+        and move_no <= OPENING_MOVE_CUTOFF
+    ):
+        return "opening_inaccuracy"
+
+    return theme
 
 
 def single_game_moment_benchmark(
     player_rating: Optional[int],
     moment_type: Optional[str],
+    move_number: Optional[int] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Build honest benchmark copy for a critical moment at the player's rating band.
     Returns None when rating or moment theme is unknown.
     """
     band = resolve_rating_band(player_rating)
-    theme = normalize_moment_benchmark_theme(moment_type)
+    theme = normalize_moment_benchmark_theme(moment_type, move_number=move_number)
     if not band or not theme:
         return None
 
     rates = _MOMENT_MISS_RATES.get(band["key"], {}).get(theme)
+    if not rates and theme == "positional_slip":
+        rates = _MOMENT_MISS_RATES.get(band["key"], {}).get("tactical_oversight")
     if not rates:
         return None
 
@@ -148,6 +186,7 @@ def attach_moment_benchmarks(
         benchmark = single_game_moment_benchmark(
             player_rating,
             moment.get("type") or moment.get("classification"),
+            move_number=moment.get("move_number"),
         )
         if benchmark:
             item["rating_benchmark"] = benchmark

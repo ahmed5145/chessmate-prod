@@ -1,3 +1,5 @@
+import { lichessOpeningSearchUrl } from './lichessStudyLinks';
+
 const OPENING_MOVE_CUTOFF = 12;
 
 const isOpeningMistake = (move = {}) => {
@@ -83,18 +85,14 @@ export const buildOpeningStudyDrillLink = ({
     ? ` — you had ${mistakeCount} inaccurac${mistakeCount === 1 ? 'y' : 'ies'} in the opening`
     : '';
 
-  if (openingMoment?.fen) {
-    const encoded = encodeURIComponent(String(openingMoment.fen).trim().replace(/ /g, '_'));
-    return {
-      label: `Study ${ecoPrefix}${opening}${countSuffix}`,
-      url: `https://lichess.org/analysis/${encoded}`,
-      kind: 'opening',
-    };
-  }
+  const studyUrl = lichessOpeningSearchUrl(opening, {
+    ecoCode: eco,
+    playerColor: gameContext.player_color,
+  });
 
   return {
     label: `Study ${ecoPrefix}${opening}${countSuffix}`,
-    url: `https://lichess.org/analysis?q=${encodeURIComponent(opening)}`,
+    url: studyUrl,
     kind: 'opening',
   };
 };

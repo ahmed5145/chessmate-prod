@@ -33,8 +33,8 @@ describe('singleGameMoveSound', () => {
     const start = jest.fn();
     const stop = jest.fn();
     const createOscillator = jest.fn(() => ({
-      type: 'sine',
-      frequency: { value: 0 },
+      type: 'triangle',
+      frequency: { setValueAtTime: jest.fn() },
       connect: jest.fn(),
       start,
       stop,

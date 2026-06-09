@@ -13,7 +13,11 @@ from django.utils import timezone
 from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 
 # Celery sets analysis_status="completed"; legacy paths used "analyzed".
-ANALYZED_GAME_Q = Q(status="analyzed") | Q(analysis_status="analyzed") | Q(analysis_status="completed")
+ANALYZED_GAME_Q = (
+    Q(status="analyzed")
+    | Q(analysis_status="analyzed")
+    | Q(analysis_status="completed")
+)
 
 
 def get_game_counts(user) -> Dict[str, int]:
@@ -107,7 +111,9 @@ def _is_user_white(game, profile: Optional[Profile]) -> Optional[bool]:
     return None
 
 
-def build_single_game_context(game: Game, profile: Optional[Profile] = None) -> Dict[str, Any]:
+def build_single_game_context(
+    game: Game, profile: Optional[Profile] = None
+) -> Dict[str, Any]:
     """Rich header context for single-game analysis UI."""
     is_white = _is_user_white(game, profile)
     player_color: Optional[str]
@@ -124,14 +130,29 @@ def build_single_game_context(game: Game, profile: Optional[Profile] = None) -> 
 
     opening_name = (getattr(game, "opening_name", None) or "").strip()
     if not opening_name or opening_name.lower() == "unknown opening":
-        opening_name = (getattr(game, "opening_played", None) or "").strip() or opening_name
+        opening_name = (
+            getattr(game, "opening_played", None) or ""
+        ).strip() or opening_name
+
+    time_control_category = None
+    try:
+        time_control_category = game.get_time_control_category()
+    except Exception:
+        time_control_category = getattr(game, "time_control_category", None) or getattr(
+            game, "time_control_type", None
+        )
 
     player_rating = None
     if profile is not None:
         try:
-            raw_rating = getattr(profile, "elo_rating", None)
-            if raw_rating is not None:
-                player_rating = int(raw_rating)
+            if time_control_category and hasattr(profile, "get_current_rating"):
+                player_rating = int(
+                    profile.get_current_rating(str(time_control_category))
+                )
+            else:
+                raw_rating = getattr(profile, "elo_rating", None)
+                if raw_rating is not None:
+                    player_rating = int(raw_rating)
         except (TypeError, ValueError):
             player_rating = None
 
@@ -142,6 +163,7 @@ def build_single_game_context(game: Game, profile: Optional[Profile] = None) -> 
         "opponent": resolve_game_opponent_display(game, profile),
         "player_color": player_color,
         "player_rating": player_rating,
+        "time_control_category": time_control_category,
         "result": game.result,
         "opening_name": opening_name,
         "eco": getattr(game, "eco_code", None),
@@ -208,7 +230,9 @@ def _extract_accuracy_from_analysis_data(
     return None
 
 
-def _extract_accuracy_from_game(game, profile: Optional[Profile] = None) -> Optional[float]:
+def _extract_accuracy_from_game(
+    game, profile: Optional[Profile] = None
+) -> Optional[float]:
     analysis_payload = getattr(game, "analysis", None) or {}
     if isinstance(analysis_payload, dict):
         accuracy = _extract_accuracy_from_analysis_data(analysis_payload, profile, game)
@@ -218,7 +242,9 @@ def _extract_accuracy_from_game(game, profile: Optional[Profile] = None) -> Opti
     game_analysis = getattr(game, "gameanalysis", None)
     if game_analysis:
         if getattr(game_analysis, "analysis_data", None):
-            accuracy = _extract_accuracy_from_analysis_data(game_analysis.analysis_data, profile, game)
+            accuracy = _extract_accuracy_from_analysis_data(
+                game_analysis.analysis_data, profile, game
+            )
             if accuracy is not None:
                 return accuracy
 
@@ -228,8 +254,13 @@ def _extract_accuracy_from_game(game, profile: Optional[Profile] = None) -> Opti
         if is_white is False and game_analysis.accuracy_black is not None:
             return _normalize_accuracy_value(game_analysis.accuracy_black)
 
-        if game_analysis.accuracy_white is not None and game_analysis.accuracy_black is not None:
-            return _normalize_accuracy_value(max(game_analysis.accuracy_white, game_analysis.accuracy_black))
+        if (
+            game_analysis.accuracy_white is not None
+            and game_analysis.accuracy_black is not None
+        ):
+            return _normalize_accuracy_value(
+                max(game_analysis.accuracy_white, game_analysis.accuracy_black)
+            )
 
     return None
 
@@ -251,7 +282,9 @@ def _accuracy_from_per_game_result(result: Any) -> Optional[float]:
     return None
 
 
-def _batch_accuracy_from_summary(batch_summary: Optional[Dict[str, Any]]) -> Optional[float]:
+def _batch_accuracy_from_summary(
+    batch_summary: Optional[Dict[str, Any]]
+) -> Optional[float]:
     if not isinstance(batch_summary, dict):
         return None
     pct = _normalize_accuracy_value(batch_summary.get("overall_accuracy_pct"))
@@ -261,7 +294,9 @@ def _batch_accuracy_from_summary(batch_summary: Optional[Dict[str, Any]]) -> Opt
 
 
 def _batch_stats(user) -> Dict[str, Any]:
-    completed = BatchAnalysisReport.objects.filter(user=user, status__in=["completed", "partial"])
+    completed = BatchAnalysisReport.objects.filter(
+        user=user, status__in=["completed", "partial"]
+    )
     batch_count = completed.count()
     max_games = 0
     best_accuracy = 0.0
@@ -296,7 +331,9 @@ def compute_user_average_accuracy(
 
     if not accuracies:
         for report in (
-            BatchAnalysisReport.objects.filter(user=user, status__in=["completed", "partial"])
+            BatchAnalysisReport.objects.filter(
+                user=user, status__in=["completed", "partial"]
+            )
             .order_by("-created_at")
             .only("batch_summary", "per_game_results")[:5]
         ):
@@ -386,7 +423,9 @@ def format_dashboard_insights(
         formatted.append(entry)
 
     if not formatted and (total_games > 0 or latest_batch_coach):
-        batch_insights = _batch_dashboard_insights(latest_batch_coach, latest_batch_summary)
+        batch_insights = _batch_dashboard_insights(
+            latest_batch_coach, latest_batch_summary
+        )
         formatted.extend(batch_insights)
 
     if not formatted:
@@ -412,7 +451,11 @@ def _batch_dashboard_insights(
     if accuracy is not None:
         try:
             accuracy_val = float(accuracy)
-            insight_type = "success" if accuracy_val >= 80 else "warning" if accuracy_val >= 65 else "error"
+            insight_type = (
+                "success"
+                if accuracy_val >= 80
+                else "warning" if accuracy_val >= 65 else "error"
+            )
             insights.append(
                 {
                     "type": insight_type,
@@ -426,19 +469,29 @@ def _batch_dashboard_insights(
     if isinstance(priorities, list) and priorities:
         first = priorities[0]
         if isinstance(first, dict):
-            priority_text = (first.get("title") or first.get("priority") or first.get("text") or "").strip()
+            priority_text = (
+                first.get("title") or first.get("priority") or first.get("text") or ""
+            ).strip()
         else:
             priority_text = str(first).strip()
         if priority_text:
-            insights.append({"type": "warning", "text": f"Top focus area: {priority_text[:200]}"})
+            insights.append(
+                {"type": "warning", "text": f"Top focus area: {priority_text[:200]}"}
+            )
 
     opening_weakness = summary.get("opening_weakness") or summary.get("weakest_opening")
     if opening_weakness:
         if isinstance(opening_weakness, dict):
-            opening_name = opening_weakness.get("name") or opening_weakness.get("opening") or "an opening"
+            opening_name = (
+                opening_weakness.get("name")
+                or opening_weakness.get("opening")
+                or "an opening"
+            )
         else:
             opening_name = str(opening_weakness)
-        insights.append({"type": "warning", "text": f"Opening to review: {opening_name[:120]}"})
+        insights.append(
+            {"type": "warning", "text": f"Opening to review: {opening_name[:120]}"}
+        )
 
     coach_summary = (coach.get("summary") or "").strip()
     if coach_summary and len(insights) < 3:
@@ -474,7 +527,9 @@ def build_dashboard_next_action(
 ) -> Dict[str, Any]:
     """Single primary CTA for the dashboard hero."""
     recent = recent_games or []
-    first_unanalyzed = next((game for game in recent if not _is_recent_game_analyzed(game)), None)
+    first_unanalyzed = next(
+        (game for game in recent if not _is_recent_game_analyzed(game)), None
+    )
     coach = latest_batch_coach if isinstance(latest_batch_coach, dict) else {}
 
     if total_games <= 0:
@@ -539,7 +594,9 @@ def build_dashboard_next_action(
     return {
         "type": "import_for_batch",
         "title": f"Import {remaining} more game{plural} for Batch Coach",
-        "description": ("Batch Coach needs at least 5 games. Optional: run a depth-20 review on one game (+1 credit)."),
+        "description": (
+            "Batch Coach needs at least 5 games. Optional: run a depth-20 review on one game (+1 credit)."
+        ),
         "cta_label": "Import games",
         "cta_to": "/fetch-games",
         "secondary_links": secondary_links,
@@ -568,14 +625,18 @@ def build_dashboard_focus_insight(
     meaningful = [
         item
         for item in formatted
-        if (item.get("text") or "").strip() and not _is_generic_dashboard_insight(item["text"])
+        if (item.get("text") or "").strip()
+        and not _is_generic_dashboard_insight(item["text"])
     ]
 
     priority = next(
         (
             item
             for item in meaningful
-            if any(token in item["text"].lower() for token in ("top focus", "opening to review", "weakest", "priority"))
+            if any(
+                token in item["text"].lower()
+                for token in ("top focus", "opening to review", "weakest", "priority")
+            )
         ),
         None,
     )
@@ -588,7 +649,14 @@ def build_dashboard_focus_insight(
         }
 
     if meaningful:
-        first = next((item for item in meaningful if not _is_batch_accuracy_insight(item.get("text", ""))), None)
+        first = next(
+            (
+                item
+                for item in meaningful
+                if not _is_batch_accuracy_insight(item.get("text", ""))
+            ),
+            None,
+        )
         if first:
             linked = next((item for item in raw_items if item.get("game_id")), None)
             game_id = first.get("game_id") or (linked or {}).get("game_id")
@@ -599,7 +667,9 @@ def build_dashboard_focus_insight(
                 "type": first.get("type") or "success",
                 "text": first["text"],
                 "href": href,
-                "action_label": "View game" if game_id else ("Open report" if href else None),
+                "action_label": (
+                    "View game" if game_id else ("Open report" if href else None)
+                ),
             }
 
     coach_summary = (coach.get("summary") or "").strip()
@@ -633,7 +703,8 @@ def build_dashboard_focus_insight(
         return {
             "type": "success",
             "text": (
-                "Run Batch Coach to surface patterns across your games — " "or try an optional deep review on one game."
+                "Run Batch Coach to surface patterns across your games — "
+                "or try an optional deep review on one game."
             ),
             "href": "/batch-analysis",
             "action_label": "Start Batch Coach",
@@ -647,7 +718,9 @@ def build_dashboard_focus_insight(
     }
 
 
-def parse_last_dashboard_visit(preferences: Optional[Dict[str, Any]]) -> Optional[datetime]:
+def parse_last_dashboard_visit(
+    preferences: Optional[Dict[str, Any]]
+) -> Optional[datetime]:
     """Parse stored dashboard visit timestamp from profile preferences."""
     if not isinstance(preferences, dict):
         return None
@@ -697,11 +770,17 @@ def build_dashboard_since_last_visit(user, since: Optional[datetime]) -> Dict[st
 
     summary_lines: List[str] = []
     if games_analyzed:
-        summary_lines.append(f"{games_analyzed} {_pluralize(games_analyzed, 'game', 'games')} analyzed")
+        summary_lines.append(
+            f"{games_analyzed} {_pluralize(games_analyzed, 'game', 'games')} analyzed"
+        )
     if batch_reports:
-        summary_lines.append(f"{batch_reports} coach {_pluralize(batch_reports, 'report', 'reports')} ready")
+        summary_lines.append(
+            f"{batch_reports} coach {_pluralize(batch_reports, 'report', 'reports')} ready"
+        )
     if games_imported and not games_analyzed:
-        summary_lines.append(f"{games_imported} {_pluralize(games_imported, 'game', 'games')} imported")
+        summary_lines.append(
+            f"{games_imported} {_pluralize(games_imported, 'game', 'games')} imported"
+        )
 
     return {
         "has_previous_visit": True,
@@ -731,7 +810,9 @@ def build_dashboard_hero_metrics(
     """Compact hero metric chips for the dashboard."""
     metrics: List[Dict[str, str]] = []
     if total_games > 0:
-        metrics.append({"label": "Analyzed", "value": f"{analyzed_games} / {total_games}"})
+        metrics.append(
+            {"label": "Analyzed", "value": f"{analyzed_games} / {total_games}"}
+        )
     if analyzed_games >= 3 and average_accuracy > 0:
         metrics.append({"label": "Avg accuracy", "value": f"{average_accuracy}%"})
     if total_games >= 10 and win_rate >= 0:
@@ -739,7 +820,9 @@ def build_dashboard_hero_metrics(
     return metrics
 
 
-def compute_user_achievements(profile: Profile, game_counts: Optional[Dict[str, int]] = None) -> List[Dict[str, Any]]:
+def compute_user_achievements(
+    profile: Profile, game_counts: Optional[Dict[str, int]] = None
+) -> List[Dict[str, Any]]:
     """Derive achievement progress from profile and game data."""
     counts = game_counts or get_game_counts(profile.user)
     total_games = counts["total"]
@@ -918,12 +1001,16 @@ def enrich_profile_payload(user, profile: Profile) -> Dict[str, Any]:
         }
 
     latest_batch_summary = (
-        BatchAnalysisReport.objects.filter(user=user, status__in=["completed", "partial"])
+        BatchAnalysisReport.objects.filter(
+            user=user, status__in=["completed", "partial"]
+        )
         .order_by("-created_at")
         .values_list("batch_summary", flat=True)
         .first()
     )
-    batch_summary = latest_batch_summary if isinstance(latest_batch_summary, dict) else None
+    batch_summary = (
+        latest_batch_summary if isinstance(latest_batch_summary, dict) else None
+    )
 
     return {
         "total_games": counts["total"],

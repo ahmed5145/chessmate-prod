@@ -197,6 +197,9 @@ const FenBoardImage = ({
 
   const bestMarkerId = `best-arrow-${reactId.replace(/:/g, '')}`;
   const playedMarkerId = `played-arrow-${reactId.replace(/:/g, '')}`;
+  const playedIconAnchor = playedArrow && playedArrowIcon
+    ? squareCenterPercent(playedArrow.to, isBlackView)
+    : null;
 
   return (
     <Box
@@ -263,24 +266,26 @@ const FenBoardImage = ({
           {playedArrow && playedArrowColor ? (
             <MoveArrow {...playedArrow} color={playedArrowColor} markerId={playedMarkerId} isBlackView={isBlackView} />
           ) : null}
-          {playedArrowIcon ? (
+          {playedArrowIcon && playedIconAnchor ? (
             <span
               style={{
                 position: 'absolute',
-                top: '6%',
-                right: '6%',
+                left: `${playedIconAnchor.left}%`,
+                top: `${playedIconAnchor.top}%`,
+                transform: 'translate(-50%, -50%)',
                 background: playedArrowColor || '#111827',
                 color: '#fff',
                 borderRadius: '9999px',
-                minWidth: '1.5rem',
-                height: '1.5rem',
+                minWidth: '1.35rem',
+                height: '1.35rem',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '0.65rem',
+                fontSize: '0.62rem',
                 fontWeight: 700,
                 boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
                 pointerEvents: 'none',
+                zIndex: 2,
               }}
               aria-hidden="true"
             >

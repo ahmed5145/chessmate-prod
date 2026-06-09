@@ -1,4 +1,4 @@
-import { lichessPuzzleUrlForTheme } from './lichessStudyLinks';
+import { lichessOpeningSearchUrl, lichessPuzzleUrlForTheme } from './lichessStudyLinks';
 import { buildOpeningStudyDrillLink, countOpeningInaccuracies } from './singleGameBatchCta';
 import { buildOpeningStudyQuery } from './openingNameCompact';
 
@@ -45,7 +45,10 @@ export const resolveSingleGameDrillLink = ({
     if (query) {
       return {
         label: `Study ${opening} on Lichess`,
-        url: `https://lichess.org/analysis?q=${encodeURIComponent(query)}`,
+        url: lichessOpeningSearchUrl(opening, {
+          ecoCode: gameContext.eco || gameContext.eco_code,
+          playerColor: gameContext.player_color,
+        }),
         kind: 'opening',
       };
     }

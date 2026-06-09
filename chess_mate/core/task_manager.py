@@ -94,7 +94,9 @@ class TaskManager:
         self.tasks: Dict[str, Dict[str, Any]] = {}
         self.game_tasks: Dict[str, str] = {}
         self.task_timeout = getattr(settings, "TASK_TIMEOUT", self.DEFAULT_TASK_TIMEOUT)
-        self.max_in_memory_tasks = int(getattr(settings, "MAX_IN_MEMORY_TASKS", self.DEFAULT_MAX_IN_MEMORY_TASKS))
+        self.max_in_memory_tasks = int(
+            getattr(settings, "MAX_IN_MEMORY_TASKS", self.DEFAULT_MAX_IN_MEMORY_TASKS)
+        )
 
         # Initialize redis client
         if redis_client is not None:
@@ -103,7 +105,9 @@ class TaskManager:
             self.redis_client = get_redis_connection()
 
         if self.redis_client is None:
-            logger.warning("Redis connection not available, using in-memory storage only")
+            logger.warning(
+                "Redis connection not available, using in-memory storage only"
+            )
 
         self._initialized = True
 
@@ -113,7 +117,11 @@ class TaskManager:
 
     def _cache_set_value(self, key: str, value: Any) -> bool:
         cache_set_fn = self._resolve_cache_symbol("cache_set", cache_set)
-        return bool(cache_set_fn(key, value, timeout=self.task_timeout, backend_name=CACHE_BACKEND_REDIS))
+        return bool(
+            cache_set_fn(
+                key, value, timeout=self.task_timeout, backend_name=CACHE_BACKEND_REDIS
+            )
+        )
 
     def _cache_delete_value(self, key: str) -> bool:
         cache_delete_fn = self._resolve_cache_symbol("cache_delete", cache_delete)
@@ -267,20 +275,26 @@ class TaskManager:
             try:
                 # Store task info
                 task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
-                self.redis_client.setex(task_key, self.task_timeout, json.dumps(task_info))
+                self.redis_client.setex(
+                    task_key, self.task_timeout, json.dumps(task_info)
+                )
                 logger.debug(f"Stored task {task_id} in Redis")
 
                 # If game_id is provided, store a mapping from game to task
                 if game_id is not None:
                     game_task_key = f"{self.GAME_TASK_KEY_PREFIX}{game_id}"
                     self.redis_client.setex(game_task_key, self.task_timeout, task_id)
-                    logger.debug(f"Stored game {game_id} to task {task_id} mapping in Redis")
+                    logger.debug(
+                        f"Stored game {game_id} to task {task_id} mapping in Redis"
+                    )
             except Exception as e:
                 logger.error(f"Error registering task {task_id} in Redis: {str(e)}")
         else:
             logger.warning(f"Redis not available, task {task_id} stored in memory only")
 
-    def register_batch_task(self, task_id: str, game_ids: List[int], user_id: Optional[int] = None) -> None:
+    def register_batch_task(
+        self, task_id: str, game_ids: List[int], user_id: Optional[int] = None
+    ) -> None:
         """
         Register a batch task that processes multiple games.
 
@@ -325,7 +339,9 @@ class TaskManager:
             try:
                 # Store task info
                 task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
-                self.redis_client.setex(task_key, self.task_timeout, json.dumps(task_info))
+                self.redis_client.setex(
+                    task_key, self.task_timeout, json.dumps(task_info)
+                )
 
                 # Store mappings from each game to the task
                 for game_id in game_ids:
@@ -333,9 +349,13 @@ class TaskManager:
                     self.redis_client.setex(game_task_key, self.task_timeout, task_id)
                     self.game_tasks[str(game_id)] = task_id
             except Exception as e:
-                logger.error(f"Error registering batch task {task_id} in Redis: {str(e)}")
+                logger.error(
+                    f"Error registering batch task {task_id} in Redis: {str(e)}"
+                )
         else:
-            logger.warning(f"Redis not available, batch task {task_id} stored in memory only")
+            logger.warning(
+                f"Redis not available, batch task {task_id} stored in memory only"
+            )
 
     def update_task_status(
         self,
@@ -396,19 +416,28 @@ class TaskManager:
 
             # Validate progress value
             if not isinstance(progress, (int, float)) or progress < 0 or progress > 100:
-                logger.warning(f"Invalid progress value {progress} for task {task_id}, setting to 0")
+                logger.warning(
+                    f"Invalid progress value {progress} for task {task_id}, setting to 0"
+                )
                 task_info["progress"] = 0
 
             # First update memory cache, which is faster and always available
-            previous_info = self.tasks.get(task_id, None) or self._cache_get_value(f"{self.TASK_KEY_PREFIX}{task_id}")
+            previous_info = self.tasks.get(task_id, None) or self._cache_get_value(
+                f"{self.TASK_KEY_PREFIX}{task_id}"
+            )
             if not previous_info:
                 raise ResourceNotFoundError(f"Task {task_id} not found")
 
-            previous_status = str(previous_info.get("status", TASK_STATUS_PENDING)).upper()
+            previous_status = str(
+                previous_info.get("status", TASK_STATUS_PENDING)
+            ).upper()
             previous_progress = int(previous_info.get("progress", 0) or 0)
 
             # Once a task reaches terminal state, ignore non-terminal stale updates.
-            if previous_status in self.TERMINAL_STATUSES and normalized_status not in self.TERMINAL_STATUSES:
+            if (
+                previous_status in self.TERMINAL_STATUSES
+                and normalized_status not in self.TERMINAL_STATUSES
+            ):
                 logger.debug(
                     f"Ignoring stale non-terminal update for terminal task {task_id}: "
                     f"{previous_status} ({previous_progress}%) -> {normalized_status} ({progress}%)"
@@ -416,7 +445,10 @@ class TaskManager:
                 return True
 
             # Prevent progress regressions for non-terminal updates.
-            if normalized_status not in self.TERMINAL_STATUSES and previous_progress > int(task_info["progress"] or 0):
+            if (
+                normalized_status not in self.TERMINAL_STATUSES
+                and previous_progress > int(task_info["progress"] or 0)
+            ):
                 logger.debug(
                     f"Ignoring stale progress regression for task {task_id}: "
                     f"{previous_status} ({previous_progress}%) -> {normalized_status} ({progress}%)"
@@ -455,7 +487,9 @@ class TaskManager:
                         message,
                     )
             else:
-                logger.info(f"Creating new task status for {task_id}: {status} ({progress}%) - {message}")
+                logger.info(
+                    f"Creating new task status for {task_id}: {status} ({progress}%) - {message}"
+                )
 
             # Update in-memory cache
             if previous_info:
@@ -475,7 +509,9 @@ class TaskManager:
                 try:
                     task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
                     # Set with timeout to auto-expire old tasks
-                    self.redis_client.setex(task_key, self.task_timeout, json.dumps(task_info))
+                    self.redis_client.setex(
+                        task_key, self.task_timeout, json.dumps(task_info)
+                    )
                     logger.debug(f"Updated Redis task status for {task_id}")
 
                     # Verify the update was written to Redis by reading it back
@@ -494,9 +530,13 @@ class TaskManager:
                                 redis_task_info.get("progress", 0),
                             )
                     except Exception as e:
-                        logger.warning(f"Could not verify Redis write for task {task_id}: {str(e)}")
+                        logger.warning(
+                            f"Could not verify Redis write for task {task_id}: {str(e)}"
+                        )
                 except RedisError as e:
-                    error_msg = f"Redis error updating task status for {task_id}: {str(e)}"
+                    error_msg = (
+                        f"Redis error updating task status for {task_id}: {str(e)}"
+                    )
                     logger.warning(error_msg)
                     # Continue execution since memory cache was updated successfully
                 except Exception as e:
@@ -505,8 +545,12 @@ class TaskManager:
 
             # Terminal tasks should not keep blocking new runs via game→task mapping.
             if normalized_status in self.TERMINAL_STATUSES:
-                logger.debug(f"Task {task_id} reached terminal state: {normalized_status}")
-                mapped_game_id = task_info.get("game_id") or (previous_info or {}).get("game_id")
+                logger.debug(
+                    f"Task {task_id} reached terminal state: {normalized_status}"
+                )
+                mapped_game_id = task_info.get("game_id") or (previous_info or {}).get(
+                    "game_id"
+                )
                 if mapped_game_id is not None:
                     game_id_str = str(mapped_game_id)
                     if self.game_tasks.get(game_id_str) == task_id:
@@ -522,7 +566,9 @@ class TaskManager:
             return False
 
     def get_task(self, task_id: str) -> Dict[str, Any]:
-        task = self._cache_get_value(f"{self.TASK_KEY_PREFIX}{task_id}") or self.tasks.get(task_id)
+        task = self._cache_get_value(
+            f"{self.TASK_KEY_PREFIX}{task_id}"
+        ) or self.tasks.get(task_id)
         if not task:
             raise ResourceNotFoundError(f"Task {task_id} not found")
         return task
@@ -551,13 +597,17 @@ class TaskManager:
         if not isinstance(task_id, str):
             try:
                 task_id = str(task_id)
-                logger.warning(f"get_task_info received non-string task_id, converted {task_id} to string")
+                logger.warning(
+                    f"get_task_info received non-string task_id, converted {task_id} to string"
+                )
             except Exception as e:
                 logger.error(f"Failed to convert task_id to string: {e}")
                 return None
 
         # Try to get from memory/cache first
-        task_info = self.tasks.get(task_id) or self._cache_get_value(f"{self.TASK_KEY_PREFIX}{task_id}")
+        task_info = self.tasks.get(task_id) or self._cache_get_value(
+            f"{self.TASK_KEY_PREFIX}{task_id}"
+        )
 
         # Try to get from Redis if available
         try:
@@ -578,7 +628,9 @@ class TaskManager:
                         else:
                             task_info = redis_info
                     except (json.JSONDecodeError, UnicodeDecodeError) as e:
-                        logger.error(f"Error decoding Redis data for task {task_id}: {str(e)}")
+                        logger.error(
+                            f"Error decoding Redis data for task {task_id}: {str(e)}"
+                        )
         except Exception as e:
             logger.error(f"Error getting task info from Redis for {task_id}: {str(e)}")
             # Continue with memory cache data only
@@ -659,7 +711,9 @@ class TaskManager:
 
         for task_id, task_info in list(self.tasks.items()):
             try:
-                updated_at = datetime.fromisoformat(task_info.get("updated_at", "2000-01-01"))
+                updated_at = datetime.fromisoformat(
+                    task_info.get("updated_at", "2000-01-01")
+                )
                 if updated_at < expiry_time:
                     # Remove from memory
                     del self.tasks[task_id]
@@ -670,7 +724,9 @@ class TaskManager:
                             task_key = f"{self.TASK_KEY_PREFIX}{task_id}"
                             self.redis_client.delete(task_key)
                         except Exception as e:
-                            logger.error(f"Error cleaning up task {task_id} from Redis: {str(e)}")
+                            logger.error(
+                                f"Error cleaning up task {task_id} from Redis: {str(e)}"
+                            )
 
                     # Remove game mappings
                     game_id = task_info.get("game_id")
@@ -693,7 +749,9 @@ class TaskManager:
         expired: List[str] = []
         for task_id, task_info in self.tasks.items():
             try:
-                updated_at = datetime.fromisoformat(task_info.get("updated_at", "2000-01-01"))
+                updated_at = datetime.fromisoformat(
+                    task_info.get("updated_at", "2000-01-01")
+                )
                 if updated_at < expiry_time:
                     expired.append(task_id)
             except Exception:
@@ -716,14 +774,18 @@ class TaskManager:
             try:
                 self.redis_client.delete(f"{self.TASK_KEY_PREFIX}{task_id}")
                 if task_info and task_info.get("game_id") is not None:
-                    self.redis_client.delete(f"{self.GAME_TASK_KEY_PREFIX}{task_info.get('game_id')}")
+                    self.redis_client.delete(
+                        f"{self.GAME_TASK_KEY_PREFIX}{task_info.get('game_id')}"
+                    )
             except Exception:
                 pass
 
         # Legacy cache cleanup
         self._cache_delete_value(f"{self.TASK_KEY_PREFIX}{task_id}")
         if task_info and task_info.get("game_id") is not None:
-            self._cache_delete_value(f"{self.GAME_TASK_KEY_PREFIX}{task_info.get('game_id')}")
+            self._cache_delete_value(
+                f"{self.GAME_TASK_KEY_PREFIX}{task_info.get('game_id')}"
+            )
 
         return removed
 
@@ -792,7 +854,9 @@ class TaskManager:
             task_id = self._get_task_id_for_game(game_id)
             if not task_id:
                 # Pass the game_id to the default status so it's included in the response
-                return self._default_status("PENDING", f"No task found for game {game_id}", 0, None, game_id)
+                return self._default_status(
+                    "PENDING", f"No task found for game {game_id}", 0, None, game_id
+                )
 
         # Get task info from cache - must provide valid task_id string
         if task_id:
@@ -811,14 +875,46 @@ class TaskManager:
                     celery_task = self._build_async_result(validated_task_id)
                     celery_status = celery_task.status
 
-                    # If Celery reports the task is done but we don't have info, create a default response
                     if celery_status in [TASK_STATUS_SUCCESS, TASK_STATUS_FAILURE]:
                         progress = 100 if celery_status == TASK_STATUS_SUCCESS else 0
-                        message = "Task completed" if celery_status == TASK_STATUS_SUCCESS else "Task failed"
-                        return self._default_status(celery_status, message, progress, task_id, game_id)
+                        message = (
+                            "Task completed"
+                            if celery_status == TASK_STATUS_SUCCESS
+                            else "Task failed"
+                        )
+                        return self._default_status(
+                            celery_status, message, progress, task_id, game_id
+                        )
+
+                    if celery_status in (
+                        TASK_STATUS_PENDING,
+                        TASK_STATUS_STARTED,
+                        TASK_STATUS_RETRY,
+                    ):
+                        return self._default_status(
+                            TASK_STATUS_PENDING,
+                            "Queued — your review will start shortly",
+                            0,
+                            task_id,
+                            game_id,
+                        )
+
+                    if celery_status == "PROGRESS":
+                        meta = (
+                            celery_task.info
+                            if isinstance(celery_task.info, dict)
+                            else {}
+                        )
+                        progress = int(meta.get("progress", 0) or 0)
+                        message = meta.get("message") or "Analysis in progress"
+                        return self._default_status(
+                            "PROCESSING", message, progress, task_id, game_id
+                        )
 
                 except Exception as e:
-                    logger.error(f"Error checking Celery status for task {task_id}: {str(e)}")
+                    logger.error(
+                        f"Error checking Celery status for task {task_id}: {str(e)}"
+                    )
                     # Continue with default status
 
         # If still no task info found, return default pending status
@@ -837,7 +933,9 @@ class TaskManager:
         message = task_info.get("message", "")
         progress = task_info.get("progress", 0)
 
-        if str(status).upper() == TASK_STATUS_PENDING and (not message or message.lower() == "task pending"):
+        if str(status).upper() == TASK_STATUS_PENDING and (
+            not message or message.lower() == "task pending"
+        ):
             message = "Queued — your review will start shortly"
 
         # Ensure progress is consistent with status
@@ -920,7 +1018,9 @@ class TaskManager:
 
         try:
             # Configure stale threshold in seconds
-            self.STALE_THRESHOLD_SECONDS = 60  # Consider task stale if no updates in 60 seconds
+            self.STALE_THRESHOLD_SECONDS = (
+                60  # Consider task stale if no updates in 60 seconds
+            )
 
             update_time = datetime.fromisoformat(task_info["updated_at"])
             now = datetime.now()
@@ -980,11 +1080,15 @@ class TaskManager:
                         # Decode bytes to string if returned from Redis
                         if isinstance(task_id, bytes):
                             task_id = task_id.decode("utf-8")
-                        logger.debug(f"Found task for game {game_id} in Redis: {task_id}")
+                        logger.debug(
+                            f"Found task for game {game_id} in Redis: {task_id}"
+                        )
                         # Update in-memory cache
                         self.game_tasks[game_id_str] = task_id
                 except Exception as e:
-                    logger.error(f"Redis error in get_active_tasks_for_game for game {game_id}: {str(e)}")
+                    logger.error(
+                        f"Redis error in get_active_tasks_for_game for game {game_id}: {str(e)}"
+                    )
                     # Continue with the flow even if Redis fails
 
             if not task_id:
@@ -994,11 +1098,15 @@ class TaskManager:
             # Check if the task exists and get its status
             task_info = self.get_task_info(task_id)
             if not task_info:
-                logger.debug(f"Task {task_id} for game {game_id} not found in task info")
+                logger.debug(
+                    f"Task {task_id} for game {game_id} not found in task info"
+                )
                 self.game_tasks.pop(game_id_str, None)
                 if self.redis_client is not None:
                     try:
-                        self.redis_client.delete(f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}")
+                        self.redis_client.delete(
+                            f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}"
+                        )
                     except Exception:
                         pass
                 return []
@@ -1012,7 +1120,9 @@ class TaskManager:
                 self.game_tasks.pop(game_id_str, None)
                 if self.redis_client is not None:
                     try:
-                        self.redis_client.delete(f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}")
+                        self.redis_client.delete(
+                            f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}"
+                        )
                     except Exception:
                         pass
                 return []
@@ -1020,7 +1130,9 @@ class TaskManager:
             # Non-terminal task is active and should prevent duplicate enqueue.
             return [task_id]
         except Exception as e:
-            logger.error(f"Error in get_active_tasks_for_game for game {game_id}: {str(e)}")
+            logger.error(
+                f"Error in get_active_tasks_for_game for game {game_id}: {str(e)}"
+            )
             return []
 
     def get_user_tasks(self, user_id: int) -> List[Dict[str, Any]]:
@@ -1155,10 +1267,14 @@ class TaskManager:
                 try:
                     self.redis_client.setex(task_key, self.task_timeout, task_json)
                     # Store succeeded, break the retry loop
-                    logger.debug(f"Stored task {task_id} in Redis (attempt {attempt+1})")
+                    logger.debug(
+                        f"Stored task {task_id} in Redis (attempt {attempt+1})"
+                    )
                     break
                 except Exception as e:
-                    logger.error(f"Redis error storing task (attempt {attempt+1}): {str(e)}")
+                    logger.error(
+                        f"Redis error storing task (attempt {attempt+1}): {str(e)}"
+                    )
                     if attempt < max_retries - 1:
                         time.sleep(retry_delay)
 
@@ -1169,12 +1285,18 @@ class TaskManager:
 
                 for attempt in range(max_retries):
                     try:
-                        self.redis_client.setex(game_task_key, self.task_timeout, task_id)
+                        self.redis_client.setex(
+                            game_task_key, self.task_timeout, task_id
+                        )
                         # Store succeeded, break the retry loop
-                        logger.debug(f"Stored game {game_id} to task {task_id} mapping in Redis (attempt {attempt+1})")
+                        logger.debug(
+                            f"Stored game {game_id} to task {task_id} mapping in Redis (attempt {attempt+1})"
+                        )
                         break
                     except Exception as e:
-                        logger.error(f"Redis error storing game-task mapping (attempt {attempt+1}): {str(e)}")
+                        logger.error(
+                            f"Redis error storing game-task mapping (attempt {attempt+1}): {str(e)}"
+                        )
                         if attempt < max_retries - 1:
                             time.sleep(retry_delay)
 
@@ -1206,7 +1328,9 @@ class TaskManager:
             try:
                 self.redis_client.delete(f"{self.GAME_TASK_KEY_PREFIX}{game_id_str}")
             except Exception as exc:
-                logger.debug("Could not clear Redis game-task mapping for %s: %s", game_id, exc)
+                logger.debug(
+                    "Could not clear Redis game-task mapping for %s: %s", game_id, exc
+                )
 
     def _get_task_id_for_game(self, game_id: Union[int, str]) -> Optional[str]:
         """
@@ -1236,7 +1360,9 @@ class TaskManager:
                             task_id = task_id.decode("utf-8")
                         self.game_tasks[game_id_str] = task_id
                 except Exception as e:
-                    logger.error(f"Redis error getting task ID for game {game_id}: {str(e)}")
+                    logger.error(
+                        f"Redis error getting task ID for game {game_id}: {str(e)}"
+                    )
 
             if not task_id:
                 logger.debug(f"No task found for game {game_id}")

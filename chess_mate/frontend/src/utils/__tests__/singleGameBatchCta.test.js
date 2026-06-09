@@ -40,5 +40,6 @@ describe('singleGameBatchCta', () => {
     expect(drill.label).toContain('B90');
     expect(drill.label).toContain('1 inaccuracy');
     expect(drill.kind).toBe('opening');
+    expect(drill.url).toContain('lichess.org/study/search');
   });
 });
