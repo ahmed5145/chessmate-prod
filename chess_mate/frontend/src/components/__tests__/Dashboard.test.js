@@ -69,7 +69,9 @@ describe('Dashboard', () => {
     );
 
     expect(await screen.findByText('Run Batch Coach on your games')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Start Batch Coach/i })).toHaveAttribute('href', '/batch-analysis');
+    const batchCoachLinks = screen.getAllByRole('link', { name: /Start Batch Coach/i });
+    expect(batchCoachLinks.length).toBeGreaterThanOrEqual(1);
+    expect(batchCoachLinks[0]).toHaveAttribute('href', '/batch-analysis');
     expect(screen.getByText('Your focus')).toBeInTheDocument();
     expect(screen.getByText('Recent games')).toBeInTheDocument();
     expect(screen.getByText('vs Rival')).toBeInTheDocument();

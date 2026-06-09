@@ -54,6 +54,7 @@ jest.mock('../../contexts/UserContext', () => ({
 
 jest.mock('../../utils/marketingAnalytics', () => ({
   trackSingleGameEvent: jest.fn(),
+  trackMarketingEvent: jest.fn(),
 }));
 
 jest.mock('../AnalyzeGameConfirmDialog', () => function MockAnalyzeGameConfirmDialog() {

@@ -15,15 +15,21 @@ jest.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
 }));
 
+const defaultPreferences = {
+  emailNotifications: true,
+  darkMode: false,
+  autoAnalyze: true,
+  wants_weekly_digest: false,
+  wants_spaced_repetition_email: false,
+  wants_reactivation_email: false,
+  coach_persona: "encouraging",
+};
+
 const mockProfile = {
   username: "testuser",
   email: "test@example.com",
   rating: 1500,
-  preferences: {
-    emailNotifications: true,
-    darkMode: false,
-    autoAnalyze: true,
-  },
+  preferences: { ...defaultPreferences },
 };
 
 describe("UserProfile Component", () => {
@@ -95,9 +101,9 @@ describe("UserProfile Component", () => {
     const updatedProfile = {
       ...mockProfile,
       preferences: {
+        ...defaultPreferences,
         emailNotifications: false,
         darkMode: true,
-        autoAnalyze: true,
       },
     };
     updateUserProfile.mockResolvedValueOnce(updatedProfile);
@@ -125,9 +131,9 @@ describe("UserProfile Component", () => {
     await waitFor(() => {
       expect(updateUserProfile).toHaveBeenCalledWith({
         preferences: {
+          ...defaultPreferences,
           emailNotifications: false,
           darkMode: true,
-          autoAnalyze: true,
         },
       });
     });
