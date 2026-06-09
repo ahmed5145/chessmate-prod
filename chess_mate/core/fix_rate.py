@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional
 
 from .models import BatchAnalysisReport
@@ -11,6 +12,8 @@ FIX_RATE_TOOLTIP = (
     "Fixed means a recurring pattern from your previous batch no longer appears, "
     "or its average eval swing dropped by at least 0.1 pawns."
 )
+
+_BATCH_GAME_ID_RE = re.compile(r"^game_(\d+)$", re.IGNORECASE)
 
 
 def _normalize_label(value: Any) -> str:
@@ -61,6 +64,46 @@ def _extract_patterns(batch_report: BatchAnalysisReport) -> Dict[str, Dict[str, 
     return patterns
 
 
+def _saved_game_id_from_per_game(
+    per_game: List[Dict[str, Any]],
+    batch_game_id: str,
+) -> Optional[int]:
+    for game in per_game:
+        if not isinstance(game, dict):
+            continue
+        if str(game.get("game_id") or "") == batch_game_id:
+            saved_id = game.get("saved_game_id")
+            if saved_id is not None:
+                return int(saved_id)
+    return None
+
+
+def _resolve_saved_game_id(
+    game_ref: Any,
+    per_game: List[Dict[str, Any]],
+) -> Optional[int]:
+    """Map a batch game ref (saved id or game_N) to a saved_game_id."""
+    if game_ref is None:
+        return None
+
+    text = str(game_ref).strip()
+    if not text:
+        return None
+
+    batch_match = _BATCH_GAME_ID_RE.match(text)
+    if batch_match:
+        return _saved_game_id_from_per_game(per_game, f"game_{batch_match.group(1)}")
+
+    saved_id = _saved_game_id_from_per_game(per_game, text)
+    if saved_id is not None:
+        return saved_id
+
+    try:
+        return int(text)
+    except (TypeError, ValueError):
+        return None
+
+
 def _proof_game_id(
     batch_report: BatchAnalysisReport,
     pattern_label: str,
@@ -86,7 +129,9 @@ def _proof_game_id(
             continue
         if _normalize_label(weakness.get("pattern")).lower() == normalized_label:
             for game_id in weakness.get("example_game_ids") or []:
-                return int(game_id)
+                resolved = _resolve_saved_game_id(game_id, per_game)
+                if resolved is not None:
+                    return resolved
 
     for moment in summary.get("top_critical_moments") or []:
         if not isinstance(moment, dict):
