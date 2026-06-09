@@ -29,7 +29,6 @@ def _opening_matches_gap(game: Dict[str, Any], gap: Dict[str, Any]) -> bool:
     game_eco = str(game.get("eco_code") or "").strip().upper()
 
     if gap_name and (game_name == gap_name or game_name.startswith(f"{gap_name}:")):
-    if gap_name and (game_name == gap_name or game_name.startswith(f"{gap_name}:")):
         return True
     if gap_eco and game_eco and gap_eco == game_eco:
         return True
@@ -141,7 +140,6 @@ def enrich_repertoire_gap(
     batch_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     row = dict(gap)
-    lost_games = collect_lost_games_for_gap(gap, per_game_results, batch_id=batch_id)
     lost_games = collect_lost_games_for_gap(gap, per_game_results, batch_id=batch_id)
     row["lost_games"] = lost_games
     row["loss_count"] = len(lost_games)

@@ -20,18 +20,12 @@ def fix_legacy_rating_column(apps, schema_editor):
             WHERE rating IS NULL
             """
         )
-            """
-        )
         cursor.execute("ALTER TABLE core_profile ALTER COLUMN rating SET DEFAULT 1200")
-        cursor.execute(
-            """
         cursor.execute(
             """
             UPDATE core_profile
             SET rating = 1200
             WHERE rating IS NULL
-            """
-        )
             """
         )
 
