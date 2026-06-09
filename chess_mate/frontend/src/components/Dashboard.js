@@ -27,6 +27,8 @@ import LoadingSpinner from './LoadingSpinner';
 import WelcomeGuide from './WelcomeGuide';
 import GamePlatformBadge from './GamePlatformBadge';
 import CoachInboxCard from './dashboard/CoachInboxCard';
+import DashboardOneThingCard from './dashboard/DashboardOneThingCard';
+import { resolveOneThingToday } from '../utils/oneThingToday';
 
 const formatResultLabel = (result) => {
   const normalized = String(result || '').toLowerCase();
@@ -393,6 +395,7 @@ const DashboardMoreStats = ({ dashboardData }) => {
 
 const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
+  const [oneThingHidden, setOneThingHidden] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { isDarkMode } = useTheme();
@@ -477,6 +480,12 @@ const Dashboard = () => {
       <WelcomeGuide />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <DashboardSinceLastVisit sinceLastVisit={dashboardData.sinceLastVisit} />
+        {!oneThingHidden ? (
+          <DashboardOneThingCard
+            oneThing={resolveOneThingToday(dashboardData)}
+            onSnooze={() => setOneThingHidden(true)}
+          />
+        ) : null}
         <CoachInboxCard priorityInbox={dashboardData.priority_inbox} />
         <DashboardHero dashboardData={dashboardData} username={user?.username || 'there'} />
         {shouldShowFocusCard(dashboardData, user) ? (

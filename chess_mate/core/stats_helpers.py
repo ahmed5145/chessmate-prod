@@ -718,6 +718,176 @@ def build_dashboard_focus_insight(
     }
 
 
+def _extract_critical_moments_from_analysis(
+    analysis: GameAnalysis,
+) -> List[Dict[str, Any]]:
+    moments: List[Dict[str, Any]] = []
+    feedback = analysis.feedback if isinstance(analysis.feedback, dict) else {}
+    analysis_data = (
+        analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
+    )
+    for container in (feedback.get("coaching"), feedback, analysis_data):
+        if not isinstance(container, dict):
+            continue
+        raw = container.get("critical_moments")
+        if isinstance(raw, list):
+            moments.extend(item for item in raw if isinstance(item, dict))
+    return moments
+
+
+def fetch_latest_single_worst_moment(
+    user,
+    profile: Optional[Profile],
+) -> Optional[Dict[str, Any]]:
+    """Worst depth-20 moment from the user's latest single-game analysis."""
+    analysis = (
+        GameAnalysis.objects.select_related("game")  # type: ignore[attr-defined]
+        .filter(game__user=user)
+        .order_by("-updated_at")
+        .first()
+    )
+    if analysis is None or analysis.game is None:
+        return None
+
+    moments = _extract_critical_moments_from_analysis(analysis)
+    if not moments:
+        return None
+
+    worst = max(moments, key=lambda row: float(row.get("eval_swing") or 0))
+    game = analysis.game
+    return {
+        "game_id": game.id,
+        "move_number": worst.get("move_number"),
+        "opening_name": game.opening_name,
+        "opponent": resolve_game_opponent_display(game, profile),
+        "phase": worst.get("phase"),
+        "eval_swing": worst.get("eval_swing"),
+    }
+
+
+def _one_thing_review_link(
+    game_id: int,
+    *,
+    batch_id: Optional[int] = None,
+    move_number: Optional[int] = None,
+    priority_index: Optional[int] = None,
+) -> str:
+    params = ["mode=review"]
+    if batch_id is not None:
+        params.append(f"batch={batch_id}")
+    if priority_index is not None:
+        params.append(f"priority={priority_index}")
+    if move_number is not None:
+        params.append(f"move={move_number}")
+    return f"/game/{game_id}/analysis?{'&'.join(params)}"
+
+
+def build_one_thing_today(
+    *,
+    total_games: int,
+    analyzed_games: int,
+    priority_inbox: Optional[Dict[str, Any]] = None,
+    latest_batch_coach: Optional[Dict[str, Any]] = None,
+    latest_batch_moment: Optional[Dict[str, Any]] = None,
+    latest_single_moment: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Single daily coaching action for the dashboard (SRG-12).
+
+    Priority: inbox → latest batch worst moment → latest single-game moment → funnel fallback.
+    """
+    inbox = priority_inbox if isinstance(priority_inbox, dict) else {}
+    pending = inbox.get("pending_items") or []
+    if isinstance(pending, list) and pending:
+        item = pending[0] if isinstance(pending[0], dict) else {}
+        href = item.get("href")
+        if href:
+            return {
+                "headline": item.get("title") or "Review your top coach priority",
+                "subline": item.get("proof_label") or item.get("drill") or "",
+                "cta_label": "5 min drill",
+                "cta_to": href,
+                "source": "inbox",
+                "drill_minutes": 5,
+            }
+
+    coach = latest_batch_coach if isinstance(latest_batch_coach, dict) else {}
+    batch_id = coach.get("batch_id")
+    batch_moment = (
+        latest_batch_moment if isinstance(latest_batch_moment, dict) else None
+    )
+    if batch_moment and batch_moment.get("saved_game_id"):
+        game_id = int(batch_moment["saved_game_id"])
+        move_number = batch_moment.get("move_number")
+        effective_batch_id = batch_id or batch_moment.get("batch_id")
+        opponent = batch_moment.get("opponent") or "opponent"
+        opening = batch_moment.get("opening_name") or "Latest batch"
+        move_suffix = f", move {move_number}" if move_number else ""
+        return {
+            "headline": f"Replay your worst batch moment vs {opponent}",
+            "subline": f"{opening}{move_suffix} · from your latest Batch Coach",
+            "cta_label": "5 min drill",
+            "cta_to": _one_thing_review_link(
+                game_id,
+                batch_id=int(effective_batch_id) if effective_batch_id else None,
+                move_number=int(move_number) if move_number is not None else None,
+            ),
+            "source": "batch",
+            "drill_minutes": 5,
+        }
+
+    single_moment = (
+        latest_single_moment if isinstance(latest_single_moment, dict) else None
+    )
+    if single_moment and single_moment.get("game_id"):
+        game_id = int(single_moment["game_id"])
+        move_number = single_moment.get("move_number")
+        opponent = single_moment.get("opponent") or "opponent"
+        opening = single_moment.get("opening_name") or "Recent game"
+        move_suffix = f", move {move_number}" if move_number else ""
+        return {
+            "headline": f"Review your biggest swing vs {opponent}",
+            "subline": f"{opening}{move_suffix} · depth-20 single-game analysis",
+            "cta_label": "5 min drill",
+            "cta_to": _one_thing_review_link(
+                game_id,
+                move_number=int(move_number) if move_number is not None else None,
+            ),
+            "source": "single_game",
+            "drill_minutes": 5,
+        }
+
+    if total_games >= 5:
+        return {
+            "headline": "Run Batch Coach on your games",
+            "subline": "Find cross-game patterns across 5–30 imported games.",
+            "cta_label": "Start Batch Coach",
+            "cta_to": "/batch-analysis",
+            "source": "fallback_batch",
+            "drill_minutes": None,
+        }
+
+    if total_games > 0:
+        remaining = max(0, 5 - int(total_games))
+        return {
+            "headline": f"Import {remaining} more game{'s' if remaining != 1 else ''} for Batch Coach",
+            "subline": "Batch Coach needs at least 5 games in your library.",
+            "cta_label": "Import games",
+            "cta_to": "/fetch-games",
+            "source": "fallback_import",
+            "drill_minutes": None,
+        }
+
+    return {
+        "headline": "Import games to get started",
+        "subline": "Connect Chess.com or Lichess to unlock coaching.",
+        "cta_label": "Import games",
+        "cta_to": "/fetch-games",
+        "source": "fallback_empty",
+        "drill_minutes": None,
+    }
+
+
 def parse_last_dashboard_visit(
     preferences: Optional[Dict[str, Any]]
 ) -> Optional[datetime]:

@@ -1007,13 +1007,30 @@ flowchart TD
 
 ### Smoke 2 — Coach loop & hub (P3–P4)
 
-**Prep:** User with ≥1 **completed** batch, priority inbox seeded (or run batch after SRG-9 ships).
+**Prep:** User with ≥1 **completed** batch (inbox seeded automatically), ≥1 depth-20 single-game analysis optional, SMTP optional for batch email.
 
-- [ ] **SRG-9** Dashboard/inbox lists batch priorities; open item → single-game with `batch` + `move` params.
-- [ ] **SRG-9** Mark priority **reviewed** → item clears; persists on reload.
-- [ ] **SRG-19** *(not shipped)* After batch, ≥1 proof game appears in inbox.
-- [ ] **SRG-12** Dashboard **one thing today** → worst moment deep link (`mode=review`).
-- [ ] **SRG-11** *(not shipped)* Alignment score matches batch claim on proof game.
+**Deferred from Smoke 1** (re-test fixes):
+
+- [ ] Re-analyze stuck polling — re-run completes; no eternal `Task not found`.
+- [ ] **SRG-4** Opening drill opens Lichess **study search**, not FEN analysis URL.
+- [ ] **SRG-5** Per-moment benchmarks differ; rating matches game time control.
+- [ ] **SRG-7** Move sounds play; classification icon on arrow destination square.
+
+**SRG-9 / SRG-19 / SRG-11** (shipped):
+
+- [ ] **SRG-9** Coach inbox on dashboard lists pending priorities; empty state → Start Batch Coach.
+- [ ] **SRG-9** Open inbox item → single-game with `mode=review`, `batch`, `priority`, `move` when linked.
+- [ ] **SRG-9** **Mark reviewed** on batch banner → item clears; persists on reload.
+- [ ] **SRG-19** Inbox rows show **proof labels** (e.g. `Sicilian example: vs Opponent, move 12`).
+- [ ] **SRG-19** After batch complete, ≥1 inbox item deep-links to a proof game (not batch-report-only).
+- [ ] **SRG-11** Batch-linked single-game shows **alignment %** badge; tooltip explains count.
+- [ ] **SRG-11** Mismatch note when batch phase ≠ game swing phase (honest copy, not punitive).
+
+**SRG-12** (shipped):
+
+- [ ] **SRG-12** **One thing today** card appears above inbox; CTA uses `mode=review` when linking a game.
+- [ ] **SRG-12** Pending inbox item wins over batch worst moment over single-game moment.
+- [ ] **SRG-12** **Snooze 24h** hides card until next day; refresh respects snooze.
 - [ ] **SRG-16** *(not shipped)* Inbox streak increments when clearing items.
 - [ ] **SRG-10** *(not shipped)* Moment timeline shows batch run count.
 - [ ] **SRG-17** *(not shipped)* Fix-rate on 2nd batch reflects improved patterns.
@@ -1057,7 +1074,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | **SRG-9** | `test_priority_inbox.py` | `CoachInboxCard.test.js`, `BatchContextBanner.test.js` | Ownership + reviewed state |
 | **SRG-10** | `test_moment_timeline.py` *(add)* | `MomentTimeline.test.js` *(add)* | Cross-batch counts |
 | **SRG-11** | `test_alignment_score.py` | `BatchContextBanner.test.js` | Batch vs single match |
-| **SRG-12** | `test_dashboard_one_thing.py` *(add)* | `DashboardOneThing.test.js` *(add)* | Worst moment link |
+| **SRG-12** | `test_dashboard_one_thing.py` | `oneThingToday.test.js` | Inbox → batch → single priority |
 | **SRG-13** | `test_spaced_moment_email.py` *(add)* | — | 7d cap + digest exclusion |
 | **SRG-14** | `test_notification_center.py` *(add)* | `NotificationCenter.test.js` *(add)* | Bell + read state |
 | **SRG-15** | `test_weekly_digest_email.py` *(add)* | — | `EmailSendLog` weekly cap |
@@ -1095,7 +1112,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | SRG-8 | ✅ Done | Print removed; tests in matrix §8 |
 | SRG-9 | ✅ Done | Inbox seed on batch complete/regenerate; dashboard card; mark reviewed |
 | SRG-10 | ⬜ Not started | Moment timeline |
-| SRG-12 | ⬜ Not started | Dashboard one thing |
+| SRG-12 | ✅ Done | One thing today card + snooze + server selection |
 | SRG-13 | ⬜ Not started | Spaced email — ship after digest |
 | SRG-14 | ⬜ Not started | Notification center |
 | SRG-15 | ⬜ Not started | Weekly digest |

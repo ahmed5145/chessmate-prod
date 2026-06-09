@@ -74,11 +74,6 @@ export const buildOpeningStudyDrillLink = ({
 
   const eco = gameContext.eco || gameContext.eco_code;
   const mistakeCount = countOpeningInaccuracies(moves);
-  const openingMoment = moves.find(isOpeningMistake) || (
-    worstMoment?.move_number && Number(worstMoment.move_number) <= OPENING_MOVE_CUTOFF
-      ? worstMoment
-      : null
-  );
 
   const ecoPrefix = eco ? `${eco} ` : '';
   const countSuffix = mistakeCount > 0

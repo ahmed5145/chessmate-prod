@@ -337,6 +337,7 @@ const normalizeDashboardData = (raw) => {
         focusInsight: normalizeDashboardFocusInsight(raw?.focus_insight),
         heroMetrics: normalizeDashboardHeroMetrics(raw?.hero_metrics),
         sinceLastVisit: normalizeSinceLastVisit(raw?.since_last_visit),
+        oneThingToday: raw?.one_thing_today || null,
     };
 };
 

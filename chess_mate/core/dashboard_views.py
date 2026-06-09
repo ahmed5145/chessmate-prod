@@ -12,29 +12,25 @@ from datetime import timedelta
 from django.db.models import Case, Count, IntegerField, Q, When
 from django.utils import timezone
 from rest_framework import status
-
 # Third-party imports
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .cache import cache_delete, cache_get, cache_set, generate_cache_key
-
 # Local application imports
 from .models import BatchAnalysisReport, Game, GameAnalysis, Profile
 from .serializers_batches import _coaching_summary_snippet
-from .stats_helpers import (
-    ANALYZED_GAME_Q,
-    build_dashboard_focus_insight,
-    build_dashboard_hero_metrics,
-    build_dashboard_next_action,
-    build_dashboard_since_last_visit,
-    compute_user_average_accuracy,
-    format_dashboard_insights,
-    mark_dashboard_visit,
-    parse_last_dashboard_visit,
-    resolve_game_opponent_display,
-)
+from .stats_helpers import (ANALYZED_GAME_Q, build_dashboard_focus_insight,
+                            build_dashboard_hero_metrics,
+                            build_dashboard_next_action,
+                            build_dashboard_since_last_visit,
+                            build_one_thing_today,
+                            compute_user_average_accuracy,
+                            fetch_latest_single_worst_moment,
+                            format_dashboard_insights, mark_dashboard_visit,
+                            parse_last_dashboard_visit,
+                            resolve_game_opponent_display)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -69,7 +65,20 @@ def _finalize_dashboard_response(dashboard_data, user, profile):
     payload = dict(dashboard_data)
     since = parse_last_dashboard_visit(getattr(profile, "preferences", None))
     payload["since_last_visit"] = build_dashboard_since_last_visit(user, since)
-    payload["priority_inbox"] = get_priority_inbox_payload(profile)
+    inbox = get_priority_inbox_payload(profile)
+    payload["priority_inbox"] = inbox
+    payload["one_thing_today"] = build_one_thing_today(
+        total_games=int(
+            payload.get("total_games")
+            or (payload.get("game_stats") or {}).get("total")
+            or 0
+        ),
+        analyzed_games=int(payload.get("analyzed_games") or 0),
+        priority_inbox=inbox,
+        latest_batch_coach=payload.get("latest_batch_coach"),
+        latest_batch_moment=payload.get("latest_batch_moment"),
+        latest_single_moment=payload.get("latest_single_moment"),
+    )
     mark_dashboard_visit(profile)
     return payload
 
@@ -245,6 +254,8 @@ def dashboard_view(request):
 
         latest_batch_coach = None
         latest_batch_summary = None
+        latest_batch_moment = None
+        latest_single_moment = fetch_latest_single_worst_moment(user, profile)
         latest_batch = (
             BatchAnalysisReport.objects.filter(
                 user=user, status__in=["completed", "partial"]
@@ -269,6 +280,24 @@ def dashboard_view(request):
                     "summary": summary_text,
                     "overall_accuracy_pct": batch_summary.get("overall_accuracy_pct"),
                 }
+            top_moments = batch_summary.get("top_critical_moments") or []
+            if isinstance(top_moments, list) and top_moments:
+                first_moment = top_moments[0]
+                if isinstance(first_moment, dict):
+                    latest_batch_moment = dict(first_moment)
+                    latest_batch_moment["batch_id"] = latest_batch.id
+                    saved_id = latest_batch_moment.get("saved_game_id")
+                    if saved_id:
+                        batch_game = Game.objects.filter(  # type: ignore[attr-defined]
+                            id=saved_id, user=user
+                        ).first()
+                        if batch_game:
+                            latest_batch_moment["opponent"] = (
+                                resolve_game_opponent_display(batch_game, profile)
+                            )
+                            latest_batch_moment["opening_name"] = (
+                                batch_game.opening_name
+                            )
 
         # Construct the response data
         dashboard_data = {
@@ -303,6 +332,8 @@ def dashboard_view(request):
             "analysis_insights": analysis_insights,
             "insights": analysis_insights,
             "latest_batch_coach": latest_batch_coach,
+            "latest_batch_moment": latest_batch_moment,
+            "latest_single_moment": latest_single_moment,
             "openings": [],
             "performance": {
                 "overall": {
