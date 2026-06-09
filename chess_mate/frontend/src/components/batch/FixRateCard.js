@@ -11,12 +11,6 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { toTitleCase } from '../../utils/formatLabel';
 import { buildSingleGameAnalysisLink } from '../../utils/singleGameAnalysisLinks';
 
-const statusColor = (status) => {
-  if (status === 'fixed' || status === 'improved') return 'success';
-  if (status === 'persisting') return 'warning';
-  return 'default';
-};
-
 const FixRateCard = ({ fixRate, batchId = null, compact = false }) => {
   if (!fixRate?.show) {
     return null;

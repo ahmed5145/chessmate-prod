@@ -16,13 +16,15 @@ jest.mock('../EngineMetaNote', () => function MockEngineMetaNote() {
   return null;
 });
 
+/* eslint-disable testing-library/no-node-access -- OG meta tags live in document.head */
+const getMetaContent = (selector) => document.querySelector(selector)?.getAttribute('content') ?? null;
+const metaExists = (selector) => document.querySelector(selector);
+
 describe('SharedGameMomentPage', () => {
   beforeEach(() => {
     getPublicGameMoment.mockReset();
     document.title = '';
-    document.head.querySelectorAll('meta[property^="og:"], meta[name^="twitter:"]').forEach((el) => {
-      el.remove();
-    });
+    document.head.innerHTML = '';
   });
 
   it('sets text-only share meta tags from moment payload', async () => {
@@ -47,15 +49,10 @@ describe('SharedGameMomentPage', () => {
       expect(document.title).toContain('You lost the center on move 12');
     });
 
-    const ogTitle = document.querySelector('meta[property="og:title"]');
-    const ogDescription = document.querySelector('meta[property="og:description"]');
-    const twitterCard = document.querySelector('meta[name="twitter:card"]');
-    const ogImage = document.querySelector('meta[property="og:image"]');
-
-    expect(ogTitle?.getAttribute('content')).toContain('You lost the center on move 12');
-    expect(ogDescription?.getAttribute('content')).toContain('Move 12');
-    expect(ogDescription?.getAttribute('content')).toContain('Sicilian');
-    expect(twitterCard?.getAttribute('content')).toBe('summary');
-    expect(ogImage).toBeNull();
+    expect(getMetaContent('meta[property="og:title"]')).toContain('You lost the center on move 12');
+    expect(getMetaContent('meta[property="og:description"]')).toContain('Move 12');
+    expect(getMetaContent('meta[property="og:description"]')).toContain('Sicilian');
+    expect(getMetaContent('meta[name="twitter:card"]')).toBe('summary');
+    expect(metaExists('meta[property="og:image"]')).toBeNull();
   });
 });

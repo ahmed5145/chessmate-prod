@@ -1,6 +1,6 @@
 # Single-Game Retention & Batch Bridge Plan
 
-**Status:** 🔒 Locked — scope frozen; track progress via checkboxes only. Change scope via explicit doc revision (date + rationale).  
+**Status:** 🔒 Locked — **SRG-0…29 shipped** (2026-06-08 audit). Scope frozen; track progress via checkboxes only. Change scope via explicit doc revision (date + rationale).  
 **Created:** 2026-06-08  
 **Owner:** Product / Engineering  
 **Goal:** Make single-game analysis a **free-to-revisit, credit-worthy-first-run** drill-down that pulls users into batch coach, improves retention, and beats Chess.com/Lichess on **coaching proof** — not engine breadth.
