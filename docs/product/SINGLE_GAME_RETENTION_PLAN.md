@@ -150,7 +150,7 @@ flowchart LR
 - [ ] Opening `/game/:id/analysis` for an already-complete game shows report in &lt;2s with **no** progress bar and **no** credit confirm.
 - [ ] Games row “View report” never calls `POST /analyze/`.
 - [ ] Re-run still costs 1 credit and shows confirm.
-- [ ] Tests: `SingleGameAnalysis.test.js` — cached fetch path; `Games.test.js` — view vs analyze CTAs.
+- [x] Tests: `SingleGameAnalysis.test.js`, `Games.test.js`, `test_single_game_analysis_cache.py`, `test_game_views.py` (see §8).
 
 **Primary files:** `SingleGameAnalysis.js`, `Games.js`, `gameAnalysisService.js`, `game_views.py`, `game_analyzer.py`, `single_game_credits.py`
 
@@ -167,8 +167,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] No print button on single-game report.
-- [ ] No `window.print()` from single-game components.
+- [x] No print button on single-game report.
+- [x] No `window.print()` from single-game components.
+- [x] Tests: `SingleGameReportActions.test.js` (see §8).
 
 **Primary files:** `SingleGameReportActions.js`, `singleGamePrint.css`, `SingleGameReport.js`
 
@@ -191,10 +192,11 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] User with email enabled receives mail within 5 min of completion.
-- [ ] Link opens report at worst moment ply (existing `?move=` support).
-- [ ] No email on cache-hit “instant complete.”
-- [ ] Test: `test_single_game_notifications.py` asserts headline + moment URL in rendered HTML.
+- [ ] User with email enabled receives mail within 5 min of completion. *(smoke §7)*
+- [x] Link opens report at worst moment with `mode=review` + `move=`.
+- [x] No email on cache-hit “instant complete.” (email only from `analyze_game_task` SUCCESS).
+- [x] Test: `test_single_game_notifications.py` asserts headline + `mode=review` moment URL (see §8).
+- [x] Test: cached `POST /analyze/` does not enqueue task (`test_game_views.py`).
 
 **Primary files:** `single_game_notifications.py`, `tasks.py`, `templates/email/single_game_complete.html`, `SingleGameHero` fields (`headline`)
 
@@ -966,19 +968,125 @@ flowchart TD
 
 ---
 
-## 7. Progress tracker
+## 7. Manual smoke plan (3 sessions)
+
+**Rule:** At most **3** manual smokes for the full plan. Each smoke runs **after** its phase ships (do not smoke unfinished items). Skip checklist rows marked *(not shipped)*. Automated tests are the default gate; smoke is the human UX pass.
+
+| Smoke | When (after phase ships) | Packages covered | Est. time |
+|-------|--------------------------|------------------|-----------|
+| **Smoke 1** | P0 + P1 + P2 | SRG-0, SRG-8, SRG-1, SRG-22, SRG-2…SRG-7 | ~25 min |
+| **Smoke 2** | P3 + P4 | SRG-9…SRG-21, SRG-14, SRG-15, SRG-13 | ~30 min |
+| **Smoke 3** | P5 | SRG-23…SRG-29 | ~20 min |
+
+### Smoke 1 — Trust, notify & engage (P0–P2)
+
+**Prep:** Test user with ≥10 credits, ≥1 analyzed game, ≥1 unanalyzed game, SMTP or mail catcher enabled.
+
+- [ ] **SRG-0** Games → analyzed row → **View report** → report loads in &lt;3s, **no** progress bar, **no** credit dialog.
+- [ ] **SRG-0** DevTools Network: **View report** path has **no** `POST .../analyze/`.
+- [ ] **SRG-0** Open same URL again → still free; credits unchanged.
+- [ ] **SRG-0** **Re-run (1 credit)** → confirm → analysis runs; credits −1.
+- [ ] **SRG-8** Single-game report → **no** Print button; no `window.print` in console.
+- [ ] **SRG-0** **Copy link** → URL contains `mode=review`.
+- [ ] **SRG-1** Run **new** deep review on unanalyzed game → within 5 min receive email (or mail catcher).
+- [ ] **SRG-1** Email subject = coaching **headline** or `Move N swung your game` fallback.
+- [ ] **SRG-1** **Jump to move** CTA → `/game/:id/analysis?mode=review&move=N` opens at moment, **0** credit.
+- [ ] **SRG-1** **View report** on cached game → **no** second completion email.
+- [ ] **SRG-22** *(not shipped)* New signup → welcome/confirm mail (skip until shipped).
+- [ ] **SRG-3** *(not shipped)* Batch-linked report → footer CTA → batch report with pattern context.
+- [ ] **SRG-4** *(not shipped)* Opening study link opens sensible Lichess drill.
+- [ ] **SRG-2** *(not shipped)* Streak card increments on clean game.
+- [ ] **SRG-6** *(not shipped)* Drill checklist persists after refresh (`localStorage`).
+- [ ] **SRG-7** *(not shipped)* Move nav plays sound once (if enabled).
+
+### Smoke 2 — Coach loop & hub (P3–P4)
+
+**Prep:** User with ≥1 **completed** batch, priority inbox seeded (or run batch after SRG-9 ships).
+
+- [ ] **SRG-9** Dashboard/inbox lists batch priorities; open item → single-game with `batch` + `move` params.
+- [ ] **SRG-9** Mark priority **reviewed** → item clears; persists on reload.
+- [ ] **SRG-19** *(not shipped)* After batch, ≥1 proof game appears in inbox.
+- [ ] **SRG-12** Dashboard **one thing today** → worst moment deep link (`mode=review`).
+- [ ] **SRG-11** *(not shipped)* Alignment score matches batch claim on proof game.
+- [ ] **SRG-16** *(not shipped)* Inbox streak increments when clearing items.
+- [ ] **SRG-10** *(not shipped)* Moment timeline shows batch run count.
+- [ ] **SRG-17** *(not shipped)* Fix-rate on 2nd batch reflects improved patterns.
+- [ ] **SRG-14** Bell shows completion + inbox; mark read works.
+- [ ] **SRG-15** Opt in digest → **one** mail in 7 days; opt out → zero.
+- [ ] **SRG-13** Spaced mail **not** same week as digest (mutual exclusion).
+- [ ] **SRG-18** *(not shipped)* Phase heatmap cell → example game opens free review.
+- [ ] **SRG-21** *(not shipped)* Opening gap → lost games list.
+
+### Smoke 3 — Growth (P5)
+
+**Prep:** User who completed **first batch**; second account for referral; mobile device or emulator for PWA.
+
+- [ ] **SRG-23** First batch complete → celebration modal **once**; dismissible.
+- [ ] **SRG-24** Copy referral link → referee completes first batch → referrer **+5**, referee **+5** on top of signup bonus.
+- [ ] **SRG-24** Self-referral blocked.
+- [ ] **SRG-28** **Desktop:** no PWA/install banner anywhere.
+- [ ] **SRG-28** **Mobile** after first batch: small install hint **once**; dismiss → no repeat for 30 days.
+- [ ] **SRG-29** Paste moment share URL in Discord/iMessage preview → **text** title + description (no broken image).
+- [ ] **SRG-25** *(not shipped)* Streak freeze once per month.
+- [ ] **SRG-26** *(not shipped)* Persona toggle changes **next** report tone only.
+- [ ] **SRG-27** *(not shipped)* 30d inactive + opt-in → one reactivation mail max.
+
+---
+
+## 8. Automated test matrix
+
+Every in-scope package **must** have automated coverage before its phase is marked done. Smoke (§7) supplements — does not replace — these tests.
+
+| ID | Backend tests | Frontend tests | Notes |
+|----|---------------|----------------|-------|
+| **SRG-0** | `test_single_game_analysis_cache.py`, `test_game_views.py` (cached POST), `test_single_game_credits.py` | `SingleGameAnalysis.test.js`, `Games.test.js`, `singleGameAnalysisLinks.test.js` | Cache hit = 0 credits |
+| **SRG-1** | `test_single_game_notifications.py`, `test_analysis_tasks.py` (email on SUCCESS only) | — | Assert headline, `mode=review` URLs |
+| **SRG-2** | `test_single_game_streak.py` *(add)* | `SingleGameStreak.test.js` *(add)* | Streak rules unit-tested |
+| **SRG-3** | — | `SingleGameFooterCta.test.js` *(add)* | Batch link + analytics |
+| **SRG-4** | — | `singleGameDrillLinks.test.js` *(extend)* | ECO + mistake context |
+| **SRG-5** | `test_rating_band_copy.py` *(add)* | — | Template strings from rating |
+| **SRG-6** | — | `DrillChecklist.test.js` *(add)* | `localStorage` persistence |
+| **SRG-7** | — | `singleGameMoveSound.test.js` *(add)* | Classification → sound map |
+| **SRG-8** | — | `SingleGameReportActions.test.js` | No print handler |
+| **SRG-9** | `test_priority_inbox.py` *(add)* | `PriorityInbox.test.js` *(add)* | Ownership + reviewed state |
+| **SRG-10** | `test_moment_timeline.py` *(add)* | `MomentTimeline.test.js` *(add)* | Cross-batch counts |
+| **SRG-11** | `test_alignment_score.py` *(add)* | `AlignmentScore.test.js` *(add)* | Batch vs single match |
+| **SRG-12** | `test_dashboard_one_thing.py` *(add)* | `DashboardOneThing.test.js` *(add)* | Worst moment link |
+| **SRG-13** | `test_spaced_moment_email.py` *(add)* | — | 7d cap + digest exclusion |
+| **SRG-14** | `test_notification_center.py` *(add)* | `NotificationCenter.test.js` *(add)* | Bell + read state |
+| **SRG-15** | `test_weekly_digest_email.py` *(add)* | — | `EmailSendLog` weekly cap |
+| **SRG-16** | `test_inbox_streak.py` *(add)* | `InboxStreak.test.js` *(add)* | Streak increment rules |
+| **SRG-17** | `test_fix_rate.py` *(add)* | `FixRateCard.test.js` *(add)* | Batch-over-batch patterns |
+| **SRG-18** | `test_phase_heatmap.py` *(add)* | `PhaseHeatmap.test.js` *(add)* | Cell → game links |
+| **SRG-19** | `test_proof_games_inbox.py` *(add)* | — | Post-batch seed ≥3 games |
+| **SRG-20** | `test_batch_moment_diff.py` *(add)* | `BatchMomentDiff.test.js` *(add)* | A vs B swing trend |
+| **SRG-21** | `test_opening_gaps_games.py` *(add)* | `OpeningGapsGames.test.js` *(add)* | Gap → lost games |
+| **SRG-22** | `test_welcome_email.py` *(add)* | — | Confirm + welcome once each |
+| **SRG-23** | `test_first_batch_celebration.py` *(add)* | `FirstBatchModal.test.js` *(add)* | Show once only |
+| **SRG-24** | `test_referral_credits.py` *(add)* | `ReferralCredits.test.js` *(add)* | 5+5 on first batch; caps |
+| **SRG-25** | `test_inbox_streak_freeze.py` *(add)* | — | 1× per calendar month |
+| **SRG-26** | `test_coach_persona.py` *(add)* | `CoachPersonaSettings.test.js` *(add)* | Prompt modifier only |
+| **SRG-27** | `test_reactivation_email.py` *(add)* | — | 30d cap + opt-in |
+| **SRG-28** | — | `PwaInstallPrompt.test.js` *(add)* | Mobile gate; desktop hidden |
+| **SRG-29** | — | `SharedGameMomentPage.test.js`, `pageMeta.test.js` | Text OG; no `og:image` |
+
+**Global gates (CI):** Existing batch invariants + `EmailSendLog` budget tests when SRG-13/15/27 land.
+
+---
+
+## 9. Progress tracker
 
 | ID | Status | Notes |
 |----|--------|-------|
-| SRG-0 | 🟡 In progress | Cached analyze API + review mount + Games CTAs |
-| SRG-1 | ⬜ Not started | Email partial exists |
+| SRG-0 | ✅ Done | Cached analyze + review mount + Games CTAs + tests |
+| SRG-1 | ✅ Done | Headline subject + `mode=review` moment links + tests |
 | SRG-2 | ⬜ Not started | |
 | SRG-3 | ⬜ Not started | Footer CTA exists; needs counts |
 | SRG-4 | ⬜ Not started | Drill link partial |
 | SRG-5 | ⬜ Not started | |
 | SRG-6 | ⬜ Not started | |
 | SRG-7 | ⬜ Not started | |
-| SRG-8 | 🟡 In progress | Print removed from report actions |
+| SRG-8 | ✅ Done | Print removed; tests in matrix §8 |
 | SRG-9 | ⬜ Not started | Priority inbox |
 | SRG-10 | ⬜ Not started | Moment timeline |
 | SRG-11 | ⬜ Not started | Alignment score |
@@ -999,7 +1107,7 @@ flowchart TD
 | SRG-26 | ⬜ Not started | Coach persona |
 | SRG-27 | ⬜ Not started | 30d reactivation |
 | SRG-28 | ⬜ Not started | PWA install — mobile only, post-first-batch |
-| SRG-29 | 🟡 In progress | Text OG on share moment page |
+| SRG-29 | ✅ Done | Text OG on share moment page + tests |
 
 **Changelog**
 
@@ -1010,16 +1118,17 @@ flowchart TD
 | 2026-06-08 | Scope revision — added SRG-14…SRG-22 (notification hub, digest, streaks, fix-rate, heatmap, proof games, batch diff, opening gaps, welcome mail); global email budget |
 | 2026-06-08 | Scope revision — added SRG-23…SRG-27 (celebration, referral, streak freeze, persona, reactivation); DX-01…03 deferred pending decision |
 | 2026-06-08 | Scope revision — promoted SRG-28 (PWA mobile-only, not first visit), SRG-29 (text OG; DX-02b image deferred); SRG-24 rewards → referrer 5 + referee +5 on signup stack; DX-03 `.ics` deferred |
+| 2026-06-08 | Added §7 manual smoke plan (3 sessions) + §8 automated test matrix per SRG |
 
 ---
 
-## 8. Revision policy
+## 10. Revision policy
 
 To change this plan: edit this file, bump **Changelog**, and announce in PR description. Do not add features via drive-by PRs without updating §0 scope lock.
 
 ---
 
-## 9. Deferred ideas — explainers
+## 11. Deferred ideas — explainers
 
 | ID | Status | Notes |
 |----|--------|-------|
