@@ -30,7 +30,9 @@ def inactive_user(db):
     profile.preferences = {WANTS_REACTIVATION_KEY: True}
     profile.lichess_username = "inactive_lichess"
     profile.save(update_fields=["preferences", "lichess_username"])
-    user.last_login = timezone.now() - timedelta(days=45)
+    stale = timezone.now() - timedelta(days=45)
+    Profile.objects.filter(pk=profile.pk).update(updated_at=stale, created_at=stale)
+    user.last_login = stale
     user.save(update_fields=["last_login"])
     return user
 

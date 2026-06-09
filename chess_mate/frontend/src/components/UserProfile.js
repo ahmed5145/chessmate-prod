@@ -206,9 +206,7 @@ const UserProfile = () => {
                       aria-label="Coach tone"
                       value={preferences.coach_persona || "encouraging"}
                       onChange={(event) => handlePreferenceChange("coach_persona", event.target.value)}
-                      className={`rounded-md border px-2 py-1 text-sm ${
-                        isDarkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
-                      }`}
+                      className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900"
                     >
                       <option value="encouraging">Encouraging</option>
                       <option value="direct">Direct</option>
