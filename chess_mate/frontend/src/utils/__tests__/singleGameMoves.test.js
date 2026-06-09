@@ -38,7 +38,7 @@ describe('singleGameMoves', () => {
     expect(moves[0].evalAfter).toBe(0.4);
   });
 
-  it('labels white and black half-moves distinctly', () => {
+  it('labels white and black moves distinctly', () => {
     expect(formatMoveLabel(pairedMoves[0])).toBe('10. Qb3');
     expect(formatMoveLabel(pairedMoves[1])).toBe('10... d5');
   });
@@ -63,13 +63,13 @@ describe('singleGameMoves', () => {
   });
 
   it('infers blunder classification from large eval loss', () => {
-    expect(inferDisplayClassification(pairedMoves[1])).toBe('blunder');
+    expect(inferDisplayClassification(pairedMoves[1], 'black')).toBe('blunder');
     expect(formatPlayerEvalLoss(pairedMoves[1])).toBe('8.41');
   });
 
-  it('summarizes full moves vs half-moves', () => {
+  it('summarizes full move count only', () => {
     expect(countFullMoves(pairedMoves)).toBe(11);
-    expect(formatMovesSummaryLabel(pairedMoves)).toBe('11 moves (3 half-moves)');
+    expect(formatMovesSummaryLabel(pairedMoves)).toBe('11 moves');
   });
 
   it('annotates player vs opponent sides', () => {
@@ -80,10 +80,19 @@ describe('singleGameMoves', () => {
   });
 
   it('colors arrows by classification and side', () => {
-    expect(getMoveArrowColors(pairedMoves[1], 'black').playedArrowColor).toBe('#dc2626');
-    expect(getMoveArrowColors(pairedMoves[1], 'black').bestArrowColor).toBe('#16a34a');
-    expect(getMoveArrowColors({ ...pairedMoves[2], isBest: true }, 'black').playedArrowColor).toBe('#2563eb');
-    expect(getMoveArrowColors({ ...pairedMoves[2], isBest: true }, 'black').bestArrowColor).toBeNull();
+    const blunderStyle = getMoveArrowColors(pairedMoves[1], 'black');
+    expect(blunderStyle.playedArrowColor).toBe('#dc2626');
+    expect(blunderStyle.bestArrowColor).toBe('#16a34a');
+    expect(blunderStyle.icon).toBe('??');
+
+    const opponentBest = getMoveArrowColors({
+      ...pairedMoves[2],
+      isBest: true,
+      displayClassification: 'best',
+      displayArrowStyle: undefined,
+    }, 'black');
+    expect(opponentBest.playedArrowColor).toBe('#2563eb');
+    expect(opponentBest.bestArrowColor).toBeNull();
   });
 
   it('builds eval series by ply', () => {
@@ -91,9 +100,9 @@ describe('singleGameMoves', () => {
       { move_number: 1, eval_after: 0.1 },
       { move_number: 1, eval_after: -0.5, is_white: false },
     ]);
-    expect(pickEvalSeries(moves)).toEqual([
+    expect(pickEvalSeries(moves, 'white')).toEqual([
       { label: 1, value: 0.1 },
-      { label: 2, value: -0.5 },
+      { label: 1, value: -0.5 },
     ]);
   });
 });

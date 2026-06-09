@@ -2,7 +2,9 @@ import React from 'react';
 import FenBoardImage from '../batch/FenBoardImage';
 import { useTheme } from '../../context/ThemeContext';
 import { formatNumber } from '../../utils/formatters';
-import { formatBestMoveDisplay, formatUciMove, getMoveArrowColors } from '../../utils/singleGameMoves';
+import { formatBestMoveDisplay, formatUciMove } from '../../utils/singleGameMoves';
+import { getMoveArrowStyle } from '../../utils/singleGameClassification';
+import MoveClassificationBadge from './MoveClassificationBadge';
 
 const severityClass = (type, isDarkMode) => {
   if (type === 'blunder') {
@@ -39,12 +41,14 @@ const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectM
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {moments.map((moment, index) => {
           const momentPlayerColor = moment.player_color || playerColor;
-          const arrowColors = getMoveArrowColors({
+          const arrowColors = getMoveArrowStyle({
             isBest: moment.classification === 'best',
             isWhite: momentPlayerColor === 'white',
             displayClassification: moment.type || moment.classification,
             bestMoveUci: moment.best_move_uci,
             uci: moment.played_move_uci,
+            evalAfter: 0,
+            evalChange: -(moment.eval_swing || 0),
           }, playerColor);
 
           return (
@@ -53,9 +57,7 @@ const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectM
             className={`rounded-lg border p-3 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
           >
             <div className="flex items-center gap-2 mb-2">
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${severityClass(moment.type, isDarkMode)}`}>
-                {moment.type || 'moment'}
-              </span>
+              <MoveClassificationBadge classification={moment.type || moment.classification || 'inaccuracy'} />
               <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 Move {moment.move_number}
               </span>
@@ -74,6 +76,7 @@ const CriticalMomentsSection = ({ moments = [], playerColor = 'white', onSelectM
                   bestMoveUci={arrowColors.bestArrowColor ? moment.best_move_uci : null}
                   playedArrowColor={arrowColors.playedArrowColor}
                   bestArrowColor={arrowColors.bestArrowColor}
+                  playedArrowIcon={arrowColors.icon}
                 />
               </button>
             ) : null}

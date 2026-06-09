@@ -9,23 +9,11 @@ import {
   formatMoveLabel,
   formatMoveSideLabel,
   getMoveArrowColors,
-  inferDisplayClassification,
   pickEvalSeries,
 } from '../../utils/singleGameMoves';
-
-const classificationClass = (classification, isDarkMode) => {
-  const value = String(classification || '').toLowerCase();
-  if (value === 'blunder' || value === 'mistake') {
-    return isDarkMode ? 'text-red-300' : 'text-red-700';
-  }
-  if (value === 'inaccuracy') {
-    return isDarkMode ? 'text-amber-300' : 'text-amber-700';
-  }
-  if (value === 'best' || value === 'excellent' || value === 'good') {
-    return isDarkMode ? 'text-emerald-300' : 'text-emerald-700';
-  }
-  return isDarkMode ? 'text-gray-300' : 'text-gray-600';
-};
+import { formatReviewPositionEvalVerbose } from '../../utils/singleGameClassification';
+import MoveClassificationBadge from './MoveClassificationBadge';
+import PositionEvalBar from './PositionEvalBar';
 
 const chipClass = (active, isDarkMode) => {
   if (active) {
@@ -51,26 +39,28 @@ const panelButtonClass = (isDarkMode, disabled = false) => {
 
 const MoveCaption = ({ move, playerColor, isDarkMode }) => {
   const bestMove = formatBestMoveDisplay(move);
-  const classification = inferDisplayClassification(move);
   const sideLabel = formatMoveSideLabel(move, playerColor);
+  const classification = move.displayClassification || 'neutral';
   return (
-    <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-      <span className={`mr-2 rounded-full px-2 py-0.5 text-xs font-semibold ${
-        move.isPlayerMove
-          ? (isDarkMode ? 'bg-indigo-900/50 text-indigo-200' : 'bg-indigo-100 text-indigo-800')
-          : (isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700')
-      }`}
-      >
-        {sideLabel}
-      </span>
-      {formatMoveLabel(move)} · Eval after: <strong>{Number(move.evalAfter).toFixed(2)}</strong>
-      {bestMove && bestMove !== '-' ? (
-        <> · Best: <strong>{bestMove}</strong></>
+    <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+      <p className="flex flex-wrap items-center gap-2">
+        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+          move.isPlayerMove
+            ? (isDarkMode ? 'bg-indigo-900/50 text-indigo-200' : 'bg-indigo-100 text-indigo-800')
+            : (isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700')
+        }`}
+        >
+          {sideLabel}
+        </span>
+        <span className="font-medium">{formatMoveLabel(move)}</span>
+        <MoveClassificationBadge classification={classification} />
+      </p>
+      {bestMove && bestMove !== '-' && !move.isBest ? (
+        <p className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          Engine best: <strong>{bestMove}</strong>
+        </p>
       ) : null}
-      <span className={`ml-2 ${classificationClass(classification, isDarkMode)}`}>
-        {classification}
-      </span>
-    </p>
+    </div>
   );
 };
 
@@ -79,7 +69,7 @@ const MoveBoard = ({ move, playerColor, boardSize = 320 }) => {
     return <p className="text-gray-500">Board unavailable for this move.</p>;
   }
 
-  const { playedArrowColor, bestArrowColor } = getMoveArrowColors(move, playerColor);
+  const { playedArrowColor, bestArrowColor, icon } = getMoveArrowColors(move, playerColor);
 
   return (
     <FenBoardImage
@@ -90,16 +80,10 @@ const MoveBoard = ({ move, playerColor, boardSize = 320 }) => {
       bestMoveUci={bestArrowColor ? move.bestMoveUci : null}
       playedArrowColor={playedArrowColor}
       bestArrowColor={bestArrowColor}
+      playedArrowIcon={icon}
     />
   );
 };
-
-const BoardArrowLegend = ({ isDarkMode }) => (
-  <p className={`mt-2 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-    Arrow colors: green/blue = best · amber = inaccuracy · orange = mistake · red = blunder ·
-    gray = opponent move
-  </p>
-);
 
 const SingleGameBoardPanel = ({
   moves = [],
@@ -126,7 +110,8 @@ const SingleGameBoardPanel = ({
   }, [initialMoveNumber, initialMoveIsWhite, resolveIndex]);
 
   const selectedMove = moves[selectedIndex] || moves[0];
-  const evalPoints = pickEvalSeries(moves);
+  const evalPoints = pickEvalSeries(moves, playerColor);
+  const selectedEval = formatReviewPositionEvalVerbose(selectedMove, playerColor);
   const canGoBack = selectedIndex > 0;
   const canGoForward = selectedIndex < moves.length - 1;
 
@@ -245,8 +230,12 @@ const SingleGameBoardPanel = ({
           <div>
             <MoveBoard move={selectedMove} playerColor={playerColor} boardSize={320} />
             <div className="mt-3">
+              <PositionEvalBar
+                evalText={selectedEval.text}
+                tone={selectedEval.tone}
+                playerColor={playerColor}
+              />
               <MoveCaption move={selectedMove} playerColor={playerColor} isDarkMode={isDarkMode} />
-              <BoardArrowLegend isDarkMode={isDarkMode} />
             </div>
           </div>
           <div>
@@ -264,15 +253,18 @@ const SingleGameBoardPanel = ({
                   key={`move-row-${move.moveNumber}-${index}`}
                   type="button"
                   onClick={() => handleSelect(index)}
-                  className={`w-full text-left px-3 py-2 text-sm border-b last:border-b-0 ${
+                  className={`flex w-full items-center gap-2 text-left px-3 py-2 text-sm border-b last:border-b-0 ${
                     index === selectedIndex
                       ? (isDarkMode ? 'bg-indigo-900/40 text-white' : 'bg-indigo-50 text-indigo-900')
                       : (isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50')
                   } ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}
                 >
                   <span className="font-medium">{move.displayLabel || formatMoveLabel(move)}</span>
-                  <span className={`ml-2 text-xs ${classificationClass(inferDisplayClassification(move), isDarkMode)}`}>
-                    {inferDisplayClassification(move)}
+                  <span className="ml-2 inline-flex">
+                    <MoveClassificationBadge classification={move.displayClassification || 'neutral'} showIcon={false} />
+                  </span>
+                  <span className={`ml-auto text-xs tabular-nums ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {move.displayEval}
                   </span>
                 </button>
               ))}
@@ -338,8 +330,12 @@ const SingleGameBoardPanel = ({
                     <MoveBoard move={selectedMove} playerColor={playerColor} boardSize={560} />
                   </div>
                   <div className="mt-4 w-full max-w-xl text-center">
+                    <PositionEvalBar
+                      evalText={selectedEval.text}
+                      tone={selectedEval.tone}
+                      playerColor={playerColor}
+                    />
                     <MoveCaption move={selectedMove} playerColor={playerColor} isDarkMode={isDarkMode} />
-                    <BoardArrowLegend isDarkMode={isDarkMode} />
                   </div>
                 </div>
 

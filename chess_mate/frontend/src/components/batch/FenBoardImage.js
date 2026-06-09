@@ -160,6 +160,7 @@ const FenBoardImage = ({
   bestMoveUci = null,
   playedArrowColor = '#dc2626',
   bestArrowColor = '#16a34a',
+  playedArrowIcon = null,
 }) => {
   const isBlackView = (perspective || orientation) === 'black';
   const boardFen = useMemo(() => boardFenFromFullFen(fen), [fen]);
@@ -261,6 +262,30 @@ const FenBoardImage = ({
           ) : null}
           {playedArrow && playedArrowColor ? (
             <MoveArrow {...playedArrow} color={playedArrowColor} markerId={playedMarkerId} isBlackView={isBlackView} />
+          ) : null}
+          {playedArrowIcon ? (
+            <span
+              style={{
+                position: 'absolute',
+                top: '6%',
+                right: '6%',
+                background: playedArrowColor || '#111827',
+                color: '#fff',
+                borderRadius: '9999px',
+                minWidth: '1.5rem',
+                height: '1.5rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+                pointerEvents: 'none',
+              }}
+              aria-hidden="true"
+            >
+              {playedArrowIcon}
+            </span>
           ) : null}
         </Box>
 

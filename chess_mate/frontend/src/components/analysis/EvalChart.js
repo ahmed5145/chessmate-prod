@@ -48,7 +48,7 @@ const EvalChart = ({ points = [], selectedIndex = 0, onSelectIndex, height = 180
       legend: { display: false },
       tooltip: {
         callbacks: {
-          label: (context) => `Eval: ${Number(context.parsed.y).toFixed(2)}`,
+          label: (context) => `Your eval: ${Number(context.parsed.y) >= 0 ? '+' : ''}${Number(context.parsed.y).toFixed(2)}`,
         },
       },
     },

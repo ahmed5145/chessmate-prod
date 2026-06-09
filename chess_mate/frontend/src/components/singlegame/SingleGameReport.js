@@ -10,14 +10,14 @@ import CriticalMomentsSection from './CriticalMomentsSection';
 import LichessActionButton from '../batch/LichessActionButton';
 import {
   annotateMovesForPlayer,
+  computePlayerMoveStats,
   findMoveIndexForMoment,
   formatBestMoveDisplay,
   formatMoveLabel,
   formatMovesSummaryLabel,
-  formatPlayerEvalLoss,
-  inferDisplayClassification,
   normalizeSingleGameMoves,
 } from '../../utils/singleGameMoves';
+import MoveClassificationBadge from './MoveClassificationBadge';
 import { resolveSingleGameDrillLink } from '../../utils/singleGameDrillLinks';
 import {
   alignMomentsWithBatchContext,
@@ -119,6 +119,8 @@ const SingleGameReport = ({
     batchContext,
     trainingBlock,
     phaseData,
+    playerStats,
+    worstMoment,
   } = useMemo(() => {
     if (!resolvedAnalysisData) {
       return {};
@@ -191,11 +193,12 @@ const SingleGameReport = ({
     const playerSide = context.player_color || 'white';
     const normalizedMoves = annotateMovesForPlayer(
       alignMovesWithBatchContext(
-        normalizeSingleGameMoves(rawMoves),
+        normalizeSingleGameMoves(rawMoves, playerSide),
         batchCtx,
       ),
       playerSide,
     );
+    const computedStats = computePlayerMoveStats(normalizedMoves, playerSide);
     const alignedMoments = alignMomentsWithBatchContext(moments, batchCtx);
     const worstMoment = alignedMoments[0] || null;
     const drill = resolveSingleGameDrillLink({ moment: worstMoment, gameContext: context });
@@ -212,13 +215,16 @@ const SingleGameReport = ({
       trainingBlock: training,
       phaseData,
       displayMetrics: {
-        accuracy: accuracy === 'N/A' ? 'N/A' : `${accuracy}%`,
-        mistakes,
-        timeManagement: timeMgmt === 'N/A' ? 'N/A' : `${timeMgmt}%`,
-        timePressure: timePressure === 'N/A' ? 'N/A' : `${timePressure}%`,
+        accuracy: normalizedMoves.length ? `${computedStats.accuracy}%` : (accuracy === 'N/A' ? 'N/A' : `${accuracy}%`),
+        errors: normalizedMoves.length ? String(computedStats.errors) : mistakes,
+        showTimeStats: !showTimeUnavailable && timeMgmt !== 'N/A',
+        timeManagement: timeMgmt === 'N/A' ? null : `${timeMgmt}%`,
+        timePressure: timePressure === 'N/A' ? null : `${timePressure}%`,
       },
+      playerStats: computedStats,
       tableMoves: normalizedMoves,
       drillLink: drill,
+      worstMoment,
       playerColor: context.player_color || 'white',
     };
   }, [resolvedAnalysisData]);
@@ -254,7 +260,7 @@ const SingleGameReport = ({
 
       <EngineMetaNote engineMeta={engineMeta} batchContext={batchContext} />
 
-      <SingleGameHero coaching={coaching} />
+      <SingleGameHero coaching={coaching} worstMoment={worstMoment} playerStats={playerStats} />
 
       <PhaseStrip
         phases={phaseData}
@@ -307,12 +313,24 @@ const SingleGameReport = ({
         }}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatItem label="Overall Accuracy" value={displayMetrics.accuracy} icon={FaChartLine} isDarkMode={isDarkMode} />
-        <StatItem label="Mistakes" value={displayMetrics.mistakes} icon={FaExclamationTriangle} isDarkMode={isDarkMode} />
-        <StatItem label="Time Management" value={displayMetrics.timeManagement} icon={FaClock} isDarkMode={isDarkMode} />
-        <StatItem label="Time Pressure" value={displayMetrics.timePressure} icon={FaHourglassHalf} isDarkMode={isDarkMode} />
+      <div className={`grid grid-cols-1 gap-4 mb-8 ${
+        displayMetrics.showTimeStats ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-2'
+      }`}
+      >
+        <StatItem label="Your accuracy" value={displayMetrics.accuracy} icon={FaChartLine} isDarkMode={isDarkMode} />
+        <StatItem label="Your errors" value={displayMetrics.errors} icon={FaExclamationTriangle} isDarkMode={isDarkMode} />
+        {displayMetrics.showTimeStats ? (
+          <>
+            <StatItem label="Time Management" value={displayMetrics.timeManagement} icon={FaClock} isDarkMode={isDarkMode} />
+            <StatItem label="Time Pressure" value={displayMetrics.timePressure} icon={FaHourglassHalf} isDarkMode={isDarkMode} />
+          </>
+        ) : null}
       </div>
+      {!displayMetrics.showTimeStats ? (
+        <p className={`mb-8 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          Clock data was not available for this game, so time management stats are hidden.
+        </p>
+      ) : null}
 
       {tableMoves.length > 0 ? (
         <details className={`mb-8 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
@@ -328,7 +346,7 @@ const SingleGameReport = ({
                   <th className="text-left py-2 pr-4">Played</th>
                   <th className="text-left py-2 pr-4">Best</th>
                   <th className="text-left py-2 pr-4">Class</th>
-                  <th className="text-right py-2">Eval loss</th>
+                  <th className="text-right py-2">Eval</th>
                 </tr>
               </thead>
               <tbody>
@@ -353,11 +371,9 @@ const SingleGameReport = ({
                     <td className="py-2 pr-4 font-medium">{move.san}</td>
                     <td className="py-2 pr-4">{move.displayBestMove || formatBestMoveDisplay(move)}</td>
                     <td className="py-2 pr-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getClassificationBadgeClass(inferDisplayClassification(move), isDarkMode)}`}>
-                        {formatClassificationLabel(inferDisplayClassification(move))}
-                      </span>
+                      <MoveClassificationBadge classification={move.displayClassification || 'neutral'} />
                     </td>
-                    <td className="py-2 text-right">{move.displayEvalLoss || formatPlayerEvalLoss(move)}</td>
+                    <td className="py-2 text-right tabular-nums">{move.displayEval}</td>
                   </tr>
                 ))}
               </tbody>

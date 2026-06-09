@@ -2,6 +2,20 @@
  * User-facing copy for single-game analysis polling states.
  */
 
+import { plyToFullMoveNumber } from './singleGameClassification';
+
+const humanizeAnalyzingMoveProgress = (message) => {
+  const match = String(message || '').match(/Analyzing move (\d+)\/(\d+)/i);
+  if (!match) {
+    return null;
+  }
+  const converted = plyToFullMoveNumber(match[1], match[2]);
+  if (!converted?.total) {
+    return null;
+  }
+  return `Analyzing move ${converted.current} of ${converted.total}`;
+};
+
 const QUEUED_PATTERNS = [
   'task queued',
   'waiting for worker',
@@ -37,6 +51,15 @@ export const humanizeAnalysisStatusMessage = (message, progress = 0) => {
     return {
       status: 'Starting your review',
       detail: 'Stockfish depth 20 is preparing your game. Feel free to browse elsewhere.',
+      queued: false,
+    };
+  }
+
+  const analyzing = humanizeAnalyzingMoveProgress(raw);
+  if (analyzing) {
+    return {
+      status: analyzing,
+      detail: 'Depth-20 Stockfish is reviewing every move. You can leave this tab open or check Games later.',
       queued: false,
     };
   }

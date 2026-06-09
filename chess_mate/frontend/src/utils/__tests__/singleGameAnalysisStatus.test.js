@@ -17,10 +17,10 @@ describe('humanizeAnalysisStatusMessage', () => {
     expect(result.queued).toBe(false);
   });
 
-  it('passes through progress messages with background hint', () => {
-    const result = humanizeAnalysisStatusMessage('Analyzing move 12 of 40', 35);
+  it('converts ply-based progress to full-move counts', () => {
+    const result = humanizeAnalysisStatusMessage('Analyzing move 21/21', 90);
 
-    expect(result.status).toBe('Analyzing move 12 of 40');
-    expect(result.detail).toMatch(/background/i);
+    expect(result.status).toBe('Analyzing move 11 of 11');
+    expect(result.detail).toMatch(/depth-20/i);
   });
 });

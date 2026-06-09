@@ -1,5 +1,21 @@
 /** Normalize single-game move payloads for board + chart UI. */
 
+import {
+  computePlayerMoveStats,
+  evalForPlayer,
+  formatReviewPositionEval,
+  getMoveArrowStyle,
+  isPlayerMove as classificationIsPlayerMove,
+  resolveMoveClassification,
+} from './singleGameClassification';
+
+export {
+  computePlayerMoveStats,
+  evalForPlayer,
+  formatReviewPositionEval,
+  resolveMoveClassification,
+} from './singleGameClassification';
+
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -30,14 +46,6 @@ export const formatBestMoveDisplay = (move = {}) => {
   return '-';
 };
 
-export const playerEvalLoss = (move = {}) => {
-  const change = toNumber(move.evalChange, 0);
-  if (change < 0) {
-    return Math.abs(change);
-  }
-  return 0;
-};
-
 export const formatPlayerEvalLoss = (move = {}) => {
   const change = toNumber(move.evalChange, 0);
   if (change > 0) {
@@ -49,20 +57,8 @@ export const formatPlayerEvalLoss = (move = {}) => {
   return '0.00';
 };
 
-export const inferDisplayClassification = (move = {}) => {
-  const stored = String(move.classification || 'neutral').toLowerCase();
-  const loss = playerEvalLoss(move);
-  if (loss >= 1.5) {
-    return 'blunder';
-  }
-  if (loss >= 0.5) {
-    return 'mistake';
-  }
-  if (loss >= 0.2) {
-    return 'inaccuracy';
-  }
-  return stored;
-};
+export const inferDisplayClassification = (move = {}, reviewPlayerColor = 'white') =>
+  resolveMoveClassification(move, reviewPlayerColor);
 
 export const formatMoveLabel = (move = {}) => {
   const num = move.moveNumber;
@@ -80,7 +76,7 @@ export const countFullMoves = (moves = []) => {
   return moves.reduce((max, move) => Math.max(max, Number(move.moveNumber) || 0), 0);
 };
 
-export const normalizeSingleGameMove = (move = {}, index = 0) => {
+export const normalizeSingleGameMove = (move = {}, index = 0, reviewPlayerColor = 'white') => {
   const evalAfter = move.eval_after ?? move.evaluation ?? move.score ?? 0;
   const evalBefore = move.eval_before ?? null;
   const evalChange = move.eval_change ?? move.evaluation_change ?? move.delta ?? 0;
@@ -106,19 +102,21 @@ export const normalizeSingleGameMove = (move = {}, index = 0) => {
     isCritical: Boolean(move.is_critical || move.isCritical),
   };
 
-  normalized.displayClassification = inferDisplayClassification(normalized);
+  normalized.displayClassification = resolveMoveClassification(normalized, reviewPlayerColor);
   normalized.displayBestMove = formatBestMoveDisplay(normalized);
   normalized.displayLabel = formatMoveLabel(normalized);
-  normalized.displayEvalLoss = formatPlayerEvalLoss(normalized);
+  normalized.displayEval = formatReviewPositionEval(normalized, reviewPlayerColor);
+  const arrowStyle = getMoveArrowStyle(normalized, reviewPlayerColor);
+  normalized.displayArrowStyle = arrowStyle;
 
   return normalized;
 };
 
-export const normalizeSingleGameMoves = (rawMoves = []) => {
+export const normalizeSingleGameMoves = (rawMoves = [], reviewPlayerColor = 'white') => {
   if (!Array.isArray(rawMoves)) {
     return [];
   }
-  return rawMoves.map((move, index) => normalizeSingleGameMove(move, index));
+  return rawMoves.map((move, index) => normalizeSingleGameMove(move, index, reviewPlayerColor));
 };
 
 export const findMoveIndexByNumber = (moves = [], moveNumber, options = {}) => {
@@ -184,14 +182,13 @@ export const findMoveIndexForMoment = (moves = [], moment = {}, defaultPlayerCol
   return byNumber;
 };
 
-export const pickEvalSeries = (moves = []) =>
+export const pickEvalSeries = (moves = [], reviewPlayerColor = 'white') =>
   moves.map((move, index) => ({
-    label: move.ply || index + 1,
-    value: toNumber(move.evalAfter),
+    label: move.moveNumber || index + 1,
+    value: evalForPlayer(move.evalAfter, reviewPlayerColor),
   }));
 
-export const isPlayerMove = (move = {}, playerColor = 'white') =>
-  Boolean(move.isWhite) === (playerColor === 'white');
+export const isPlayerMove = classificationIsPlayerMove;
 
 export const formatMoveSideLabel = (move = {}, playerColor = 'white') =>
   (isPlayerMove(move, playerColor) ? 'You' : 'Opponent');
@@ -199,67 +196,32 @@ export const formatMoveSideLabel = (move = {}, playerColor = 'white') =>
 export const annotateMovesForPlayer = (moves = [], playerColor = 'white') =>
   moves.map((move) => {
     const playerMove = isPlayerMove(move, playerColor);
-    return {
+    const displayClassification = resolveMoveClassification(move, playerColor);
+    const enriched = {
       ...move,
       isPlayerMove: playerMove,
       sideLabel: playerMove ? 'You' : 'Opponent',
+      displayClassification,
+      displayEval: formatReviewPositionEval(move, playerColor),
     };
+    enriched.displayArrowStyle = getMoveArrowStyle(enriched, playerColor);
+    return enriched;
   });
 
-const ARROW_COLORS = {
-  best: '#16a34a',
-  good: '#22c55e',
-  inaccuracy: '#f59e0b',
-  mistake: '#ea580c',
-  blunder: '#dc2626',
-  neutralYou: '#64748b',
-  opponentBest: '#2563eb',
-  opponentNeutral: '#475569',
-  engineBest: '#16a34a',
-};
-
 export const getMoveArrowColors = (move = {}, playerColor = 'white') => {
-  const playerMove = isPlayerMove(move, playerColor);
-  const classification = String(
-    move.displayClassification || inferDisplayClassification(move)
-  ).toLowerCase().replace(/_/g, ' ');
-  const isBest = Boolean(move.isBest) || classification === 'best' || classification === 'excellent';
-
-  if (isBest) {
-    return {
-      playedArrowColor: playerMove ? ARROW_COLORS.best : ARROW_COLORS.opponentBest,
-      bestArrowColor: null,
-    };
-  }
-
-  const playedByClass = {
-    blunder: ARROW_COLORS.blunder,
-    mistake: ARROW_COLORS.mistake,
-    inaccuracy: ARROW_COLORS.inaccuracy,
-    good: ARROW_COLORS.good,
-    excellent: ARROW_COLORS.good,
-    'good move': ARROW_COLORS.good,
-    'excellent move': ARROW_COLORS.good,
-    neutral: playerMove ? ARROW_COLORS.neutralYou : ARROW_COLORS.opponentNeutral,
-  };
-
-  const playedArrowColor = playedByClass[classification]
-    || (playerMove ? ARROW_COLORS.mistake : ARROW_COLORS.opponentNeutral);
-
+  const style = move.displayArrowStyle || getMoveArrowStyle(move, playerColor);
   return {
-    playedArrowColor,
-    bestArrowColor: move.bestMoveUci ? ARROW_COLORS.engineBest : null,
+    playedArrowColor: style.playedArrowColor,
+    bestArrowColor: style.bestArrowColor,
+    icon: style.icon,
+    classification: style.classification,
   };
 };
 
 export const formatMovesSummaryLabel = (moves = []) => {
-  const plies = moves.length;
   const fullMoves = countFullMoves(moves);
-  if (!plies) {
+  if (!fullMoves) {
     return '0 moves';
   }
-  if (fullMoves && fullMoves !== plies) {
-    return `${fullMoves} moves (${plies} half-moves)`;
-  }
-  return `${plies} moves`;
+  return `${fullMoves} move${fullMoves === 1 ? '' : 's'}`;
 };
