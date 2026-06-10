@@ -113,8 +113,12 @@ def validate_coaching_citations(
                 val = item.get(key)
                 if val:
                     endgame_tokens.append(str(val).lower().replace("_", " "))
-        endgame_text = _text_blob((parsed.get("coaching_narrative") or {}).get("endgame"))
-        if endgame_tokens and not any(token in endgame_text for token in endgame_tokens if len(token) > 3):
+        endgame_text = _text_blob(
+            (parsed.get("coaching_narrative") or {}).get("endgame")
+        )
+        if endgame_tokens and not any(
+            token in endgame_text for token in endgame_tokens if len(token) > 3
+        ):
             errors.append(
                 "coaching_narrative.endgame must reference an endgame type or study_focus "
                 "from batch_summary.endgame_insights."
@@ -154,13 +158,19 @@ def _build_per_game_summary(item: Dict[str, Any]) -> Dict[str, Any]:
     player_color = result.get("player_color", "white")
     raw_result = result.get("result", "")
 
-    # phase scores: convert avg_eval_drop to score
+    # phase scores: eval stability (1 - avg_eval_drop) plus move match % when available
     phase_breakdown = {}
     for phase in ("opening", "middlegame", "endgame"):
         phase_data = result.get("phase_breakdown", {}).get(phase, {})
         avg_eval_drop = float(phase_data.get("avg_eval_drop", 0.0) or 0.0)
         score = max(0.0, min(1.0, 1.0 - avg_eval_drop))
-        phase_breakdown[phase] = {"score": round(score, 2)}
+        phase_entry: Dict[str, Any] = {"score": round(score, 2)}
+        if phase_data.get("accuracy") is not None:
+            try:
+                phase_entry["move_match_pct"] = round(float(phase_data["accuracy"]), 1)
+            except (TypeError, ValueError):
+                pass
+        phase_breakdown[phase] = phase_entry
 
     move_quality = result.get("move_quality", {})
     blunder_count = int(move_quality.get("blunder", 0) or 0)
@@ -185,10 +195,19 @@ def _build_per_game_summary(item: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
 
+    game_move_match = result.get("accuracy")
+    try:
+        game_move_match = (
+            round(float(game_move_match), 1) if game_move_match is not None else None
+        )
+    except (TypeError, ValueError):
+        game_move_match = None
+
     return {
         "game_id": game_id,
         "result": _map_result_short(raw_result, player_color),
         "opening_name": result.get("opening_name", "Unknown"),
+        "move_match_pct": game_move_match,
         "phase_breakdown": phase_breakdown,
         "blunder_count": blunder_count,
         "mistake_count": mistake_count,
@@ -216,13 +235,17 @@ def generate_coaching_report(
         # item may be already a wrapped response with status
         status = item.get("status")
         if status == "failed":
-            failed_games.append({"game_id": item.get("game_id"), "error": item.get("error")})
+            failed_games.append(
+                {"game_id": item.get("game_id"), "error": item.get("error")}
+            )
             continue
 
         summary = _build_per_game_summary(item)
         # If the summary indicates a failure, move to failed_games
         if summary.get("status") == "failed":
-            failed_games.append({"game_id": summary.get("game_id"), "error": item.get("error")})
+            failed_games.append(
+                {"game_id": summary.get("game_id"), "error": item.get("error")}
+            )
         else:
             per_game_summaries.append(summary)
 
@@ -241,7 +264,12 @@ def generate_coaching_report(
         "- If batch_summary contains endgame_insights, you MUST name the endgame type (e.g. rook and pawn) in endgame narrative and cite study_focus wording.\n"
         "- top_3_priorities specific_drill must include TWO parts: (1) a general practice drill (puzzles, themed training, or study — not only one game), and (2) a review step citing game_id and move_number from critical_moments (e.g. 'Practice: 15 hanging-piece puzzles on Lichess. Review: game_0 move 22 — replay the tactic from your game.').\n"
         "- training_plan weeks must differ from each other and reference concrete weaknesses from opening_insights/endgame_insights/recurring_weaknesses — not generic 'do puzzles daily' every week.\n"
-        "- Do not only say fork or missed_tactic; tie tactics to the listed moments and openings."
+        "- Do not only say fork or missed_tactic; tie tactics to the listed moments and openings.\n"
+        "METRIC RULES (mandatory):\n"
+        "- batch_summary.overall_accuracy_pct and phase_performance.*.accuracy_pct are move match % (Chess.com-style).\n"
+        "- batch_summary.overall_eval_stability and phase_performance.*.score are eval stability (0–1), not move match.\n"
+        "- opening_insights.avg_opening_move_match_pct is move match for that opening; avg_opening_score is eval stability.\n"
+        "- Never call score or eval stability 'accuracy' or 'move match'. Quote the exact field you mean."
     )
 
     user_template = (
@@ -296,18 +324,25 @@ def generate_coaching_report(
             - Tests / some SDK paths: response.output_parsed (dict)
             - Production chat completions: response.choices[0].message.content (JSON string)
             """
-            if hasattr(response_obj, "output_parsed") and response_obj.output_parsed is not None:
+            if (
+                hasattr(response_obj, "output_parsed")
+                and response_obj.output_parsed is not None
+            ):
                 parsed_obj = response_obj.output_parsed
                 if isinstance(parsed_obj, dict):
                     return parsed_obj
-                raise CoachingGeneratorError(f"OpenAI returned unexpected type: {type(parsed_obj)}")
+                raise CoachingGeneratorError(
+                    f"OpenAI returned unexpected type: {type(parsed_obj)}"
+                )
 
             content = response_obj.choices[0].message.content
             logger.info(f"OpenAI response (first 200 chars): {content[:200]}")
             try:
                 loaded = json.loads(content)
             except json.JSONDecodeError as exc:
-                raise CoachingGeneratorError(f"OpenAI returned non-JSON response: {content[:200]}") from exc
+                raise CoachingGeneratorError(
+                    f"OpenAI returned non-JSON response: {content[:200]}"
+                ) from exc
 
             if not isinstance(loaded, dict):
                 raise CoachingGeneratorError(
@@ -327,7 +362,9 @@ def generate_coaching_report(
         parsed = _parse_response(response)
         _validate_coaching_report(parsed)
 
-        citation_errors = validate_coaching_citations(parsed, batch_summary, per_game_summaries)
+        citation_errors = validate_coaching_citations(
+            parsed, batch_summary, per_game_summaries
+        )
         if citation_errors:
             logger.warning(
                 "Coaching citation validation failed, retrying once: %s",
@@ -348,7 +385,9 @@ def generate_coaching_report(
             )
             parsed = _parse_response(retry_response)
             _validate_coaching_report(parsed)
-            citation_errors = validate_coaching_citations(parsed, batch_summary, per_game_summaries)
+            citation_errors = validate_coaching_citations(
+                parsed, batch_summary, per_game_summaries
+            )
             if citation_errors:
                 logger.warning(
                     "Coaching citations still weak after retry (serving report anyway): %s",

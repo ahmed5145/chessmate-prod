@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -7,16 +7,29 @@ from core.models import Game
 from core.task_manager import TaskManager
 
 
+def _age_task_in_memory(task_manager, task_id, *, minutes=5):
+    stale = (datetime.now() - timedelta(minutes=minutes)).isoformat()
+    task_manager.tasks[task_id]["created_at"] = stale
+    task_manager.tasks[task_id]["updated_at"] = stale
+    task_manager._cache_set_value(
+        f"{task_manager.TASK_KEY_PREFIX}{task_id}",
+        dict(task_manager.tasks[task_id]),
+    )
+
+
 @pytest.fixture
 def task_manager():
     manager = TaskManager(redis_client=None)
+    manager.redis_client = None
     manager.tasks.clear()
     manager.game_tasks.clear()
     return manager
 
 
 @pytest.mark.django_db
-def test_abandon_stale_queued_task_clears_mapping_and_resets_game(task_manager, django_user_model):
+def test_abandon_stale_queued_task_clears_mapping_and_resets_game(
+    task_manager, django_user_model
+):
     user = django_user_model.objects.create_user(username="queue_user", password="pass")
     game = Game.objects.create(
         user=user,
@@ -25,12 +38,16 @@ def test_abandon_stale_queued_task_clears_mapping_and_resets_game(task_manager, 
         pgn='[Event "Test"]\n\n1. e4 e5 2. Nf3 Nc6 *\n',
         analysis_status="analyzing",
     )
-    task_id = task_manager.create_task(game_id=game.id, task_type=task_manager.TYPE_ANALYSIS)
-    task_manager.tasks[task_id]["created_at"] = (datetime.now() - timedelta(minutes=5)).isoformat()
-    task_manager.tasks[task_id]["updated_at"] = task_manager.tasks[task_id]["created_at"]
+    task_id = task_manager.create_task(
+        game_id=game.id, task_type=task_manager.TYPE_ANALYSIS
+    )
+    _age_task_in_memory(task_manager, task_id)
 
     with patch.object(task_manager, "_workers_ping", return_value=False):
-        assert task_manager._is_stale_queued_task(task_id, task_manager.tasks[task_id]) is True
+        assert (
+            task_manager._is_stale_queued_task(task_id, task_manager.tasks[task_id])
+            is True
+        )
 
     task_manager.abandon_stale_queued_task(task_id, game.id, reason="no_workers")
     game.refresh_from_db()
@@ -42,11 +59,15 @@ def test_abandon_stale_queued_task_clears_mapping_and_resets_game(task_manager, 
 
 def test_get_active_tasks_for_game_drops_stale_pending(task_manager):
     game_id = 173
-    task_id = task_manager.create_task(game_id=game_id, task_type=task_manager.TYPE_ANALYSIS)
-    task_manager.tasks[task_id]["created_at"] = (datetime.now() - timedelta(minutes=5)).isoformat()
-    task_manager.tasks[task_id]["updated_at"] = task_manager.tasks[task_id]["created_at"]
+    task_id = task_manager.create_task(
+        game_id=game_id, task_type=task_manager.TYPE_ANALYSIS
+    )
+    _age_task_in_memory(task_manager, task_id)
 
-    with patch.object(task_manager, "_workers_ping", return_value=False):
+    with patch.object(task_manager, "_workers_ping", return_value=False), patch.object(
+        task_manager, "_build_async_result"
+    ) as mock_async:
+        mock_async.return_value.state = "PENDING"
         active = task_manager.get_active_tasks_for_game(game_id)
 
     assert active == []
@@ -55,7 +76,9 @@ def test_get_active_tasks_for_game_drops_stale_pending(task_manager):
 
 def test_get_task_status_reports_queue_wait_when_worker_busy(task_manager):
     game_id = 55
-    task_id = task_manager.create_task(game_id=game_id, task_type=task_manager.TYPE_ANALYSIS)
+    task_id = task_manager.create_task(
+        game_id=game_id, task_type=task_manager.TYPE_ANALYSIS
+    )
 
     with patch.object(task_manager, "_workers_busy_elsewhere", return_value=True):
         status = task_manager.get_task_status(game_id=game_id)
@@ -79,7 +102,9 @@ def test_release_analysis_queue_endpoint(authenticated_client, test_user):
     manager.create_task(game_id=game.id, task_type=manager.TYPE_ANALYSIS)
 
     with patch("core.game_views.task_manager", manager):
-        response = authenticated_client.post(f"/api/v1/games/{game.id}/release-analysis/")
+        response = authenticated_client.post(
+            f"/api/v1/games/{game.id}/release-analysis/"
+        )
 
     assert response.status_code == 200
     assert response.json()["status"] == "released"
