@@ -6,6 +6,7 @@ const inFlightAnalysisFetches = new Map();
 
 const SUCCESS_STATUSES = new Set(['SUCCESS', 'COMPLETED']);
 const TERMINAL_FAILURE_STATUSES = new Set(['FAILURE', 'FAILED', 'ERROR', 'REVOKED', 'AUTH_ERROR']);
+export const QUEUE_STUCK_PENDING_MS = 3 * 60 * 1000;
 
 export const isInsufficientCreditsError = (error) => {
     const statusCode = error?.response?.status;
@@ -837,26 +838,41 @@ export const checkMultipleAnalysisStatuses = async (gameIds) => {
     }
 };
 
+export const releaseStuckAnalysis = async (gameId) => {
+    const response = await api.post(`/api/v1/games/${gameId}/release-analysis/`);
+    return response.data;
+};
+
+export const clearAnalysisProgressCache = (gameId) => {
+    localStorage.removeItem(`analysis_complete_${gameId}`);
+    localStorage.removeItem(`last_progress_${gameId}`);
+    localStorage.removeItem(`last_progress_time_${gameId}`);
+    localStorage.removeItem(`analysis_start_${gameId}`);
+    localStorage.removeItem(`analysis_queued_at_${gameId}`);
+    localStorage.removeItem(`last_known_progress_${gameId}`);
+    localStorage.removeItem(`last_progress_update_${gameId}`);
+    localStorage.removeItem(`analysis_error_${gameId}`);
+};
+
 // Helper function to restart an analysis that appears to be stuck
-export const restartAnalysis = async (gameId) => {
+export const restartAnalysis = async (gameId, { forceReanalyze = false } = {}) => {
     try {
-        console.log(`Force restarting analysis for game ${gameId}`);
+        console.log(`Restarting analysis for game ${gameId}`);
         const numericGameId = Number(gameId);
         const dedupKey = Number.isFinite(numericGameId) ? String(numericGameId) : String(gameId);
         recentAnalysisStarts.delete(dedupKey);
         inFlightAnalysisStarts.delete(dedupKey);
 
-        // First clear any cached completion markers
-        localStorage.removeItem(`analysis_complete_${gameId}`);
-        localStorage.removeItem(`last_progress_${gameId}`);
-        localStorage.removeItem(`last_progress_time_${gameId}`);
-        localStorage.removeItem(`analysis_start_${gameId}`);
-        localStorage.removeItem(`last_known_progress_${gameId}`);
-        localStorage.removeItem(`last_progress_update_${gameId}`);
+        try {
+            await releaseStuckAnalysis(gameId);
+        } catch (releaseError) {
+            console.warn('Release-analysis call failed; continuing with restart', releaseError);
+        }
 
-        // Start a new analysis
+        clearAnalysisProgressCache(gameId);
+
         const response = await api.post(`/api/v1/games/${gameId}/analyze/`, {
-            force_reanalyze: true,
+            force_reanalyze: forceReanalyze,
             force_restart: true,
         });
 

@@ -24,6 +24,11 @@ urlpatterns = [
     path("search/", game_views.search_external_player, name="search_external_player"),
     path("<int:game_id>/analyze/", game_views.analyze_game, name="analyze_game"),
     path(
+        "<int:game_id>/release-analysis/",
+        game_views.release_analysis_queue,
+        name="release_analysis_queue",
+    ),
+    path(
         "<int:game_id>/analysis/status/",
         game_views.get_task_status,
         name="game_analysis_status",

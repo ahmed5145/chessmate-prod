@@ -214,6 +214,18 @@ def _enqueue_analysis_task(
 
         if force_reanalyze:
             for manager in managers:
+                cancel_task = getattr(manager, "cancel_task", None)
+                get_active = getattr(manager, "get_active_tasks_for_game", None)
+                if callable(get_active) and callable(cancel_task):
+                    try:
+                        for active_id in get_active(game_id) or []:
+                            cancel_task(active_id)
+                    except Exception as exc:
+                        logger.debug(
+                            "Could not cancel active analysis for game %s during re-analyze: %s",
+                            game_id,
+                            exc,
+                        )
                 clear_mapping = getattr(manager, "_clear_game_task_mapping", None)
                 if callable(clear_mapping):
                     try:
@@ -1285,6 +1297,62 @@ def get_game(request):
         Exception
     ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         return handle_api_error(e, "Error retrieving game")
+
+
+def _release_analysis_for_game(game_id: int, *, reason: str = "user_release") -> Dict[str, Any]:
+    """Clear stuck queue state so a new analysis can start without duplicate mappings."""
+    released_task_id = task_manager._get_task_id_for_game(game_id)
+    if released_task_id:
+        task_manager.abandon_stale_queued_task(released_task_id, game_id, reason=reason)
+    else:
+        task_manager._clear_game_task_mapping(game_id)
+        task_manager._reset_stuck_game_status(game_id)
+
+    Game.objects.filter(id=game_id).exclude(
+        analysis_status__in=["analyzed", "completed", "failed"]
+    ).update(analysis_status="not_analyzed")
+
+    return {
+        "status": "released",
+        "game_id": game_id,
+        "task_id": released_task_id,
+        "message": "Analysis queue released — you can start again.",
+    }
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@track_request_time
+def release_analysis_queue(request, game_id=None):
+    """Release a stuck queued analysis without charging credits."""
+    try:
+        game_id = game_id or request.data.get("game_id")
+        if not game_id:
+            return Response(
+                {"status": "error", "message": "Game ID is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        game = Game.objects.get(id=game_id)
+        if not request.user.is_staff and game.user_id != request.user.id:
+            return Response(
+                {"status": "error", "message": "Permission denied"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        payload = _release_analysis_for_game(int(game_id))
+        return Response(payload, status=status.HTTP_200_OK)
+    except Game.DoesNotExist:
+        return Response(
+            {"status": "error", "message": "Game not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Error releasing analysis queue for game %s: %s", game_id, exc, exc_info=True)
+        return Response(
+            {"status": "error", "message": f"Could not release analysis queue: {exc}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["POST"])

@@ -8,6 +8,7 @@ import {
   fetchGameAnalysis,
   hasRenderableAnalysisData,
   isAnalysisInFlight,
+  QUEUE_STUCK_PENDING_MS,
   restartAnalysis,
   shouldPollStatus,
 } from '../services/gameAnalysisService';
@@ -419,8 +420,25 @@ const SingleGameAnalysis = () => {
           return;
         }
 
-        setAnalysisError(statusResponse.message || 'Analysis failed. Please try again.');
+        const failureMessage = statusResponse.message || statusResponse.error || 'Analysis failed. Please try again.';
+        if (/queue timed out|worker offline|queue released/i.test(failureMessage)) {
+          setPollingFailed(true);
+        }
+        setAnalysisError(failureMessage);
         return;
+      }
+
+      const queuedAt = Number(localStorage.getItem(`analysis_queued_at_${gameId}`)) || analysisStartTime;
+      const queuedMs = queuedAt ? Date.now() - queuedAt : 0;
+      const isQueued = String(statusResponse.status || '').toUpperCase() === 'PENDING'
+        && (Number(statusResponse.progress) || 0) === 0;
+      if (isQueued && queuedMs > QUEUE_STUCK_PENDING_MS) {
+        setPollingFailed(true);
+        setOverdueMessage(
+          statusResponse.message?.includes('another review')
+            ? 'Another analysis is still running on the worker. You can wait, or release and retry.'
+            : 'This review has been queued too long. Release and retry, or restart the Celery worker.'
+        );
       }
 
       // Verify we should continue polling
@@ -715,7 +733,9 @@ const SingleGameAnalysis = () => {
       localStorage.removeItem(`last_progress_update_${gameId}`);
 
       // Set the analysis start time for timing calculations
-      setAnalysisStartTime(Date.now());
+      const queuedAt = Date.now();
+      setAnalysisStartTime(queuedAt);
+      localStorage.setItem(`analysis_queued_at_${gameId}`, String(queuedAt));
 
       console.log(`Starting analysis for game ${gameId}`);
       const response = await analyzeSpecificGame(gameId, {

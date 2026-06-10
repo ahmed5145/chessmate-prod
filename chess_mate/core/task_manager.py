@@ -855,7 +855,21 @@ class TaskManager:
         message = task_info.get("message", "")
         progress = task_info.get("progress", 0)
 
-        if str(status).upper() == TASK_STATUS_PENDING and (not message or message.lower() == "task pending"):
+        if task_id and task_info and self._is_stale_queued_task(task_id, task_info):
+            logger.warning("Stale queued task %s detected during status check", task_id)
+            self.abandon_stale_queued_task(task_id, game_id)
+            return self._default_status(
+                TASK_STATUS_FAILURE,
+                "Analysis queue timed out — retry to run again.",
+                0,
+                task_id,
+                game_id,
+            )
+
+        queued_message = self._queued_wait_message(task_id or "", task_info or {})
+        if queued_message:
+            message = queued_message
+        elif str(status).upper() == TASK_STATUS_PENDING and (not message or message.lower() == "task pending"):
             message = "Queued — your review will start shortly"
 
         # Ensure progress is consistent with status
@@ -948,6 +962,158 @@ class TaskManager:
         except (ValueError, TypeError):
             return False
 
+    @property
+    def stale_queued_seconds(self) -> int:
+        return int(getattr(settings, "ANALYSIS_STALE_QUEUED_SECONDS", 180))
+
+    @property
+    def max_queue_wait_seconds(self) -> int:
+        return int(getattr(settings, "ANALYSIS_MAX_QUEUE_WAIT_SECONDS", 900))
+
+    def _task_age_seconds(self, task_info: Dict[str, Any]) -> float:
+        ref = task_info.get("updated_at") or task_info.get("created_at")
+        if not ref:
+            return 0.0
+        try:
+            ref_time = datetime.fromisoformat(str(ref))
+        except (ValueError, TypeError):
+            return 0.0
+        return max(0.0, (datetime.now() - ref_time).total_seconds())
+
+    def _iter_inspect_task_ids(self):
+        try:
+            from chess_mate.celery import app as celery_app
+
+            inspect = celery_app.control.inspect(timeout=0.8)
+            for pool in (inspect.active(), inspect.reserved(), inspect.scheduled()):
+                if not pool:
+                    continue
+                for worker_tasks in pool.values():
+                    for entry in worker_tasks or []:
+                        request = entry.get("request") if isinstance(entry, dict) else None
+                        if isinstance(request, dict) and request.get("id"):
+                            yield str(request["id"])
+                        elif isinstance(entry, dict) and entry.get("id"):
+                            yield str(entry["id"])
+        except Exception as exc:
+            logger.debug("Celery inspect unavailable: %s", exc)
+
+    def _workers_ping(self) -> Optional[bool]:
+        try:
+            from chess_mate.celery import app as celery_app
+
+            ping = celery_app.control.inspect(timeout=0.8).ping()
+            return bool(ping)
+        except Exception as exc:
+            logger.debug("Celery worker ping unavailable: %s", exc)
+            return None
+
+    def _workers_busy_elsewhere(self, task_id: str) -> bool:
+        try:
+            for active_id in self._iter_inspect_task_ids():
+                if active_id != str(task_id):
+                    return True
+            return False
+        except Exception:
+            return False
+
+    def _task_in_worker_queues(self, task_id: str) -> Optional[bool]:
+        try:
+            for active_id in self._iter_inspect_task_ids():
+                if active_id == str(task_id):
+                    return True
+            return False
+        except Exception:
+            return None
+
+    def _queued_wait_message(self, task_id: str, task_info: Dict[str, Any]) -> Optional[str]:
+        status = str(task_info.get("status", "")).upper()
+        progress = int(task_info.get("progress", 0) or 0)
+        if progress > 0 or status not in {TASK_STATUS_PENDING, TASK_STATUS_STARTED}:
+            return None
+        if self._workers_busy_elsewhere(task_id):
+            return "Queued — finishing another review first."
+        if self._workers_ping() is False:
+            return "Analysis worker offline — start Celery, then retry."
+        return None
+
+    def _is_stale_queued_task(self, task_id: str, task_info: Dict[str, Any]) -> bool:
+        """True when a never-started analysis should be abandoned instead of polled forever."""
+        status = str(task_info.get("status", "")).upper()
+        progress = int(task_info.get("progress", 0) or 0)
+        if progress >= 5 or status == "PROCESSING":
+            return False
+        if status not in {TASK_STATUS_PENDING, TASK_STATUS_STARTED}:
+            return False
+
+        age = self._task_age_seconds(task_info)
+        workers_up = self._workers_ping()
+        if workers_up is False:
+            return age >= max(60, self.stale_queued_seconds // 2)
+
+        if self._workers_busy_elsewhere(task_id):
+            return age >= self.max_queue_wait_seconds
+
+        if age < self.stale_queued_seconds:
+            return False
+
+        in_flight = self._task_in_worker_queues(task_id)
+        if in_flight is True:
+            return False
+        if in_flight is False:
+            return True
+
+        try:
+            celery_state = str(self._build_async_result(task_id).state or "").upper()
+            if celery_state in {"PROGRESS", "SUCCESS", "FAILURE", "REVOKED"}:
+                return False
+        except Exception:
+            pass
+
+        return age >= self.stale_queued_seconds * 2
+
+    def _reset_stuck_game_status(self, game_id: Union[int, str]) -> None:
+        try:
+            from .models import Game
+
+            Game.objects.filter(id=game_id).exclude(
+                analysis_status__in=["analyzed", "completed", "failed"]
+            ).update(analysis_status="not_analyzed")
+        except Exception as exc:
+            logger.debug("Could not reset analysis_status for game %s: %s", game_id, exc)
+
+    def abandon_stale_queued_task(
+        self,
+        task_id: str,
+        game_id: Optional[Union[int, str]] = None,
+        reason: str = "",
+    ) -> bool:
+        """Mark a never-started/stuck queued task failed and release the game mapping."""
+        if reason == "no_workers":
+            message = "Analysis worker offline — start Celery, then retry."
+        elif reason == "user_release":
+            message = "Analysis queue released — you can start again."
+        else:
+            message = "Analysis queue timed out — retry to run again."
+
+        try:
+            self._build_async_result(task_id).revoke(terminate=True)
+        except Exception as exc:
+            logger.debug("Could not revoke stale task %s: %s", task_id, exc)
+
+        self.update_task_status(
+            task_id=task_id,
+            status=TASK_STATUS_FAILURE,
+            progress=0,
+            message=message,
+            error=reason or "stale_queued",
+        )
+
+        if game_id is not None:
+            self._clear_game_task_mapping(game_id)
+            self._reset_stuck_game_status(game_id)
+        return True
+
     def get_task_status_by_id(self, task_id: str) -> Dict[str, Any]:
         """
         Get the status of a task by its ID.
@@ -1024,6 +1190,11 @@ class TaskManager:
             # Check if the task is still active (not completed or failed)
             status = task_info.get("status", "UNKNOWN")
             logger.debug(f"Task {task_id} for game {game_id} has status: {status}")
+
+            if self._is_stale_queued_task(task_id, task_info):
+                logger.warning("Abandoning stale queued task %s for game %s", task_id, game_id)
+                self.abandon_stale_queued_task(task_id, game_id)
+                return []
 
             if status in self.TERMINAL_STATUSES:
                 # Terminal tasks should no longer block new analysis runs.
