@@ -296,11 +296,54 @@ class SocialAccount(models.Model):
 
 ---
 
+## Environment variable consolidation (pre-staging)
+
+**Problem:** Secrets and URLs are split across repo root `.env`, `.env.local`, `.env.production`, `chess_mate/frontend/.env.local`, and Elastic Beanstalk. Easy to put Google keys in the wrong file or forget EB restart.
+
+**Source of truth (target):**
+
+| Layer | File / store | What belongs here |
+|-------|----------------|-------------------|
+| **Django (local)** | Repo root only: `chessmate_prod/.env` or `.env.local` | `GOOGLE_OAUTH_*`, `FRONTEND_URL`, `SECRET_KEY`, DB, Redis, Stripe, OpenAI |
+| **Django (prod)** | **EB environment properties** only | Same keys as prod needs; never commit |
+| **React (local `npm start`)** | `chess_mate/frontend/.env.local` | **`REACT_APP_API_URL` only** (e.g. `http://localhost:8000`) |
+| **React (prod build)** | Empty `REACT_APP_API_URL` | Same-origin `/api/v1/...` — do **not** set on EB or CI |
+
+Django loads env from **repo root** (`PROJECT_ROOT` in `chess_mate/chess_mate/settings.py`), in order:
+
+1. `.env.{ENVIRONMENT}.local`
+2. `.env.local`
+3. `.env.{ENVIRONMENT}`
+4. `.env`
+
+There is **no** `chess_mate/.env` — do not create one for OAuth.
+
+**Google OAuth checklist:**
+
+| Where | Variables |
+|-------|-----------|
+| Local root `.env` | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `FRONTEND_URL=http://localhost:3000` |
+| EB | Same client ID/secret, `FRONTEND_URL=https://www.chess-mate.online` |
+| Frontend | None (no Google secrets in CRA) |
+
+After EB changes: **Restart app server(s)**.
+
+**Consolidation task (before dedicated staging env):**
+
+- [ ] Document one local template: root `.env.example` (already includes Google vars)
+- [ ] Delete or stop using stray `chess_mate/.env` if it exists
+- [ ] Keep `frontend/.env.local` limited to `REACT_APP_*`
+- [ ] Mirror prod secrets only on EB (and optional gitignored `.env.production` for local `manage.py` against prod RDS — same pattern as Stripe in `docs/PROD_OPS.md`)
+- [ ] When staging exists: separate EB env + Google redirect URI `https://staging.chess-mate.online/api/v1/auth/google/callback/` (or subdomain you choose)
+
+---
+
 ## Phased rollout
 
 | Phase | Scope | Env | Success metric |
 |-------|--------|-----|----------------|
 | **0** | Chess.com OAuth application submitted | N/A | Approval received |
+| **0b** | Env consolidation + Google consent **In production** | Prod EB + root `.env` | Any user can Google sign-in; no Testing gate |
 | **1** | Google login/register | Staging → prod | % signups via Google; fewer verification support tickets |
 | **2** | Lichess login/register + auto username | Staging → prod | Faster onboarding to first batch |
 | **3** | Chess.com login (if approved) | Staging → prod | Chess.com users skip manual username |
