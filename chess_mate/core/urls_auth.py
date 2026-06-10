@@ -27,6 +27,8 @@ urlpatterns = [
         auth_views.verify_email,
         name="verify_email",
     ),
+    path("google/start/", auth_views.google_oauth_start_view, name="google_oauth_start"),
+    path("google/callback/", auth_views.google_oauth_callback_view, name="google_oauth_callback"),
     path("csrf/", auth_views.csrf, name="csrf"),
     path("test-auth/", auth_views.test_authentication, name="test_authentication"),
     path("simple-auth/", auth_views.simple_test_auth, name="simple_test_auth"),

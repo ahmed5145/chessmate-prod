@@ -410,7 +410,7 @@ RATE_LIMIT_EXCLUDED_PATHS = [
 
 RATE_LIMIT_ENDPOINT_PATTERNS = {
     "AUTH": [
-        r"^/api(?:/v1)?/auth/(?:register|login|logout|token/refresh|reset-password|csrf)/?$",
+        r"^/api(?:/v1)?/auth/(?:register|login|logout|token/refresh|reset-password|csrf|google/start|google/callback)/?$",
         r"^/api(?:/v1)?/auth/reset-password/",
         r"^/api(?:/v1)?/(?:register|login|token/refresh)/?$",
     ],
@@ -710,6 +710,9 @@ else:
 # Password reset links in email (must match template copy)
 PASSWORD_RESET_TIMEOUT = env.int("PASSWORD_RESET_TIMEOUT", default=60 * 60 * 24)  # 24 hours
 FRONTEND_URL = env("FRONTEND_URL", default="")
+GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="").strip()
+GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", default="").strip()
+GOOGLE_OAUTH_REDIRECT_URI = env("GOOGLE_OAUTH_REDIRECT_URI", default="").strip()
 PAYMENT_SUCCESS_URL = env("PAYMENT_SUCCESS_URL", default="")
 PAYMENT_CANCEL_URL = env("PAYMENT_CANCEL_URL", default="")
 

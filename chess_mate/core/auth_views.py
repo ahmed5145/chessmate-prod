@@ -21,9 +21,10 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from django.db import transaction
 from django.db.utils import IntegrityError
-from django.http import JsonResponse
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_GET
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
@@ -1201,3 +1202,99 @@ def simple_test_auth(request):
 
     # Return the results as JSON with a 200 OK status
     return JsonResponse(response_data)
+
+
+@require_GET
+def google_oauth_start_view(request):
+    """Redirect the browser to Google's OAuth consent screen."""
+    from .google_oauth import (
+        GoogleOAuthError,
+        build_authorization_url,
+        build_frontend_error_url,
+        is_google_oauth_configured,
+        store_oauth_session,
+    )
+
+    if not is_google_oauth_configured():
+        return redirect(
+            build_frontend_error_url(
+                request,
+                "google_not_configured",
+                "Google sign-in is not available right now.",
+            )
+        )
+
+    referral_code = request.GET.get("ref") or request.GET.get("referral_code")
+    remember_me = _parse_remember_me(request.GET.get("remember_me", "true"))
+    state = store_oauth_session(request, referral_code=referral_code, remember_me=remember_me)
+
+    try:
+        return redirect(build_authorization_url(request, state))
+    except GoogleOAuthError as exc:
+        return redirect(build_frontend_error_url(request, exc.code, exc.message))
+
+
+@require_GET
+def google_oauth_callback_view(request):
+    """Complete Google OAuth, upsert the user, and redirect to the SPA with JWTs."""
+    from .google_oauth import (
+        GoogleOAuthError,
+        build_frontend_error_url,
+        build_frontend_success_url,
+        exchange_code_for_userinfo,
+        is_google_oauth_configured,
+        pop_oauth_session,
+        upsert_user_from_google,
+    )
+
+    if not is_google_oauth_configured():
+        return redirect(
+            build_frontend_error_url(
+                request,
+                "google_not_configured",
+                "Google sign-in is not available right now.",
+            )
+        )
+
+    oauth_error = request.GET.get("error")
+    if oauth_error:
+        if oauth_error == "access_denied":
+            message = "Google sign-in was cancelled."
+        else:
+            message = "Google sign-in failed. Please try again."
+        return redirect(build_frontend_error_url(request, oauth_error, message))
+
+    code = request.GET.get("code")
+    state = request.GET.get("state")
+    if not code or not state:
+        return HttpResponseBadRequest("Missing OAuth code or state.")
+
+    expected_state, referral_code, remember_me = pop_oauth_session(request)
+    if not expected_state or state != expected_state:
+        return redirect(
+            build_frontend_error_url(
+                request,
+                "invalid_state",
+                "Sign-in session expired. Please try again.",
+            )
+        )
+
+    try:
+        userinfo = exchange_code_for_userinfo(request, code)
+        user, _created = upsert_user_from_google(
+            request,
+            userinfo,
+            referral_code=referral_code,
+        )
+        return redirect(build_frontend_success_url(request, user, remember_me))
+    except GoogleOAuthError as exc:
+        return redirect(build_frontend_error_url(request, exc.code, exc.message))
+    except Exception as exc:
+        logger.error("Google OAuth callback failed: %s", exc, exc_info=True)
+        return redirect(
+            build_frontend_error_url(
+                request,
+                "google_auth_failed",
+                "Could not complete Google sign-in. Please try again.",
+            )
+        )

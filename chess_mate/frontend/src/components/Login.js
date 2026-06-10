@@ -7,6 +7,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useUser } from '../contexts/UserContext';
 import { extractApiError } from '../utils/apiErrors';
 import { getRememberMePreference } from '../utils/tokenStorage';
+import GoogleSignInButton from './GoogleSignInButton';
 
 const Login = () => {
   const location = useLocation();
@@ -233,7 +234,8 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 space-y-3">
+              <GoogleSignInButton rememberMe={rememberMe} disabled={loading} isDarkMode={isDarkMode} />
               <Link
                 to="/register"
                 className={`w-full flex justify-center py-2 px-4 border rounded-md shadow-sm text-sm font-medium ${

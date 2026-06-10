@@ -1,7 +1,7 @@
 # Social & OAuth Authentication Plan
 
-**Status:** Planning / audit (not implemented)  
-**Last updated:** 2026-06-08  
+**Status:** Phase 1 (Google) implemented — EB configured; publish consent screen to **In production** (not Testing)  
+**Last updated:** 2026-06-10  
 **Audience:** Engineering + product  
 
 ## Summary
@@ -74,13 +74,44 @@ This document audits adding:
 
 ### Google Cloud setup
 
-1. Create OAuth 2.0 Client (Web application)
-2. Authorized redirect URIs:
+1. Create OAuth 2.0 Client (Web application) — name e.g. **ChessMate Login**
+2. **Authorized redirect URIs** (backend callback — required):
    - Dev: `http://localhost:8000/api/v1/auth/google/callback/`
-   - Staging: `https://staging.<domain>/api/v1/auth/google/callback/`
-   - Prod: `https://<domain>/api/v1/auth/google/callback/`
-3. Scopes: `openid email profile` (minimum)
-4. Store `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` in env (never commit)
+   - Prod: `https://www.chess-mate.online/api/v1/auth/google/callback/`
+   - (Optional) EB hostname if users hit it directly: `https://chessmate-prod.us-east-2.elasticbeanstalk.com/api/v1/auth/google/callback/`
+3. **Authorized JavaScript origins** (optional for our server redirect flow; safe to add):
+   - Dev: `http://localhost:3000`
+   - Prod: `https://www.chess-mate.online`
+4. Scopes: `openid email profile` (minimum — non-sensitive)
+5. Store `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` in env (never commit)
+
+### OAuth consent screen — branding (production)
+
+Fill **Branding** so the consent screen is trustworthy:
+
+| Field | Value |
+|-------|--------|
+| App name | ChessMate |
+| User support email | Public support inbox (e.g. `support@chess-mate.online`) |
+| Authorized domains | `chess-mate.online` |
+| Application home page | `https://www.chess-mate.online/` |
+| Application privacy policy link | `https://www.chess-mate.online/privacy` |
+| Application terms of service link | `https://www.chess-mate.online/terms` |
+
+**App logo:** Skip until ready for Google verification. Uploading a logo can require **app verification** even when scopes are basic.
+
+**Publishing status (required for real users):**
+
+- **Testing** = only accounts listed under **Audience → Test users** (max 100) can sign in. Everyone else sees *access blocked*.
+- **In production** = any Google user can sign in.
+
+To leave Testing:
+
+1. Complete branding links above (home, privacy, terms must be live HTTPS).
+2. **Google Auth Platform → Audience** → **Publishing status** → **Publish app** → **In production**.
+3. ChessMate only requests `openid`, `email`, `profile` — usually **no full verification** required for production without a logo. If Google prompts for verification, submit the form; typical turnaround is days, not weeks.
+
+Do **not** rely on Testing in prod after launch — add test users only for pre-launch QA, then publish.
 
 ### User flows
 
@@ -102,11 +133,11 @@ This document audits adding:
 
 - Same as register path; if user exists and Google linked (or email match policy), issue JWT
 
-### Frontend work
+### Frontend work (done)
 
-- Add Google button to `Login.js` and `Register.js` (match MUI/Tailwind patterns)
-- Handle callback route e.g. `/auth/google/callback` that reads tokens from query/hash or calls backend session endpoint
-- Loading + error states (denied consent, email already used, etc.)
+- `GoogleSignInButton` on `Login.js` and `Register.js`
+- `/auth/google/callback` reads JWT hash, stores tokens, redirects to dashboard
+- Button hidden unless `GET /api/v1/public/site-config/` → `google_oauth_enabled: true`
 
 ### Tests
 
@@ -275,7 +306,7 @@ class SocialAccount(models.Model):
 | **3** | Chess.com login (if approved) | Staging → prod | Chess.com users skip manual username |
 | **4** | Settings: link/unlink providers | Prod | Users merge accounts safely |
 
-**Staging first** — per `docs/SHIP_CONTRACT.md`, auth flows should be validated on staging before prod smoke.
+**Staging first** — per `docs/SHIP_CONTRACT.md`, auth flows should be validated on staging before prod smoke (once staging EB exists).
 
 ---
 

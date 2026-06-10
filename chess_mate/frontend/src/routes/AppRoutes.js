@@ -4,6 +4,7 @@ import Dashboard from '../components/Dashboard';
 import Profile from '../components/Profile';
 import Login from '../components/Login';
 import Register from '../components/Register';
+import GoogleAuthCallback from '../components/GoogleAuthCallback';
 import VerifyEmailSent from '../components/VerifyEmailSent';
 import ForgotPassword from '../components/ForgotPassword';
 import ResetPassword from '../components/ResetPassword';
@@ -46,6 +47,7 @@ const AppRoutes = () => {
         path="/register"
         element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />}
       />
+      <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
       <Route path="/verify-email-sent" element={<VerifyEmailSent />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:uid/:token/" element={<ResetPassword />} />

@@ -7,6 +7,7 @@ import { useTheme } from "../context/ThemeContext";
 import { extractApiError } from "../utils/apiErrors";
 import { getMarketingSourceFromSearch, getReferralCodeFromSearch } from "../utils/marketingLinks";
 import { trackMarketingEvent } from "../utils/marketingAnalytics";
+import GoogleSignInButton from "./GoogleSignInButton";
 
 const validatePassword = (password) => {
   const errors = [];
@@ -389,7 +390,12 @@ const Register = () => {
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 space-y-3">
+              <GoogleSignInButton
+                referralCode={referralCode}
+                disabled={loading}
+                isDarkMode={isDarkMode}
+              />
               <Link
                 to="/login"
                 className={`w-full flex justify-center py-2 px-4 border rounded-md shadow-sm text-sm font-medium ${

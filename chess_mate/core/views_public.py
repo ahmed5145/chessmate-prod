@@ -5,6 +5,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from .google_oauth import is_google_oauth_configured
+
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -39,5 +41,6 @@ def public_site_config_view(request):
                 "the State of Delaware, United States",
             ).strip(),
             "legal_entity_address": getattr(settings, "LEGAL_ENTITY_ADDRESS", "").strip(),
+            "google_oauth_enabled": is_google_oauth_configured(),
         }
     )
