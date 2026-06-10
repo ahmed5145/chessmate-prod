@@ -25,10 +25,11 @@ const BatchReportLegend = () => (
       <Typography component="span" variant="caption" sx={{ color: 'warning.main', fontWeight: 600 }}>
         amber
       </Typography>
-      {' '}= needs work
-      {' · '}
-      <strong>Move match %</strong> = engine top-line agreement (header) ·{' '}
-      <strong>Eval stability</strong> = batch-wide eval consistency (header)
+      {' '}= needs work · Hover{' '}
+      <Typography component="span" variant="caption" sx={{ fontWeight: 600 }}>
+        ⓘ
+      </Typography>
+      {' '}icons on metrics for definitions
     </Typography>
   </Box>
 );

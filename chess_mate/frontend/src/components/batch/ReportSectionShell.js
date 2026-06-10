@@ -8,15 +8,19 @@ import SectionStatusHint from './SectionStatusHint';
 
 const ReportSectionShell = ({
   title,
+  titleExtra = null,
   subtitle,
   showStatusHint = false,
   children,
   sx = {},
 }) => (
   <Box sx={{ py: 2, ...sx }}>
-    <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
-      {title}
-    </Typography>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, mb: 0.5 }}>
+      <Typography variant="h6" sx={{ fontWeight: 700 }}>
+        {title}
+      </Typography>
+      {titleExtra}
+    </Box>
     {subtitle ? (
       <Typography variant="body2" color="text.secondary" sx={{ mb: showStatusHint ? 1 : 2 }}>
         {subtitle}

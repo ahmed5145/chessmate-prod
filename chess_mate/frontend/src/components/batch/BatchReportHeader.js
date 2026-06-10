@@ -3,7 +3,8 @@
  */
 
 import React from 'react';
-import { Box, Chip, Grid, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, Grid, Paper, Typography } from '@mui/material';
+import MetricInfoIcon from '../shared/MetricInfoIcon';
 import { toTitleCase } from '../../utils/formatLabel';
 import FixRateCard from './FixRateCard';
 
@@ -29,9 +30,12 @@ const BatchReportHeader = ({ batch_summary, games_count, fix_rate: fixRate, batc
           Batch Coach · {analyzed} games
           {dateRange ? ` · ${dateRange}` : ''}
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          Engine stats (Stockfish depth 14). See legend below for metric definitions.
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, mb: 1 }}>
+          <Typography variant="caption" color="text.secondary">
+            Engine stats (Stockfish depth 14)
+          </Typography>
+          <MetricInfoIcon metricKeys={['move_match', 'eval_stability']} />
+        </Box>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={6} sm={3}>
             <Typography variant="caption" color="text.secondary">
@@ -43,29 +47,27 @@ const BatchReportHeader = ({ batch_summary, games_count, fix_rate: fixRate, batc
           </Grid>
           {accuracyPct != null && (
             <Grid item xs={6} sm={3}>
-              <Tooltip title="Share of your moves that matched Stockfish's top line in this batch.">
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary">
                   Move match %
-                  </Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    {Number(accuracyPct).toFixed(1)}%
-                  </Typography>
-                </Box>
-              </Tooltip>
+                </Typography>
+                <MetricInfoIcon metricKey="move_match" />
+              </Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {Number(accuracyPct).toFixed(1)}%
+              </Typography>
             </Grid>
           )}
           <Grid item xs={6} sm={3}>
-            <Tooltip title="How stable your evaluation stayed across games (batch-wide composite; not the same as move match %).">
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Eval stability
-                </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  {stabilityPct}%
-                </Typography>
-              </Box>
-            </Tooltip>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Typography variant="caption" color="text.secondary">
+                Eval stability
+              </Typography>
+              <MetricInfoIcon metricKey="eval_stability" />
+            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {stabilityPct}%
+            </Typography>
           </Grid>
           {rating != null && (
             <Grid item xs={6} sm={3}>

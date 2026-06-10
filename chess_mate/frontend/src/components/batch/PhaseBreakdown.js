@@ -11,6 +11,7 @@ import {
   Grid,
   Paper
 } from '@mui/material';
+import MetricInfoIcon from '../shared/MetricInfoIcon';
 import ReportSectionShell from './ReportSectionShell';
 
 const PhaseBreakdown = ({ batch_summary }) => {
@@ -44,7 +45,8 @@ const PhaseBreakdown = ({ batch_summary }) => {
   return (
     <ReportSectionShell
       title="Phase performance"
-      subtitle='Move quality by game phase — same "move match" idea as the header, split by opening / middlegame / endgame.'
+      titleExtra={<MetricInfoIcon metricKey="phase_move_match" />}
+      subtitle="Move match % by opening, middlegame, and endgame."
     >
       <Grid container spacing={3}>
         {phaseKeys.map((phaseKey) => {

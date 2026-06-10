@@ -3,16 +3,18 @@ import { FaBolt, FaChessBoard, FaChartLine } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 import { formatListOpeningLabel } from '../../utils/formatListOpeningLabel';
 import { formatBestLineEval, formatAfterMoveEval } from '../../utils/singleGameClassification';
+import MetricInfoIcon from '../shared/MetricInfoIcon';
 
-const InsightCard = ({ icon: Icon, title, value, detail, isDarkMode }) => (
+const InsightCard = ({ icon: Icon, title, value, detail, isDarkMode, metricKey = null }) => (
   <div className={`rounded-lg border p-4 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
     <div className="flex items-start gap-3">
       <div className={`rounded-full p-2 ${isDarkMode ? 'bg-indigo-900/50 text-indigo-300' : 'bg-indigo-100 text-indigo-700'}`}>
         <Icon aria-hidden="true" />
       </div>
       <div>
-        <p className={`text-xs font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+        <p className={`text-xs font-semibold uppercase tracking-wide flex items-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
           {title}
+          {metricKey ? <MetricInfoIcon metricKey={metricKey} isDarkMode={isDarkMode} /> : null}
         </p>
         <p className={`mt-1 text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{value}</p>
         {detail ? (
@@ -98,6 +100,7 @@ const ReportInsightCards = ({
         value={playerStats?.accuracy != null ? `${playerStats.accuracy}%` : '—'}
         detail={`${playerStats?.errors || 0} errors across ${playerStats?.totalMoves || 0} of your moves`}
         isDarkMode={isDarkMode}
+        metricKey="single_game_accuracy"
       />
       <InsightCard
         icon={FaBolt}
@@ -105,6 +108,7 @@ const ReportInsightCards = ({
         value={momentValue}
         detail={momentDetail}
         isDarkMode={isDarkMode}
+        metricKey="eval_swing"
       />
       <InsightCard
         icon={FaChessBoard}
@@ -116,6 +120,7 @@ const ReportInsightCards = ({
             : 'Phase accuracy was balanced across the game'
         }
         isDarkMode={isDarkMode}
+        metricKey="single_game_phase_accuracy"
       />
     </div>
     </div>

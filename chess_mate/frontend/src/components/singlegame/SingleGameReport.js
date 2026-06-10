@@ -30,16 +30,20 @@ import SingleGameReportActions from './SingleGameReportActions';
 import DrillChecklistSection from './DrillChecklistSection';
 import SingleGameStreakCard from './SingleGameStreakCard';
 import EngineMetaNote from './EngineMetaNote';
+import MetricInfoIcon from '../shared/MetricInfoIcon';
 import { trackSingleGameEvent } from '../../utils/marketingAnalytics';
 import './singleGamePrint.css';
 
-const StatItem = ({ label, value, icon: Icon, isDarkMode }) => (
+const StatItem = ({ label, value, icon: Icon, isDarkMode, metricKey = null }) => (
   <div className={`flex items-center p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
     <div className={`p-3 rounded-full ${isDarkMode ? 'bg-blue-900' : 'bg-blue-100'} mr-4`}>
       <Icon className={`text-xl ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
     </div>
     <div>
-      <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</p>
+      <p className={`text-sm font-medium flex items-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+        {label}
+        {metricKey ? <MetricInfoIcon metricKey={metricKey} isDarkMode={isDarkMode} /> : null}
+      </p>
       <p className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
         {typeof value === 'number' ? formatNumber(value) : value}
       </p>
@@ -326,7 +330,13 @@ const SingleGameReport = ({
         displayMetrics.showTimeStats ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-2'
       }`}
       >
-        <StatItem label="Your accuracy" value={displayMetrics.accuracy} icon={FaChartLine} isDarkMode={isDarkMode} />
+        <StatItem
+          label="Your accuracy"
+          value={displayMetrics.accuracy}
+          icon={FaChartLine}
+          isDarkMode={isDarkMode}
+          metricKey="single_game_accuracy"
+        />
         <StatItem label="Your errors" value={displayMetrics.errors} icon={FaExclamationTriangle} isDarkMode={isDarkMode} />
         {displayMetrics.showTimeStats ? (
           <>

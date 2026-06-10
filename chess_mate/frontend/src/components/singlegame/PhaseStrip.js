@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import MetricInfoIcon from '../shared/MetricInfoIcon';
 
 const PHASES = ['opening', 'middlegame', 'endgame'];
 
@@ -41,8 +42,9 @@ const PhaseStrip = ({ phases = {}, phaseNotes = {}, batchPhasePerformance = null
 
   return (
     <div className={`mb-8 rounded-lg border p-4 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-      <h3 className={`text-lg font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+      <h3 className={`text-lg font-semibold mb-3 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
         Phase snapshot
+        <MetricInfoIcon metricKey="single_game_phase_accuracy" isDarkMode={isDarkMode} />
       </h3>
       <div className="flex flex-wrap gap-2 mb-3">
         {PHASES.map((phase) => {
