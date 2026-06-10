@@ -282,12 +282,15 @@ class TestAuthViews:
         assert "/reset-password/" in html_message
         assert "expire" in html_message.lower()
 
-    def test_request_password_reset_email_unavailable(self, api_client, test_user):
+    def test_request_password_reset_email_unavailable(self, api_client, test_user, settings):
+        settings.TESTING = False
+        settings.EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+        settings.EMAIL_HOST_USER = ""
+        settings.EMAIL_HOST_PASSWORD = ""
         url = reverse("request_password_reset")
         data = {"email": "test@example.com"}
 
-        with patch("core.email_utils.is_email_configured", return_value=False):
-            response = api_client.post(url, data, format="json")
+        response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
         assert response.data["status"] == "error"

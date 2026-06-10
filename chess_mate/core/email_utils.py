@@ -7,8 +7,11 @@ from django.conf import settings
 
 def is_email_configured() -> bool:
     """Return True when Django can send mail (SMTP creds or console backend in dev)."""
+    if getattr(settings, "TESTING", False):
+        return True
+
     backend = getattr(settings, "EMAIL_BACKEND", "") or ""
-    if "console" in backend.lower():
+    if "console" in backend.lower() or "locmem" in backend.lower():
         return True
 
     host_user = (getattr(settings, "EMAIL_HOST_USER", None) or "").strip()

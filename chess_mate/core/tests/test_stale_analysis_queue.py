@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
-
 from core.models import Game
 from core.task_manager import TaskManager
 

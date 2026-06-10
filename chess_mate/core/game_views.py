@@ -8,6 +8,7 @@ Including game retrieval, analysis, and batch processing endpoints.
 
 import importlib
 import json
+
 # Standard library imports
 import logging
 import sys
@@ -16,6 +17,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from celery.result import AsyncResult  # type: ignore
+
 # Django imports
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -26,52 +28,69 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 from rest_framework import status, viewsets
+
 # Third-party imports
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .abuse_limits import (batch_daily_limit_response,
-                           check_batch_creation_allowed,
-                           check_external_fetch_allowed,
-                           check_game_import_allowed,
-                           check_single_analysis_allowed,
-                           external_fetch_limit_response,
-                           game_import_limit_response, record_external_fetch,
-                           record_single_analysis,
-                           single_analysis_limit_response)
-from .analysis.feedback_generator import \
-    FeedbackGenerator as CoachingFeedbackGenerator
+from .abuse_limits import (
+    batch_daily_limit_response,
+    check_batch_creation_allowed,
+    check_external_fetch_allowed,
+    check_game_import_allowed,
+    check_single_analysis_allowed,
+    external_fetch_limit_response,
+    game_import_limit_response,
+    record_external_fetch,
+    record_single_analysis,
+    single_analysis_limit_response,
+)
+from .analysis.feedback_generator import FeedbackGenerator as CoachingFeedbackGenerator
 from .analysis.single_game_context import resolve_batch_context_for_game
 from .cache import cache_get, cache_set
 from .cache_invalidation import invalidate_cache, invalidates_cache
 from .chess_services import ChessComService, LichessService, save_game
 from .chess_utils import extract_metadata_from_pgn, validate_pgn
 from .constants import MAX_BATCH_SIZE
-from .decorators import (api_login_required, auth_csrf_exempt, rate_limit,
-                         track_request_time, validate_request)
-from .error_handling import (ResourceNotFoundError, ValidationError,
-                             create_error_response, handle_api_error)
+from .decorators import (
+    api_login_required,
+    auth_csrf_exempt,
+    rate_limit,
+    track_request_time,
+    validate_request,
+)
+from .error_handling import (
+    ResourceNotFoundError,
+    ValidationError,
+    create_error_response,
+    handle_api_error,
+)
 from .inbox_streak import get_inbox_streak_payload
+
 # Local application imports
-from .models import (BatchAnalysisReport, Game, GameAnalysis, Player, Profile,
-                     User)
+from .models import BatchAnalysisReport, Game, GameAnalysis, Player, Profile, User
 from .moment_timeline import attach_timelines_to_moments
 from .rating_band_coaching import attach_moment_benchmarks, resolve_rating_band
 from .serializers import GameSerializer
-from .single_game_analysis_cache import (cached_analysis_response,
-                                         has_complete_cached_analysis)
-from .single_game_credits import (charge_single_game_credit,
-                                  resolve_single_game_credit_waiver)
-from .single_game_moment_share import (build_moment_share_url,
-                                       build_public_moment_payload,
-                                       find_analysis_by_share_token,
-                                       get_or_create_moment_share)
+from .single_game_analysis_cache import (
+    cached_analysis_response,
+    has_complete_cached_analysis,
+)
+from .single_game_credits import (
+    charge_single_game_credit,
+    resolve_single_game_credit_waiver,
+)
+from .single_game_moment_share import (
+    build_moment_share_url,
+    build_public_moment_payload,
+    find_analysis_by_share_token,
+    get_or_create_moment_share,
+)
 from .single_game_streak import get_single_game_streak
 from .stats_helpers import build_single_game_context
 from .task_manager import TaskManager
-from .tasks import (analyze_batch_games_task, analyze_game_task,
-                    batch_analyze_games_task)
+from .tasks import analyze_batch_games_task, analyze_game_task, batch_analyze_games_task
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -2108,8 +2127,9 @@ def check_analysis_status(request, task_id):
         )
 
     try:
-        from chess_mate.celery import \
-            app as celery_app  # type: ignore[import-not-found]
+        from chess_mate.celery import (
+            app as celery_app,  # type: ignore[import-not-found]
+        )
     except ImportError:
         async_result = async_result_cls(task_id)
     else:
@@ -2158,8 +2178,9 @@ def check_batch_analysis_status(request, task_id):
         )
 
     try:
-        from chess_mate.celery import \
-            app as celery_app  # type: ignore[import-not-found]
+        from chess_mate.celery import (
+            app as celery_app,  # type: ignore[import-not-found]
+        )
     except ImportError:
         async_result = async_result_cls(task_id)
     else:

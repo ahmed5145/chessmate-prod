@@ -4,9 +4,11 @@ Verifies schema completeness and field types.
 """
 
 import pytest
-
-from core.analysis.batch_aggregator import (_compute_opening_insights,
-                                            _count_results, aggregate_batch)
+from core.analysis.batch_aggregator import (
+    _compute_opening_insights,
+    _count_results,
+    aggregate_batch,
+)
 
 
 def _make_game_result(

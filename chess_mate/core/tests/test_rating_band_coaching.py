@@ -1,7 +1,9 @@
-from core.rating_band_coaching import (attach_moment_benchmarks,
-                                       rating_band_coaching,
-                                       resolve_rating_band,
-                                       single_game_moment_benchmark)
+from core.rating_band_coaching import (
+    attach_moment_benchmarks,
+    rating_band_coaching,
+    resolve_rating_band,
+    single_game_moment_benchmark,
+)
 
 
 def test_rating_band_intermediate():
