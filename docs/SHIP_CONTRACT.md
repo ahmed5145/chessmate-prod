@@ -19,6 +19,16 @@
 | CD health gate | Post-deploy `curl` loop exists | `HEALTHCHECK_URL` unset → **skips check and exits 0** |
 | Staging proof | `test_batch_integration.py` (eager Celery), `tests/test_health_checks.py` (manual) | No documented staging E2E run against real worker + Stockfish |
 
+### Environments (dev / staging / production)
+
+| Env | Purpose | Rules |
+|-----|---------|-------|
+| **Development** | Local Django + SQLite, optional Celery worker | Safe for unit tests, mocked OpenAI, no real email |
+| **Staging** | Production-like stack (Postgres, Redis, Celery, Stockfish, mail catcher) | **Smoke 2 and metric audits run here** — not against live prod users/credits |
+| **Production** | Live users | No manual smoke that charges credits or spams email; hotfixes only with rollback plan |
+
+**Staging setup (target):** separate `DJANGO_SETTINGS_MODULE`, DB, Redis namespace, Celery queue prefix, and `FRONTEND_URL` so queued-analysis and batch metric fixes are verified before prod deploy. Until staging exists, treat prod smoke as read-only cached-report checks only.
+
 ---
 
 ## P0-1: Surface per-game failure reasons (#6)
