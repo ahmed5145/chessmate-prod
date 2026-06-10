@@ -149,10 +149,11 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Opening `/game/:id/analysis` for an already-complete game shows report in &lt;2s with **no** progress bar and **no** credit confirm.
-- [ ] Games row “View report” never calls `POST /analyze/`.
-- [ ] Re-run still costs 1 credit and shows confirm.
-- [x] Tests: `SingleGameAnalysis.test.js`, `Games.test.js`, `test_single_game_analysis_cache.py`, `test_game_views.py` (see §8).
+- [x] Games row “View report” never calls `POST /analyze/` (`Games.test.js`).
+- [x] Cached analyze path returns without credit charge (`test_single_game_analysis_cache.py`, `test_single_game_credits.py`).
+- [ ] Opening `/game/:id/analysis` for complete game — **no** progress bar / credit confirm *(Smoke 1)*.
+- [ ] Re-run costs 1 credit with confirm dialog *(Smoke 1)*.
+- [x] Automated tests: `SingleGameAnalysis.test.js`, `Games.test.js`, `test_game_views.py` (see §8).
 
 **Primary files:** `SingleGameAnalysis.js`, `Games.js`, `gameAnalysisService.js`, `game_views.py`, `game_analyzer.py`, `single_game_credits.py`
 
@@ -298,8 +299,8 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Checkboxes persist across refresh.
-- [ ] New re-run resets checklist.
+- [x] Checkboxes persist across refresh (`singleGameDrillChecklist.test.js`, `DrillChecklistSection.test.js`).
+- [ ] New re-run resets checklist *(Smoke 1 — manual re-run flow)*.
 
 **Primary files:** new `DrillChecklistSection.js`, `SingleGameReport.js`
 
@@ -341,9 +342,10 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] New batch creates inbox items; old batch items archived (not deleted) for timeline (SRG-10).
-- [ ] Reviewing linked single-game moment marks item reviewed without extra credit.
-- [ ] Inbox empty state points to “Start Batch Coach.”
+- [x] New batch creates inbox items; older batch items archived (`test_priority_inbox.py`).
+- [x] Reviewing linked moment marks item reviewed without extra credit (`test_priority_inbox.py`, `BatchContextBanner.test.js`).
+- [x] Inbox empty state points to Start Batch Coach (`CoachInboxCard.test.js`).
+- [ ] End-to-end inbox → proof game → mark reviewed *(Smoke 2, Part 2)*.
 
 **Primary files:** new `priority_inbox.py` service, `Dashboard.js`, `BatchContextBanner.js`, `SingleGameReport.js`, batch completion task in `tasks.py`
 
@@ -365,8 +367,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Same tactical theme in two batches increments count.
-- [ ] Timeline hidden when only one event.
+- [x] Same tactical theme in two batches increments count (`test_moment_timeline.py`).
+- [x] Timeline hidden when only one event (`test_moment_timeline.py`, `MomentTimeline.test.js`).
+- [ ] Timeline visible on batch report with ≥2 batches *(Smoke 2, Part 3)*.
 
 **Primary files:** `pattern_analyzer.py` (reuse motifs), new `moment_timeline.py`, `CriticalMomentsSection.js`, `BatchReport` moment blocks
 
@@ -387,8 +390,8 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Score only shown when opened from batch or `batch_context` exists.
-- [ ] Tooltip explains numerator/denominator in plain language.
+- [x] Score only shown when `batch_context` exists (`test_alignment_score.py`, `BatchContextBanner.test.js`).
+- [ ] Tooltip + mismatch copy readable in UI *(Smoke 2, Part 2)*.
 
 **Primary files:** `single_game_context.py`, `SingleGameReport.js` or `BatchContextBanner.js`
 
@@ -409,8 +412,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Card updates when user completes inbox item or new batch finishes.
-- [ ] Never blank for users with ≥1 analyzed game or batch.
+- [x] Selection priority inbox → batch → single (`test_dashboard_one_thing.py`, `oneThingToday.test.js`).
+- [x] Snooze hides card 24h (`oneThingToday.test.js`, `Dashboard.test.js`).
+- [ ] Card updates live after mark-reviewed *(Smoke 2, Part 2)*.
 
 **Primary files:** `dashboardFocus.js`, `Dashboard.js`, SRG-9 inbox API
 
@@ -451,8 +455,8 @@ flowchart LR
 - [x] Default opt-in **off**; explicit toggle in account settings with copy explaining frequency  
 - [x] List-Unsubscribe header + one-click (`send_coaching_email` on digest/spaced/completion)  
 - [x] No spaced email if user logged in within last 72h (`user_active_within_hours`)  
-- [ ] Monitor bounce/complaint rate; auto-pause spaced job if complaint rate &gt; 0.1% — **deferred** (ops/Sentry; not launch-blocking)  
-- [ ] Global send rate limit 500/hour — **deferred** (Celery batch size + provider limits sufficient for launch)  
+- [—] Monitor bounce/complaint rate — **deferred post-launch** (OPS-01; ESP webhooks)  
+- [—] Global send rate limit 500/hour — **deferred post-launch** (OPS-02; provider limits OK at launch)  
 
 ---
 
@@ -472,9 +476,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Unread count matches pending inbox + unread completions since last visit.
-- [ ] Clicking notification deep-links to correct report/moment (`?mode=review`).
-- [ ] No duplicate notifications for same `(type, entity_id)` within 24h.
+- [x] Deduped seeding for same `(type, entity_id)` within 24h (`test_notification_center.py`).
+- [x] Mark read / mark all read API (`test_notification_center.py`, `NotificationCenter.test.js`).
+- [ ] Bell badge + deep-link to `?mode=review` in browser *(Smoke 2, Part 1)*.
 
 **Primary files:** new `notifications` app or `core/notifications.py`, `Navbar`/`Layout`, `Dashboard.js`
 
@@ -496,8 +500,10 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] User never receives digest + spaced + completion on same calendar day.
-- [ ] Empty state: skip send if no pending inbox, no new analysis, no streak (don’t mail “nothing to do”).
+- [x] Digest vs spaced mutual exclusion (`test_spaced_moment_email.py`, `test_weekly_digest_email.py`).
+- [x] Max 1 digest per 7 days (`test_weekly_digest_email.py`, `test_email_send_log.py`).
+- [ ] Opt-in → one mail in 7 days on staging *(Smoke 2, Part 4 — optional if SMTP ready)*.
+- [ ] Empty-state skip (no mail when nothing to do) *(verify in staging; not launch-blocking)*.
 
 **Primary files:** `weekly_digest_email.py`, `EmailSendLog`, `notification_preferences.py`
 
@@ -518,8 +524,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Streak increments once per day max when user reviews any inbox item.
-- [ ] Shown only when streak ≥ 2.
+- [x] Streak increments once per calendar day max (`test_inbox_streak.py`, `InboxStreak.test.js`).
+- [x] Hidden when streak &lt; 2 (`InboxStreak.test.js`).
+- [ ] Two consecutive review days visible on dashboard *(Smoke 2, Part 2)*.
 
 **Primary files:** SRG-9 service, `Dashboard.js`, `ReportInsightCards.js`
 
@@ -539,8 +546,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Only shown when user has ≥2 batches.
-- [ ] Tooltip explains what “fixed” means (honest heuristic).
+- [x] Hidden on first batch; shown with ≥2 batches (`test_fix_rate.py`, `FixRateCard.test.js`).
+- [x] Fixed/improved/persisting heuristics (`test_fix_rate.py`).
+- [ ] Dashboard + batch report copy readable *(Smoke 2, Part 3)*.
 
 **Primary files:** `batch_metrics.py`, `BatchReportHeader.js`, `dashboardFocus.js`
 
@@ -560,8 +568,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Each highlighted cell links to ≥1 single-game report (SRG-0 review).
-- [ ] Hidden when &lt; 5 analyzed games total.
+- [x] Hidden when &lt; 5 analyzed games (`test_phase_heatmap.py`, `PhaseHeatmap.test.js`).
+- [x] Highlighted cells include example game href (`test_phase_heatmap.py`).
+- [ ] Click cell → free review in browser *(Smoke 2, Part 3)*.
 
 **Primary files:** `dashboardFocus.js`, new `PhaseResultHeatmap.js`, batch per-game results
 
@@ -581,8 +590,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] 100% of new batches with coaching produce ≥1 linked proof game when moments exist.
-- [ ] Links open free review (SRG-0).
+- [x] Batches with moments produce ≥1 linked proof game (`test_proof_games_inbox.py`).
+- [x] Proof labels on inbox rows (`test_proof_games_inbox.py`, `CoachInboxCard.test.js`).
+- [ ] Proof link opens `mode=review` without credit *(Smoke 2, Part 2)*.
 
 **Primary files:** `priority_inbox.py`, `single_game_context.py`, batch chord callback
 
@@ -600,8 +610,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Section hidden on first batch.
-- [ ] At least top 3 recurring patterns compared.
+- [x] Hidden on first batch (`test_batch_moment_diff.py`, `BatchMomentDiff.test.js`).
+- [x] Top recurring patterns with swing trend (`test_batch_moment_diff.py`).
+- [ ] Compared section readable on 2nd+ batch report *(Smoke 2, Part 3)*.
 
 **Primary files:** `BatchReportSections.js`, SRG-10 timeline service, `batch_context` compare API
 
@@ -619,8 +630,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Each gap with losses shows ≥1 game link.
-- [ ] Works without full opening DB (uses batch + game metadata only).
+- [x] Gaps with losses include review links (`test_opening_gaps_games.py`, `OpeningGapsGames.test.js`).
+- [x] Uses batch + game metadata only (no opening DB).
+- [ ] Loss links open from batch report openings section *(Smoke 2, Part 3)*.
 
 **Primary files:** `openingInsights.js`, batch openings section, `singleGameDrillLinks.js`
 
@@ -682,8 +694,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Modal never shows on second batch.
-- [ ] Dismissible; does not block report view.
+- [x] Show once only (`test_first_batch_celebration.py`, `FirstBatchModal.test.js`).
+- [x] Dismissible without blocking navigation (`FirstBatchModal.test.js`).
+- [ ] Modal on first batch complete in browser *(Smoke 2, Part 5 — use fresh account)*.
 
 **Primary files:** `BatchAnalysisResults.js` or post-report redirect, `Dashboard.js`, SRG-14
 
@@ -727,8 +740,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Second freeze in same month blocked with clear copy.
-- [ ] Freeze does not increment streak — only preserves count.
+- [x] Second freeze in same month blocked (`test_inbox_streak_freeze.py`, `InboxStreak.test.js`).
+- [x] Freeze preserves streak without incrementing (`test_inbox_streak_freeze.py`).
+- [ ] Use freeze after missed day in browser *(Smoke 2, Part 6 — optional; calendar setup)*.
 
 **Primary files:** SRG-16 streak service, `Dashboard.js`
 
@@ -749,8 +763,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Toggle in account settings; applies to **next** analysis/batch only.
-- [ ] Schema fields unchanged (batch invariant).
+- [x] Toggle persists on profile (`test_coach_persona.py`, `CoachPersonaSettings.test.js`).
+- [x] Prompt modifier only; schema unchanged (`test_coach_persona.py`).
+- [ ] Next batch/report tone differs in browser *(Smoke 2, Part 4)*.
 
 **Primary files:** `single_game_coach_generator.py`, `coaching_generator.py`, `Profile.coach_persona`, settings UI
 
@@ -772,8 +787,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] User active in last 29 days receives zero reactivation mail.
-- [ ] Opt-out immediate; no follow-up sequence.
+- [x] Skips active users within 30d (`test_reactivation_email.py`).
+- [x] Opt-out + 30d cap (`test_reactivation_email.py`).
+- [ ] Staging send for 30d-inactive test user *(Smoke 2, Part 6 — optional post-launch)*.
 
 **Primary files:** `reactivation_email.py`, `EmailSendLog`, `notification_preferences.py`
 
@@ -796,9 +812,10 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Desktop users never see the prompt.
-- [ ] First-time visitors (no completed batch) never see the prompt.
-- [ ] Dismiss does not re-show for 30 days.
+- [x] Desktop hidden (`PwaInstallPrompt.test.js`).
+- [x] Pre-first-batch hidden (`PwaInstallPrompt.test.js`).
+- [x] Dismiss snooze 30 days (`PwaInstallPrompt.test.js`).
+- [ ] Mobile prompt after first batch in browser *(Smoke 2, Part 5)*.
 
 **Primary files:** new `PwaInstallPrompt.js`, `manifest.json` audit, mount gate in `Dashboard.js` or post-batch flow
 
@@ -818,8 +835,9 @@ flowchart LR
 
 **Acceptance criteria**
 
-- [ ] Shared moment URL sets title + description before paint (client-side meta upsert).
-- [ ] No `og:image` on share routes until DX-02b ships.
+- [x] Text `og:title` + `og:description` (`SharedGameMomentPage.test.js`, `pageMeta.test.js`).
+- [x] No `og:image` until DX-02b (`SharedGameMomentPage.test.js`).
+- [ ] Paste preview in Discord/iMessage *(Smoke 2, Part 5)*.
 
 **Primary files:** `SharedGameMomentPage.js`, `pageMeta.js`
 
@@ -978,7 +996,17 @@ flowchart TD
 
 ## 7. Manual smoke plan (2 sessions)
 
-**Rule:** At most **2** manual smokes for the full plan. Each smoke runs **after** its phase ships (do not smoke unfinished items). Automated tests are the default gate; smoke is the human UX pass.
+**Rule:** At most **2** manual smokes for the full plan. Automated tests (§8) are the default gate; smoke is the human UX pass.
+
+**Acceptance checkbox legend**
+
+| Marker | Meaning |
+|--------|---------|
+| `[x]` | Shipped + covered by automated tests |
+| `[ ]` | **Manual smoke** — verify in browser during Smoke 1 or 2 |
+| `[—]` | **Deferred post-launch** — OPS-01/02 only; not launch-blocking |
+
+**Post-launch deferrals (confirmed correct):** OPS-01 (bounce monitoring), OPS-02 (500/hr send cap), DX-02b (OG board image), DX-03 (`.ics` export). Everything else with `[ ]` is **launch smoke**, not deferred.
 
 | Smoke | When (after phase ships) | Packages covered | Est. time |
 |-------|--------------------------|------------------|-----------|
@@ -1009,12 +1037,24 @@ flowchart TD
 
 ### Smoke 2 — Coach loop, hub & growth (P3–P5)
 
-**Prep:** User with ≥1 **completed** batch (inbox seeded automatically), ≥1 depth-20 single-game analysis optional, SMTP optional for email features; second account for referral; mobile device or emulator for PWA.
+**Follow this order.** Each part builds on the previous — do not jump to Profile/Credits until Parts 1–3 pass.
 
-**Deferred from Smoke 1** (re-test fixes):
+**Prep**
 
-- [ ] Re-analyze stuck polling — re-run completes; no eternal `Task not found`.
-- [ ] **SRG-4** Opening drill opens Lichess **study search**, not FEN analysis URL.
+| Account | Role |
+|---------|------|
+| **Account A** | Returning coach-active user: ≥1 completed batch, inbox seeded, optional 2nd batch for fix-rate/compare |
+| **Account B** | Fresh signup for referral + first-batch modal (Part 5 only) |
+| **Device** | Desktop for Parts 1–4; phone or emulator for Part 5 PWA |
+
+---
+
+#### Part 0 — Smoke 1 regression (5 min, Account A)
+
+Run only if these failed in prod or after deploy:
+
+- [ ] Re-analyze completes; no eternal `Task not found` polling.
+- [ ] **SRG-4** Opening drill → Lichess **study search** URL (not FEN analysis).
 - [ ] **SRG-5** Per-moment benchmarks differ; rating matches game time control.
 - [ ] **SRG-7** Move sounds play; classification icon on arrow destination square.
 
@@ -1149,6 +1189,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-08 | Shipped SRG-5 rating-band benchmark copy on critical moments |
 | 2026-06-08 | Shipped SRG-7 move navigation sound/haptic with mute toggle |
 | 2026-06-08 | Shipped SRG-22 welcome email after email verification |
+| 2026-06-09 | Acceptance criteria audit: [x]=tests, [ ]=smoke, [—]=OPS defer; Smoke 2 reordered as chronological journey (Parts 0–6) |
 
 ---
 

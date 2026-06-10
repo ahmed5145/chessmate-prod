@@ -12,46 +12,85 @@ from typing import Any, Dict, List, Optional, Tuple
 _MOMENT_MISS_RATES: Dict[str, Dict[str, Tuple[int, int]]] = {
     "under_1000": {
         "tactical_oversight": (50, 62),
+        "mistake_tactic": (44, 56),
         "missed_tactic": (55, 68),
+        "fork": (52, 64),
+        "hanging_piece": (48, 60),
         "opening_inaccuracy": (45, 58),
+        "positional_slip": (40, 52),
+        "endgame_technique": (46, 58),
     },
     "1000_1199": {
         "tactical_oversight": (42, 52),
+        "mistake_tactic": (36, 46),
         "missed_tactic": (48, 58),
+        "fork": (40, 50),
+        "hanging_piece": (38, 48),
         "opening_inaccuracy": (38, 48),
+        "positional_slip": (34, 44),
+        "endgame_technique": (38, 48),
     },
     "1200_1399": {
         "tactical_oversight": (35, 45),
+        "mistake_tactic": (30, 40),
         "missed_tactic": (40, 50),
+        "fork": (32, 42),
+        "hanging_piece": (30, 40),
         "opening_inaccuracy": (32, 42),
+        "positional_slip": (28, 38),
+        "endgame_technique": (30, 40),
     },
     "1400_1599": {
         "tactical_oversight": (28, 38),
+        "mistake_tactic": (24, 34),
         "missed_tactic": (32, 42),
+        "fork": (26, 36),
+        "hanging_piece": (24, 34),
         "opening_inaccuracy": (24, 34),
+        "positional_slip": (22, 32),
+        "endgame_technique": (24, 34),
     },
     "1600_1799": {
         "tactical_oversight": (22, 32),
+        "mistake_tactic": (18, 28),
         "missed_tactic": (26, 36),
+        "fork": (20, 30),
+        "hanging_piece": (18, 28),
         "opening_inaccuracy": (18, 28),
+        "positional_slip": (16, 26),
+        "endgame_technique": (18, 28),
     },
     "1800_1999": {
         "tactical_oversight": (16, 26),
+        "mistake_tactic": (14, 22),
         "missed_tactic": (20, 30),
+        "fork": (14, 24),
+        "hanging_piece": (12, 22),
         "opening_inaccuracy": (14, 22),
+        "positional_slip": (12, 20),
+        "endgame_technique": (14, 24),
     },
     "2000_plus": {
         "tactical_oversight": (12, 20),
+        "mistake_tactic": (10, 18),
         "missed_tactic": (15, 24),
+        "fork": (10, 18),
+        "hanging_piece": (12, 20),
         "opening_inaccuracy": (10, 18),
+        "positional_slip": (8, 16),
+        "endgame_technique": (10, 18),
     },
 }
 
 _MOMENT_THEME_LABELS = {
-    "tactical_oversight": "this tactic",
+    "tactical_oversight": "a blunder-level tactic",
+    "mistake_tactic": "a tactic worth about 1–2 pawns",
     "missed_tactic": "a winning tactic",
+    "fork": "a knight fork",
+    "hanging_piece": "a hanging piece",
     "opening_inaccuracy": "this opening inaccuracy",
     "positional_slip": "this positional slip",
+    "endgame_technique": "this endgame technique",
 }
 
 
@@ -84,17 +123,35 @@ def resolve_rating_band(player_rating: Optional[int]) -> Optional[Dict[str, Any]
 OPENING_MOVE_CUTOFF = 12
 
 
+_TACTICAL_THEME_KEYS = frozenset(
+    {"fork", "hanging_piece", "pin", "skewer", "missed_tactic", "tactical_oversight"}
+)
+
+
 def normalize_moment_benchmark_theme(
     moment_type: Optional[str],
     move_number: Optional[int] = None,
+    tactical_theme: Optional[str] = None,
+    phase: Optional[str] = None,
 ) -> Optional[str]:
     """Map single-game / batch moment labels to benchmark theme keys."""
+    if tactical_theme:
+        tactical_key = str(tactical_theme).lower().replace(" ", "_").strip()
+        if tactical_key in {"fork", "hanging_piece", "pin", "skewer"}:
+            return tactical_key
+
+    if phase and str(phase).lower() == "endgame":
+        return "endgame_technique"
+
     if not moment_type:
+        if tactical_theme and str(tactical_theme).lower().replace(" ", "_") in _TACTICAL_THEME_KEYS:
+            return str(tactical_theme).lower().replace(" ", "_")
         return None
+
     normalized = str(moment_type).lower().replace(" ", "_").strip()
     aliases = {
         "blunder": "tactical_oversight",
-        "mistake": "tactical_oversight",
+        "mistake": "mistake_tactic",
         "missed_win": "missed_tactic",
         "inaccuracy": "opening_inaccuracy",
         "opening_inaccuracy": "opening_inaccuracy",
@@ -102,6 +159,8 @@ def normalize_moment_benchmark_theme(
         "missed_tactic": "missed_tactic",
         "positional_slip": "positional_slip",
         "moment": "positional_slip",
+        "fork": "fork",
+        "hanging_piece": "hanging_piece",
     }
     theme = aliases.get(normalized)
     if not theme:
@@ -122,23 +181,52 @@ def normalize_moment_benchmark_theme(
     return theme
 
 
+def _theme_from_eval_swing(theme: str, eval_swing: Optional[float]) -> str:
+    """Split generic tactical themes by swing size so adjacent moments read differently."""
+    if theme not in {"tactical_oversight", "mistake_tactic", "missed_tactic"}:
+        return theme
+    try:
+        swing = float(eval_swing or 0.0)
+    except (TypeError, ValueError):
+        return theme
+    if swing >= 3.0:
+        return "tactical_oversight"
+    if swing >= 1.5:
+        return "mistake_tactic"
+    if swing >= 0.5:
+        return "positional_slip"
+    return theme
+
+
 def single_game_moment_benchmark(
     player_rating: Optional[int],
     moment_type: Optional[str],
     move_number: Optional[int] = None,
+    tactical_theme: Optional[str] = None,
+    phase: Optional[str] = None,
+    eval_swing: Optional[float] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Build honest benchmark copy for a critical moment at the player's rating band.
     Returns None when rating or moment theme is unknown.
     """
     band = resolve_rating_band(player_rating)
-    theme = normalize_moment_benchmark_theme(moment_type, move_number=move_number)
+    theme = normalize_moment_benchmark_theme(
+        moment_type,
+        move_number=move_number,
+        tactical_theme=tactical_theme,
+        phase=phase,
+    )
+    if theme:
+        theme = _theme_from_eval_swing(theme, eval_swing)
     if not band or not theme:
         return None
 
     rates = _MOMENT_MISS_RATES.get(band["key"], {}).get(theme)
     if not rates and theme == "positional_slip":
         rates = _MOMENT_MISS_RATES.get(band["key"], {}).get("tactical_oversight")
+    if not rates and theme in _TACTICAL_THEME_KEYS:
+        rates = _MOMENT_MISS_RATES.get(band["key"], {}).get("missed_tactic")
     if not rates:
         return None
 
@@ -175,6 +263,9 @@ def attach_moment_benchmarks(
             player_rating,
             moment.get("type") or moment.get("classification"),
             move_number=moment.get("move_number"),
+            tactical_theme=moment.get("tactical_theme"),
+            phase=moment.get("phase"),
+            eval_swing=moment.get("eval_swing"),
         )
         if benchmark:
             item["rating_benchmark"] = benchmark

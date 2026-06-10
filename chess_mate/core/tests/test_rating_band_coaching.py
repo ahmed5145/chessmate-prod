@@ -74,3 +74,45 @@ def test_moment_benchmark_uses_tactical_theme_after_opening():
     assert opening["moment_theme"] == "opening_inaccuracy"
     assert late["moment_theme"] == "positional_slip"
     assert opening["copy"] != late["copy"]
+
+
+def test_moment_benchmark_differs_by_classification_severity():
+    blunder = single_game_moment_benchmark(2100, "blunder", move_number=28)
+    mistake = single_game_moment_benchmark(2100, "mistake", move_number=22)
+    assert blunder["moment_theme"] == "tactical_oversight"
+    assert mistake["moment_theme"] == "mistake_tactic"
+    assert blunder["copy"] != mistake["copy"]
+
+
+def test_moment_benchmark_uses_tactical_theme_when_present():
+    fork = single_game_moment_benchmark(
+        2100,
+        "blunder",
+        move_number=28,
+        tactical_theme="fork",
+    )
+    assert fork["moment_theme"] == "fork"
+    assert "knight fork" in fork["copy"]
+
+
+def test_moment_benchmark_splits_by_eval_swing():
+    big = single_game_moment_benchmark(2100, "blunder", move_number=28, eval_swing=4.06)
+    mid = single_game_moment_benchmark(2100, "blunder", move_number=22, eval_swing=2.1)
+    small = single_game_moment_benchmark(2100, "blunder", move_number=18, eval_swing=1.03)
+    assert big["moment_theme"] == "tactical_oversight"
+    assert mid["moment_theme"] == "mistake_tactic"
+    assert small["moment_theme"] == "positional_slip"
+    assert len({big["copy"], mid["copy"], small["copy"]}) == 3
+
+
+def test_attach_moment_benchmarks_passes_tactical_theme():
+    moments = attach_moment_benchmarks(
+        [
+            {"move_number": 28, "type": "blunder", "tactical_theme": "hanging_piece"},
+            {"move_number": 22, "type": "mistake", "tactical_theme": "missed_tactic"},
+        ],
+        2100,
+    )
+    assert moments[0]["rating_benchmark"]["moment_theme"] == "hanging_piece"
+    assert moments[1]["rating_benchmark"]["moment_theme"] == "mistake_tactic"
+    assert moments[0]["rating_benchmark"]["copy"] != moments[1]["rating_benchmark"]["copy"]

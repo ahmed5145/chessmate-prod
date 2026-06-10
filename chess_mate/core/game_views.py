@@ -218,8 +218,12 @@ def _enqueue_analysis_task(
                 if callable(clear_mapping):
                     try:
                         clear_mapping(game_id)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug(
+                            "Could not clear game-task mapping for %s during re-analyze: %s",
+                            game_id,
+                            exc,
+                        )
 
         task_kwargs: Dict[str, Any] = {
             "user_id": user_id,

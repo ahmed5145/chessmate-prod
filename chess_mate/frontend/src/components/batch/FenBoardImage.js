@@ -57,6 +57,17 @@ const squareCenterPercent = (square, isBlackView) => {
   };
 };
 
+/** Point along the played-move arrow — default near the arrowhead, not the destination square. */
+export const arrowIconAnchorPercent = (from, to, isBlackView, along = 0.78) => {
+  const start = squareCenterPercent(from, isBlackView);
+  const end = squareCenterPercent(to, isBlackView);
+  const t = Math.min(Math.max(along, 0.55), 0.92);
+  return {
+    left: start.left + (end.left - start.left) * t,
+    top: start.top + (end.top - start.top) * t,
+  };
+};
+
 const parseUciSquares = (uci) => {
   if (!uci || typeof uci !== 'string' || uci.length < 4) {
     return null;
@@ -198,7 +209,7 @@ const FenBoardImage = ({
   const bestMarkerId = `best-arrow-${reactId.replace(/:/g, '')}`;
   const playedMarkerId = `played-arrow-${reactId.replace(/:/g, '')}`;
   const playedIconAnchor = playedArrow && playedArrowIcon
-    ? squareCenterPercent(playedArrow.to, isBlackView)
+    ? arrowIconAnchorPercent(playedArrow.from, playedArrow.to, isBlackView)
     : null;
 
   return (
@@ -275,15 +286,18 @@ const FenBoardImage = ({
                 transform: 'translate(-50%, -50%)',
                 background: playedArrowColor || '#111827',
                 color: '#fff',
-                borderRadius: '9999px',
-                minWidth: '1.35rem',
-                height: '1.35rem',
+                borderRadius: '3px',
+                minWidth: '0.72rem',
+                height: '0.72rem',
+                padding: '0 0.12rem',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '0.62rem',
-                fontWeight: 700,
-                boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+                fontSize: '0.48rem',
+                fontWeight: 800,
+                lineHeight: 1,
+                letterSpacing: '-0.02em',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
                 pointerEvents: 'none',
                 zIndex: 2,
               }}
