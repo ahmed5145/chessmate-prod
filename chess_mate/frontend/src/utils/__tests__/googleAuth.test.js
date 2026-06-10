@@ -12,4 +12,13 @@ describe('googleAuth', () => {
     const tokens = parseGoogleCallbackHash('#access=abc&refresh=def');
     expect(tokens).toEqual({ access: 'abc', refresh: 'def' });
   });
+
+  it('defaults to localhost:8000 when SPA runs on port 3000', () => {
+    const original = window.location;
+    delete window.location;
+    window.location = { port: '3000', hostname: 'localhost', origin: 'http://localhost:3000' };
+    const url = buildGoogleAuthStartUrl();
+    expect(url).toMatch(/^http:\/\/localhost:8000\/api\/v1\/auth\/google\/start\//);
+    window.location = original;
+  });
 });

@@ -1,7 +1,25 @@
 import { API_URL } from '../config';
 
+const resolveApiBase = () => {
+  const configured = (API_URL || '').replace(/\/$/, '');
+  if (configured) {
+    return configured;
+  }
+  // CRA dev server (:3000) — OAuth must hit Django on :8000, not the SPA origin.
+  if (
+    typeof window !== 'undefined'
+    && (window.location.port === '3000' || window.location.hostname === 'localhost')
+  ) {
+    return 'http://localhost:8000';
+  }
+  if (typeof window !== 'undefined') {
+    return window.location.origin.replace(/\/$/, '');
+  }
+  return '';
+};
+
 export const buildGoogleAuthStartUrl = ({ referralCode = null, rememberMe = true } = {}) => {
-  const base = (API_URL || window.location.origin).replace(/\/$/, '');
+  const base = resolveApiBase();
   const params = new URLSearchParams();
   if (referralCode) {
     params.set('ref', referralCode);

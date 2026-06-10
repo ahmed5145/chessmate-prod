@@ -13,7 +13,6 @@ import requests
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.urls import reverse
 from django.utils import timezone
 
 from .abuse_limits import check_signup_allowed, record_signup_attempt
@@ -33,6 +32,9 @@ SESSION_REFERRAL_KEY = "google_oauth_referral"
 SESSION_REMEMBER_KEY = "google_oauth_remember_me"
 
 GOOGLE_SCOPES = "openid email profile"
+# Canonical path — do not use reverse() here; duplicate includes register
+# both /api/v1/ and /api/api/v1/ with the same names, and reverse() picks the legacy one.
+GOOGLE_OAUTH_CALLBACK_PATH = "/api/v1/auth/google/callback/"
 
 
 class GoogleOAuthError(Exception):
@@ -67,17 +69,43 @@ def pop_oauth_session(request) -> Tuple[Optional[str], Optional[str], bool]:
     return state, referral, remember_me
 
 
+def _normalize_callback_uri(uri: str) -> str:
+    cleaned = (uri or "").strip()
+    if not cleaned.endswith("/"):
+        cleaned = f"{cleaned}/"
+    return cleaned
+
+
 def build_redirect_uri(request) -> str:
+    """
+    Redirect URI sent to Google — must match Google Console **exactly** (scheme, host, path, trailing slash).
+
+    Local dev: use the request host (localhost:8000), not FRONTEND_URL (localhost:3000).
+    Production behind ALB: prefer FRONTEND_URL so we emit https even when Django sees http.
+    """
     explicit = (getattr(settings, "GOOGLE_OAUTH_REDIRECT_URI", None) or "").strip()
     if explicit:
-        return explicit
-    return request.build_absolute_uri(reverse("google_oauth_callback"))
+        return _normalize_callback_uri(explicit)
+
+    callback_path = GOOGLE_OAUTH_CALLBACK_PATH
+    host = (request.get_host() or "").split(":")[0].lower()
+
+    if host in ("localhost", "127.0.0.1"):
+        return _normalize_callback_uri(request.build_absolute_uri(callback_path))
+
+    frontend_base = get_frontend_base_url(request).rstrip("/")
+    if frontend_base and "localhost:3000" not in frontend_base:
+        return _normalize_callback_uri(f"{frontend_base}{callback_path}")
+
+    return _normalize_callback_uri(request.build_absolute_uri(callback_path))
 
 
 def build_authorization_url(request, state: str) -> str:
+    redirect_uri = build_redirect_uri(request)
+    logger.info("Google OAuth start redirect_uri=%s", redirect_uri)
     params = {
         "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
-        "redirect_uri": build_redirect_uri(request),
+        "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": GOOGLE_SCOPES,
         "state": state,

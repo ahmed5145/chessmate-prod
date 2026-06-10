@@ -113,6 +113,43 @@ To leave Testing:
 
 Do **not** rely on Testing in prod after launch — add test users only for pre-launch QA, then publish.
 
+### Troubleshooting `redirect_uri_mismatch` (Error 400)
+
+Google compares the `redirect_uri` query param **byte-for-byte** with **Authorized redirect URIs**. Common mismatches:
+
+| Symptom | Likely cause | Fix |
+|---------|----------------|-----|
+| Local dev fails | OAuth started on `:3000` instead of Django `:8000` | Put `REACT_APP_API_URL=http://localhost:8000` in `chess_mate/frontend/.env.local`; or rely on fixed `googleAuth.js` default |
+| Local dev fails | Used `127.0.0.1` but Console has `localhost` | Add **both** to Google Console, or always use `localhost` |
+| Prod fails | Django built `http://…` but Console has `https://…` | Set EB `FRONTEND_URL=https://www.chess-mate.online` and redeploy; or set explicit `GOOGLE_OAUTH_REDIRECT_URI` (below) |
+| Prod fails | Site opened as `chess-mate.online` (no `www`) | Add `https://chess-mate.online/api/v1/auth/google/callback/` to Console **or** redirect apex → `www` |
+| Any env | Django sent `/api/api/v1/...` (double `api`) | Fixed in code — canonical path is `/api/v1/auth/google/callback/`; redeploy backend |
+| Any env | Missing trailing `/` | Console URIs must end with `/` — our backend normalizes to trailing slash |
+
+**See the exact URI Django sends:** check Django logs after clicking Continue with Google:
+
+```text
+Google OAuth start redirect_uri=https://...
+```
+
+That string must appear **verbatim** in Google Console.
+
+**Explicit override (recommended on EB after first mismatch):**
+
+| Env | Variable |
+|-----|----------|
+| Local root `.env` | `GOOGLE_OAUTH_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback/` |
+| EB | `GOOGLE_OAUTH_REDIRECT_URI=https://www.chess-mate.online/api/v1/auth/google/callback/` |
+
+Restart Django / EB app servers after changing env.
+
+**Minimum Google Console redirect URIs (recommended set):**
+
+1. `http://localhost:8000/api/v1/auth/google/callback/`
+2. `http://127.0.0.1:8000/api/v1/auth/google/callback/` (optional, if you use 127.0.0.1)
+3. `https://www.chess-mate.online/api/v1/auth/google/callback/`
+4. `https://chess-mate.online/api/v1/auth/google/callback/` (optional, if apex URL is used)
+
 ### User flows
 
 **New user (register via Google)**
@@ -306,8 +343,19 @@ class SocialAccount(models.Model):
 |-------|----------------|-------------------|
 | **Django (local)** | Repo root only: `chessmate_prod/.env` or `.env.local` | `GOOGLE_OAUTH_*`, `FRONTEND_URL`, `SECRET_KEY`, DB, Redis, Stripe, OpenAI |
 | **Django (prod)** | **EB environment properties** only | Same keys as prod needs; never commit |
-| **React (local `npm start`)** | `chess_mate/frontend/.env.local` | **`REACT_APP_API_URL` only** (e.g. `http://localhost:8000`) |
+| **React (local `npm start`)** | `chess_mate/frontend/.env.local` | **`REACT_APP_API_URL=http://localhost:8000`** (required for API calls; Google OAuth also needs Django on :8000) |
 | **React (prod build)** | Empty `REACT_APP_API_URL` | Same-origin `/api/v1/...` — do **not** set on EB or CI |
+
+### Redis (local)
+
+| Mode | `REDIS_DISABLED` | `ENABLE_CELERY` | When |
+|------|------------------|-----------------|------|
+| **Full dev** (batch/analysis) | `False` | `true` | Run Redis + Celery worker (`start_services.bat` or `docker compose up redis`) |
+| **UI / OAuth only** | `True` | `false` | Login, Google sign-in, browse UI — no async analysis |
+
+`REDIS_PASSWORD` — leave **empty** for local Redis and EB bundled Redis (`127.0.0.1:6379`, no auth). Only set when your Redis provider requires a password.
+
+Do **not** set `REDIS_DISABLED=True` with `ENABLE_CELERY=true` — Celery still expects Redis and analysis jobs will stick at `PENDING`.
 
 Django loads env from **repo root** (`PROJECT_ROOT` in `chess_mate/chess_mate/settings.py`), in order:
 
@@ -322,8 +370,8 @@ There is **no** `chess_mate/.env` — do not create one for OAuth.
 
 | Where | Variables |
 |-------|-----------|
-| Local root `.env` | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `FRONTEND_URL=http://localhost:3000` |
-| EB | Same client ID/secret, `FRONTEND_URL=https://www.chess-mate.online` |
+| Local root `.env` | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `FRONTEND_URL=http://localhost:3000`, optional `GOOGLE_OAUTH_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback/` |
+| EB | Same client ID/secret, `FRONTEND_URL=https://www.chess-mate.online`, optional `GOOGLE_OAUTH_REDIRECT_URI=https://www.chess-mate.online/api/v1/auth/google/callback/` |
 | Frontend | None (no Google secrets in CRA) |
 
 After EB changes: **Restart app server(s)**.

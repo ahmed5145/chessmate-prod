@@ -10,6 +10,7 @@ from django.urls import reverse
 from ..google_oauth import (
     PREF_GOOGLE_SUB,
     GoogleOAuthError,
+    build_redirect_uri,
     exchange_code_for_userinfo,
     upsert_user_from_google,
 )
@@ -49,6 +50,23 @@ class TestGoogleOAuth:
         client.get(reverse("google_oauth_start"), {"ref": "friend-code"})
         session = client.session
         assert session.get("google_oauth_referral") == "friend-code"
+
+    def test_build_redirect_uri_uses_localhost_request_host(self, rf):
+        request = rf.get("/api/v1/auth/google/start/", HTTP_HOST="localhost:8000")
+        assert build_redirect_uri(request) == "http://localhost:8000/api/v1/auth/google/callback/"
+
+    def test_build_redirect_uri_uses_frontend_url_in_production(self, rf, settings):
+        settings.FRONTEND_URL = "https://www.chess-mate.online"
+        request = rf.get(
+            "/api/v1/auth/google/start/",
+            HTTP_HOST="www.chess-mate.online",
+        )
+        assert build_redirect_uri(request) == "https://www.chess-mate.online/api/v1/auth/google/callback/"
+
+    def test_build_redirect_uri_honors_explicit_override(self, rf, settings):
+        settings.GOOGLE_OAUTH_REDIRECT_URI = "https://www.chess-mate.online/api/v1/auth/google/callback/"
+        request = rf.get("/api/v1/auth/google/start/", HTTP_HOST="127.0.0.1:8000")
+        assert build_redirect_uri(request) == "https://www.chess-mate.online/api/v1/auth/google/callback/"
 
     @patch("core.google_oauth.requests.post")
     @patch("core.google_oauth.requests.get")
