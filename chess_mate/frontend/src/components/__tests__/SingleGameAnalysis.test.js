@@ -203,6 +203,26 @@ describe('SingleGameAnalysis', () => {
     expect(analyzeSpecificGame).not.toHaveBeenCalled();
   });
 
+  it('review mode with batch citation starts free analysis when no saved report', async () => {
+    fetchGameAnalysis.mockResolvedValue({});
+    analyzeSpecificGame.mockResolvedValue({ success: true, task_id: 'task-batch-1' });
+
+    render(
+      <MemoryRouter initialEntries={['/game/169/analysis?mode=review&batch=25&priority=1&move=19']}>
+        <Routes>
+          <Route path="/game/:gameId/analysis" element={<SingleGameAnalysis />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(analyzeSpecificGame).toHaveBeenCalledWith('169', expect.objectContaining({
+        batchId: '25',
+        fromBatch: true,
+      }));
+    });
+  });
+
   it('shows batch context banner when analysis includes batch_context', async () => {
     localStorage.setItem('analysis_complete_1', 'true');
     fetchGameAnalysis.mockResolvedValue({

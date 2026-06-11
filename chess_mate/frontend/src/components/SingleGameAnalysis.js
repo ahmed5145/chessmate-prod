@@ -851,6 +851,11 @@ const SingleGameAnalysis = () => {
       }
 
       if (analysisMode === 'review') {
+        if (batchId) {
+          setLoadingMessage('Starting your free batch drill-down review…');
+          await startAnalysis();
+          return;
+        }
         setLoading(false);
         setAnalysisError(
           'No saved depth-20 report for this game yet. Run a deep review (1 credit) from Games to create one.'
