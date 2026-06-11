@@ -28,6 +28,11 @@ const CoachInboxCard = ({ priorityInbox, onInboxUpdated }) => {
         <p className={`mt-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           No priorities waiting. Run a batch to get your top 3 coaching actions.
         </p>
+        {streak?.hint && !streak?.show_badge ? (
+          <p className={`mt-2 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+            {streak.hint}
+          </p>
+        ) : null}
         <Link
           to={priorityInbox?.empty_state_cta || '/batch-analysis'}
           className={`mt-3 inline-flex items-center gap-1 text-sm font-semibold ${

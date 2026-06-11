@@ -19,15 +19,37 @@ jest.mock('../../../services/apiRequests', () => ({
 
 describe('InboxStreak', () => {
   it('renders streak chip when count >= 2', () => {
-    render(<InboxStreakChip streak={{ show: true, label: '3-day coach streak' }} />);
+    render(
+      <InboxStreakChip streak={{ show: true, show_badge: true, label: '3-day coach streak' }} />
+    );
     expect(screen.getByText(/3-day coach streak/i)).toBeInTheDocument();
   });
 
-  it('hides streak chip below threshold', () => {
-    const { container } = render(
-      <InboxStreakChip streak={{ show: false, count: 1 }} />
+  it('shows day-1 progress after first inbox review', () => {
+    render(
+      <InboxStreakChip
+        streak={{
+          show: true,
+          show_badge: false,
+          count: 1,
+          label: 'Day 1 — mark a priority tomorrow to reach a 2-day streak',
+        }}
+      />
     );
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.getByText(/Day 1/i)).toBeInTheDocument();
+  });
+
+  it('shows hint when streak not started', () => {
+    render(
+      <InboxStreakChip
+        streak={{
+          show: false,
+          count: 0,
+          hint: 'Mark a coach inbox priority as reviewed on consecutive calendar days to build a streak.',
+        }}
+      />
+    );
+    expect(screen.getByText(/Mark a coach inbox priority/i)).toBeInTheDocument();
   });
 
   it('shows streak on coach inbox card header', () => {
