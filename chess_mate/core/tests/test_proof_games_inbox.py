@@ -105,11 +105,11 @@ class TestProofGamesInbox(TestCase):
         assert len(items) == 3
         assert items[0]["linked_game_id"] == 201
         assert items[0]["linked_move"] == 8
-        assert "Sicilian Defense example: vs alpha, move 8" == items[0]["proof_label"]
+        assert "Your game vs alpha · move 8 · Sicilian Defense" == items[0]["proof_label"]
 
         assert items[1]["linked_game_id"] == 202
         assert items[1]["linked_move"] == 22
-        assert "Italian Game example: vs beta, move 22" == items[1]["proof_label"]
+        assert "Your game vs beta · move 22 · Italian Game" == items[1]["proof_label"]
 
         assert items[2]["linked_game_id"] == 203
         assert items[2]["linked_move"] == 55

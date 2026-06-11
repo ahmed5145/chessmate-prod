@@ -210,8 +210,8 @@ def _build_proof_label(
     opponent = str(game_result.get("opponent") or "").strip() or "opponent"
     move_number = moment.get("move_number")
     if move_number:
-        return f"{opening} example: vs {opponent}, move {move_number}"
-    return f"{opening} example: vs {opponent}"
+        return f"Your game vs {opponent} · move {move_number} · {opening}"
+    return f"Your game vs {opponent} · {opening}"
 
 
 def _pick_proof_game_for_priority(
