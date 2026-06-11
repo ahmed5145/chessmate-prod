@@ -73,10 +73,12 @@ The workflow:
 2. Collects static files
 3. Runs database migrations
 4. Packages the application
-5. Deploys to the appropriate environment:
-   - AWS Elastic Beanstalk for production
-   - Custom server for staging
-6. Performs post-deployment health checks
+5. Deploys to AWS Elastic Beanstalk (same ECR Docker image for both):
+   - **Production:** `Chessmate-env-2` on push to `main`
+   - **Staging:** `ChessMate-Staging` on push to `staging`
+6. Performs post-deployment health checks (`HEALTHCHECK_URL` required)
+
+See [STAGING_SETUP.md](./STAGING_SETUP.md) for one-time staging EB/RDS configuration.
 
 ## Security Scanning
 

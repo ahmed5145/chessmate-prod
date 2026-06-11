@@ -27,7 +27,7 @@
 | **Staging** | Production-like stack (Postgres, Redis, Celery, Stockfish, mail catcher) | **Smoke 2 and metric audits run here** — not against live prod users/credits |
 | **Production** | Live users | No manual smoke that charges credits or spams email; hotfixes only with rollback plan |
 
-**Staging setup (target):** separate `DJANGO_SETTINGS_MODULE`, DB, Redis namespace, Celery queue prefix, and `FRONTEND_URL` so queued-analysis and batch metric fixes are verified before prod deploy. Until staging exists, treat prod smoke as read-only cached-report checks only.
+**Staging setup:** EB env `ChessMate-Staging` + separate RDS + `ENVIRONMENT=staging` — see [STAGING_SETUP.md](./STAGING_SETUP.md). Run [STAGING_SMOKE.md](./STAGING_SMOKE.md) before promoting to production.
 
 ---
 

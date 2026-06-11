@@ -44,15 +44,18 @@ TESTING: bool = env("TESTING", default="False").lower() == "true"
 # Environment detection
 ENVIRONMENT = env("ENVIRONMENT", default="development")
 IS_PRODUCTION = ENVIRONMENT.lower() == "production"
+IS_STAGING = ENVIRONMENT.lower() == "staging"
+# Staging uses the same Postgres/Redis/Celery/SMTP stack as production (see docs/STAGING_SETUP.md).
+IS_DEPLOYED = IS_PRODUCTION or IS_STAGING
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-if IS_PRODUCTION and not TESTING:
+if IS_DEPLOYED and not TESTING:
     SECRET_KEY = env("SECRET_KEY", default="").strip()
     if not SECRET_KEY or SECRET_KEY.startswith("django-insecure"):
-        raise ImproperlyConfigured("SECRET_KEY must be set to a strong value when ENVIRONMENT=production")
+        raise ImproperlyConfigured("SECRET_KEY must be set to a strong value when ENVIRONMENT is production or staging")
 else:
     SECRET_KEY = env("SECRET_KEY", default="django-insecure-dev-only-change-me")
 
@@ -169,7 +172,7 @@ if TESTING:
             "NAME": BASE_DIR / "test_db.sqlite3",
         }
     }
-elif IS_PRODUCTION:
+elif IS_DEPLOYED:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -223,7 +226,7 @@ else:
     }
 
 # Database connection pooling configuration - used by django-db-connection-pool
-if IS_PRODUCTION:
+if IS_DEPLOYED:
     DATABASE_POOL_ARGS = {
         "max_overflow": int(env("DB_MAX_OVERFLOW", default="30")),
         "pool_size": int(env("DB_POOL_SIZE", default="20")),
@@ -294,7 +297,7 @@ REDIS_DISABLED = os.getenv("REDIS_DISABLED", "False").lower() == "true"
 # EB/Docker without ElastiCache: avoid connecting to localhost:6379 in production
 if (
     not REDIS_DISABLED
-    and IS_PRODUCTION
+    and IS_DEPLOYED
     and REDIS_HOST in ("localhost", "127.0.0.1")
     and not os.getenv("REDIS_URL", "").strip()
 ):
@@ -589,8 +592,8 @@ SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)
 SECURE_REDIRECT_EXEMPT = [r"^health/?$", r"^readiness/?$"]
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=False)
 CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=False)
-SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", default="31536000" if IS_PRODUCTION else "0"))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=IS_PRODUCTION)
+SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", default="31536000" if IS_DEPLOYED else "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=IS_DEPLOYED)
 SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=IS_PRODUCTION)
 
 # CSRF Configuration
@@ -687,7 +690,7 @@ LOGIN_URL = "/api/v1/auth/login/"
 LOGIN_REDIRECT_URL = "/"
 
 # Email (EB sets EMAIL_* env vars; production uses chess_mate.settings, not settings_prod)
-if IS_PRODUCTION:
+if IS_DEPLOYED:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
     EMAIL_PORT = env.int("EMAIL_PORT", default=587)
@@ -735,7 +738,7 @@ REQUIRE_EMAIL_VERIFICATION = env.bool("REQUIRE_EMAIL_VERIFICATION", default=not 
 SUPPORT_EMAIL = env("SUPPORT_EMAIL", default="support@chess-mate.online")
 
 # Stripe Checkout success redirect must survive EB restarts; use DB sessions when Redis is off.
-if IS_PRODUCTION and REDIS_DISABLED:
+if IS_DEPLOYED and REDIS_DISABLED:
     SESSION_ENGINE = "django.contrib.sessions.backends.db"
 
 # Django admin hardening (public production)
@@ -743,18 +746,18 @@ from core.admin_security import resolve_admin_path
 
 try:
     DJANGO_ADMIN_PATH = resolve_admin_path(
-        is_production=IS_PRODUCTION,
+        is_production=IS_DEPLOYED,
         testing=TESTING,
         configured=env(
             "DJANGO_ADMIN_PATH",
-            default="admin" if (not IS_PRODUCTION or TESTING) else "",
+            default="admin" if (not IS_DEPLOYED or TESTING) else "",
         ),
     )
 except ValueError as exc:
     raise ImproperlyConfigured(str(exc)) from exc
 
 ADMIN_URL_PREFIX = f"/{DJANGO_ADMIN_PATH}/"
-ADMIN_HIDE_LEGACY_PATH = env.bool("ADMIN_HIDE_LEGACY_PATH", default=IS_PRODUCTION and not TESTING)
+ADMIN_HIDE_LEGACY_PATH = env.bool("ADMIN_HIDE_LEGACY_PATH", default=IS_DEPLOYED and not TESTING)
 ADMIN_ALLOWED_IPS = env.list("ADMIN_ALLOWED_IPS", default=[])
 ADMIN_LOGIN_MAX_ATTEMPTS = env.int("ADMIN_LOGIN_MAX_ATTEMPTS", default=5)
 ADMIN_LOGIN_WINDOW_SECONDS = env.int("ADMIN_LOGIN_WINDOW_SECONDS", default=900)

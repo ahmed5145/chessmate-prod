@@ -1,6 +1,9 @@
 # Elastic Beanstalk deploy (ECR)
 
-Production deploys build the Docker image in **GitHub Actions**, push to **ECR**, and Elastic Beanstalk only **pulls** the image (fast). EB no longer runs `npm` / full `pip install` during deploy.
+Production and **staging** deploys build the Docker image in **GitHub Actions**, push to **ECR**, and Elastic Beanstalk only **pulls** the image (fast). EB no longer runs `npm` / full `pip install` during deploy.
+
+- **Production:** push to `main` → `Chessmate-env-2`
+- **Staging:** push to `staging` → `ChessMate-Staging` — see [STAGING_SETUP.md](./STAGING_SETUP.md)
 
 ## One-time AWS setup
 

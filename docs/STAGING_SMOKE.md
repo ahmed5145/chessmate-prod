@@ -1,16 +1,16 @@
-# Production smoke test (pre-launch)
+# Staging smoke test (pre-production)
 
-Use when you have **no staging environment**. Run on **production** with your own account.  
+Run on **staging** before merging to `main`. See [STAGING_SETUP.md](./STAGING_SETUP.md) for EB/RDS setup.  
 Do **not** use `CELERY_TASK_ALWAYS_EAGER`.
 
-**Environment:** `http://chessmate-prod.us-east-2.elasticbeanstalk.com` (or custom domain)  
+**Environment:** `https://staging.chess-mate.online` (or `ChessMate-Staging` EB URL)  
 **Date:** ___________________  
 **Runner:** ___________________
 
 ## Prerequisites
 
-- [x] Health: `http://chessmate-prod.us-east-2.elasticbeanstalk.com/health/` → `ok`
-- [x] Readiness: `.../readiness/` → `{"status":"ready"}`
+- [ ] Health: `https://<staging-host>/health/` → `ok`
+- [ ] Readiness: `.../readiness/` → `{"status":"ready"}`
 - [ ] `ENABLE_CELERY=true` on EB + **redeploy** after adding it
 - [ ] Redis: EB **`REDIS_URL=redis://127.0.0.1:6379/0`** + **`USE_BUNDLED_REDIS=true`** (free bundled Redis), or ElastiCache later
 - [ ] Login hits **`/api/v1/auth/login/`** (not `/api/api/v1/...`) after latest CD deploy
@@ -40,5 +40,5 @@ Do **not** use `CELERY_TASK_ALWAYS_EAGER`.
 
 ## Sign-off
 
-- [ ] All cases pass → OK to deploy production  
+- [ ] All cases pass → OK to merge `staging` → `main` / deploy production  
 - Failures logged as GitHub issues: ___________________
