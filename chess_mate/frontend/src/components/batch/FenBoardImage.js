@@ -211,6 +211,8 @@ const FenBoardImage = ({
   const playedIconAnchor = playedArrow && playedArrowIcon
     ? arrowIconAnchorPercent(playedArrow.from, playedArrow.to, isBlackView)
     : null;
+  const classificationIconPx = Math.max(16, Math.round(size * 0.042));
+  const classificationFontPx = Math.max(11, Math.round(size * 0.028));
 
   return (
     <Box
@@ -286,14 +288,14 @@ const FenBoardImage = ({
                 transform: 'translate(-50%, -50%)',
                 background: playedArrowColor || '#111827',
                 color: '#fff',
-                borderRadius: '3px',
-                minWidth: '0.72rem',
-                height: '0.72rem',
-                padding: '0 0.12rem',
+                borderRadius: '4px',
+                minWidth: `${classificationIconPx}px`,
+                height: `${classificationIconPx}px`,
+                padding: '0 2px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '0.48rem',
+                fontSize: `${classificationFontPx}px`,
                 fontWeight: 800,
                 lineHeight: 1,
                 letterSpacing: '-0.02em',
