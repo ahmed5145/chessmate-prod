@@ -180,6 +180,28 @@ const SingleGameReport = ({
       playerSide,
     );
     const computedStats = computePlayerMoveStats(normalizedMoves, playerSide);
+    const backendAccuracy = pickAccuracy(
+      overall.accuracy,
+      moveQuality.accuracy,
+      overall.accuracy_score,
+      metricsData.accuracy,
+    );
+    const headlineAccuracy = Number.isFinite(Number(backendAccuracy)) && Number(backendAccuracy) > 0
+      ? Math.round(Number(backendAccuracy) * 10) / 10
+      : computedStats.accuracy;
+    const backendErrors = Math.round(
+      pickNumber(
+        overall.mistakes,
+        overall.total_mistakes,
+        pickNumber(overall.blunders, 0) + pickNumber(overall.mistakes, 0),
+      )
+    );
+    const headlineErrors = backendErrors > 0 ? backendErrors : computedStats.errors;
+    const playerStatsForDisplay = {
+      ...computedStats,
+      accuracy: headlineAccuracy,
+      errors: headlineErrors,
+    };
     const alignedMoments = alignMomentsWithBatchContext(moments, batchCtx);
     const worstMoment = alignedMoments[0] || null;
     const drill = resolveSingleGameDrillLink({
@@ -200,13 +222,15 @@ const SingleGameReport = ({
       trainingBlock: training,
       phaseData,
       displayMetrics: {
-        accuracy: normalizedMoves.length ? `${computedStats.accuracy}%` : (accuracy === 'N/A' ? 'N/A' : `${accuracy}%`),
-        errors: normalizedMoves.length ? String(computedStats.errors) : mistakes,
+        accuracy: unavailable
+          ? 'N/A'
+          : `${headlineAccuracy}%`,
+        errors: unavailable ? 'N/A' : String(headlineErrors),
         showTimeStats: !showTimeUnavailable && timeMgmt !== 'N/A',
         timeManagement: timeMgmt === 'N/A' ? null : `${timeMgmt}%`,
         timePressure: timePressure === 'N/A' ? null : `${timePressure}%`,
       },
-      playerStats: computedStats,
+      playerStats: playerStatsForDisplay,
       tableMoves: normalizedMoves,
       drillLink: drill,
       worstMoment,

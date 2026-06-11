@@ -25,7 +25,13 @@ const DashboardNotificationsCard = () => {
     load();
   }, [load]);
 
-  const notifications = payload.notifications || [];
+  useEffect(() => {
+    const refresh = () => load();
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [load]);
+
+  const notifications = (payload.notifications || []).filter((item) => !item.is_read);
   if (notifications.length === 0) {
     return null;
   }
@@ -34,7 +40,8 @@ const DashboardNotificationsCard = () => {
     if (!item?.href) return;
     if (!item.is_read && item.id != null) {
       try {
-        await patchNotifications({ ids: [item.id] });
+        const data = await patchNotifications({ ids: [item.id] });
+        setPayload(data || { unread_count: 0, notifications: [] });
       } catch (error) {
         console.error('Failed to mark notification read', error);
       }
