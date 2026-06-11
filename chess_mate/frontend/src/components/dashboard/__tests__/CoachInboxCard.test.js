@@ -31,7 +31,7 @@ describe('CoachInboxCard', () => {
                 batch_id: 5,
                 priority_index: 1,
                 title: 'Fix hanging pieces',
-                proof_label: 'Sicilian Defense example: vs rival42, move 14',
+                proof_label: 'Your game vs rival42 · move 14 · Sicilian Defense',
                 drill: 'Review game_2 move 14',
                 href: '/game/12/analysis?mode=review&batch=5&priority=1&move=14',
               },
@@ -44,7 +44,7 @@ describe('CoachInboxCard', () => {
     expect(screen.getByText('Coach inbox')).toBeInTheDocument();
     expect(screen.getByText('1 pending')).toBeInTheDocument();
     expect(screen.getByText('Fix hanging pieces')).toBeInTheDocument();
-    expect(screen.getByText(/Sicilian Defense example/i)).toBeInTheDocument();
+    expect(screen.getByText(/Your game vs rival42/i)).toBeInTheDocument();
     const link = screen.getByRole('link', { name: /Fix hanging pieces/i });
     expect(link).toHaveAttribute('href', '/game/12/analysis?mode=review&batch=5&priority=1&move=14');
   });

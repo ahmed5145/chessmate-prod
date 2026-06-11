@@ -151,18 +151,6 @@ const SingleGameReport = ({
       ? explicitTimeDataStatus === 'unavailable'
       : (!hasMoveTimeData && !hasComputedTimeMetrics);
 
-    const accuracy = unavailable
-      ? 'N/A'
-      : formatNumber(
-        pickAccuracy(overall.accuracy, moveQuality.accuracy, overall.accuracy_score, metricsData.accuracy)
-      );
-    const mistakeCount = pickNumber(
-      overall.mistakes,
-      overall.total_mistakes,
-      pickNumber(overall.blunders, 0) + pickNumber(overall.mistakes, 0)
-    );
-    const mistakes = unavailable ? 'N/A' : String(Math.round(mistakeCount));
-
     let timeMgmt = unavailable ? 'N/A' : formatNumber(pickNumber(timeManagement.time_management_score, overall.time_management_score));
     let timePressure = unavailable ? 'N/A' : formatNumber(pickNumber(timeManagement.time_pressure_percentage));
     if (showTimeUnavailable) {

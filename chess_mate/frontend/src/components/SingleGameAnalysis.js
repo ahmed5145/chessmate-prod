@@ -657,9 +657,7 @@ const SingleGameAnalysis = () => {
         return true;
       }
 
-      console.warn('Retrieved data structure is invalid:', data);
-      setAnalysisError('The analysis data structure is invalid or incomplete. Please try again.');
-      setLoading(false);
+      console.warn('No renderable analysis payload yet:', data);
       isFetchingAnalysisRef.current = false;
       return false;
     } catch (error) {

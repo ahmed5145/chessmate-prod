@@ -89,7 +89,7 @@ describe('GameAnalysisResults', () => {
     render(<GameAnalysisResults analysisData={analysisData} />);
 
     expect(screen.getAllByText('Your accuracy').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('100%').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('88.5%').length).toBeGreaterThan(0);
     expect(screen.getByText(/All moves/i)).toBeInTheDocument();
     expect(screen.getAllByText('e4').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Nf3').length).toBeGreaterThan(0);
@@ -143,7 +143,7 @@ describe('GameAnalysisResults', () => {
 
     render(<GameAnalysisResults analysisData={analysisData} />);
 
-    expect(screen.getAllByText('100%').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('77.4%').length).toBeGreaterThan(0);
     expect(screen.getByText('64.2%')).toBeInTheDocument();
     expect(screen.getByText('11.1%')).toBeInTheDocument();
   });

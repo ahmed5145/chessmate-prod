@@ -22,7 +22,7 @@ from .models import Profile, profile_creation_defaults
 logger = logging.getLogger(__name__)
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"  # nosec B105 — OAuth endpoint URL, not a secret
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 
 PREF_GOOGLE_SUB = "google_oauth_sub"
