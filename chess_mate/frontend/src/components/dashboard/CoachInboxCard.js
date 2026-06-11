@@ -74,11 +74,11 @@ const CoachInboxCard = ({ priorityInbox, onInboxUpdated }) => {
                 priority_index: item.priority_index,
                 surface: 'dashboard',
               })}
-              className={`flex items-start justify-between gap-3 px-5 py-4 transition-colors ${
+              className={`flex items-start justify-between gap-3 px-5 py-4 transition-colors w-full ${
                 isDarkMode ? 'hover:bg-gray-700/80' : 'hover:bg-gray-50'
               }`}
             >
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1 text-left">
                 <p className={`text-xs font-semibold uppercase tracking-wide ${
                   isDarkMode ? 'text-indigo-300' : 'text-indigo-600'
                 }`}>

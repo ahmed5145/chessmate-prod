@@ -5,7 +5,7 @@ const DashboardPageHeader = ({ eyebrow, subtitle }) => {
   const { isDarkMode } = useTheme();
 
   return (
-    <header className="mb-6">
+    <header className="mb-6 text-center">
       <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${
         isDarkMode ? 'text-white' : 'text-gray-900'
       }`}
@@ -13,7 +13,7 @@ const DashboardPageHeader = ({ eyebrow, subtitle }) => {
         {eyebrow}
       </h1>
       {subtitle ? (
-        <p className={`mt-2 text-sm sm:text-base leading-relaxed max-w-2xl ${
+        <p className={`mt-2 mx-auto text-sm sm:text-base leading-relaxed max-w-2xl ${
           isDarkMode ? 'text-gray-400' : 'text-gray-600'
         }`}
         >
