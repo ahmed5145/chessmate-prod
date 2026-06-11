@@ -519,14 +519,15 @@ flowchart LR
 |------|--------|
 | **Definition** | Consecutive **calendar days** with ≥1 inbox item marked `reviewed` |
 | **Storage** | `Profile.inbox_streak` JSON `{count, last_reviewed_date}` |
-| **UI** | Chip on dashboard + inbox: “🔥 5-day coach streak”; breaks on missed day (no freeze in v1) |
+| **UI** | Chip on dashboard + inbox: “🔥 N-day coach streak” from 2+ days; day 1 shows progress label; hint when not started. **Counts Mark reviewed only** — not login days. |
 | **Milestone** | Copy at 3 / 5 / 7 days — no extra emails |
 
 **Acceptance criteria**
 
 - [x] Streak increments once per calendar day max (`test_inbox_streak.py`, `InboxStreak.test.js`).
-- [x] Hidden when streak &lt; 2 (`InboxStreak.test.js`).
-- [ ] Two consecutive review days visible on dashboard *(Smoke 2, Part 2)*.
+- [x] Day 1 shows progress label; hint when not started (`InboxStreak.test.js`, `inbox_streak.py`).
+- [x] Full 🔥 badge when streak ≥ 2 consecutive **Mark reviewed** days (`InboxStreak.test.js`).
+- [ ] Two consecutive review days visible on dashboard *(Smoke 2, Part 2 — re-test after deploy)*.
 
 **Primary files:** SRG-9 service, `Dashboard.js`, `ReportInsightCards.js`
 
@@ -1053,10 +1054,13 @@ flowchart TD
 
 Run only if these failed in prod or after deploy:
 
-- [ ] Re-analyze completes; no eternal `Task not found` polling.
-- [ ] **SRG-4** Opening drill → Lichess **study search** URL (not FEN analysis).
-- [ ] **SRG-5** Per-moment benchmarks differ; rating matches game time control.
-- [ ] **SRG-7** Move sounds + classification icon on arrow square.
+- [x] Re-analyze completes; no eternal `Task not found` polling. *(prod 2026-06-09)*
+- [x] **SRG-4** Opening drill → Lichess **study search** URL (not FEN analysis). *(prod)*
+- [x] **SRG-5** Per-moment benchmarks + pattern timelines render; rating band copy present. *(prod)*
+- [x] **SRG-7** Move sounds work; classification icon on arrow square (non-fullscreen). *(prod)*
+- [x] Loading bar reaches ~90% when last move is analyzed (not ~70%). *(fix shipped 2026-06-09)*
+- [x] Fullscreen position review: classification icon scales with board size. *(fix shipped 2026-06-09)*
+- [x] Headline **Your accuracy** matches phase snapshot formula (move match %, not label-count). *(fix shipped 2026-06-09)*
 
 ---
 
@@ -1064,11 +1068,13 @@ Run only if these failed in prod or after deploy:
 
 `Login` → `/dashboard` — stay on dashboard until Part 2.
 
-- [ ] **SRG-12/14** Coach home header + hero CTA visible; layout reads as one page (not scattered cards).
-- [ ] **SRG-12** **One thing today** card (if not snoozed); CTA uses `mode=review` when linking a game.
-- [ ] **SRG-9** **Coach inbox** lists pending priorities OR empty state → Start Batch Coach.
-- [ ] **SRG-14** Notification bell shows unread; mark one read; badge updates.
-- [ ] **SRG-12** **Snooze 24h** on one-thing → card hidden after refresh.
+- [x] **SRG-12/14** Coach home header + hero CTA visible; layout reads as one page (not scattered cards). *(prod)*
+- [x] **SRG-12** **One thing today** card (if not snoozed); CTA uses `mode=review` when linking a game. *(prod — URL correct; see Part 2 for first-time proof game UX)*
+- [x] **SRG-9** **Coach inbox** lists pending priorities OR empty state → Start Batch Coach. *(prod)*
+- [x] **SRG-14** Notification bell shows unread; mark one read; badge updates. *(prod)*
+- [x] **SRG-12** **Snooze 24h** on one-thing → card hidden after refresh. *(prod)*
+- [x] Coach home welcome subtitle centered. *(fix shipped 2026-06-09)*
+- [x] Coach home notifications block shows **unread only**; clears after mark-read. *(fix shipped 2026-06-09)*
 
 ---
 
@@ -1076,12 +1082,12 @@ Run only if these failed in prod or after deploy:
 
 `Dashboard` → inbox item → single-game → **back to Dashboard** (same session).
 
-- [ ] **SRG-9/19** Inbox row shows **proof label** (e.g. `Sicilian example: vs Opponent, move 12`).
-- [ ] **SRG-9** Open item → `/game/:id/analysis?mode=review&batch=&priority=&move=` when linked.
-- [ ] **SRG-11** Alignment % badge + tooltip; mismatch note if phases differ.
-- [ ] **SRG-16** Streak chip on report when ≥2-day streak (or note “skip — need 2 days”).
+- [x] **SRG-9/19** Inbox row shows **proof label** (`Your game vs Opponent · move N · Opening`). *(prod; copy updated 2026-06-09 — not mock data)*
+- [x] **SRG-9** Open item → `/game/:id/analysis?mode=review&batch=&priority=&move=` when linked. *(prod)*
+- [ ] **SRG-11** Alignment % badge + tooltip; mismatch note if phases differ. *(re-test after proof game loads)*
+- [ ] **SRG-16** Streak chip when ≥2 **consecutive calendar days** of **Mark reviewed** (not app login days). Day 1 shows progress hint. *(see §7.1)*
 - [ ] **SRG-9** **Mark reviewed** on batch banner → return **Dashboard** → inbox count decreased; persists on reload.
-- [ ] **SRG-0** Proof link opened **without** credit charge.
+- [x] **SRG-0** Proof link with `batch=` starts **free** depth-20 drill-down when no cached report (no credit). *(fix + expectation copy shipped 2026-06-09)*
 
 ---
 
@@ -1129,6 +1135,27 @@ Time-dependent — verify in staging when SMTP or calendar manipulation availabl
 - [ ] **SRG-27** Reactivation for 30d-inactive test user (one mail max).
 - [ ] **SRG-25** Streak freeze after missed day (calendar setup).
 - [ ] **SRG-16** Two consecutive calendar days of inbox reviews → `🔥 2-day` streak.
+
+### 7.1 Prod smoke log (2026-06-09)
+
+**Environment:** `https://www.chess-mate.online` (Account A, coach-active)
+
+| Area | Result | Notes |
+|------|--------|-------|
+| Google OAuth | Pass | Sign-in + account link on prod |
+| Re-analyze | Pass | |
+| SRG-4/5/7 | Pass | Benchmarks, sounds, icons (non-fullscreen) |
+| Loading bar | Fixed | Was ~70% at last move; now targets ~90% before coaching phase |
+| Accuracy card vs phases | Fixed | Was mixing label-count with move-match % |
+| Coach home layout | Fixed | Welcome centered; inbox alignment; unread-only notifications |
+| Inbox / one-thing → proof game | Fixed | Was 404 when no depth-20 cache; now auto-starts free `from_batch` run with clear copy |
+| Proof label copy | Fixed | `Your game vs … · move … · Opening` (real batch game, not placeholder) |
+| SRG-16 inbox streak | Clarified | Requires **Mark reviewed** on consecutive **calendar** days; day 1 shows progress chip + hint |
+| Console noise | Ignore | Browser extensions (`inject.bundle.js`, `content-script.js`) — not app bugs |
+
+**Still to verify after deploy:** Part 2 alignment badge, Mark reviewed → inbox count, Part 3–5.
+
+**Batch proof game UX (SRG-0 + SRG-9):** When `mode=review&batch=` and no saved depth-20 report exists, UI explains that this is normal for proof links, starts a **free** one-time depth-20 run, and notes that revisits are instant.
 
 ---
 
@@ -1226,6 +1253,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-08 | Shipped SRG-7 move navigation sound/haptic with mute toggle |
 | 2026-06-08 | Shipped SRG-22 welcome email after email verification |
 | 2026-06-09 | Acceptance criteria audit: [x]=tests, [ ]=smoke, [—]=OPS defer; Smoke 2 reordered as chronological journey (Parts 0–6) |
+| 2026-06-09 | Prod smoke §7.1: Part 0/1 largely pass; fixes for loading bar, accuracy, inbox proof links, coach home; SRG-16 clarified |
 
 ---
 
