@@ -7,6 +7,10 @@ const InboxStreakChip = ({ streak, onFreezeApplied }) => {
   const [freezing, setFreezing] = useState(false);
   const [error, setError] = useState(null);
 
+  if (!streak) {
+    return null;
+  }
+
   const freeze = streak.freeze || {};
   const canFreeze = Boolean(freeze.can_use);
   const showBadge = Boolean(streak?.show_badge ?? (streak?.show && (streak?.count || 0) >= 2));
