@@ -1056,43 +1056,79 @@ Run only if these failed in prod or after deploy:
 - [ ] Re-analyze completes; no eternal `Task not found` polling.
 - [ ] **SRG-4** Opening drill → Lichess **study search** URL (not FEN analysis).
 - [ ] **SRG-5** Per-moment benchmarks differ; rating matches game time control.
-- [ ] **SRG-7** Move sounds play; classification icon on arrow destination square.
+- [ ] **SRG-7** Move sounds + classification icon on arrow square.
 
-**SRG-9 / SRG-19 / SRG-11** (shipped):
+---
 
-- [ ] **SRG-9** Coach inbox on dashboard lists pending priorities; empty state → Start Batch Coach.
-- [ ] **SRG-9** Open inbox item → single-game with `mode=review`, `batch`, `priority`, `move` when linked.
-- [ ] **SRG-9** **Mark reviewed** on batch banner → item clears; persists on reload.
-- [ ] **SRG-19** Inbox rows show **proof labels** (e.g. `Sicilian example: vs Opponent, move 12`).
-- [ ] **SRG-19** After batch complete, ≥1 inbox item deep-links to a proof game (not batch-report-only).
-- [ ] **SRG-11** Batch-linked single-game shows **alignment %** badge; tooltip explains count.
-- [ ] **SRG-11** Mismatch note when batch phase ≠ game swing phase (honest copy, not punitive).
+#### Part 1 — Login → Coach home (Account A)
 
-**SRG-12** (shipped):
+`Login` → `/dashboard` — stay on dashboard until Part 2.
 
-- [ ] **SRG-12** **One thing today** card appears above inbox; CTA uses `mode=review` when linking a game.
-- [ ] **SRG-12** Pending inbox item wins over batch worst moment over single-game moment.
-- [ ] **SRG-12** **Snooze 24h** hides card until next day; refresh respects snooze.
-- [ ] **SRG-16** Mark 2 inbox items on **consecutive days** → dashboard shows `🔥 2-day coach streak`.
-- [ ] **SRG-16** Second review **same day** does not increment streak again.
-- [ ] **SRG-16** Batch-linked single-game report shows streak banner when ≥2 days.
-- [ ] **SRG-10** Moment timeline shows batch run count when pattern seen in ≥2 batches; hidden on first sighting.
-- [ ] **SRG-17** Fix-rate on 2nd batch reflects improved/absent patterns; hidden on first batch.
-- [ ] **SRG-20** Compared-to-last-batch table shows ≥3 patterns with then/now swing + sparkline; hidden on first batch.
-- [ ] **SRG-14** Bell shows completion + inbox; mark read works; no duplicate within 24h.
-- [ ] **SRG-15** Opt in digest → **one** mail in 7 days; opt out → zero.
-- [ ] **SRG-13** Spaced mail **not** same week as digest (mutual exclusion).
-- [ ] **SRG-18** Phase heatmap cell → example game opens free review (`mode=review`); hidden under 5 analyzed games.
-- [ ] **SRG-21** Opening gap → “You lost N games” + ChessMate review links per loss.
-- [ ] **SRG-23** First batch complete → celebration modal **once**; dismissible.
-- [ ] **SRG-24** Copy referral link → referee completes first batch → referrer **+5**, referee **+5** on top of signup bonus.
-- [ ] **SRG-24** Self-referral blocked.
-- [ ] **SRG-28** **Desktop:** no PWA/install banner anywhere.
-- [ ] **SRG-28** **Mobile** after first batch: small install hint **once**; dismiss → no repeat for 30 days.
-- [ ] **SRG-29** Paste moment share URL in Discord/iMessage preview → **text** title + description (no broken image).
-- [ ] **SRG-25** Miss one inbox day with ≥3-day streak → **Use freeze** preserves streak; only once per calendar month.
-- [ ] **SRG-26** Profile → Coach tone **Direct** → next batch/single report reads blunter (Encouraging = default supportive).
-- [ ] **SRG-27** Opt in reactivation → 30d inactive user gets **one** mail max; no mail if digest/spaced sent in last 7d.
+- [ ] **SRG-12/14** Coach home header + hero CTA visible; layout reads as one page (not scattered cards).
+- [ ] **SRG-12** **One thing today** card (if not snoozed); CTA uses `mode=review` when linking a game.
+- [ ] **SRG-9** **Coach inbox** lists pending priorities OR empty state → Start Batch Coach.
+- [ ] **SRG-14** Notification bell shows unread; mark one read; badge updates.
+- [ ] **SRG-12** **Snooze 24h** on one-thing → card hidden after refresh.
+
+---
+
+#### Part 2 — Inbox → proof game → back (Account A)
+
+`Dashboard` → inbox item → single-game → **back to Dashboard** (same session).
+
+- [ ] **SRG-9/19** Inbox row shows **proof label** (e.g. `Sicilian example: vs Opponent, move 12`).
+- [ ] **SRG-9** Open item → `/game/:id/analysis?mode=review&batch=&priority=&move=` when linked.
+- [ ] **SRG-11** Alignment % badge + tooltip; mismatch note if phases differ.
+- [ ] **SRG-16** Streak chip on report when ≥2-day streak (or note “skip — need 2 days”).
+- [ ] **SRG-9** **Mark reviewed** on batch banner → return **Dashboard** → inbox count decreased; persists on reload.
+- [ ] **SRG-0** Proof link opened **without** credit charge.
+
+---
+
+#### Part 3 — Progress widgets → batch report (Account A)
+
+`Dashboard` → scroll progress → open **latest batch report** (navbar Batch Coach → report link, or hero “Open report”).
+
+- [ ] **SRG-17** Fix-rate on dashboard (needs ≥2 batches; skip note if only one).
+- [ ] **SRG-18** Phase heatmap → click highlighted cell → opens `mode=review`.
+- [ ] **SRG-10** Moment timeline on batch report (≥2 batches for count).
+- [ ] **SRG-20** Compared-to-last-batch section (hidden on first batch).
+- [ ] **SRG-21** Opening gap → “You lost N games” + review links per loss.
+- [ ] **SRG-17** Fix-rate headline on batch report matches dashboard.
+
+---
+
+#### Part 4 — Profile & credits (Account A)
+
+`Profile` → toggle settings → `Credits` → back to dashboard.
+
+- [ ] **SRG-26** Coach tone **Direct** vs **Encouraging** saves; note for next batch wording.
+- [ ] **SRG-15/13/27** Email toggles visible (digest, spaced, reactivation); defaults off.
+- [ ] **SRG-24** Credits page → copy referral link (no need to complete referral here).
+
+---
+
+#### Part 5 — Fresh user + mobile + share (Account B + mobile)
+
+Separate path — does not require Account A.
+
+- [ ] **SRG-23** Account B: first batch complete → celebration modal **once**; dismissible.
+- [ ] **SRG-24** Account B referee via A’s link → first batch → A **+5**, B **+5**; self-referral blocked.
+- [ ] **SRG-28** **Desktop:** no PWA banner on dashboard or batch report.
+- [ ] **SRG-28** **Mobile** (Account A or B with batch): install hint once; dismiss → no repeat 30 days.
+- [ ] **SRG-29** Share moment URL → Discord/iMessage shows **text** title + description (no broken image).
+
+---
+
+#### Part 6 — Optional post-launch / staging (skip for launch smoke)
+
+Time-dependent — verify in staging when SMTP or calendar manipulation available:
+
+- [ ] **SRG-15** Opt in digest → one mail in 7 days.
+- [ ] **SRG-13** Spaced mail not same week as digest.
+- [ ] **SRG-27** Reactivation for 30d-inactive test user (one mail max).
+- [ ] **SRG-25** Streak freeze after missed day (calendar setup).
+- [ ] **SRG-16** Two consecutive calendar days of inbox reviews → `🔥 2-day` streak.
 
 ---
 
