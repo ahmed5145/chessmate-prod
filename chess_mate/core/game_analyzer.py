@@ -449,7 +449,7 @@ class GameAnalyzer:
             analyzed_moves = self.engine.analyze_pgn_game(
                 pgn,
                 depth=depth,
-                callback=lambda p, m: (progress_callback(20 + int(p * 0.5), m) if progress_callback else None),
+                callback=lambda p, m: (progress_callback(20 + int(p * 0.7), m) if progress_callback else None),
             )
 
             if analysis_timer:

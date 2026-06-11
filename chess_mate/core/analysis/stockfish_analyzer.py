@@ -943,9 +943,9 @@ class StockfishAnalyzer:
                 if isinstance(move_clock, (int, float)):
                     previous_clock_by_color[is_white] = float(move_clock)
 
-                # Call progress callback if provided
+                # Call progress callback if provided (i+1 so last move maps to 100%)
                 if callback:
-                    progress_percentage = (i / total_moves) * 100
+                    progress_percentage = ((i + 1) / total_moves) * 100
                     callback(progress_percentage, f"Analyzing move {i+1}/{total_moves}")
 
                 # Analyze position before move
