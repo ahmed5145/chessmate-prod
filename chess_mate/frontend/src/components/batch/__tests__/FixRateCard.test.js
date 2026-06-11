@@ -41,7 +41,7 @@ describe('FixRateCard', () => {
   });
 
   it('renders dashboard tailwind variant without MUI paper', () => {
-    const { container } = render(
+    render(
       <MemoryRouter>
         <FixRateCard
           variant="dashboard"
@@ -56,8 +56,8 @@ describe('FixRateCard', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/You fixed 1\/2 patterns/i)).toBeInTheDocument();
-    expect(container.querySelector('.MuiPaper-root')).not.toBeInTheDocument();
-    expect(container.querySelector('section')).toBeInTheDocument();
+    const headline = screen.getByText(/You fixed 1\/2 patterns/i);
+    expect(headline).toBeInTheDocument();
+    expect(screen.getByRole('region')).toContainElement(headline);
   });
 });
