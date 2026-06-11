@@ -2494,7 +2494,7 @@ def get_game_analysis(request, game_id):
                 )
 
             streak_state = get_single_game_streak(profile.preferences if profile else {})
-            inbox_streak = get_inbox_streak_payload(profile.preferences) if batch_context and profile else None
+            inbox_streak = get_inbox_streak_payload(profile.preferences) if profile else None
             response_payload = {
                 "analysis_data": payload,
                 **payload,
@@ -2554,7 +2554,7 @@ def get_game_analysis(request, game_id):
                 legacy_feedback = payload.get("feedback", {})
                 training_block = legacy_feedback.get("training_block") if isinstance(legacy_feedback, dict) else {}
                 streak_state = get_single_game_streak(profile.preferences if profile else {})
-                inbox_streak = get_inbox_streak_payload(profile.preferences) if batch_context and profile else None
+                inbox_streak = get_inbox_streak_payload(profile.preferences) if profile else None
                 response_payload = {
                     "analysis_data": payload,
                     **payload,

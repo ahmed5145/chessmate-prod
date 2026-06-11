@@ -105,19 +105,34 @@ def apply_inbox_streak_freeze(profile: Profile) -> Dict[str, Any]:
 
 
 def get_inbox_streak_payload(preferences: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """Serialize streak for API/UI. Shown only when effective count >= 2."""
+    """Serialize streak for API/UI. Badge from 2+ days; day-1 shows progress hint."""
     today = timezone.localdate()
     prefs = preferences if isinstance(preferences, dict) else {}
     state = _load_streak_state(prefs)
     count = _effective_streak_count(state, today)
-    show = count >= _MIN_DISPLAY_COUNT
+    show_badge = count >= _MIN_DISPLAY_COUNT
+    show_progress = count == 1
+    show = show_badge or show_progress
+    if show_badge:
+        label = f"{count}-day coach streak"
+    elif show_progress:
+        label = "Day 1 — mark a priority tomorrow to reach a 2-day streak"
+    else:
+        label = None
     freeze_used = prefs.get(FREEZE_MONTH_KEY) == _freeze_month_key(today)
     can_freeze = can_use_inbox_streak_freeze(prefs, today)
     return {
         "count": count,
         "show": show,
-        "label": f"{count}-day coach streak" if show else None,
-        "milestone_message": _milestone_message(count) if show else None,
+        "show_badge": show_badge,
+        "label": label,
+        "milestone_message": _milestone_message(count) if show_badge else None,
+        "hint": (
+            "Mark a coach inbox priority as reviewed on consecutive calendar days to build a streak. "
+            "Using the app alone does not count — tap Mark reviewed on a proof game."
+            if count < _MIN_DISPLAY_COUNT
+            else None
+        ),
         "last_reviewed_date": state.get("last_reviewed_date"),
         "freeze": {
             "can_use": can_freeze,

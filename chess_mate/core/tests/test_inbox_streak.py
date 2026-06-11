@@ -34,12 +34,15 @@ class TestInboxStreak(TestCase):
         seed_priority_inbox_from_batch(batch)
         return batch
 
-    def test_first_review_starts_streak_at_one_not_shown(self):
+    def test_first_review_starts_streak_at_one_shows_progress(self):
         batch = self._seed_inbox()
         ok, _, streak = mark_priority_inbox_reviewed(self.user, batch_id=batch.id, priority_index=1)
         assert ok is True
         assert streak["count"] == 1
-        assert streak["show"] is False
+        assert streak["show"] is True
+        assert streak["show_badge"] is False
+        assert "Day 1" in (streak["label"] or "")
+        assert streak["hint"]
 
     def test_consecutive_days_increment_and_show_from_two(self):
         today = timezone.localdate()
