@@ -700,7 +700,7 @@ const SingleGameAnalysis = () => {
     });
   }, [analysisData, loading, batchId, priority, gameId, move]);
 
-  const startAnalysis = async ({ forceReanalyze = false } = {}) => {
+  const startAnalysis = async ({ forceReanalyze = false, batchDrillDown = false } = {}) => {
     try {
       setLoading(true);
       setProgress(0);
@@ -710,8 +710,16 @@ const SingleGameAnalysis = () => {
       analysisErrorRef.current = false;
       setAuthError(false);
       setPollingFailed(false);
-      setLoadingMessage('Your review runs in the background — feel free to leave and check Games later.');
-      setStatusMessage('Starting depth-20 review…');
+      if (batchDrillDown) {
+        setStatusMessage('No saved report yet — starting your free batch drill-down');
+        setLoadingMessage(
+          'This game has not been depth-20 reviewed before, which is normal when you open a proof link from Batch Coach. '
+          + 'We are running it now at no credit cost. It usually takes a few minutes — you can leave this tab and come back, or check Games for progress.'
+        );
+      } else {
+        setLoadingMessage('Your review runs in the background — feel free to leave and check Games later.');
+        setStatusMessage('Starting depth-20 review…');
+      }
 
       // Reset refs
       hasAttemptedDirectFetch.current = false;
@@ -852,8 +860,7 @@ const SingleGameAnalysis = () => {
 
       if (analysisMode === 'review') {
         if (batchId) {
-          setLoadingMessage('Starting your free batch drill-down review…');
-          await startAnalysis();
+          await startAnalysis({ batchDrillDown: true });
           return;
         }
         setLoading(false);
@@ -984,11 +991,17 @@ const SingleGameAnalysis = () => {
                     : 'border-indigo-200 bg-indigo-50 text-indigo-900'
                 }`}
               >
-                <p className="font-medium">Runs in the background</p>
+                <p className="font-medium">
+                  {batchId && analysisMode === 'review' && progress < 100
+                    ? 'Free batch drill-down (no credit)'
+                    : 'Runs in the background'}
+                </p>
                 <p className={`mt-1 ${isDarkMode ? 'text-indigo-200/90' : 'text-indigo-800'}`}>
-                  {singleGameSendsEmail
-                    ? 'Depth-20 reviews often take 5–15 minutes. You can close this tab — we\'ll email you when ready. Games also shows live progress and a toast when you\'re signed in.'
-                    : 'Depth-20 reviews often take 5–15 minutes. You do not need to wait here — open Games for progress, or return to this link when finished.'}
+                  {batchId && analysisMode === 'review' && progress < 100
+                    ? 'First visit to this proof game runs a one-time depth-20 review. After it finishes, reopening this link is instant and still free.'
+                    : (singleGameSendsEmail
+                      ? 'Depth-20 reviews often take 5–15 minutes. You can close this tab — we\'ll email you when ready. Games also shows live progress and a toast when you\'re signed in.'
+                      : 'Depth-20 reviews often take 5–15 minutes. You do not need to wait here — open Games for progress, or return to this link when finished.')}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button

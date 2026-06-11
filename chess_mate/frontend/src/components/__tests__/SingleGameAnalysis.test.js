@@ -221,6 +221,9 @@ describe('SingleGameAnalysis', () => {
         fromBatch: true,
       }));
     });
+
+    expect(screen.getByText(/no saved report yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/free batch drill-down/i)).toBeInTheDocument();
   });
 
   it('shows batch context banner when analysis includes batch_context', async () => {
