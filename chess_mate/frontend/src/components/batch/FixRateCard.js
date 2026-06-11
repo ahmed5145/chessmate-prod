@@ -21,7 +21,10 @@ const FixRateTailwindCard = ({ fixRate, batchId = null }) => {
   );
 
   return (
-    <section className="rounded-xl border border-green-200 bg-green-50/80 dark:bg-green-950/20 dark:border-green-900/60 p-4">
+    <section
+      aria-label="Pattern fix rate"
+      className="rounded-xl border border-green-200 bg-green-50/80 dark:bg-green-950/20 dark:border-green-900/60 p-4"
+    >
       <div className="flex gap-2 items-start">
         <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">

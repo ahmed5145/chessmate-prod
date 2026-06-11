@@ -58,6 +58,6 @@ describe('FixRateCard', () => {
 
     const headline = screen.getByText(/You fixed 1\/2 patterns/i);
     expect(headline).toBeInTheDocument();
-    expect(screen.getByRole('region')).toContainElement(headline);
+    expect(screen.getByRole('region', { name: /pattern fix rate/i })).toContainElement(headline);
   });
 });

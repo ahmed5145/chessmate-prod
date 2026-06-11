@@ -1,6 +1,27 @@
 // jest-dom adds custom jest matchers for asserting on DOM nodes.
 import '@testing-library/jest-dom';
 
+// lucide-react ships ESM; CRA/Jest need a lightweight stub for icon components.
+jest.mock('lucide-react', () => {
+  const React = require('react');
+  return new Proxy(
+    {},
+    {
+      get: (_target, iconName) => {
+        if (iconName === '__esModule') {
+          return true;
+        }
+        const Icon = (props) => React.createElement('span', {
+          'data-testid': `lucide-${String(iconName)}`,
+          ...props,
+        });
+        Icon.displayName = String(iconName);
+        return Icon;
+      },
+    },
+  );
+});
+
 // Provide a safe default theme context for component tests that render
 // components in isolation without app-level providers.
 jest.mock('./context/ThemeContext', () => ({
