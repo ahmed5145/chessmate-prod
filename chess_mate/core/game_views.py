@@ -122,12 +122,8 @@ def _get_compat_task_managers() -> List[Any]:
     candidates = [
         task_manager,
         _resolve_compat_attr("core.game_views", "task_manager", task_manager),
-        _resolve_compat_attr(
-            "chess_mate.core.game_views", "task_manager", task_manager
-        ),
-        _resolve_compat_attr(
-            "chessmate_prod.chess_mate.core.game_views", "task_manager", task_manager
-        ),
+        _resolve_compat_attr("chess_mate.core.game_views", "task_manager", task_manager),
+        _resolve_compat_attr("chessmate_prod.chess_mate.core.game_views", "task_manager", task_manager),
     ]
     for module in list(sys.modules.values()):
         module_task_manager = getattr(module, "task_manager", None)
@@ -186,18 +182,12 @@ def _enqueue_analysis_task(
     lock_acquired = False
 
     lock_manager = next(
-        (
-            manager
-            for manager in managers
-            if getattr(manager, "redis_client", None) is not None
-        ),
+        (manager for manager in managers if getattr(manager, "redis_client", None) is not None),
         None,
     )
 
     if lock_manager is not None:
-        lock = lock_manager.redis_client.lock(
-            f"analysis_lock:game:{game_id}", timeout=15, blocking_timeout=3
-        )
+        lock = lock_manager.redis_client.lock(f"analysis_lock:game:{game_id}", timeout=15, blocking_timeout=3)
 
     try:
         if lock is not None:
@@ -393,17 +383,11 @@ def _build_batch_aggregate_metrics(
     completed_games: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
     """Build one combined report across completed games for the batch results page."""
-    game_ids = [
-        int(item["game_id"])
-        for item in completed_games
-        if isinstance(item, dict) and item.get("game_id")
-    ]
+    game_ids = [int(item["game_id"]) for item in completed_games if isinstance(item, dict) and item.get("game_id")]
     if not game_ids:
         return {}
 
-    analyses = list(
-        GameAnalysis.objects.select_related("game").filter(game_id__in=game_ids)
-    )
+    analyses = list(GameAnalysis.objects.select_related("game").filter(game_id__in=game_ids))
     if not analyses:
         return {}
 
@@ -452,80 +436,42 @@ def _build_batch_aggregate_metrics(
     }
 
     for analysis in analyses:
-        analysis_data = (
-            analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
-        )
-        metrics = (
-            analysis_data.get("metrics", {})
-            if isinstance(analysis_data.get("metrics", {}), dict)
-            else {}
-        )
-        feedback = (
-            analysis_data.get("feedback", {})
-            if isinstance(analysis_data.get("feedback", {}), dict)
-            else {}
-        )
+        analysis_data = analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
+        metrics = analysis_data.get("metrics", {}) if isinstance(analysis_data.get("metrics", {}), dict) else {}
+        feedback = analysis_data.get("feedback", {}) if isinstance(analysis_data.get("feedback", {}), dict) else {}
 
-        metrics_overall = (
-            metrics.get("overall", {})
-            if isinstance(metrics.get("overall", {}), dict)
-            else {}
-        )
+        metrics_overall = metrics.get("overall", {}) if isinstance(metrics.get("overall", {}), dict) else {}
         overall["accuracy"] += _safe_float(metrics_overall.get("accuracy"))
         overall["mistakes"] += _safe_float(metrics_overall.get("mistakes"))
         overall["blunders"] += _safe_float(metrics_overall.get("blunders"))
         overall["inaccuracies"] += _safe_float(metrics_overall.get("inaccuracies"))
         overall["total_moves"] += _safe_float(metrics_overall.get("total_moves"))
 
-        metrics_phases = (
-            metrics.get("phases", {})
-            if isinstance(metrics.get("phases", {}), dict)
-            else {}
-        )
+        metrics_phases = metrics.get("phases", {}) if isinstance(metrics.get("phases", {}), dict) else {}
         for phase_name in ("opening", "middlegame", "endgame"):
-            phase = (
-                metrics_phases.get(phase_name, {})
-                if isinstance(metrics_phases.get(phase_name, {}), dict)
-                else {}
-            )
+            phase = metrics_phases.get(phase_name, {}) if isinstance(metrics_phases.get(phase_name, {}), dict) else {}
             phase_accuracy = _safe_float(phase.get("accuracy"))
             if phase_accuracy > 0:
                 phases[phase_name]["accuracy_sum"] += phase_accuracy
                 phases[phase_name]["count"] += 1
             phases[phase_name]["mistakes"] += _safe_float(phase.get("mistakes"))
             phases[phase_name]["best_moves"] += _safe_float(phase.get("best_moves"))
-            phases[phase_name]["opportunities"] += _safe_float(
-                phase.get("opportunities")
-            )
+            phases[phase_name]["opportunities"] += _safe_float(phase.get("opportunities"))
 
         metrics_time = (
-            metrics.get("time_management", {})
-            if isinstance(metrics.get("time_management", {}), dict)
-            else {}
+            metrics.get("time_management", {}) if isinstance(metrics.get("time_management", {}), dict) else {}
         )
         if str(metrics_time.get("data_status", "")).lower() != "unavailable":
-            time_management["avg_time_per_move"] += _safe_float(
-                metrics_time.get("avg_time_per_move")
-            )
-            time_management["time_pressure_percentage"] += _safe_float(
-                metrics_time.get("time_pressure_percentage")
-            )
+            time_management["avg_time_per_move"] += _safe_float(metrics_time.get("avg_time_per_move"))
+            time_management["time_pressure_percentage"] += _safe_float(metrics_time.get("time_pressure_percentage"))
             time_management["samples"] += 1
 
-        strengths_raw.extend(
-            feedback.get("strengths", [])
-            if isinstance(feedback.get("strengths", []), list)
-            else []
-        )
+        strengths_raw.extend(feedback.get("strengths", []) if isinstance(feedback.get("strengths", []), list) else [])
         weaknesses_raw.extend(
-            feedback.get("weaknesses", [])
-            if isinstance(feedback.get("weaknesses", []), list)
-            else []
+            feedback.get("weaknesses", []) if isinstance(feedback.get("weaknesses", []), list) else []
         )
         improvements_raw.extend(
-            feedback.get("improvement_areas", [])
-            if isinstance(feedback.get("improvement_areas", []), list)
-            else []
+            feedback.get("improvement_areas", []) if isinstance(feedback.get("improvement_areas", []), list) else []
         )
 
         opening_name = getattr(analysis.game, "opening_name", None)
@@ -534,11 +480,7 @@ def _build_batch_aggregate_metrics(
             if normalized_opening:
                 opening_names.append(normalized_opening)
 
-        for move in (
-            analysis_data.get("moves", [])
-            if isinstance(analysis_data.get("moves", []), list)
-            else []
-        ):
+        for move in analysis_data.get("moves", []) if isinstance(analysis_data.get("moves", []), list) else []:
             if not isinstance(move, dict) or not move.get("is_critical"):
                 pass
 
@@ -579,13 +521,9 @@ def _build_batch_aggregate_metrics(
     for phase_name, data in phases.items():
         opportunities = int(data["opportunities"])
         best_moves = int(data["best_moves"])
-        critical_best_moves = (
-            int(min(best_moves, opportunities)) if opportunities > 0 else 0
-        )
+        critical_best_moves = int(min(best_moves, opportunities)) if opportunities > 0 else 0
         phase_metrics[phase_name] = {
-            "accuracy": round(
-                (data["accuracy_sum"] / data["count"]) if data["count"] > 0 else 0.0, 1
-            ),
+            "accuracy": round((data["accuracy_sum"] / data["count"]) if data["count"] > 0 else 0.0, 1),
             "mistakes": round(data["mistakes"], 1),
             "best_moves": best_moves,
             "opportunities": opportunities,
@@ -598,37 +536,25 @@ def _build_batch_aggregate_metrics(
         default="middlegame",
     )
 
-    top_strengths = _top_items_by_frequency(
-        _clean_feedback_items(strengths_raw), limit=3
-    )
-    top_weaknesses = _top_items_by_frequency(
-        _clean_feedback_items(weaknesses_raw), limit=3
-    )
-    top_improvements = _top_items_by_frequency(
-        _clean_feedback_items(improvements_raw), limit=3
-    )
+    top_strengths = _top_items_by_frequency(_clean_feedback_items(strengths_raw), limit=3)
+    top_weaknesses = _top_items_by_frequency(_clean_feedback_items(weaknesses_raw), limit=3)
+    top_improvements = _top_items_by_frequency(_clean_feedback_items(improvements_raw), limit=3)
     top_openings = _top_items_by_frequency(opening_names, limit=5)
 
     time_samples = time_management["samples"]
     time_summary = {
         "avg_time_per_move": (
-            round((time_management["avg_time_per_move"] / time_samples), 1)
-            if time_samples > 0
-            else 0.0
+            round((time_management["avg_time_per_move"] / time_samples), 1) if time_samples > 0 else 0.0
         ),
         "time_pressure_percentage": (
-            round((time_management["time_pressure_percentage"] / time_samples), 1)
-            if time_samples > 0
-            else 0.0
+            round((time_management["time_pressure_percentage"] / time_samples), 1) if time_samples > 0 else 0.0
         ),
         "data_status": "available" if time_samples > 0 else "unavailable",
     }
 
     # Heuristic enrichment so reports remain actionable even without OpenAI feedback.
     overall_accuracy = overall_metrics["accuracy"]
-    inaccuracies_per_game = (
-        (overall_metrics["inaccuracies"] / games_count) if games_count > 0 else 0.0
-    )
+    inaccuracies_per_game = (overall_metrics["inaccuracies"] / games_count) if games_count > 0 else 0.0
     weakest_phase_accuracy = phase_metrics[weakest_phase]["accuracy"]
     time_pressure_pct = _safe_float(time_summary.get("time_pressure_percentage"))
 
@@ -645,15 +571,9 @@ def _build_batch_aggregate_metrics(
 
     if overall_accuracy >= 78 and "Stable overall move quality" not in top_strengths:
         top_strengths.append("Stable overall move quality")
-    if (
-        phase_metrics["opening"]["accuracy"] >= 80
-        and "Solid opening phase execution" not in top_strengths
-    ):
+    if phase_metrics["opening"]["accuracy"] >= 80 and "Solid opening phase execution" not in top_strengths:
         top_strengths.append("Solid opening phase execution")
-    if (
-        overall_metrics["blunders"] <= 1
-        and "Low blunder frequency" not in top_strengths
-    ):
+    if overall_metrics["blunders"] <= 1 and "Low blunder frequency" not in top_strengths:
         top_strengths.append("Low blunder frequency")
 
     if weakest_phase_accuracy < 70:
@@ -670,9 +590,7 @@ def _build_batch_aggregate_metrics(
             top_weaknesses.append(candidate)
 
     if weakest_phase_accuracy < 70:
-        candidate = (
-            f"Train {weakest_phase} pattern recognition and candidate move checks"
-        )
+        candidate = f"Train {weakest_phase} pattern recognition and candidate move checks"
         if candidate not in top_improvements:
             top_improvements.append(candidate)
     if inaccuracies_per_game >= 12:
@@ -687,16 +605,8 @@ def _build_batch_aggregate_metrics(
     # Avoid contradictory coaching text when clock data is unavailable.
     if time_summary["data_status"] != "available":
         time_terms = ("time management", "time pressure")
-        top_weaknesses = [
-            item
-            for item in top_weaknesses
-            if not any(term in item.lower() for term in time_terms)
-        ]
-        top_improvements = [
-            item
-            for item in top_improvements
-            if not any(term in item.lower() for term in time_terms)
-        ]
+        top_weaknesses = [item for item in top_weaknesses if not any(term in item.lower() for term in time_terms)]
+        top_improvements = [item for item in top_improvements if not any(term in item.lower() for term in time_terms)]
 
     top_strengths = top_strengths[:3]
     top_weaknesses = top_weaknesses[:3]
@@ -727,9 +637,7 @@ def _build_batch_aggregate_metrics(
     action_plan = []
     if top_weaknesses:
         action_plan.append(f"Prioritize fixing: {top_weaknesses[0]}.")
-    action_plan.append(
-        f"Spend focused study time on {weakest_phase} decisions this week."
-    )
+    action_plan.append(f"Spend focused study time on {weakest_phase} decisions this week.")
     if top_improvements:
         action_plan.append(f"Training emphasis: {top_improvements[0]}.")
 
@@ -745,9 +653,7 @@ def _build_batch_aggregate_metrics(
         "performance_tier": performance_tier,
         "sample_size": games_count,
         "sample_size_note": sample_size_note,
-        "confidence": (
-            "high" if games_count >= 10 else "medium" if games_count >= 3 else "low"
-        ),
+        "confidence": ("high" if games_count >= 10 else "medium" if games_count >= 3 else "low"),
     }
 
     training_context_input = {
@@ -756,50 +662,30 @@ def _build_batch_aggregate_metrics(
         "time_management": time_summary,
         "moves": all_moves,
     }
-    training_block = CoachingFeedbackGenerator.build_training_block(
-        training_context_input
-    )
+    training_block = CoachingFeedbackGenerator.build_training_block(training_context_input)
 
     try:
-        ai_feedback = CoachingFeedbackGenerator().generate_feedback(
-            training_context_input
-        )
+        ai_feedback = CoachingFeedbackGenerator().generate_feedback(training_context_input)
     except (TypeError, ValueError) as error:
         logger.debug("Falling back to statistical batch feedback: %s", error)
         ai_feedback = {
             "source": "statistical",
-            "data_status": (
-                "available"
-                if time_summary.get("data_status") == "available"
-                else "unavailable"
-            ),
+            "data_status": ("available" if time_summary.get("data_status") == "available" else "unavailable"),
             "strengths": top_strengths,
             "weaknesses": top_weaknesses,
             "critical_moments": critical_sorted[:5],
             "improvement_areas": top_improvements,
             "opening": {
                 "analysis": f"Opening accuracy is {phase_metrics['opening']['accuracy']}%.",
-                "suggestion": (
-                    top_improvements[0]
-                    if top_improvements
-                    else "Review opening fundamentals."
-                ),
+                "suggestion": (top_improvements[0] if top_improvements else "Review opening fundamentals."),
             },
             "middlegame": {
                 "analysis": f"Middlegame accuracy is {phase_metrics['middlegame']['accuracy']}%.",
-                "suggestion": (
-                    top_improvements[0]
-                    if top_improvements
-                    else "Review middlegame patterns."
-                ),
+                "suggestion": (top_improvements[0] if top_improvements else "Review middlegame patterns."),
             },
             "endgame": {
                 "analysis": f"Endgame accuracy is {phase_metrics['endgame']['accuracy']}%.",
-                "suggestion": (
-                    top_improvements[0]
-                    if top_improvements
-                    else "Review endgame conversion."
-                ),
+                "suggestion": (top_improvements[0] if top_improvements else "Review endgame conversion."),
             },
             "metrics": {"summary": {"overall": overall_metrics}},
             "training_block": training_block,
@@ -812,9 +698,7 @@ def _build_batch_aggregate_metrics(
         ai_feedback.setdefault("summary", " ".join(summary_bits).strip())
         ai_feedback.setdefault("training_block", training_block)
         ai_feedback.setdefault("phase_motifs", training_block.get("phase_motifs", {}))
-        ai_feedback.setdefault(
-            "impact_metrics", training_block.get("impact_metrics", {})
-        )
+        ai_feedback.setdefault("impact_metrics", training_block.get("impact_metrics", {}))
         ai_feedback.setdefault("coach_summary", coach_report["summary"])
 
     return {
@@ -844,9 +728,7 @@ def _persist_batch_report(
     """Create or update a persisted batch report for history access."""
     report_defaults = {
         "game_ids": game_ids,
-        "games_count": (
-            len(game_ids) if game_ids else len(completed_games) + len(failed_games)
-        ),
+        "games_count": (len(game_ids) if game_ids else len(completed_games) + len(failed_games)),
         "completed_games": completed_games,
         "failed_games": failed_games,
         "aggregate_metrics": aggregate_metrics,
@@ -883,26 +765,12 @@ def _serialize_batch_report(report: BatchAnalysisReport) -> Dict[str, Any]:
     return {
         "id": report_any.id,
         "task_id": report_any.task_id,
-        "game_ids": (
-            report_any.game_ids if isinstance(report_any.game_ids, list) else []
-        ),
+        "game_ids": (report_any.game_ids if isinstance(report_any.game_ids, list) else []),
         "games_count": report_any.games_count,
-        "completed_games": (
-            report_any.completed_games
-            if isinstance(report_any.completed_games, list)
-            else []
-        ),
-        "failed_games": (
-            report_any.failed_games if isinstance(report_any.failed_games, list) else []
-        ),
-        "aggregate_metrics": (
-            report_any.aggregate_metrics
-            if isinstance(report_any.aggregate_metrics, dict)
-            else {}
-        ),
-        "coach_summary": (
-            coach_report.get("summary", "") if isinstance(coach_report, dict) else ""
-        ),
+        "completed_games": (report_any.completed_games if isinstance(report_any.completed_games, list) else []),
+        "failed_games": (report_any.failed_games if isinstance(report_any.failed_games, list) else []),
+        "aggregate_metrics": (report_any.aggregate_metrics if isinstance(report_any.aggregate_metrics, dict) else {}),
+        "coach_summary": (coach_report.get("summary", "") if isinstance(coach_report, dict) else ""),
         "created_at": report_any.created_at.isoformat(),
         "updated_at": report_any.updated_at.isoformat(),
     }
@@ -940,9 +808,7 @@ class GameViewSet(viewsets.ModelViewSet):
             data = request.data if isinstance(request.data, dict) else {}
             depth = int(data.get("depth", 20))
             use_ai = bool(data.get("use_ai", True))
-            force_reanalyze = bool(
-                data.get("force_reanalyze") or data.get("force_restart", False)
-            )
+            force_reanalyze = bool(data.get("force_reanalyze") or data.get("force_restart", False))
 
             profile = Profile.objects.filter(user=request.user).first()
             credit_waiver = resolve_single_game_credit_waiver(
@@ -953,11 +819,7 @@ class GameViewSet(viewsets.ModelViewSet):
                 batch_id=data.get("batch_id") or data.get("batch"),
                 force_reanalyze=force_reanalyze,
             )
-            if (
-                not request.user.is_staff
-                and not credit_waiver
-                and (profile is None or profile.credits < 1)
-            ):
+            if not request.user.is_staff and not credit_waiver and (profile is None or profile.credits < 1):
                 return Response(
                     {
                         "status": "error",
@@ -968,9 +830,7 @@ class GameViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_402_PAYMENT_REQUIRED,
                 )
 
-            analysis_allowed, analysis_info = check_single_analysis_allowed(
-                request.user
-            )
+            analysis_allowed, analysis_info = check_single_analysis_allowed(request.user)
             if not analysis_allowed:
                 return single_analysis_limit_response(analysis_info)
 
@@ -1046,9 +906,7 @@ class GameViewSet(viewsets.ModelViewSet):
             game_ids = request.data.get("game_ids", [])
             if not game_ids:
                 # Using proper ValidationError format
-                raise ValidationError(
-                    [{"field": "game_ids", "message": "No game IDs provided"}]
-                )
+                raise ValidationError([{"field": "game_ids", "message": "No game IDs provided"}])
 
             # Limit batch size to prevent overload
             if len(game_ids) > MAX_BATCH_SIZE:
@@ -1058,9 +916,7 @@ class GameViewSet(viewsets.ModelViewSet):
             use_ai = bool(request.data.get("use_ai", True))
 
             # Verify all games belong to the user
-            user_game_count = Game.objects.filter(
-                id__in=game_ids, user=request.user
-            ).count()
+            user_game_count = Game.objects.filter(id__in=game_ids, user=request.user).count()
 
             if user_game_count != len(game_ids):
                 # Using proper ValidationError format
@@ -1101,9 +957,7 @@ class GameViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"])
     @method_decorator(csrf_exempt)
-    def analysis_status(
-        self, request, pk=None
-    ) -> Response:  # pylint: disable=unused-argument
+    def analysis_status(self, request, pk=None) -> Response:  # pylint: disable=unused-argument
         """Get analysis status for a game."""
         try:
             if pk is not None:
@@ -1123,10 +977,7 @@ class GameViewSet(viewsets.ModelViewSet):
             if not analysis_in_flight:
                 try:
                     analysis = GameAnalysis.objects.get(game_id=game.id)
-                    if (
-                        analysis.analysis_data
-                        and analysis.analysis_data.get("status") == "complete"
-                    ):
+                    if analysis.analysis_data and analysis.analysis_data.get("status") == "complete":
                         return Response(
                             {
                                 "status": "SUCCESS",
@@ -1154,10 +1005,7 @@ class GameViewSet(viewsets.ModelViewSet):
                 )
 
             # Check specific case for error status
-            if (
-                task_info.get("status") == "ERROR"
-                or task_info.get("status") == "FAILURE"
-            ):
+            if task_info.get("status") == "ERROR" or task_info.get("status") == "FAILURE":
                 return Response(
                     {
                         "status": "ERROR",
@@ -1172,9 +1020,7 @@ class GameViewSet(viewsets.ModelViewSet):
                 "status": task_info.get("status", "UNKNOWN").upper(),
                 "progress": task_info.get("progress", 0),
                 "message": task_info.get("message", "Checking analysis status..."),
-                "task_id": task_info.get(
-                    "task_id"
-                ),  # Include actual task_id in the response
+                "task_id": task_info.get("task_id"),  # Include actual task_id in the response
                 "task": {
                     "id": task_info.get("task_id", ""),
                     "status": task_info.get("status", "UNKNOWN").upper(),
@@ -1221,9 +1067,7 @@ class GameViewSet(viewsets.ModelViewSet):
             # Apply filters
             if query:
                 queryset = queryset.filter(
-                    Q(white__icontains=query)
-                    | Q(black__icontains=query)
-                    | Q(opening_name__icontains=query)
+                    Q(white__icontains=query) | Q(black__icontains=query) | Q(opening_name__icontains=query)
                 )
 
             if game_status:
@@ -1286,9 +1130,7 @@ def get_user_games(request):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        games: List[Any] = list(
-            Game.objects.filter(user_id=user_id).order_by("-date_played")
-        )
+        games: List[Any] = list(Game.objects.filter(user_id=user_id).order_by("-date_played"))
         game_list = [
             {
                 "id": game.id,
@@ -1306,9 +1148,7 @@ def get_user_games(request):
     except (
         Exception
     ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        return Response(
-            {"status": "error", "message": str(e)}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"status": "error", "message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @require_POST
@@ -1402,9 +1242,7 @@ def get_game(request):
     try:
         game_id = request.GET.get("game_id")
         if not game_id:
-            raise ValidationError(
-                [{"field": "game_id", "message": "Game ID is required"}]
-            )
+            raise ValidationError([{"field": "game_id", "message": "Game ID is required"}])
 
         # Check cache
         cache_key = f"game:{game_id}"
@@ -1461,9 +1299,7 @@ def get_game(request):
         return handle_api_error(e, "Error retrieving game")
 
 
-def _release_analysis_for_game(
-    game_id: int, *, reason: str = "user_release"
-) -> Dict[str, Any]:
+def _release_analysis_for_game(game_id: int, *, reason: str = "user_release") -> Dict[str, Any]:
     """Clear stuck queue state so a new analysis can start without duplicate mappings."""
     released_task_id = task_manager._get_task_id_for_game(game_id)
     if released_task_id:
@@ -1472,9 +1308,9 @@ def _release_analysis_for_game(
         task_manager._clear_game_task_mapping(game_id)
         task_manager._reset_stuck_game_status(game_id)
 
-    Game.objects.filter(id=game_id).exclude(
-        analysis_status__in=["analyzed", "completed", "failed"]
-    ).update(analysis_status="not_analyzed")
+    Game.objects.filter(id=game_id).exclude(analysis_status__in=["analyzed", "completed", "failed"]).update(
+        analysis_status="not_analyzed"
+    )
 
     return {
         "status": "released",
@@ -1578,9 +1414,7 @@ def analyze_game(request, game_id=None):
         # Get analysis parameters
         depth = data.get("depth", DEFAULT_ANALYSIS_DEPTH)
         use_ai = data.get("use_ai", DEFAULT_USE_AI)
-        force_reanalyze = bool(
-            data.get("force_reanalyze") or data.get("force_restart", False)
-        )
+        force_reanalyze = bool(data.get("force_reanalyze") or data.get("force_restart", False))
         batch_id = data.get("batch_id") or data.get("batch")
         from_batch = bool(data.get("from_batch", False))
         cited_move = data.get("move") or data.get("cited_move")
@@ -1591,9 +1425,7 @@ def analyze_game(request, game_id=None):
         except (TypeError, ValueError):
             cited_move_int = None
         try:
-            priority_index_int = (
-                int(priority_index) if priority_index not in (None, "") else None
-            )
+            priority_index_int = int(priority_index) if priority_index not in (None, "") else None
         except (TypeError, ValueError):
             priority_index_int = None
 
@@ -1609,11 +1441,7 @@ def analyze_game(request, game_id=None):
         free_from_batch = credit_waiver == "batch"
         free_first_game = credit_waiver == "first_free"
 
-        if (
-            not request.user.is_staff
-            and not credit_waiver
-            and (profile is None or profile.credits < 1)
-        ):
+        if not request.user.is_staff and not credit_waiver and (profile is None or profile.credits < 1):
             return Response(
                 {
                     "status": "error",
@@ -1639,9 +1467,7 @@ def analyze_game(request, game_id=None):
             return Response(payload, status=status.HTTP_200_OK)
 
         # Resolve through legacy module path when tests patch core.* symbols.
-        compat_task = _resolve_compat_attr(
-            "core.tasks", "analyze_game_task", analyze_game_task
-        )
+        compat_task = _resolve_compat_attr("core.tasks", "analyze_game_task", analyze_game_task)
         compat_task_managers = _get_compat_task_managers()
 
         if force_reanalyze:
@@ -1724,9 +1550,7 @@ def import_external_games(request):
         data = request.data
         # Use request.user.id as fallback for user_id
         user_id = data.get("user_id") or request.user.id
-        platform = data.get("platform") or data.get(
-            "source"
-        )  # Support both field names
+        platform = data.get("platform") or data.get("source")  # Support both field names
         username = data.get("username")
         game_type = data.get("game_type", "rapid")
         num_games = data.get("num_games", 10)
@@ -1740,9 +1564,7 @@ def import_external_games(request):
 
         # Validate platform
         if not platform:
-            raise ValidationError(
-                [{"field": "platform", "message": "Platform/source is required"}]
-            )
+            raise ValidationError([{"field": "platform", "message": "Platform/source is required"}])
 
         if platform not in ["chess.com", "lichess"]:
             raise ValidationError(
@@ -1789,9 +1611,7 @@ def import_external_games(request):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
-        import_allowed, import_info = check_game_import_allowed(
-            request.user, int(num_games or 0)
-        )
+        import_allowed, import_info = check_game_import_allowed(request.user, int(num_games or 0))
         if not import_allowed:
             return Response(
                 game_import_limit_response(import_info).data,
@@ -1815,15 +1635,9 @@ def import_external_games(request):
             logger.error("Profile not found for user_id=%s", user_id)
 
         # Import games using legacy-resolved service classes so patched tests intercept calls.
-        chess_com_cls = _resolve_compat_attr(
-            "core.chess_services", "ChessComService", ChessComService
-        )
-        lichess_cls = _resolve_compat_attr(
-            "core.chess_services", "LichessService", LichessService
-        )
-        save_game_fn = _resolve_compat_attr(
-            "core.chess_services", "save_game", save_game
-        )
+        chess_com_cls = _resolve_compat_attr("core.chess_services", "ChessComService", ChessComService)
+        lichess_cls = _resolve_compat_attr("core.chess_services", "LichessService", LichessService)
+        save_game_fn = _resolve_compat_attr("core.chess_services", "save_game", save_game)
 
         import_user = User.objects.get(id=user_id)
         imported_count = 0
@@ -1833,17 +1647,13 @@ def import_external_games(request):
 
         # Prefer fetch_games (saves for the logged-in user). Fall back to get_user_games + save_game for tests.
         if platform == "chess.com" and hasattr(chess_com_cls, "fetch_games"):
-            result = chess_com_cls.fetch_games(
-                username, import_user, game_type, num_games
-            )
+            result = chess_com_cls.fetch_games(username, import_user, game_type, num_games)
             imported_count = int(result.get("saved", 0) or 0)
             games = result.get("games", []) or []
             import_message = result.get("message", "")
             saved_games = list(range(imported_count))
         elif platform == "lichess" and hasattr(lichess_cls, "fetch_games"):
-            result = lichess_cls.fetch_games(
-                username, import_user, game_type, num_games
-            )
+            result = lichess_cls.fetch_games(username, import_user, game_type, num_games)
             imported_count = int(result.get("games_saved", 0) or 0)
             games = result.get("games", []) or []
             import_message = result.get("message", "")
@@ -1855,13 +1665,9 @@ def import_external_games(request):
                 service = lichess_cls()
 
             if hasattr(service, "get_user_games"):
-                games = service.get_user_games(
-                    username, game_type, num_games, user=import_user
-                )
+                games = service.get_user_games(username, game_type, num_games, user=import_user)
             else:
-                games = service.get_games(
-                    username, limit=num_games, game_type=game_type, user=import_user
-                )
+                games = service.get_games(username, limit=num_games, game_type=game_type, user=import_user)
 
             for game_data in games:
                 try:
@@ -1914,9 +1720,7 @@ def import_external_games(request):
                 "message": f"Imported {imported_count} games from {platform}",
                 "imported_count": imported_count,
                 "saved_games": saved_games,
-                "games": (
-                    games[:5] if isinstance(games, list) else []
-                ),  # Return preview of first 5 games
+                "games": (games[:5] if isinstance(games, list) else []),  # Return preview of first 5 games
             },
             status=status.HTTP_200_OK,
         )
@@ -1940,9 +1744,7 @@ def _mark_analysis_reanalysis_started(game_id: int) -> None:
     """Invalidate cached-complete status while a forced re-run is queued."""
     try:
         analysis = GameAnalysis.objects.get(game_id=game_id)
-        data = (
-            analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
-        )
+        data = analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
         data = dict(data)
         data["status"] = "in_progress"
         analysis.analysis_data = data
@@ -1962,9 +1764,7 @@ def _task_status_from_completed_analysis(
         return None
 
     status_value = str(game.analysis_status or "").lower()
-    in_flight = status_value in ("analyzing", "in_progress") or status_value.startswith(
-        "in_progress"
-    )
+    in_flight = status_value in ("analyzing", "in_progress") or status_value.startswith("in_progress")
     if in_flight:
         return None
     if not has_complete_cached_analysis(game_id):
@@ -1996,14 +1796,8 @@ def get_task_status(request, game_id=None):
                 # Resolve by game ID, not positional task_id.
                 task_info = task_manager.get_task_status(game_id=game_id)
 
-            if (
-                task_info
-                and "not found or not started"
-                in str(task_info.get("message", "")).lower()
-            ):
-                recovered = _task_status_from_completed_analysis(
-                    game_id, preferred_task_id
-                )
+            if task_info and "not found or not started" in str(task_info.get("message", "")).lower():
+                recovered = _task_status_from_completed_analysis(game_id, preferred_task_id)
                 if recovered:
                     task_info = recovered
 
@@ -2032,13 +1826,8 @@ def get_task_status(request, game_id=None):
                 "message": task_info.get("message", "Analyzing game..."),
                 "error": task_info.get("error", None),
             }
-            if (
-                str(task_payload["status"]).upper() in ("FAILURE", "FAILED", "ERROR")
-                and not task_payload["error"]
-            ):
-                task_payload["error"] = (
-                    task_payload["message"] or "Analysis task failed"
-                )
+            if str(task_payload["status"]).upper() in ("FAILURE", "FAILED", "ERROR") and not task_payload["error"]:
+                task_payload["error"] = task_payload["message"] or "Analysis task failed"
 
             return JsonResponse(
                 {
@@ -2191,18 +1980,12 @@ def check_batch_analysis_status(request, task_id):
     raw_state = str(async_result.state or "PENDING").upper()
     legacy_progress = _legacy_status_progress(task_id, task_info)
 
-    result_payload = (
-        async_result.result if isinstance(async_result.result, dict) else {}
-    )
+    result_payload = async_result.result if isinstance(async_result.result, dict) else {}
     task_meta = {}
     if isinstance(getattr(async_result, "info", None), dict):
         task_meta = async_result.info
 
-    total = int(
-        task_meta.get("total")
-        or task_meta.get("games_count")
-        or len(task_meta.get("game_ids", []) or [])
-    )
+    total = int(task_meta.get("total") or task_meta.get("games_count") or len(task_meta.get("game_ids", []) or []))
     if total <= 0 and task_info:
         total = len(task_info.get("game_ids", []) or [])
 
@@ -2210,11 +1993,7 @@ def check_batch_analysis_status(request, task_id):
     if raw_state in {"SUCCESS", "FAILURE", "FAILED"} and total > 0:
         current = total
 
-    progress = int(
-        task_meta.get("progress")
-        or legacy_progress
-        or (100 if raw_state == "SUCCESS" else 0)
-    )
+    progress = int(task_meta.get("progress") or legacy_progress or (100 if raw_state == "SUCCESS" else 0))
 
     frontend_state = raw_state
     if raw_state in {"PROGRESS", "IN_PROGRESS", "STARTED"}:
@@ -2238,11 +2017,7 @@ def check_batch_analysis_status(request, task_id):
             }:
                 completed_games.append({"game_id": int(game_id), **game_result})
             else:
-                payload = (
-                    game_result
-                    if isinstance(game_result, dict)
-                    else {"message": str(game_result)}
-                )
+                payload = game_result if isinstance(game_result, dict) else {"message": str(game_result)}
                 failed_games.append({"game_id": int(game_id), **payload})
 
     if completed_games:
@@ -2257,11 +2032,7 @@ def check_batch_analysis_status(request, task_id):
             task_game_ids = _normalize_int_list(task_info.get("game_ids", []))
         else:
             task_game_ids = _normalize_int_list(
-                [
-                    item.get("game_id")
-                    for item in completed_games
-                    if isinstance(item, dict) and item.get("game_id")
-                ]
+                [item.get("game_id") for item in completed_games if isinstance(item, dict) and item.get("game_id")]
             )
 
         try:
@@ -2289,13 +2060,9 @@ def check_batch_analysis_status(request, task_id):
                     task_id,
                 )
             else:
-                logger.exception(
-                    "Failed to persist batch analysis report for task %s", task_id
-                )
+                logger.exception("Failed to persist batch analysis report for task %s", task_id)
         except DatabaseError:
-            logger.exception(
-                "Failed to persist batch analysis report for task %s", task_id
-            )
+            logger.exception("Failed to persist batch analysis report for task %s", task_id)
 
     response_payload = {
         "state": frontend_state,
@@ -2303,9 +2070,7 @@ def check_batch_analysis_status(request, task_id):
             "current": current,
             "total": total,
             "progress": progress,
-            "message": task_meta.get("message")
-            or result_payload.get("message")
-            or "Batch Coach in progress",
+            "message": task_meta.get("message") or result_payload.get("message") or "Batch Coach in progress",
             "error": task_meta.get("error") or result_payload.get("error"),
         },
         "completed_games": completed_games,
@@ -2332,9 +2097,7 @@ def list_batch_analysis_reports(request):
     except (TypeError, ValueError):
         limit = 20
 
-    reports = BatchAnalysisReport.objects.filter(user=request.user).order_by(
-        "-created_at"
-    )[:limit]
+    reports = BatchAnalysisReport.objects.filter(user=request.user).order_by("-created_at")[:limit]
     return Response(
         {
             "status": "success",
@@ -2390,13 +2153,9 @@ def batch_analyze_games(request):
             time_control_filter = str(data.get("time_control", "all") or "all").lower()
             include_analyzed = bool(data.get("include_analyzed", False))
 
-            queryset = Game.objects.filter(user=request.user).order_by(
-                "-date_played", "-id"
-            )
+            queryset = Game.objects.filter(user=request.user).order_by("-date_played", "-id")
             if not include_analyzed:
-                queryset = queryset.exclude(
-                    analysis_status__in=["completed", "analyzed"]
-                )
+                queryset = queryset.exclude(analysis_status__in=["completed", "analyzed"])
 
             if time_control_filter != "all":
                 queryset = queryset.filter(time_control__icontains=time_control_filter)
@@ -2450,9 +2209,7 @@ def batch_analyze_games(request):
                 )
 
         # Resolve through legacy module path when tests patch core.* symbols.
-        compat_batch_task = _resolve_compat_attr(
-            "core.tasks", "analyze_batch_games_task", analyze_batch_games_task
-        )
+        compat_batch_task = _resolve_compat_attr("core.tasks", "analyze_batch_games_task", analyze_batch_games_task)
         compat_task_managers = _get_compat_task_managers()
 
         # Start batch analysis (legacy task alias expected by tests)
@@ -2476,9 +2233,7 @@ def batch_analyze_games(request):
         except Profile.DoesNotExist:
             pass
 
-        Game.objects.filter(id__in=game_ids, user=request.user).update(
-            analysis_status="analyzing"
-        )
+        Game.objects.filter(id__in=game_ids, user=request.user).update(analysis_status="analyzing")
 
         # Invalidate cache for each game
         for game_id in game_ids:
@@ -2515,17 +2270,11 @@ def batch_get_analysis_status(request):
     """Get analysis status for multiple games at once."""
     try:
         # Get the game IDs from the request data
-        data = (
-            json.loads(request.body)
-            if isinstance(request.body, bytes)
-            else request.body
-        )
+        data = json.loads(request.body) if isinstance(request.body, bytes) else request.body
         game_ids = data.get("game_ids", [])
 
         if not game_ids:
-            return JsonResponse(
-                {"status": "error", "message": "No game IDs provided"}, status=400
-            )
+            return JsonResponse({"status": "error", "message": "No game IDs provided"}, status=400)
 
         # Limit the number of games to check at once
         if len(game_ids) > 20:
@@ -2539,9 +2288,7 @@ def batch_get_analysis_status(request):
 
         # Verify the user has access to these games
         if not request.user.is_staff:
-            authorized_count = Game.objects.filter(
-                id__in=game_ids, user_id=request.user.id
-            ).count()
+            authorized_count = Game.objects.filter(id__in=game_ids, user_id=request.user.id).count()
 
             if authorized_count != len(game_ids):
                 return JsonResponse(
@@ -2600,9 +2347,7 @@ def batch_get_analysis_status(request):
         Exception
     ) as e:  # pyright: ignore[reportGeneralTypeIssues]  # noqa: BLE001  # pylint: disable=broad-exception-caught
         logger.error("Error checking batch analysis status: %s", str(e))
-        return JsonResponse(
-            {"status": "error", "message": f"Error: {str(e)}"}, status=500
-        )
+        return JsonResponse({"status": "error", "message": f"Error: {str(e)}"}, status=500)
 
 
 @require_GET
@@ -2619,14 +2364,10 @@ def search_external_player(request):
 
         # Validate inputs
         if not source:
-            raise ValidationError(
-                [{"field": "source", "message": "Source is required"}]
-            )
+            raise ValidationError([{"field": "source", "message": "Source is required"}])
 
         if not username:
-            raise ValidationError(
-                [{"field": "username", "message": "Username is required"}]
-            )
+            raise ValidationError([{"field": "username", "message": "Username is required"}])
 
         if source not in ["chess.com", "lichess"]:
             raise ValidationError(
@@ -2701,22 +2442,14 @@ def get_game_analysis(request, game_id):
         try:
             analysis = GameAnalysis.objects.get(game_id=game_id)
 
-            payload = (
-                analysis.analysis_data
-                if isinstance(analysis.analysis_data, dict)
-                else {}
-            )
-            feedback_payload = (
-                analysis.feedback if isinstance(analysis.feedback, dict) else {}
-            )
+            payload = analysis.analysis_data if isinstance(analysis.analysis_data, dict) else {}
+            feedback_payload = analysis.feedback if isinstance(analysis.feedback, dict) else {}
             profile = Profile.objects.filter(user=request.user).first()
             game_context = build_single_game_context(game, profile)
             coaching_payload = payload.get("coaching")
             if not isinstance(coaching_payload, dict):
                 coaching_payload = (
-                    feedback_payload.get("coaching")
-                    if isinstance(feedback_payload.get("coaching"), dict)
-                    else {}
+                    feedback_payload.get("coaching") if isinstance(feedback_payload.get("coaching"), dict) else {}
                 )
             critical_moments = payload.get("critical_moments")
             if not isinstance(critical_moments, list):
@@ -2739,9 +2472,7 @@ def get_game_analysis(request, game_id):
             except (TypeError, ValueError):
                 move_number = None
             try:
-                priority_index = (
-                    int(priority_param) if priority_param not in (None, "") else None
-                )
+                priority_index = int(priority_param) if priority_param not in (None, "") else None
             except (TypeError, ValueError):
                 priority_index = None
 
@@ -2759,19 +2490,11 @@ def get_game_analysis(request, game_id):
             training_block = feedback_payload.get("training_block")
             if not isinstance(training_block, dict):
                 training_block = (
-                    payload.get("training_block")
-                    if isinstance(payload.get("training_block"), dict)
-                    else {}
+                    payload.get("training_block") if isinstance(payload.get("training_block"), dict) else {}
                 )
 
-            streak_state = get_single_game_streak(
-                profile.preferences if profile else {}
-            )
-            inbox_streak = (
-                get_inbox_streak_payload(profile.preferences)
-                if batch_context and profile
-                else None
-            )
+            streak_state = get_single_game_streak(profile.preferences if profile else {})
+            inbox_streak = get_inbox_streak_payload(profile.preferences) if batch_context and profile else None
             response_payload = {
                 "analysis_data": payload,
                 **payload,
@@ -2786,9 +2509,7 @@ def get_game_analysis(request, game_id):
                 "rating_context": rating_context,
                 "engine_meta": {
                     "depth": getattr(analysis, "depth", 20) or 20,
-                    "classification_note": (
-                        "Single-game uses depth-20 coach model; batch report uses depth-14."
-                    ),
+                    "classification_note": ("Single-game uses depth-20 coach model; batch report uses depth-14."),
                 },
             }
             return Response(response_payload, status=status.HTTP_200_OK)
@@ -2798,20 +2519,10 @@ def get_game_analysis(request, game_id):
                 payload = game.analysis if isinstance(game.analysis, dict) else {}
                 profile = Profile.objects.filter(user=request.user).first()
                 game_context = build_single_game_context(game, profile)
-                coaching_payload = (
-                    payload.get("coaching")
-                    if isinstance(payload.get("coaching"), dict)
-                    else {}
-                )
-                critical_moments = (
-                    payload.get("critical_moments")
-                    or coaching_payload.get("critical_moments")
-                    or []
-                )
+                coaching_payload = payload.get("coaching") if isinstance(payload.get("coaching"), dict) else {}
+                critical_moments = payload.get("critical_moments") or coaching_payload.get("critical_moments") or []
                 player_rating = game_context.get("player_rating")
-                critical_moments = attach_moment_benchmarks(
-                    critical_moments, player_rating
-                )
+                critical_moments = attach_moment_benchmarks(critical_moments, player_rating)
                 if profile:
                     critical_moments = attach_timelines_to_moments(
                         profile,
@@ -2823,17 +2534,11 @@ def get_game_analysis(request, game_id):
                 move_param = request.GET.get("move")
                 priority_param = request.GET.get("priority")
                 try:
-                    move_number = (
-                        int(move_param) if move_param not in (None, "") else None
-                    )
+                    move_number = int(move_param) if move_param not in (None, "") else None
                 except (TypeError, ValueError):
                     move_number = None
                 try:
-                    priority_index = (
-                        int(priority_param)
-                        if priority_param not in (None, "")
-                        else None
-                    )
+                    priority_index = int(priority_param) if priority_param not in (None, "") else None
                 except (TypeError, ValueError):
                     priority_index = None
                 batch_context = None
@@ -2847,19 +2552,9 @@ def get_game_analysis(request, game_id):
                         single_game_moments=critical_moments,
                     )
                 legacy_feedback = payload.get("feedback", {})
-                training_block = (
-                    legacy_feedback.get("training_block")
-                    if isinstance(legacy_feedback, dict)
-                    else {}
-                )
-                streak_state = get_single_game_streak(
-                    profile.preferences if profile else {}
-                )
-                inbox_streak = (
-                    get_inbox_streak_payload(profile.preferences)
-                    if batch_context and profile
-                    else None
-                )
+                training_block = legacy_feedback.get("training_block") if isinstance(legacy_feedback, dict) else {}
+                streak_state = get_single_game_streak(profile.preferences if profile else {})
+                inbox_streak = get_inbox_streak_payload(profile.preferences) if batch_context and profile else None
                 response_payload = {
                     "analysis_data": payload,
                     **payload,
@@ -2868,17 +2563,13 @@ def get_game_analysis(request, game_id):
                     "coaching": coaching_payload,
                     "critical_moments": critical_moments,
                     "batch_context": batch_context,
-                    "training_block": (
-                        training_block if isinstance(training_block, dict) else {}
-                    ),
+                    "training_block": (training_block if isinstance(training_block, dict) else {}),
                     "single_game_streak": streak_state,
                     "inbox_streak": inbox_streak,
                     "rating_context": rating_context,
                     "engine_meta": {
                         "depth": 20,
-                        "classification_note": (
-                            "Single-game uses depth-20 coach model; batch report uses depth-14."
-                        ),
+                        "classification_note": ("Single-game uses depth-20 coach model; batch report uses depth-14."),
                     },
                 }
                 return Response(response_payload, status=status.HTTP_200_OK)
@@ -2916,9 +2607,7 @@ def create_game_moment_share(request, game_id):
         return Response({"detail": "Game not found."}, status=status.HTTP_404_NOT_FOUND)
 
     if not request.user.is_staff and game.user_id != request.user.id:
-        return Response(
-            {"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN
-        )
+        return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
 
     try:
         analysis = GameAnalysis.objects.get(game_id=game_id)
@@ -2955,9 +2644,7 @@ def public_game_moment_view(request, share_token):
     """GET /api/v1/games/public/moment/{share_token}/ — anonymous moment preview."""
     analysis = find_analysis_by_share_token(str(share_token))
     if analysis is None:
-        return Response(
-            {"detail": "Shared moment not found."}, status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"detail": "Shared moment not found."}, status=status.HTTP_404_NOT_FOUND)
 
     payload = build_public_moment_payload(analysis)
     if not payload.get("moment"):

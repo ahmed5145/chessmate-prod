@@ -26,9 +26,7 @@ def task_manager():
 
 
 @pytest.mark.django_db
-def test_abandon_stale_queued_task_clears_mapping_and_resets_game(
-    task_manager, django_user_model
-):
+def test_abandon_stale_queued_task_clears_mapping_and_resets_game(task_manager, django_user_model):
     user = django_user_model.objects.create_user(username="queue_user", password="pass")
     game = Game.objects.create(
         user=user,
@@ -37,16 +35,11 @@ def test_abandon_stale_queued_task_clears_mapping_and_resets_game(
         pgn='[Event "Test"]\n\n1. e4 e5 2. Nf3 Nc6 *\n',
         analysis_status="analyzing",
     )
-    task_id = task_manager.create_task(
-        game_id=game.id, task_type=task_manager.TYPE_ANALYSIS
-    )
+    task_id = task_manager.create_task(game_id=game.id, task_type=task_manager.TYPE_ANALYSIS)
     _age_task_in_memory(task_manager, task_id)
 
     with patch.object(task_manager, "_workers_ping", return_value=False):
-        assert (
-            task_manager._is_stale_queued_task(task_id, task_manager.tasks[task_id])
-            is True
-        )
+        assert task_manager._is_stale_queued_task(task_id, task_manager.tasks[task_id]) is True
 
     task_manager.abandon_stale_queued_task(task_id, game.id, reason="no_workers")
     game.refresh_from_db()
@@ -58,9 +51,7 @@ def test_abandon_stale_queued_task_clears_mapping_and_resets_game(
 
 def test_get_active_tasks_for_game_drops_stale_pending(task_manager):
     game_id = 173
-    task_id = task_manager.create_task(
-        game_id=game_id, task_type=task_manager.TYPE_ANALYSIS
-    )
+    task_id = task_manager.create_task(game_id=game_id, task_type=task_manager.TYPE_ANALYSIS)
     _age_task_in_memory(task_manager, task_id)
 
     with patch.object(task_manager, "_workers_ping", return_value=False), patch.object(
@@ -75,9 +66,7 @@ def test_get_active_tasks_for_game_drops_stale_pending(task_manager):
 
 def test_get_task_status_reports_queue_wait_when_worker_busy(task_manager):
     game_id = 55
-    task_id = task_manager.create_task(
-        game_id=game_id, task_type=task_manager.TYPE_ANALYSIS
-    )
+    task_id = task_manager.create_task(game_id=game_id, task_type=task_manager.TYPE_ANALYSIS)
 
     with patch.object(task_manager, "_workers_busy_elsewhere", return_value=True):
         status = task_manager.get_task_status(game_id=game_id)
@@ -101,9 +90,7 @@ def test_release_analysis_queue_endpoint(authenticated_client, test_user):
     manager.create_task(game_id=game.id, task_type=manager.TYPE_ANALYSIS)
 
     with patch("core.game_views.task_manager", manager):
-        response = authenticated_client.post(
-            f"/api/v1/games/{game.id}/release-analysis/"
-        )
+        response = authenticated_client.post(f"/api/v1/games/{game.id}/release-analysis/")
 
     assert response.status_code == 200
     assert response.json()["status"] == "released"

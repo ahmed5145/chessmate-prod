@@ -123,9 +123,7 @@ def resolve_rating_band(player_rating: Optional[int]) -> Optional[Dict[str, Any]
 OPENING_MOVE_CUTOFF = 12
 
 
-_TACTICAL_THEME_KEYS = frozenset(
-    {"fork", "hanging_piece", "pin", "skewer", "missed_tactic", "tactical_oversight"}
-)
+_TACTICAL_THEME_KEYS = frozenset({"fork", "hanging_piece", "pin", "skewer", "missed_tactic", "tactical_oversight"})
 
 
 def normalize_moment_benchmark_theme(
@@ -144,10 +142,7 @@ def normalize_moment_benchmark_theme(
         return "endgame_technique"
 
     if not moment_type:
-        if (
-            tactical_theme
-            and str(tactical_theme).lower().replace(" ", "_") in _TACTICAL_THEME_KEYS
-        ):
+        if tactical_theme and str(tactical_theme).lower().replace(" ", "_") in _TACTICAL_THEME_KEYS:
             return str(tactical_theme).lower().replace(" ", "_")
         return None
 
@@ -174,23 +169,11 @@ def normalize_moment_benchmark_theme(
     except (TypeError, ValueError):
         move_no = None
 
-    if (
-        normalized == "inaccuracy"
-        and move_no is not None
-        and move_no > OPENING_MOVE_CUTOFF
-    ):
+    if normalized == "inaccuracy" and move_no is not None and move_no > OPENING_MOVE_CUTOFF:
         return "positional_slip"
-    if (
-        normalized in {"opening_inaccuracy"}
-        and move_no is not None
-        and move_no > OPENING_MOVE_CUTOFF
-    ):
+    if normalized in {"opening_inaccuracy"} and move_no is not None and move_no > OPENING_MOVE_CUTOFF:
         return "positional_slip"
-    if (
-        normalized == "inaccuracy"
-        and move_no is not None
-        and move_no <= OPENING_MOVE_CUTOFF
-    ):
+    if normalized == "inaccuracy" and move_no is not None and move_no <= OPENING_MOVE_CUTOFF:
         return "opening_inaccuracy"
 
     return theme
@@ -339,25 +322,17 @@ def _tailor_band_advice(
         eg = endgame_insights[0] if endgame_insights else {}
         label = eg.get("label") or eg.get("endgame_type") or "endgame"
         label_text = str(label).replace("_", " ")
-        tailored["focus"] = (
-            f"Endgame technique cost you eval — focus on {label_text} positions from this batch."
-        )
+        tailored["focus"] = f"Endgame technique cost you eval — focus on {label_text} positions from this batch."
         study = eg.get("study_focus")
         if study:
-            tailored["daily_drill"] = (
-                f"{study} Replay one endgame critical moment from the report."
-            )
+            tailored["daily_drill"] = f"{study} Replay one endgame critical moment from the report."
         else:
             tailored["daily_drill"] = (
                 f"Practice {label_text} on Lichess, then replay one endgame turning point from this batch."
             )
         return tailored
 
-    if (
-        worst_phase
-        and worst_phase != "endgame"
-        and "endgame" in tailored.get("focus", "").lower()
-    ):
+    if worst_phase and worst_phase != "endgame" and "endgame" in tailored.get("focus", "").lower():
         tailored["focus"] = tailored["focus"].replace(
             "punish imprecise endgames and repeat opening prep gaps",
             "tighten your weakest phase from this batch before adding new study topics",
@@ -367,11 +342,7 @@ def _tailor_band_advice(
                 "Review your top 3 critical moments from this batch, then drill the pattern named in Top priorities."
             )
 
-    if (
-        best_phase == "opening"
-        and not has_endgame_data
-        and "endgame" in tailored.get("daily_drill", "").lower()
-    ):
+    if best_phase == "opening" and not has_endgame_data and "endgame" in tailored.get("daily_drill", "").lower():
         tailored["daily_drill"] = (
             "Deepen theory on your strongest opening line from Opening matchups, "
             "then replay one middlegame turning point from the batch."

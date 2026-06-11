@@ -24,10 +24,7 @@ def test_rating_band_tailors_to_opening_weakness():
         repertoire_gaps=[{"opening_name": "Sicilian Defense"}],
     )
     assert "opening" in result["focus"].lower()
-    assert (
-        "endgame" not in result["daily_drill"].lower()
-        or "opening" in result["daily_drill"].lower()
-    )
+    assert "endgame" not in result["daily_drill"].lower() or "opening" in result["daily_drill"].lower()
 
 
 def test_rating_band_tailors_to_endgame_when_data_exists():
@@ -101,9 +98,7 @@ def test_moment_benchmark_uses_tactical_theme_when_present():
 def test_moment_benchmark_splits_by_eval_swing():
     big = single_game_moment_benchmark(2100, "blunder", move_number=28, eval_swing=4.06)
     mid = single_game_moment_benchmark(2100, "blunder", move_number=22, eval_swing=2.1)
-    small = single_game_moment_benchmark(
-        2100, "blunder", move_number=18, eval_swing=1.03
-    )
+    small = single_game_moment_benchmark(2100, "blunder", move_number=18, eval_swing=1.03)
     assert big["moment_theme"] == "tactical_oversight"
     assert mid["moment_theme"] == "mistake_tactic"
     assert small["moment_theme"] == "positional_slip"
@@ -120,6 +115,4 @@ def test_attach_moment_benchmarks_passes_tactical_theme():
     )
     assert moments[0]["rating_benchmark"]["moment_theme"] == "hanging_piece"
     assert moments[1]["rating_benchmark"]["moment_theme"] == "mistake_tactic"
-    assert (
-        moments[0]["rating_benchmark"]["copy"] != moments[1]["rating_benchmark"]["copy"]
-    )
+    assert moments[0]["rating_benchmark"]["copy"] != moments[1]["rating_benchmark"]["copy"]

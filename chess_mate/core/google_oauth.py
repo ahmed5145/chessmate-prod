@@ -237,11 +237,7 @@ def upsert_user_from_google(
         profile = getattr(user, "profile", None)
         if profile is None:
             profile, _ = Profile.objects.get_or_create(user=user, defaults=profile_creation_defaults())
-        conflict = (
-            Profile.objects.filter(preferences__google_oauth_sub=google_sub)
-            .exclude(user=user)
-            .exists()
-        )
+        conflict = Profile.objects.filter(preferences__google_oauth_sub=google_sub).exclude(user=user).exists()
         if conflict:
             raise GoogleOAuthError(
                 "google_account_linked_elsewhere",
