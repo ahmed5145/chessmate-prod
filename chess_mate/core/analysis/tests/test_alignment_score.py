@@ -49,3 +49,22 @@ def test_returns_none_without_moments():
         )
         is None
     )
+
+
+def test_infers_phase_from_move_number_when_missing():
+    """Depth-20 critical moments often omit phase — alignment must still compute."""
+    score = compute_coach_alignment_score(
+        priority={"title": "Review Opening Repertoire"},
+        batch_worst_phase="middlegame",
+        single_game_moments=[
+            {"move_number": 4, "type": "mistake"},
+            {"move_number": 6, "type": "blunder"},
+            {"move_number": 7, "type": "mistake"},
+        ],
+    )
+
+    assert score is not None
+    assert score["target_phase"] == "opening"
+    assert score["confirmed_moments"] == 3
+    assert score["relevant_moments"] == 3
+    assert score["alignment_pct"] == 100

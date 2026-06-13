@@ -10,6 +10,7 @@ import { scrollToBatchSection, useBatchReportSectionSpy } from '../../utils/batc
 export const BATCH_REPORT_SECTIONS = [
   { id: 'batch-section-summary', label: 'Executive summary' },
   { id: 'batch-section-priorities', label: 'Top priorities' },
+  { id: 'batch-section-compare', label: 'Compared to last batch' },
   { id: 'batch-section-phases', label: 'Phase breakdown' },
   { id: 'batch-section-time-management', label: 'Time management' },
   { id: 'batch-section-coaching-insights', label: 'Coaching insights' },
@@ -57,6 +58,9 @@ export const buildBatchReportTocSections = (
   }
   if (!showStudyDrills || !hasStudyDrillsSection(batchReport)) {
     sections = sections.filter((section) => section.id !== 'batch-section-drills');
+  }
+  if (!batchReport?.moment_diff?.show || !(batchReport.moment_diff.rows || []).length) {
+    sections = sections.filter((section) => section.id !== 'batch-section-compare');
   }
   return sections;
 };

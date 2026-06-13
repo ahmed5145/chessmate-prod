@@ -1026,7 +1026,11 @@ export const getBatchReport = async (batchId) => {
             updated_at,
             message,
             credits_refunded,
-            credits_refunded_amount
+            credits_refunded_amount,
+            fix_rate = null,
+            moment_diff = null,
+            first_batch_celebration = null,
+            share_token = null,
         } = response.data;
 
         // Return full structure with all fields present
@@ -1044,7 +1048,11 @@ export const getBatchReport = async (batchId) => {
             updated_at,
             message, // included for error cases
             credits_refunded: Boolean(credits_refunded),
-            credits_refunded_amount: credits_refunded_amount ?? null
+            credits_refunded_amount: credits_refunded_amount ?? null,
+            fix_rate,
+            moment_diff,
+            first_batch_celebration,
+            share_token,
         };
     } catch (error) {
         console.error('Error fetching batch report:', error);

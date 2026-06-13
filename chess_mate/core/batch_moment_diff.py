@@ -158,8 +158,6 @@ def build_batch_moment_diff(
                 "swing_delta": None,
                 "proof_game_id": _proof_game_id(current, label, prefer_absent=False),
                 "sparkline": _build_sparkline(profile, signature, None, current_swing),
-                "proof_game_id": _proof_game_id(current, label, prefer_absent=False),
-                "sparkline": _build_sparkline(profile, signature, None, current_swing),
             }
         )
 

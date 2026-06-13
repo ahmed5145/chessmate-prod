@@ -99,6 +99,7 @@ const FixRateCard = ({ fixRate, batchId = null, compact = false, variant = 'mui'
   return (
     <Paper
       variant="outlined"
+      aria-label="Pattern fix rate"
       sx={{
         p: compact ? 1.5 : 2,
         mb: compact ? 0 : 2,

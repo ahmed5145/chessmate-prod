@@ -1086,8 +1086,8 @@ Run only if these failed in prod or after deploy:
 
 - [x] **SRG-9/19** Inbox row shows **proof label** (`Your game vs Opponent · move N · Opening`). *(prod 2026-06-11)*
 - [x] **SRG-9** Open item → `/game/:id/analysis?mode=review&batch=&priority=&move=` when linked. *(prod — game 169)*
-- [ ] **SRG-11** Alignment % badge + tooltip in indigo **From your Batch Coach report** banner (above report cards). *(See **How to check SRG-11** below — single-game from inbox, not batch report page.)*
-- [x] **SRG-16** Streak chip on **Dashboard → Coach inbox** header: day 1 = progress label; day 2+ = 🔥 badge. *(prod 2026-06-13 — Day 1 chip visible)*
+- [x] **SRG-16** Streak chip on **Dashboard → Coach inbox** header *(prod 2026-06-13)*
+- [ ] **SRG-11** Alignment % in indigo banner on **finished** batch-linked single-game *(re-test after deploy)*
 - [x] **SRG-9** **Mark reviewed** on batch banner → return **Dashboard** → inbox count decreased; persists on reload. *(prod 2026-06-11)*
 - [x] **SRG-0** Proof link with `batch=` starts **free** depth-20 drill-down when no cached report (no credit). *(games 169, 171 — prod 2026-06-11)*
 
@@ -1124,14 +1124,16 @@ Run only if these failed in prod or after deploy:
 
 **Step 3 — Batch report widgets**
 
-7. **SRG-17 (batch report):** Near top, same **Pattern fix rate** headline as dashboard.  
-   - **Pass:** dashboard headline **matches** batch report headline (same counts/wording).
+7. **SRG-17 (batch report):** Scroll just below the hero — green **Pattern fix rate** card (headline e.g. “You fixed 3/4 patterns from your June batch”). **Not** labeled “fix rate” in UI — same text as dashboard.  
+   - **Pass:** dashboard headline **matches** batch report headline.  
+   - **Bug fixed 2026-06-13:** `getBatchReport()` was dropping `fix_rate` from API — card never rendered on batch page.
 8. **SRG-10:** In **Recurring patterns** or **Top critical moments**, look for “appeared in **N batches**” / sparkline under a pattern.  
    - **Pass:** count ≥2 when you have ≥2 batches.  
    - **Skip note:** hidden with only one batch.
-9. **SRG-20:** Section titled **Compared to last batch** (pattern swing vs previous batch).  
+9. **SRG-20:** After **Top priorities**, section **Compared to last batch** (sidebar TOC when present).  
    - **Pass:** visible on 2nd+ batch with resolved/unchanged/new counts.  
-   - **Skip note:** hidden on first batch only.
+   - **Skip note:** hidden on first batch only.  
+   - **Bug fixed 2026-06-13:** `getBatchReport()` was dropping `moment_diff` — section never rendered.
 10. **SRG-21:** Scroll to **Openings** / opening gaps.  
     - **Pass:** copy like “You lost N games” (or `loss_copy`) plus per-loss **Review in ChessMate** links.  
     - Click one link → single-game `mode=review` opens.
@@ -1140,12 +1142,27 @@ Run only if these failed in prod or after deploy:
 
 **Checklist (tick as you go)**
 
-- [ ] **SRG-17** Fix-rate on dashboard (needs ≥2 batches; skip note if only one).
-- [ ] **SRG-18** Phase heatmap → click highlighted cell → opens `mode=review`.
-- [ ] **SRG-10** Moment timeline on batch report (≥2 batches for count).
-- [ ] **SRG-20** Compared-to-last-batch section (hidden on first batch).
-- [ ] **SRG-21** Opening gap → “You lost N games” + review links per loss.
-- [ ] **SRG-17** Fix-rate headline on batch report matches dashboard.
+- [x] **SRG-17** Fix-rate on dashboard *(prod 2026-06-13 — “You fixed 3/4 patterns…”)*
+- [x] **SRG-18** Phase heatmap → click highlighted cell → opens `mode=review` *(prod 2026-06-13)*
+- [x] **SRG-10** Moment timeline on batch report *(prod 2026-06-13)*
+- [ ] **SRG-20** Compared-to-last-batch on batch report *(re-test after deploy — was dropped by frontend API client)*
+- [x] **SRG-21** Opening gap → “You lost N games” + review links *(prod 2026-06-13 — Mieses A00)*
+- [ ] **SRG-17** Fix-rate headline on batch report matches dashboard *(re-test after deploy)*
+- [ ] **SRG-11** Alignment chip on batch-linked single-game *(re-test after deploy — phase inference fix)*
+
+---
+
+### 7.3 Prod smoke log (2026-06-13) — Part 3
+
+| Area | Result | Notes |
+|------|--------|-------|
+| SRG-17 dashboard | Pass | “You fixed 3/4 patterns from your June batch” |
+| SRG-18 heatmap | Pass | “Shaky endgame even in wins” link → single-game analysis |
+| SRG-10 timeline | Pass | “appeared in N batches” on batch report |
+| SRG-21 opening gaps | Pass | Mieses A00 · “You lost 1 game in this line” |
+| SRG-17 batch report | Fail → fixed | Same fix-rate card as dashboard but `getBatchReport` stripped `fix_rate` |
+| SRG-20 compare | Fail → fixed | `moment_diff` stripped by same client bug |
+| SRG-11 alignment | Fail → fixed | Banner rendered; no `% aligned` — moments lacked `phase` field |
 
 ---
 
@@ -1161,7 +1178,7 @@ Run only if these failed in prod or after deploy:
 4. Find the **indigo** box: **From your Batch Coach report**.
 5. **Pass:** inside that box, a chip like **`72% aligned`** + one-line headline; hover for tooltip; optional amber mismatch note if batch phase ≠ game swing.
 
-If the indigo banner shows but **no** `% aligned` chip, note batch id + game id — alignment only renders when `batch_context.coach_alignment` is present.
+If the indigo banner shows but **no** `% aligned` chip, note batch id + game id — alignment only renders when `batch_context.coach_alignment` is present. **Bug fixed 2026-06-13:** depth-20 `critical_moments` omitted `phase`; alignment now infers phase from move number.
 
 ---
 
@@ -1337,6 +1354,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-09 | Prod smoke §7.1: Part 0/1 largely pass; fixes for loading bar, accuracy, inbox proof links, coach home; SRG-16 clarified |
 | 2026-06-11 | Prod smoke §7.2: Smoke 2 Part 2 pass; Smoke 1 core pass; SRG-11 banner vs cards clarified; phase snapshot fix shipped |
 | 2026-06-13 | Prod: SRG-16 day-1 chip pass; phase snapshot match pass; CI apt Microsoft mirror flake fix |
+| 2026-06-13 | Prod §7.3 Part 3: SRG-17/18/10/21 pass; SRG-11/17/20 bugs fixed (`getBatchReport` + alignment phase inference) |
 
 ---
 

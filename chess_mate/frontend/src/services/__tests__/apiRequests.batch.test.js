@@ -131,6 +131,26 @@ describe('apiRequests batch API', () => {
         credits_refunded_amount: 2,
       });
     });
+
+    it('passes through fix_rate, moment_diff, and celebration payloads', async () => {
+      api.get.mockResolvedValue({
+        data: {
+          id: 'report-2',
+          status: 'completed',
+          fix_rate: { show: true, headline: 'You fixed 2/3 patterns' },
+          moment_diff: { show: true, rows: [{ signature: 'a', label: 'tactic' }] },
+          first_batch_celebration: { show: false },
+          share_token: 'abc123',
+        },
+      });
+
+      const result = await getBatchReport('report-2');
+
+      expect(result.fix_rate).toEqual({ show: true, headline: 'You fixed 2/3 patterns' });
+      expect(result.moment_diff.rows).toHaveLength(1);
+      expect(result.first_batch_celebration).toEqual({ show: false });
+      expect(result.share_token).toBe('abc123');
+    });
   });
 
   describe('fetchBatchReportHistory', () => {

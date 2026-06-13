@@ -42,6 +42,38 @@ def _moment_phase(moment: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _infer_phase_from_move_number(move_number: Any, max_move: int) -> Optional[str]:
+    """Infer game phase when depth-20 moments omit phase (common in production)."""
+    try:
+        move_no = int(move_number)
+    except (TypeError, ValueError):
+        return None
+    total = max(max_move, move_no, 1)
+    opening_cutoff = max(8, total // 3)
+    endgame_start = max(opening_cutoff + 1, total - max(8, total // 3))
+    if move_no < opening_cutoff:
+        return "opening"
+    if move_no >= endgame_start:
+        return "endgame"
+    return "middlegame"
+
+
+def _moments_with_phase(single_game_moments: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    raw = [moment for moment in (single_game_moments or []) if isinstance(moment, dict)]
+    if not raw:
+        return []
+    max_move = max((int(moment.get("move_number") or 0) for moment in raw), default=0)
+    enriched: List[Dict[str, Any]] = []
+    for moment in raw:
+        phase = _moment_phase(moment) or _infer_phase_from_move_number(moment.get("move_number"), max_move)
+        if not phase:
+            continue
+        row = dict(moment)
+        row["phase"] = phase
+        enriched.append(row)
+    return enriched
+
+
 def _alignment_tier(pct: int) -> str:
     if pct >= 75:
         return "high"
@@ -61,7 +93,7 @@ def compute_coach_alignment_score(
 
     alignment = moments in batch target phase / all single-game critical moments
     """
-    moments = [moment for moment in (single_game_moments or []) if isinstance(moment, dict) and _moment_phase(moment)]
+    moments = _moments_with_phase(single_game_moments)
     if not moments:
         return None
 
