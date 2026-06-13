@@ -593,7 +593,7 @@ flowchart LR
 
 - [x] Batches with moments produce ≥1 linked proof game (`test_proof_games_inbox.py`).
 - [x] Proof labels on inbox rows (`test_proof_games_inbox.py`, `CoachInboxCard.test.js`).
-- [ ] Proof link opens `mode=review` without credit *(Smoke 2 Part 2 — pass: games 169 & 171 free drill-down when uncached)*
+- [x] Proof link opens `mode=review` without credit *(Smoke 2 Part 2 — pass: games 169 & 171 free drill-down when uncached)*
 
 **Primary files:** `priority_inbox.py`, `single_game_context.py`, batch chord callback
 
@@ -1155,7 +1155,7 @@ Time-dependent — verify in staging when SMTP or calendar manipulation availabl
 | SRG-16 inbox streak | Clarified | Requires **Mark reviewed** on consecutive **calendar** days; day 1 shows progress chip + hint |
 | Console noise | Ignore | Browser extensions (`inject.bundle.js`, `content-script.js`) — not app bugs |
 
-**Still to verify after deploy:** SRG-11 alignment chip in batch banner; SRG-16 day-1 chip visibility; Part 3–5.
+**Still to verify after deploy:** PhaseStrip single-game fix; SRG-11 alignment chip in batch banner; SRG-16 day-1 chip on dashboard inbox header; Part 3–5.
 
 **Batch proof game UX (SRG-0 + SRG-9):** When `mode=review&batch=` and no saved depth-20 report exists, UI explains that this is normal for proof links, starts a **free** one-time depth-20 run, and notes that revisits are instant.
 
@@ -1172,7 +1172,7 @@ Time-dependent — verify in staging when SMTP or calendar manipulation availabl
 | Mark reviewed | Pass | `POST /api/v1/batches/inbox/review/`; inbox pending −1 after dashboard return + reload |
 | One thing drill game 171 | Pass | Same free batch drill-down pattern |
 | SRG-11 alignment UI | Partial | User reviewed **insight cards** (Your accuracy / Turning point / Opening). **SRG-11 chip** lives in indigo **From your Batch Coach report** banner at top — re-check after report load |
-| Phase accuracy mismatch | Bug | Insight card “46.7% middlegame” vs phase snapshot “51%” — snapshot was showing **batch** phase averages; fix: prefer single-game phases in `PhaseStrip.js` |
+| Phase accuracy mismatch | Fixed (pending deploy) | Insight card “46.7% middlegame” vs phase snapshot “51%” — snapshot was showing **batch** averages; `PhaseStrip.js` now prefers single-game `phases` |
 | SRG-16 day 1 | Partial | First mark reviewed today; 🔥 badge correctly hidden until day 2. **Day 1 progress** chip should appear on **Dashboard → Coach inbox** title row (small gray chip), not on report page |
 | Smoke 1 SRG-0/1/6/22 | Pass | View report no POST analyze; re-run credit; completion email; checklist; welcome mail |
 | Smoke 1 SRG-0 flash | OK | Sub-second progress bar on cached view report — acceptable |
