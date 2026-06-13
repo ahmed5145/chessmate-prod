@@ -7,24 +7,18 @@ This is a minimal configuration for testing purposes.
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin  # type: ignore
-from django.http import HttpRequest, JsonResponse
 from django.shortcuts import render
 from django.urls import include, path  # type: ignore
-from django.views.generic import RedirectView
 
 # Import directly from the package-qualified core module with appropriate error handling
 try:
-    # Import the views directly from the core module
+    from chess_mate.core.share_preview import share_game_moment_page
     from chess_mate.core.views import health_check as health_check_view
     from chess_mate.core.views import readiness_check as readiness_check_view
 except ImportError:
-    # For testing purposes, define stub views if the real ones aren't available
-    # Use explicit typing to avoid incompatible redefinition errors
-    def health_check_view(_request: HttpRequest) -> JsonResponse:  # type: ignore
-        return JsonResponse({"status": "ok"})
-
-    def readiness_check_view(_request: HttpRequest) -> JsonResponse:  # type: ignore
-        return JsonResponse({"status": "ready"})
+    from core.share_preview import share_game_moment_page
+    from core.views import health_check as health_check_view
+    from core.views import readiness_check as readiness_check_view
 
 
 urlpatterns = [
@@ -33,6 +27,17 @@ urlpatterns = [
     # Health check endpoints at root level for load balancers and monitoring
     path("health/", health_check_view, name="health-check"),
     path("readiness/", readiness_check_view, name="readiness-check"),
+    # Public share pages — server-rendered OG tags for social crawlers
+    path(
+        "share/game-moment/<uuid:share_token>",
+        share_game_moment_page,
+        name="share-game-moment-page",
+    ),
+    path(
+        "share/game-moment/<uuid:share_token>/",
+        share_game_moment_page,
+        name="share-game-moment-page-slash",
+    ),
     # Admin and API endpoints
     path("admin/", admin.site.urls),
     path("api/v1/", include("chess_mate.core.urls")),

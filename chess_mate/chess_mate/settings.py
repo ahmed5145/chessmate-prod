@@ -140,7 +140,7 @@ MIDDLEWARE = [
     "core.cache_middleware.CacheInvalidationMiddleware",  # Cache invalidation middleware
 ]
 
-ROOT_URLCONF = "chess_mate.chess_mate.urls"
+ROOT_URLCONF = "chess_mate.urls"
 
 TEMPLATES = [
     {
