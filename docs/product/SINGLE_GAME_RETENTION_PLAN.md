@@ -1178,9 +1178,11 @@ Run only if these failed in prod or after deploy:
 | SRG-24 referral credits | Pass | B started with **15** credits (`SIGNUP_BONUS_CREDITS`); after first batch A **+5**, B **+5** |
 | SRG-28 desktop | Pass | No install banner on dashboard or batch report |
 | SRG-28 mobile | Pass (icon fix shipped) | Bottom hint once; dismiss → no repeat; iOS hint is instructions-only (not a button); home-screen icon was React logo — regenerated from ChessMate favicon |
-| SRG-29 share OG | Fail → fix shipped | Discord/opengraph saw generic `Chess Mate` — crawlers don't run React; server-rendered OG page + nginx proxy added (re-test after deploy) |
+| SRG-29 share OG | Pass with trailing slash; no-slash fix shipped | Crawlers need Django route — URL **without** `/` fell through to bare SPA HTML; **with** `/` OG works today |
 
-**Re-test after deploy:** paste `https://www.chess-mate.online/share/game-moment/<token>` into [opengraph.xyz](https://www.opengraph.xyz) — expect `og:title` with moment takeaway, `og:description`, `og:site_name`, `og:image`.
+**Immediate re-test (no deploy):** paste  
+`https://www.chess-mate.online/share/game-moment/bf7922c7-18c2-410e-985d-2dbdd4ec3702/`  
+(note trailing `/`) into opengraph.xyz.
 
 ---
 
@@ -1259,7 +1261,7 @@ If the indigo banner shows but **no** `% aligned` chip, note batch id + game id 
 - [x] **SRG-24** Account B via A’s link → first batch → A **+5**, B **+5** *(15 signup bonus + 5 referral = 20 for B)*
 - [x] **SRG-28** **Desktop:** no PWA banner on dashboard or batch report.
 - [x] **SRG-28** **Mobile:** install hint once after batch; dismiss → no repeat 30 days.
-- [ ] **SRG-29** Share moment URL → rich OG preview *(failed pre-deploy — server OG fix shipped; re-test after deploy)*
+- [x] **SRG-29** Share moment URL → rich OG preview *(works with trailing `/`; no-slash route fix shipped)*
 
 ---
 

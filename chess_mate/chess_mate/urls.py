@@ -118,9 +118,14 @@ urlpatterns = [
         name="batch-legacy-task-redirect",
     ),
     path(
-        "share/game-moment/<uuid:share_token>/",
+        "share/game-moment/<uuid:share_token>",
         share_game_moment_page,
         name="share-game-moment-page",
+    ),
+    path(
+        "share/game-moment/<uuid:share_token>/",
+        share_game_moment_page,
+        name="share-game-moment-page-slash",
     ),
     # React SPA (must be last; excludes api/admin/health/static/media)
     re_path(

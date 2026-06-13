@@ -74,3 +74,23 @@ def test_share_game_moment_page_injects_og_tags(rf, test_user, test_game):
     assert 'property="og:image"' in html_doc
     assert 'name="twitter:card"' in html_doc
     assert 'content="summary_large_image"' in html_doc
+
+
+@pytest.mark.django_db
+def test_share_game_moment_url_with_and_without_trailing_slash(client, test_game):
+    analysis = GameAnalysis.objects.create(
+        game=test_game,
+        analysis_data={
+            "critical_moments": [{"move_number": 12, "eval_swing": 1.8}],
+            "coaching": {"takeaway": "You lost the center on move 12"},
+        },
+        feedback={},
+        depth=20,
+    )
+    token = get_or_create_moment_share(analysis, move_number=12)["token"]
+
+    for path in (f"/share/game-moment/{token}", f"/share/game-moment/{token}/"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert 'property="og:title"' in response.content.decode()
+        assert "You lost the center on move 12" in response.content.decode()
