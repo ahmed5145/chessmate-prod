@@ -79,12 +79,16 @@ const ReportInsightCards = ({
       {inboxStreak?.show ? (
         <p
           className={`mb-4 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium ${
-            isDarkMode
-              ? 'bg-orange-950/30 border-orange-800/50 text-orange-200'
-              : 'bg-orange-50 border-orange-200 text-orange-900'
+            inboxStreak.show_badge
+              ? (isDarkMode
+                ? 'bg-orange-950/30 border-orange-800/50 text-orange-200'
+                : 'bg-orange-50 border-orange-200 text-orange-900')
+              : (isDarkMode
+                ? 'bg-gray-800 border-gray-600 text-gray-300'
+                : 'bg-gray-100 border-gray-300 text-gray-700')
           }`}
         >
-          <span aria-hidden="true">🔥</span>
+          {inboxStreak.show_badge ? <span aria-hidden="true">🔥</span> : null}
           <span>{inboxStreak.label}</span>
           {inboxStreak.milestone_message ? (
             <span className={`font-normal ${isDarkMode ? 'text-orange-200/80' : 'text-orange-800/80'}`}>

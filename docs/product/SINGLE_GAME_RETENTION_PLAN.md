@@ -151,8 +151,8 @@ flowchart LR
 
 - [x] Games row “View report” never calls `POST /analyze/` (`Games.test.js`).
 - [x] Cached analyze path returns without credit charge (`test_single_game_analysis_cache.py`, `test_single_game_credits.py`).
-- [ ] Opening `/game/:id/analysis` for complete game — **no** progress bar / credit confirm *(Smoke 1)*.
-- [ ] Re-run costs 1 credit with confirm dialog *(Smoke 1)*.
+- [x] Opening `/game/:id/analysis` for complete game — **no** progress bar / credit confirm *(Smoke 1 — prod 2026-06-11; brief flash only)*.
+- [x] Re-run costs 1 credit with confirm dialog *(Smoke 1 — prod 2026-06-11)*.
 - [x] Automated tests: `SingleGameAnalysis.test.js`, `Games.test.js`, `test_game_views.py` (see §8).
 
 **Primary files:** `SingleGameAnalysis.js`, `Games.js`, `gameAnalysisService.js`, `game_views.py`, `game_analyzer.py`, `single_game_credits.py`
@@ -300,7 +300,7 @@ flowchart LR
 **Acceptance criteria**
 
 - [x] Checkboxes persist across refresh (`singleGameDrillChecklist.test.js`, `DrillChecklistSection.test.js`).
-- [ ] New re-run resets checklist *(Smoke 1 — manual re-run flow)*.
+- [ ] New re-run resets checklist *(Smoke 1 — manual re-run flow; not re-tested 2026-06-11)*.
 
 **Primary files:** new `DrillChecklistSection.js`, `SingleGameReport.js`
 
@@ -345,7 +345,7 @@ flowchart LR
 - [x] New batch creates inbox items; older batch items archived (`test_priority_inbox.py`).
 - [x] Reviewing linked moment marks item reviewed without extra credit (`test_priority_inbox.py`, `BatchContextBanner.test.js`).
 - [x] Inbox empty state points to Start Batch Coach (`CoachInboxCard.test.js`).
-- [ ] End-to-end inbox → proof game → mark reviewed *(Smoke 2, Part 2)*.
+- [x] End-to-end inbox → proof game → mark reviewed *(Smoke 2 Part 2 — prod 2026-06-11)*.
 
 **Primary files:** new `priority_inbox.py` service, `Dashboard.js`, `BatchContextBanner.js`, `SingleGameReport.js`, batch completion task in `tasks.py`
 
@@ -391,7 +391,7 @@ flowchart LR
 **Acceptance criteria**
 
 - [x] Score only shown when `batch_context` exists (`test_alignment_score.py`, `BatchContextBanner.test.js`).
-- [ ] Tooltip + mismatch copy readable in UI *(Smoke 2, Part 2)*.
+- [ ] Tooltip + mismatch copy readable in UI *(Smoke 2 Part 2 — re-check indigo **From your Batch Coach report** banner for `N% aligned` chip; user saw insight cards / phase copy instead)*
 
 **Primary files:** `single_game_context.py`, `SingleGameReport.js` or `BatchContextBanner.js`
 
@@ -527,7 +527,7 @@ flowchart LR
 - [x] Streak increments once per calendar day max (`test_inbox_streak.py`, `InboxStreak.test.js`).
 - [x] Day 1 shows progress label; hint when not started (`InboxStreak.test.js`, `inbox_streak.py`).
 - [x] Full 🔥 badge when streak ≥ 2 consecutive **Mark reviewed** days (`InboxStreak.test.js`).
-- [ ] Two consecutive review days visible on dashboard *(Smoke 2, Part 2 — re-test after deploy)*.
+- [ ] Two consecutive review days visible on dashboard *(Smoke 2 Part 2 — day 1 only; look for **Day 1 — mark a priority tomorrow…** chip on **Coach inbox** card header after reload; 🔥 badge requires day 2)*
 
 **Primary files:** SRG-9 service, `Dashboard.js`, `ReportInsightCards.js`
 
@@ -593,7 +593,7 @@ flowchart LR
 
 - [x] Batches with moments produce ≥1 linked proof game (`test_proof_games_inbox.py`).
 - [x] Proof labels on inbox rows (`test_proof_games_inbox.py`, `CoachInboxCard.test.js`).
-- [ ] Proof link opens `mode=review` without credit *(Smoke 2, Part 2)*.
+- [ ] Proof link opens `mode=review` without credit *(Smoke 2 Part 2 — pass: games 169 & 171 free drill-down when uncached)*
 
 **Primary files:** `priority_inbox.py`, `single_game_context.py`, batch chord callback
 
@@ -1018,21 +1018,23 @@ flowchart TD
 
 **Prep:** Test user with ≥10 credits, ≥1 analyzed game, ≥1 unanalyzed game, SMTP or mail catcher enabled.
 
-- [ ] **SRG-0** Games → analyzed row → **View report** → report loads in &lt;3s, **no** progress bar, **no** credit dialog.
-- [ ] **SRG-0** DevTools Network: **View report** path has **no** `POST .../analyze/`.
-- [ ] **SRG-0** Open same URL again → still free; credits unchanged.
-- [ ] **SRG-0** **Re-run (1 credit)** → confirm → analysis runs; credits −1.
-- [ ] **SRG-8** Single-game report → **no** Print button; no `window.print` in console.
-- [ ] **SRG-0** **Copy link** → URL contains `mode=review`.
-- [ ] **SRG-1** Run **new** deep review on unanalyzed game → within 5 min receive email (or mail catcher).
-- [ ] **SRG-1** Email subject = coaching **headline** or `Move N swung your game` fallback.
-- [ ] **SRG-1** **Jump to move** CTA → `/game/:id/analysis?mode=review&move=N` opens at moment, **0** credit.
-- [ ] **SRG-1** **View report** on cached game → **no** second completion email.
-- [ ] **SRG-22** New signup → confirmation mail; after verify → exactly one welcome mail.
+**Prod pass (2026-06-11):** SRG-0 view report (no POST analyze), re-run credit, SRG-1 email, SRG-6 checklist, SRG-22 signup mail. Brief progress flash on cached view report acceptable.
+
+- [x] **SRG-0** Games → analyzed row → **View report** → report loads in &lt;3s, **no** progress bar, **no** credit dialog. *(brief flash OK — prod 2026-06-11)*
+- [x] **SRG-0** DevTools Network: **View report** path has **no** `POST .../analyze/`. *(GET analysis only — prod 2026-06-11)*
+- [ ] **SRG-0** Open same URL again → still free; credits unchanged. *(not explicitly re-tested 2026-06-11)*
+- [x] **SRG-0** **Re-run (1 credit)** → confirm → analysis runs; credits −1. *(prod 2026-06-11)*
+- [ ] **SRG-8** Single-game report → **no** Print button; no `window.print` in console. *(not re-tested 2026-06-11; automated tests cover)*
+- [ ] **SRG-0** **Copy link** → URL contains `mode=review`. *(not re-tested 2026-06-11)*
+- [x] **SRG-1** Run **new** deep review on unanalyzed game → within 5 min receive email (or mail catcher). *(prod 2026-06-11)*
+- [ ] **SRG-1** Email subject = coaching **headline** or `Move N swung your game` fallback. *(not verified subject line 2026-06-11)*
+- [ ] **SRG-1** **Jump to move** CTA → `/game/:id/analysis?mode=review&move=N` opens at moment, **0** credit. *(not re-tested 2026-06-11)*
+- [ ] **SRG-1** **View report** on cached game → **no** second completion email. *(not re-tested 2026-06-11)*
+- [x] **SRG-22** New signup → confirmation mail; after verify → exactly one welcome mail. *(prod 2026-06-11)*
 - [ ] **SRG-3** Batch-linked report → footer shows `N of M games` → **See batch priorities** opens report.
 - [ ] **SRG-4** Opening drill button mentions ECO + opening inaccuracies when present.
 - [ ] **SRG-2** After two clean depth-20 reviews, report + Games header show streak chip.
-- [ ] **SRG-6** Drill checklist persists after refresh (`localStorage`).
+- [x] **SRG-6** Drill checklist persists after refresh (`localStorage`). *(prod 2026-06-11)*
 - [ ] **SRG-5** Critical moment shows ChessMate benchmark range when rating known.
 - [ ] **SRG-7** Enable sound → move nav plays tone once per step; blunder vibrates on mobile.
 
@@ -1069,7 +1071,7 @@ Run only if these failed in prod or after deploy:
 `Login` → `/dashboard` — stay on dashboard until Part 2.
 
 - [x] **SRG-12/14** Coach home header + hero CTA visible; layout reads as one page (not scattered cards). *(prod)*
-- [x] **SRG-12** **One thing today** card (if not snoozed); CTA uses `mode=review` when linking a game. *(prod — URL correct; see Part 2 for first-time proof game UX)*
+- [x] **SRG-12** **One thing today** drill CTA → proof game with free drill-down when uncached. *(game 171 — prod 2026-06-11)*
 - [x] **SRG-9** **Coach inbox** lists pending priorities OR empty state → Start Batch Coach. *(prod)*
 - [x] **SRG-14** Notification bell shows unread; mark one read; badge updates. *(prod)*
 - [x] **SRG-12** **Snooze 24h** on one-thing → card hidden after refresh. *(prod)*
@@ -1082,12 +1084,12 @@ Run only if these failed in prod or after deploy:
 
 `Dashboard` → inbox item → single-game → **back to Dashboard** (same session).
 
-- [x] **SRG-9/19** Inbox row shows **proof label** (`Your game vs Opponent · move N · Opening`). *(prod; copy updated 2026-06-09 — not mock data)*
-- [x] **SRG-9** Open item → `/game/:id/analysis?mode=review&batch=&priority=&move=` when linked. *(prod)*
-- [ ] **SRG-11** Alignment % badge + tooltip; mismatch note if phases differ. *(re-test after proof game loads)*
-- [ ] **SRG-16** Streak chip when ≥2 **consecutive calendar days** of **Mark reviewed** (not app login days). Day 1 shows progress hint. *(see §7.1)*
-- [ ] **SRG-9** **Mark reviewed** on batch banner → return **Dashboard** → inbox count decreased; persists on reload.
-- [x] **SRG-0** Proof link with `batch=` starts **free** depth-20 drill-down when no cached report (no credit). *(fix + expectation copy shipped 2026-06-09)*
+- [x] **SRG-9/19** Inbox row shows **proof label** (`Your game vs Opponent · move N · Opening`). *(prod 2026-06-11)*
+- [x] **SRG-9** Open item → `/game/:id/analysis?mode=review&batch=&priority=&move=` when linked. *(prod — game 169)*
+- [ ] **SRG-11** Alignment % badge + tooltip in indigo **From your Batch Coach report** banner (above report cards). *(Re-check after report fully loads; not the “Your accuracy” insight cards.)*
+- [ ] **SRG-16** Streak chip on **Dashboard → Coach inbox** header: day 1 = progress label; day 2+ = 🔥 badge. *(Day 1 mark reviewed done 2026-06-11; chip easy to miss — see §7.2)*
+- [x] **SRG-9** **Mark reviewed** on batch banner → return **Dashboard** → inbox count decreased; persists on reload. *(prod 2026-06-11)*
+- [x] **SRG-0** Proof link with `batch=` starts **free** depth-20 drill-down when no cached report (no credit). *(games 169, 171 — prod 2026-06-11)*
 
 ---
 
@@ -1153,9 +1155,29 @@ Time-dependent — verify in staging when SMTP or calendar manipulation availabl
 | SRG-16 inbox streak | Clarified | Requires **Mark reviewed** on consecutive **calendar** days; day 1 shows progress chip + hint |
 | Console noise | Ignore | Browser extensions (`inject.bundle.js`, `content-script.js`) — not app bugs |
 
-**Still to verify after deploy:** Part 2 alignment badge, Mark reviewed → inbox count, Part 3–5.
+**Still to verify after deploy:** SRG-11 alignment chip in batch banner; SRG-16 day-1 chip visibility; Part 3–5.
 
 **Batch proof game UX (SRG-0 + SRG-9):** When `mode=review&batch=` and no saved depth-20 report exists, UI explains that this is normal for proof links, starts a **free** one-time depth-20 run, and notes that revisits are instant.
+
+### 7.2 Prod smoke log (2026-06-11)
+
+**Environment:** `https://www.chess-mate.online` (Account A, coach-active)  
+**Session:** Smoke 2 Part 2 + Smoke 1 spot checks
+
+| Area | Result | Notes |
+|------|--------|-------|
+| Proof drill-down game 169 | Pass | `mode=review&batch=25&priority=1&move=19`; free run when uncached |
+| Single analysis job | Pass | One task id `8084c9ab-…` throughout logs — **not** double-started |
+| Status poll flicker | Benign | After 5m backup fetch, task briefly read `PENDING 0%` then resumed `PROGRESS 77%` — stale status read, same task |
+| Mark reviewed | Pass | `POST /api/v1/batches/inbox/review/`; inbox pending −1 after dashboard return + reload |
+| One thing drill game 171 | Pass | Same free batch drill-down pattern |
+| SRG-11 alignment UI | Partial | User reviewed **insight cards** (Your accuracy / Turning point / Opening). **SRG-11 chip** lives in indigo **From your Batch Coach report** banner at top — re-check after report load |
+| Phase accuracy mismatch | Bug | Insight card “46.7% middlegame” vs phase snapshot “51%” — snapshot was showing **batch** phase averages; fix: prefer single-game phases in `PhaseStrip.js` |
+| SRG-16 day 1 | Partial | First mark reviewed today; 🔥 badge correctly hidden until day 2. **Day 1 progress** chip should appear on **Dashboard → Coach inbox** title row (small gray chip), not on report page |
+| Smoke 1 SRG-0/1/6/22 | Pass | View report no POST analyze; re-run credit; completion email; checklist; welcome mail |
+| Smoke 1 SRG-0 flash | OK | Sub-second progress bar on cached view report — acceptable |
+
+**Console noise:** Ignore browser extensions. `Analysis timeout reached, attempting direct fetch` = 5-minute safety fetch (`SingleGameAnalysis.js` ~784), not a second analyze POST.
 
 ---
 
@@ -1254,6 +1276,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-08 | Shipped SRG-22 welcome email after email verification |
 | 2026-06-09 | Acceptance criteria audit: [x]=tests, [ ]=smoke, [—]=OPS defer; Smoke 2 reordered as chronological journey (Parts 0–6) |
 | 2026-06-09 | Prod smoke §7.1: Part 0/1 largely pass; fixes for loading bar, accuracy, inbox proof links, coach home; SRG-16 clarified |
+| 2026-06-11 | Prod smoke §7.2: Smoke 2 Part 2 pass (proof drill-down, mark reviewed, inbox −1); Smoke 1 core pass; SRG-11 banner vs cards clarified; phase snapshot batch/single mismatch noted |
 
 ---
 

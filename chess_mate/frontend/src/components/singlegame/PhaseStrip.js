@@ -32,9 +32,9 @@ const scoreClass = (score, isDarkMode) => {
 
 const PhaseStrip = ({ phases = {}, phaseNotes = {}, batchPhasePerformance = null }) => {
   const { isDarkMode } = useTheme();
-  const source = batchPhasePerformance && Object.keys(batchPhasePerformance).length > 0
-    ? batchPhasePerformance
-    : phases;
+  // Single-game report: always show this game's phase accuracies. Batch averages
+  // belong on the batch report — mixing them caused 46% vs 51% confusion on drill-down.
+  const source = phases && Object.keys(phases).length > 0 ? phases : batchPhasePerformance;
 
   if (!source || Object.keys(source).length === 0) {
     return null;
