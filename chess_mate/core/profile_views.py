@@ -375,6 +375,41 @@ def update_profile(request):
                 defaults=profile_creation_defaults(),
             )
 
+        from .abuse_limits import (
+            check_profile_update_allowed,
+            preferences_subset_unchanged,
+            profile_update_limit_response,
+            record_profile_update,
+        )
+
+        # No-op when client sends preferences only and nothing changed
+        if set(request.data.keys()) == {"preferences"}:
+            preferences = request.data.get("preferences")
+            if isinstance(preferences, dict):
+                current_preferences = profile.preferences if isinstance(profile.preferences, dict) else {}
+                if preferences_subset_unchanged(current_preferences, preferences):
+                    return Response(
+                        {
+                            "id": user.id,
+                            "username": user.username,
+                            "email": user.email,
+                            "first_name": user.first_name,
+                            "last_name": user.last_name,
+                            "credits": profile.credits,
+                            "chess_com_username": profile.chess_com_username,
+                            "lichess_username": profile.lichess_username,
+                            "elo_rating": profile.elo_rating,
+                            "analysis_count": profile.analysis_count,
+                            "preferences": profile.preferences,
+                            "unchanged": True,
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+
+        allowed, retry_after = check_profile_update_allowed(user)
+        if not allowed:
+            return profile_update_limit_response(retry_after)
+
         # Update user info
         if "username" in request.data:
             username = request.data.get("username")
@@ -433,6 +468,8 @@ def update_profile(request):
         with transaction.atomic():
             user.save()
             profile.save()
+
+        record_profile_update(user)
 
         # Return updated profile data in a flat legacy-compatible shape.
         return Response(
@@ -712,6 +749,12 @@ def referral_info_view(request):
 @permission_classes([IsAuthenticated])
 def update_preferences(request):
     """Legacy endpoint: update only profile preferences."""
+    from .abuse_limits import (
+        check_profile_update_allowed,
+        preferences_subset_unchanged,
+        profile_update_limit_response,
+        record_profile_update,
+    )
     from .models import Profile
 
     preferences = request.data.get("preferences")
@@ -727,10 +770,22 @@ def update_preferences(request):
         )
 
     profile, _ = Profile.objects.get_or_create(user=request.user)
-    current_preferences = profile.preferences or {}
-    current_preferences.update(preferences)
-    profile.preferences = current_preferences
+    current_preferences = profile.preferences if isinstance(profile.preferences, dict) else {}
+    if preferences_subset_unchanged(current_preferences, preferences):
+        return Response(
+            {"message": "Preferences unchanged", "preferences": profile.preferences, "unchanged": True},
+            status=status.HTTP_200_OK,
+        )
+
+    allowed, retry_after = check_profile_update_allowed(request.user)
+    if not allowed:
+        return profile_update_limit_response(retry_after)
+
+    merged = dict(current_preferences)
+    merged.update(preferences)
+    profile.preferences = merged
     profile.save(update_fields=["preferences"])
+    record_profile_update(request.user)
 
     return Response(
         {"message": "Preferences updated", "preferences": profile.preferences},

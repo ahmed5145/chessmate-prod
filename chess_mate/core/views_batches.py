@@ -143,7 +143,7 @@ def batch_collection_view(request):
 
 def _batch_list_response(request):
     """
-    GET /api/v1/batches/?limit=20
+    GET /api/v1/batches/?limit=20&offset=0
 
     List the authenticated user's batch reports (newest first).
     """
@@ -151,12 +151,27 @@ def _batch_list_response(request):
         limit = int(request.query_params.get("limit", 20))
     except (TypeError, ValueError):
         limit = 20
+    try:
+        offset = int(request.query_params.get("offset", 0))
+    except (TypeError, ValueError):
+        offset = 0
     limit = max(1, min(limit, 50))
+    offset = max(0, offset)
 
-    queryset = BatchAnalysisReport.objects.filter(user=request.user).order_by("-created_at")[:limit]
-    serializer = BatchListItemSerializer(queryset, many=True)
+    base_qs = BatchAnalysisReport.objects.filter(user=request.user).order_by("-created_at")
+    total = base_qs.count()
+    queryset = base_qs[offset : offset + limit]
+    results = BatchListItemSerializer(queryset, many=True).data
+    returned = len(results)
     return Response(
-        {"results": serializer.data, "count": len(serializer.data)},
+        {
+            "results": results,
+            "count": returned,
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "has_more": (offset + returned) < total,
+        },
         status=status.HTTP_200_OK,
     )
 

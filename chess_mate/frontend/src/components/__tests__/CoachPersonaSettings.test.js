@@ -24,7 +24,7 @@ describe("CoachPersonaSettings", () => {
     getUserProfile.mockResolvedValue(mockProfile);
   });
 
-  it("renders coach tone select and saves direct persona", async () => {
+  it("renders coach tone toggle and saves direct persona", async () => {
     updateUserProfile.mockResolvedValue({
       ...mockProfile,
       preferences: { ...mockProfile.preferences, coach_persona: "direct" },
@@ -37,13 +37,15 @@ describe("CoachPersonaSettings", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/coach tone/i)).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: /coach tone/i })).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByLabelText(/coach tone/i), {
-      target: { value: 'direct' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /save preferences/i }));
+    expect(screen.getByRole("button", { name: /save preferences/i })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: /^direct$/i }));
+
+    expect(screen.getByRole("button", { name: /save preferences/i })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: /save preferences/i }));
 
     await waitFor(() => {
       expect(updateUserProfile).toHaveBeenCalledWith({

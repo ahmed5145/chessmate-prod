@@ -431,6 +431,54 @@ def coaching_regenerate_limit_response(info: Dict[str, Any]) -> Response:
     )
 
 
+# --- Profile / preferences updates ---
+
+
+def check_profile_update_allowed(user: User) -> Tuple[bool, int]:
+    max_per_hour = int(getattr(settings, "MAX_PROFILE_UPDATES_PER_USER_PER_HOUR", 30))
+    window_seconds = 3600
+    cache_key = f"profile_updates:{user.id}"
+    count = int(cache_get(cache_key, 0) or 0)
+    if _staff_bypasses(user) or max_per_hour <= 0:
+        return True, 0
+    if count >= max_per_hour:
+        return False, _retry_after(window_seconds, cache_key)
+    return True, 0
+
+
+def record_profile_update(user: User) -> None:
+    window_seconds = 3600
+    cache_key = f"profile_updates:{user.id}"
+    count = int(cache_get(cache_key, 0) or 0)
+    now = int(timezone.now().timestamp())
+    if count == 0:
+        cache_set(cache_key, 1, timeout=window_seconds)
+        cache_set(f"{cache_key}:ts", now, timeout=window_seconds)
+        return
+    ttl_key = f"{cache_key}:ts"
+    first_ts = int(cache_get(ttl_key, now) or now)
+    ttl = max(60, window_seconds - max(0, now - first_ts))
+    cache_set(cache_key, count + 1, timeout=ttl)
+    cache_set(ttl_key, first_ts, timeout=ttl)
+
+
+def profile_update_limit_response(retry_after: int) -> Response:
+    return abuse_limit_response(
+        code="PROFILE_001",
+        message=f"Too many profile updates. Try again in {retry_after} seconds.",
+        error="Profile update rate limit exceeded",
+        retry_after=retry_after,
+    )
+
+
+def preferences_subset_unchanged(current: Optional[Dict[str, Any]], incoming: Dict[str, Any]) -> bool:
+    base = current if isinstance(current, dict) else {}
+    for key, value in incoming.items():
+        if base.get(key) != value:
+            return False
+    return True
+
+
 # --- Stripe checkout spam ---
 
 

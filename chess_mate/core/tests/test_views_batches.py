@@ -66,6 +66,28 @@ class TestBatchViews(TestCase):
         assert response.data["results"][0]["coach_summary"] == "Latest batch insight."
         assert response.data["results"][0]["overall_accuracy_pct"] == 81.2
 
+    def test_get_batch_list_supports_offset_and_has_more(self):
+        for index in range(6):
+            BatchAnalysisReport.objects.create(
+                user=self.user,
+                task_id=f"batch-{index}",
+                status="completed",
+                games_count=5,
+            )
+
+        first_page = self.client.get("/api/v1/batches/?limit=2&offset=0")
+        second_page = self.client.get("/api/v1/batches/?limit=2&offset=2")
+
+        assert first_page.status_code == 200
+        assert first_page.data["total"] == 6
+        assert first_page.data["has_more"] is True
+        assert len(first_page.data["results"]) == 2
+
+        assert second_page.status_code == 200
+        assert second_page.data["offset"] == 2
+        assert len(second_page.data["results"]) == 2
+        assert second_page.data["has_more"] is True
+
     def test_get_batch_compare_vs_previous(self):
         older = BatchAnalysisReport.objects.create(
             user=self.user,

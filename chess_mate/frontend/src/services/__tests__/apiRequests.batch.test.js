@@ -154,21 +154,30 @@ describe('apiRequests batch API', () => {
   });
 
   describe('fetchBatchReportHistory', () => {
-    it('returns Phase 2 results when available', async () => {
+    it('normalizes paginated batch list payload', async () => {
       api.get.mockResolvedValueOnce({
-        data: { results: [{ id: 'a' }, { id: 'b' }] },
+        data: {
+          results: [{ id: 'a' }, { id: 'b' }],
+          count: 2,
+          total: 7,
+          offset: 0,
+          limit: 2,
+          has_more: true,
+        },
       });
 
-      const results = await fetchBatchReportHistory(10);
+      const page = await fetchBatchReportHistory({ limit: 2, offset: 0 });
 
-      expect(api.get).toHaveBeenCalledWith('/api/v1/batches/', { params: { limit: 10 } });
-      expect(results).toEqual([{ id: 'a' }, { id: 'b' }]);
+      expect(api.get).toHaveBeenCalledWith('/api/v1/batches/', { params: { limit: 2, offset: 0 } });
+      expect(page.results).toEqual([{ id: 'a' }, { id: 'b' }]);
+      expect(page.hasMore).toBe(true);
+      expect(page.total).toBe(7);
     });
 
     it('returns null on rate limit without legacy fallback', async () => {
       api.get.mockRejectedValueOnce({ response: { status: 429, data: { code: 'RATE_001' } } });
 
-      const results = await fetchBatchReportHistory(12);
+      const results = await fetchBatchReportHistory({ limit: 12, offset: 0 });
 
       expect(results).toBeNull();
       expect(api.get).toHaveBeenCalledTimes(1);
@@ -178,15 +187,15 @@ describe('apiRequests batch API', () => {
       api.get
         .mockRejectedValueOnce({ response: { status: 500 } })
         .mockResolvedValueOnce({
-          data: { results: [{ id: 'legacy-1' }] },
+          data: { results: [{ id: 'legacy-1' }], total: 1 },
         });
 
-      const results = await fetchBatchReportHistory();
+      const page = await fetchBatchReportHistory();
 
       expect(api.get).toHaveBeenNthCalledWith(2, '/api/v1/games/batch-reports/', {
-        params: { limit: 20 },
+        params: { limit: 5, offset: 0 },
       });
-      expect(results).toEqual([{ id: 'legacy-1' }]);
+      expect(page.results).toEqual([{ id: 'legacy-1' }]);
     });
   });
 

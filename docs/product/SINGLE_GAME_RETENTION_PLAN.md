@@ -1191,9 +1191,9 @@ If the indigo banner shows but **no** `% aligned` chip, note batch id + game id 
 4. Navbar → click **credit pill** → **`/credits`**.
 5. **SRG-24:** **Invite a friend** card → **Copy referral link** (no need to complete referral).
 
-- [ ] **SRG-26** Coach tone **Direct** vs **Encouraging** saves on `/profile` → Coach preferences.
-- [ ] **SRG-15/13/27** Email toggles on `/profile` Coach preferences; defaults off.
-- [ ] **SRG-24** `/credits` → copy referral link.
+- [x] **SRG-24** `/credits` → copy referral link *(prod — `register?ref=ubuntu-2e4a`)*
+- [ ] **SRG-26** Coach tone saves on `/profile` → Coach preferences *(UI pass; verify save disabled until change after deploy)*
+- [ ] **SRG-15/13/27** Email toggles on `/profile` Coach preferences; defaults off *(UI pass)*
 
 ---
 

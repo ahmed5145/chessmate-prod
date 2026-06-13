@@ -602,15 +602,22 @@ export const checkBatchAnalysisStatus = async (taskId) => {
 /**
  * List the user's batch reports (Phase 2 /api/v1/batches/).
  * Falls back to legacy task-based endpoint if the new API is unavailable.
+ *
+ * @returns {{ results: Array, hasMore: boolean, total: number } | null}
  */
-export const fetchBatchReportHistory = async (limit = 20) => {
+export const fetchBatchReportHistory = async ({ limit = 5, offset = 0 } = {}) => {
     try {
         const response = await api.get('/api/v1/batches/', {
-            params: { limit }
+            params: { limit, offset }
         });
 
         if (response.data && Array.isArray(response.data.results)) {
-            return response.data.results;
+            return {
+                results: response.data.results,
+                hasMore: Boolean(response.data.has_more),
+                total: Number(response.data.total ?? response.data.results.length),
+                count: Number(response.data.count ?? response.data.results.length),
+            };
         }
     } catch (error) {
         const status = error?.response?.status;
@@ -626,14 +633,21 @@ export const fetchBatchReportHistory = async (limit = 20) => {
 
     try {
         const legacy = await api.get('/api/v1/games/batch-reports/', {
-            params: { limit }
+            params: { limit, offset }
         });
 
         if (!legacy.data || !Array.isArray(legacy.data.results)) {
-            return [];
+            return { results: [], hasMore: false, total: 0, count: 0 };
         }
 
-        return legacy.data.results;
+        const results = legacy.data.results;
+        const total = Number(legacy.data.total ?? results.length);
+        return {
+            results,
+            hasMore: offset + results.length < total,
+            total,
+            count: results.length,
+        };
     } catch (error) {
         console.error('Error fetching batch report history:', error);
         throw error.response?.data || new Error('Failed to fetch batch report history');

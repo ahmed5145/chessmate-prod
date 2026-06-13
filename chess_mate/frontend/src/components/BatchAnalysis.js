@@ -35,6 +35,7 @@ import {
 } from '../utils/batchCoachLabels';
 
 const BATCH_SIZE_OPTIONS = [5, 10, 15, 20, 25, 30];
+const HISTORY_PAGE_SIZE = 5;
 const ACTIVE_BATCH_STATUSES = new Set(['pending', 'in_progress']);
 
 const normalizeBatchStatus = (status) => String(status || '').toLowerCase();
@@ -59,6 +60,9 @@ const BatchAnalysis = () => {
   const [selectedTimeControl, setSelectedTimeControl] = useState('all');
   const [gameSelectionFilter, setGameSelectionFilter] = useState('unanalyzed');
   const [reportHistory, setReportHistory] = useState([]);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
   const { isDarkMode } = useTheme();
   const userContext = useContext(UserContext);
   const credits = userContext?.credits ?? 0;
@@ -137,9 +141,11 @@ const BatchAnalysis = () => {
   useEffect(() => {
     const loadReportHistory = async () => {
       try {
-        const reports = await fetchBatchReportHistory(12);
-        if (reports !== null) {
-          setReportHistory(Array.isArray(reports) ? reports : []);
+        const page = await fetchBatchReportHistory({ limit: HISTORY_PAGE_SIZE, offset: 0 });
+        if (page !== null) {
+          setReportHistory(page.results);
+          setHistoryHasMore(page.hasMore);
+          setHistoryTotal(page.total);
         }
       } catch (error) {
         console.error('Error fetching batch report history:', error);
@@ -151,14 +157,40 @@ const BatchAnalysis = () => {
 
   const refreshReportHistory = useCallback(async () => {
     try {
-      const reports = await fetchBatchReportHistory(12);
-      if (isMountedRef.current && reports !== null) {
-        setReportHistory(Array.isArray(reports) ? reports : []);
+      const limit = Math.max(HISTORY_PAGE_SIZE, reportHistory.length || HISTORY_PAGE_SIZE);
+      const page = await fetchBatchReportHistory({ limit, offset: 0 });
+      if (isMountedRef.current && page !== null) {
+        setReportHistory(page.results);
+        setHistoryHasMore(page.hasMore);
+        setHistoryTotal(page.total);
       }
     } catch (error) {
       console.error('Error refreshing batch report history:', error);
     }
-  }, []);
+  }, [reportHistory.length]);
+
+  const loadMoreReportHistory = async () => {
+    if (!historyHasMore || historyLoadingMore) {
+      return;
+    }
+    setHistoryLoadingMore(true);
+    try {
+      const page = await fetchBatchReportHistory({
+        limit: HISTORY_PAGE_SIZE,
+        offset: reportHistory.length,
+      });
+      if (page !== null) {
+        setReportHistory((current) => [...current, ...page.results]);
+        setHistoryHasMore(page.hasMore);
+        setHistoryTotal(page.total);
+      }
+    } catch (error) {
+      console.error('Error loading more batch reports:', error);
+      toast.error('Could not load more reports');
+    } finally {
+      setHistoryLoadingMore(false);
+    }
+  };
 
   const hasActiveBatchJob = isAnalyzing || reportHistory.some((report) => isActiveBatchStatus(report.status));
 
@@ -688,10 +720,17 @@ const BatchAnalysis = () => {
 
           {/* Saved Reports */}
           <div className="mt-8">
-            <h3 className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {SAVED_BATCH_COACH_REPORTS}
-            </h3>
-            <div className={`rounded-md border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <h3 className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                {SAVED_BATCH_COACH_REPORTS}
+              </h3>
+              {historyTotal > 0 ? (
+                <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Showing {reportHistory.length} of {historyTotal}
+                </span>
+              ) : null}
+            </div>
+            <div className={`rounded-md border max-h-80 overflow-y-auto ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               {reportHistory.length === 0 ? (
                 <div className={`p-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   {BATCH_COACH_NO_SAVED}
@@ -773,6 +812,20 @@ const BatchAnalysis = () => {
                 })
               )}
             </div>
+            {historyHasMore ? (
+              <button
+                type="button"
+                onClick={loadMoreReportHistory}
+                disabled={historyLoadingMore}
+                className={`mt-2 w-full rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                  isDarkMode
+                    ? 'border-gray-600 text-gray-200 hover:bg-gray-800 disabled:opacity-60'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60'
+                }`}
+              >
+                {historyLoadingMore ? 'Loading…' : 'Load more reports'}
+              </button>
+            ) : null}
           </div>
         </div>
 

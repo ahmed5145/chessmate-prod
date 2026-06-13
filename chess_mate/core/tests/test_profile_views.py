@@ -157,6 +157,23 @@ class TestProfileViews:
         assert test_user.profile.lichess_username == "testuser_lichess_updated"
         assert test_user.profile.elo_rating == 1600
 
+    def test_update_profile_preferences_noop_skips_rate_limit(self, authenticated_client, test_user):
+        url = reverse("update_profile")
+        test_user.profile.preferences = {
+            "coach_persona": "encouraging",
+            "wants_weekly_digest": False,
+        }
+        test_user.profile.save(update_fields=["preferences"])
+
+        response = authenticated_client.patch(
+            url,
+            {"preferences": {"coach_persona": "encouraging", "wants_weekly_digest": False}},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data.get("unchanged") is True
+
     def test_update_profile_partial(self, authenticated_client, test_user):
         url = reverse("update_profile")
         data = {"first_name": "Test"}
