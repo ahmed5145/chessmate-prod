@@ -43,6 +43,26 @@ def user_has_celebrated_first_batch(profile: Profile) -> bool:
     return bool(profile.get_preference(FIRST_BATCH_CELEBRATED_KEY))
 
 
+def _celebration_headline(coaching: Dict[str, Any]) -> str:
+    raw = str(
+        coaching.get("executive_summary")
+        or coaching.get("one_thing_to_do_today")
+        or ""
+    ).strip()
+    if not raw:
+        return "Your coach reviewed your games and picked proof games plus top priorities."
+
+    for separator in (". ", "! ", "? "):
+        if separator in raw:
+            first_sentence = f"{raw.split(separator, 1)[0]}{separator.strip()}"
+            if len(first_sentence) <= 200:
+                return first_sentence
+
+    if len(raw) <= 200:
+        return raw
+    return f"{raw[:197].rstrip()}…"
+
+
 def mark_first_batch_celebrated(profile: Profile) -> None:
     from django.utils import timezone
 
@@ -59,11 +79,7 @@ def build_first_batch_celebration_payload(
         return {"show": False}
 
     coaching = batch_report.coaching_report if isinstance(batch_report.coaching_report, dict) else {}
-    headline = str(
-        coaching.get("executive_summary")
-        or coaching.get("one_thing_to_do_today")
-        or "Your first Batch Coach report is ready."
-    )[:220]
+    headline = _celebration_headline(coaching)
 
     cta_href = f"/batch-report/{batch_report.id}#batch-section-priorities"
     cta_label = "Review your #1 priority"

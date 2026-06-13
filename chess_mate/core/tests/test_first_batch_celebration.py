@@ -56,6 +56,25 @@ def test_first_batch_celebration_shows_once(coach_user):
     assert payload_again["show"] is False
 
 
+def test_celebration_headline_uses_first_sentence(coach_user):
+    profile = Profile.objects.get(user=coach_user)
+    batch = _make_batch(
+        coach_user,
+        coaching_report={
+            "executive_summary": (
+                "This batch covers 5 games with a focus on your openings. "
+                "Tactical oversight problems plagued both middlegames."
+            ),
+            "top_3_priorities": [{"rank": 1, "title": "Stop hanging pieces"}],
+        },
+    )
+
+    payload = build_first_batch_celebration_payload(batch, profile)
+    assert payload["show"] is True
+    assert payload["headline"].endswith(".")
+    assert "middlegames" not in payload["headline"]
+
+
 def test_second_batch_not_first(coach_user):
     profile = Profile.objects.get(user=coach_user)
     _make_batch(coach_user, task_id="task-celebrate-a")

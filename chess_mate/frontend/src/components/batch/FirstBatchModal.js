@@ -6,9 +6,10 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
+  Paper,
   Typography,
 } from '@mui/material';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { updateUserProfile } from '../../services/apiRequests';
 import { trackMarketingEvent } from '../../utils/marketingAnalytics';
 
@@ -116,17 +117,73 @@ const FirstBatchModal = ({
       onClose={handleDismiss}
       maxWidth="sm"
       fullWidth
-      PaperProps={{ sx: { position: 'relative', overflow: 'hidden' } }}
+      PaperProps={{
+        sx: {
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: 3,
+        },
+      }}
     >
       <ConfettiBurst />
-      <DialogTitle sx={{ fontWeight: 800, pr: 4 }}>
-        Your first Batch Coach report is ready
-      </DialogTitle>
-      <DialogContent>
-        <Typography variant="body1" sx={{ mb: 2 }}>
-          {celebration.headline}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
+      <DialogContent sx={{ pt: 3, pb: 1 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            mb: 2,
+          }}
+        >
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              display: 'grid',
+              placeItems: 'center',
+              bgcolor: 'primary.main',
+              color: 'primary.contrastText',
+              flexShrink: 0,
+            }}
+          >
+            <AutoAwesomeIcon fontSize="small" />
+          </Box>
+          <Box>
+            <Typography variant="overline" color="primary" sx={{ letterSpacing: 1.1, lineHeight: 1.2 }}>
+              First batch complete
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.25 }}>
+              Your Batch Coach report is ready
+            </Typography>
+          </Box>
+        </Box>
+
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2,
+            mb: 2,
+            bgcolor: 'action.hover',
+            borderColor: 'divider',
+          }}
+        >
+          <Typography
+            variant="body1"
+            sx={{
+              fontWeight: 500,
+              lineHeight: 1.55,
+              display: '-webkit-box',
+              WebkitLineClamp: 4,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {celebration.headline}
+          </Typography>
+        </Paper>
+
+        <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
           Your coach picked proof games and priorities — start with #1 for the fastest improvement loop.
         </Typography>
         {referralLink ? (
@@ -135,8 +192,8 @@ const FirstBatchModal = ({
           </Typography>
         ) : null}
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2, flexWrap: 'wrap', gap: 1 }}>
-        <Button onClick={handleDismiss} disabled={dismissing}>
+      <DialogActions sx={{ px: 3, pb: 2.5, pt: 1, flexWrap: 'wrap', gap: 1 }}>
+        <Button onClick={handleDismiss} disabled={dismissing} sx={{ textTransform: 'none' }}>
           Browse report
         </Button>
         <Button
@@ -145,6 +202,7 @@ const FirstBatchModal = ({
           to={celebration.cta_href || '/dashboard'}
           onClick={handleCtaClick}
           disabled={dismissing}
+          sx={{ textTransform: 'none', fontWeight: 700 }}
         >
           {celebration.cta_label || 'Review your #1 priority'}
         </Button>

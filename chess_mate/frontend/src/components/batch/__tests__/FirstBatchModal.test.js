@@ -30,7 +30,7 @@ describe('FirstBatchModal', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/first Batch Coach report is ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/Batch Coach report is ready/i)).toBeInTheDocument();
     expect(screen.getByText(/loose pieces/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Browse report/i }));

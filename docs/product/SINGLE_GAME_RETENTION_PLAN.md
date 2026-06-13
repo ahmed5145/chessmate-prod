@@ -698,7 +698,7 @@ flowchart LR
 
 - [x] Show once only (`test_first_batch_celebration.py`, `FirstBatchModal.test.js`).
 - [x] Dismissible without blocking navigation (`FirstBatchModal.test.js`).
-- [ ] Modal on first batch complete in browser *(Smoke 2, Part 5 — use fresh account)*.
+- [x] Modal on first batch complete in browser *(Smoke 2 Part 5 — prod pass; headline UX polish shipped)*.
 
 **Primary files:** `BatchAnalysisResults.js` or post-report redirect, `Dashboard.js`, SRG-14
 
@@ -818,7 +818,7 @@ flowchart LR
 - [x] Desktop hidden (`PwaInstallPrompt.test.js`).
 - [x] Pre-first-batch hidden (`PwaInstallPrompt.test.js`).
 - [x] Dismiss snooze 30 days (`PwaInstallPrompt.test.js`).
-- [ ] Mobile prompt after first batch in browser *(Smoke 2, Part 5)*.
+- [x] Mobile prompt after first batch in browser *(Smoke 2 Part 5 — prod pass; icon fix shipped)*.
 
 **Primary files:** new `PwaInstallPrompt.js`, `manifest.json` audit, mount gate in `Dashboard.js` or post-batch flow
 
@@ -832,17 +832,18 @@ flowchart LR
 
 | Work | Detail |
 |------|--------|
-| **Meta** | `usePageMeta` on `/share/game-moment/:token` — `og:title` from coaching takeaway; `og:description` from move, swing, opening, practice line |
-| **Twitter** | `twitter:card=summary` (text only — **no** `og:image`) |
-| **Deferred** | DX-02b dynamic board image — promote only when share/referral volume justifies cost |
+| **Meta (client)** | `usePageMeta` on `/share/game-moment/:token` — updates tags after React loads |
+| **Meta (crawler)** | Django `share_preview.py` injects OG tags into built `index.html` for `/share/game-moment/:token/`; nginx proxies share paths to Django |
+| **Image** | Static `chessmate-og.png` (brand icon on indigo) — not per-position board PNG (DX-02b deferred) |
+| **Twitter** | `twitter:card=summary_large_image` |
 
 **Acceptance criteria**
 
 - [x] Text `og:title` + `og:description` (`SharedGameMomentPage.test.js`, `pageMeta.test.js`).
-- [x] No `og:image` until DX-02b (`SharedGameMomentPage.test.js`).
-- [ ] Paste preview in Discord/iMessage *(Smoke 2, Part 5)*.
+- [x] Crawler HTML injects OG tags (`test_share_preview.py`).
+- [ ] Paste preview in Discord/iMessage *(Smoke 2 Part 5 — failed pre-deploy; re-test after OG proxy ships)*.
 
-**Primary files:** `SharedGameMomentPage.js`, `pageMeta.js`
+**Primary files:** `share_preview.py`, `nginx/chessmate.conf`, `SharedGameMomentPage.js`, `pageMeta.js`
 
 **Depends on:** Existing moment share tokens
 
@@ -1163,7 +1164,23 @@ Run only if these failed in prod or after deploy:
 | SRG-11 alignment | Pass | Single-game inbox proof only — **0% aligned** + “swings were in the endgame” is expected when batch priority is opening but depth-20 worst moments are endgame |
 | SRG-21 openings | Pass | Mieses A00 + Benoni A69 repertoire gaps with per-loss links |
 
-**Part 3:** complete for Account A. **Part 4:** complete for Account A. **Next:** Part 5 (Account B + mobile).
+**Part 3:** complete for Account A. **Part 4:** complete for Account A. **Part 5:** complete with fixes shipped for celebration UX, PWA icon, OG crawlers. **Next:** deploy fixes → re-check SRG-29; optional Part 6.
+
+---
+
+### 7.6 Prod smoke log — Part 5 complete (2026-06-13)
+
+**Environment:** `https://www.chess-mate.online` (Account B via A referral; mobile + desktop)
+
+| Area | Result | Notes |
+|------|--------|-------|
+| SRG-23 first-batch modal | Pass (UX fix shipped) | Shows once; dismiss + reload OK; headline was ugly mid-paragraph — now first sentence + styled card |
+| SRG-24 referral credits | Pass | B started with **15** credits (`SIGNUP_BONUS_CREDITS`); after first batch A **+5**, B **+5** |
+| SRG-28 desktop | Pass | No install banner on dashboard or batch report |
+| SRG-28 mobile | Pass (icon fix shipped) | Bottom hint once; dismiss → no repeat; iOS hint is instructions-only (not a button); home-screen icon was React logo — regenerated from ChessMate favicon |
+| SRG-29 share OG | Fail → fix shipped | Discord/opengraph saw generic `Chess Mate` — crawlers don't run React; server-rendered OG page + nginx proxy added (re-test after deploy) |
+
+**Re-test after deploy:** paste `https://www.chess-mate.online/share/game-moment/<token>` into [opengraph.xyz](https://www.opengraph.xyz) — expect `og:title` with moment takeaway, `og:description`, `og:site_name`, `og:image`.
 
 ---
 
@@ -1238,11 +1255,11 @@ If the indigo banner shows but **no** `% aligned` chip, note batch id + game id 
 
 **Checklist**
 
-- [ ] **SRG-23** Account B: first batch complete → celebration modal **once**; dismissible.
-- [ ] **SRG-24** Account B via A’s link → first batch → A **+5**, B **+5**; self-referral blocked.
-- [ ] **SRG-28** **Desktop:** no PWA banner on dashboard or batch report.
-- [ ] **SRG-28** **Mobile:** install hint once after batch; dismiss → no repeat 30 days.
-- [ ] **SRG-29** Share moment URL → text OG title + description (no broken image).
+- [x] **SRG-23** Account B: first batch complete → celebration modal **once**; dismissible *(prod — UX polish shipped)*
+- [x] **SRG-24** Account B via A’s link → first batch → A **+5**, B **+5** *(15 signup bonus + 5 referral = 20 for B)*
+- [x] **SRG-28** **Desktop:** no PWA banner on dashboard or batch report.
+- [x] **SRG-28** **Mobile:** install hint once after batch; dismiss → no repeat 30 days.
+- [ ] **SRG-29** Share moment URL → rich OG preview *(failed pre-deploy — server OG fix shipped; re-test after deploy)*
 
 ---
 
@@ -1273,7 +1290,7 @@ Time-dependent — verify in staging when SMTP or calendar manipulation availabl
 | SRG-16 inbox streak | Clarified | Requires **Mark reviewed** on consecutive **calendar** days; day 1 shows progress chip + hint |
 | Console noise | Ignore | Browser extensions (`inject.bundle.js`, `content-script.js`) — not app bugs |
 
-**Still to verify:** Smoke 2 Part 5–6 optional email/streak day-2.
+**Still to verify:** SRG-29 OG after deploy; Smoke 2 Part 6 optional email/streak day-2.
 
 **Batch proof game UX (SRG-0 + SRG-9):** When `mode=review&batch=` and no saved depth-20 report exists, UI explains that this is normal for proof links, starts a **free** one-time depth-20 run, and notes that revisits are instant.
 
@@ -1396,6 +1413,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-09 | Prod smoke §7.1: Part 0/1 largely pass; fixes for loading bar, accuracy, inbox proof links, coach home; SRG-16 clarified |
 | 2026-06-11 | Prod smoke §7.2: Smoke 2 Part 2 pass; Smoke 1 core pass; SRG-11 banner vs cards clarified; phase snapshot fix shipped |
 | 2026-06-13 | Prod: SRG-16 day-1 chip pass; phase snapshot match pass; CI apt Microsoft mirror flake fix |
+| 2026-06-13 | Prod §7.6: Part 5 complete — referral +5 both sides, PWA pass, OG crawler fix + celebration modal polish + ChessMate PWA icons |
 | 2026-06-13 | Prod §7.5: Part 4 complete — coach preferences save, email toggles, referral link |
 
 ---

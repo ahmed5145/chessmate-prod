@@ -71,6 +71,7 @@ export const setPageMeta = ({
   setMetaContent('property', 'og:description', description);
   setMetaContent('property', 'og:type', type);
   setMetaContent('property', 'og:url', buildCanonicalUrl(path));
+  setMetaContent('property', 'og:site_name', DEFAULT_SITE_TITLE);
   setMetaContent('name', 'twitter:card', twitterCard);
   setMetaContent('name', 'twitter:title', pageTitle);
   setMetaContent('name', 'twitter:description', description);

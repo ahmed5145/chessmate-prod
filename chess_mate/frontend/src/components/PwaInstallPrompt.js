@@ -101,7 +101,7 @@ const PwaInstallPrompt = ({ batchesCompleted = 0 }) => {
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             {isIOS
-              ? 'Tap Share, then “Add to Home Screen” for one-tap coach access.'
+              ? 'Instructions only: use Safari Share → “Add to Home Screen” for one-tap coach access.'
               : 'Install the app for faster return visits after batch coaching.'}
           </Typography>
           {!isIOS && deferredPrompt ? (

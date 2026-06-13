@@ -16,6 +16,8 @@ from django.shortcuts import redirect, render
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 
+from core.share_preview import share_game_moment_page
+
 # Define type for views to prevent linter errors
 ViewType = Callable[[HttpRequest], Any]
 
@@ -114,6 +116,11 @@ urlpatterns = [
         "batch-analysis/results/<str:task_id>/",
         batch_legacy_task_redirect,
         name="batch-legacy-task-redirect",
+    ),
+    path(
+        "share/game-moment/<uuid:share_token>/",
+        share_game_moment_page,
+        name="share-game-moment-page",
     ),
     # React SPA (must be last; excludes api/admin/health/static/media)
     re_path(
