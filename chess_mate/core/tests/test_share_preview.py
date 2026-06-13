@@ -29,6 +29,24 @@ def test_build_share_moment_meta_from_payload():
     assert "Sicilian" in description
 
 
+def test_build_share_moment_meta_truncates_long_social_copy():
+    title, description = build_share_moment_meta(
+        {
+            "moment": {"move_number": 19, "eval_swing": 8.42},
+            "game_context": {
+                "opening_name": "Queen's Pawn Game: Accelerated London System",
+                "result": "loss",
+            },
+            "coaching": {
+                "takeaway": "Focus on recognizing hanging pieces to avoid blunders.",
+                "do_today": "Spend 5 minutes solving hanging-piece puzzles on Lichess.",
+            },
+        }
+    )
+    assert len(title) <= 60
+    assert len(description) <= 125
+
+
 @pytest.mark.django_db
 def test_share_game_moment_page_injects_og_tags(rf, test_user, test_game):
     analysis = GameAnalysis.objects.create(

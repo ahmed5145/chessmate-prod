@@ -10,10 +10,22 @@ from typing import Any, Dict, Optional, Tuple
 from django.conf import settings
 from django.http import Http404, HttpRequest, HttpResponse
 
-from .single_game_moment_share import build_public_moment_payload, find_analysis_by_share_token
+from .single_game_moment_share import (
+    build_public_moment_payload,
+    find_analysis_by_share_token,
+)
 
 DEFAULT_SITE_NAME = "ChessMate"
 DEFAULT_OG_IMAGE_PATH = "/chessmate-og.png"
+OG_TITLE_MAX = 60
+OG_DESCRIPTION_MAX = 125
+
+
+def _truncate(text: str, limit: int) -> str:
+    normalized = str(text or "").strip()
+    if len(normalized) <= limit:
+        return normalized
+    return f"{normalized[: limit - 1].rstrip()}…"
 
 
 def build_share_moment_meta(payload: Optional[Dict[str, Any]]) -> Tuple[str, str]:
@@ -25,25 +37,36 @@ def build_share_moment_meta(payload: Optional[Dict[str, Any]]) -> Tuple[str, str
         )
 
     moment = payload.get("moment") if isinstance(payload.get("moment"), dict) else {}
-    context = payload.get("game_context") if isinstance(payload.get("game_context"), dict) else {}
-    coaching = payload.get("coaching") if isinstance(payload.get("coaching"), dict) else {}
+    context = (
+        payload.get("game_context")
+        if isinstance(payload.get("game_context"), dict)
+        else {}
+    )
+    coaching = (
+        payload.get("coaching") if isinstance(payload.get("coaching"), dict) else {}
+    )
 
-    takeaway = str(coaching.get("takeaway") or "Critical moment from a ChessMate deep review").strip()
+    takeaway = str(
+        coaching.get("takeaway") or "Critical moment from a ChessMate deep review"
+    ).strip()
     parts = [
         f"Move {moment.get('move_number')}" if moment.get("move_number") else None,
-        f"Eval swing {moment.get('eval_swing')}" if moment.get("eval_swing") is not None else None,
+        (
+            f"Eval swing {moment.get('eval_swing')}"
+            if moment.get("eval_swing") is not None
+            else None
+        ),
         str(context.get("opening_name") or "").strip() or None,
         str(context.get("result") or "").strip() or None,
         f"Practice: {coaching.get('do_today')}" if coaching.get("do_today") else None,
     ]
     description = " · ".join(part for part in parts if part)
     if not description:
-        description = (
-            "See a turning point from a ChessMate depth-20 review — get your own batch coach report."
-        )
+        description = "See a turning point from a ChessMate depth-20 review — get your own batch coach report."
 
-    page_title = f"{takeaway} · {DEFAULT_SITE_NAME}"
-    return page_title, description
+    suffix = f" · {DEFAULT_SITE_NAME}"
+    page_title = f"{_truncate(takeaway, OG_TITLE_MAX - len(suffix))}{suffix}"
+    return page_title, _truncate(description, OG_DESCRIPTION_MAX)
 
 
 def _frontend_build_index_path() -> str:
@@ -77,7 +100,7 @@ def render_share_moment_html(
 
     meta_block = "\n".join(
         [
-            f'    <title>{html.escape(page_title)}</title>',
+            f"    <title>{html.escape(page_title)}</title>",
             f'    <meta name="description" content="{html.escape(description)}" />',
             f'    <meta property="og:site_name" content="{DEFAULT_SITE_NAME}" />',
             f'    <meta property="og:title" content="{html.escape(page_title)}" />',
@@ -98,7 +121,7 @@ def render_share_moment_html(
         return (
             "<!DOCTYPE html><html><head>"
             f"{meta_block}"
-            "</head><body><div id=\"root\"></div></body></html>"
+            '</head><body><div id="root"></div></body></html>'
         )
 
     with open(index_path, encoding="utf-8") as handle:

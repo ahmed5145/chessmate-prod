@@ -8,6 +8,7 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 import re
 from typing import Any, Callable
 
+from core.share_preview import share_game_moment_page
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -15,8 +16,6 @@ from django.http import HttpRequest, HttpResponse, HttpResponseNotFound, JsonRes
 from django.shortcuts import redirect, render
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
-
-from core.share_preview import share_game_moment_page
 
 # Define type for views to prevent linter errors
 ViewType = Callable[[HttpRequest], Any]
