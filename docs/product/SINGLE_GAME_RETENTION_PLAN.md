@@ -369,7 +369,7 @@ flowchart LR
 
 - [x] Same tactical theme in two batches increments count (`test_moment_timeline.py`).
 - [x] Timeline hidden when only one event (`test_moment_timeline.py`, `MomentTimeline.test.js`).
-- [ ] Timeline visible on batch report with ≥2 batches *(Smoke 2, Part 3)*.
+- [x] Timeline visible on batch report with ≥2 batches *(Smoke 2, Part 3 — prod 2026-06-13)*.
 
 **Primary files:** `pattern_analyzer.py` (reuse motifs), new `moment_timeline.py`, `CriticalMomentsSection.js`, `BatchReport` moment blocks
 
@@ -502,7 +502,8 @@ flowchart LR
 
 - [x] Digest vs spaced mutual exclusion (`test_spaced_moment_email.py`, `test_weekly_digest_email.py`).
 - [x] Max 1 digest per 7 days (`test_weekly_digest_email.py`, `test_email_send_log.py`).
-- [ ] Opt-in → one mail in 7 days on staging *(Smoke 2, Part 4 — optional if SMTP ready)*.
+- [x] Toggles visible + save in prod browser *(Smoke 2, Part 4 — 2026-06-13)*.
+- [ ] Opt-in → one mail in 7 days on staging *(Smoke 2, Part 6 — optional if SMTP ready)*.
 - [ ] Empty-state skip (no mail when nothing to do) *(verify in staging; not launch-blocking)*.
 
 **Primary files:** `weekly_digest_email.py`, `EmailSendLog`, `notification_preferences.py`
@@ -549,7 +550,7 @@ flowchart LR
 
 - [x] Hidden on first batch; shown with ≥2 batches (`test_fix_rate.py`, `FixRateCard.test.js`).
 - [x] Fixed/improved/persisting heuristics (`test_fix_rate.py`).
-- [ ] Dashboard + batch report copy readable *(Smoke 2, Part 3)*.
+- [x] Dashboard + batch report copy readable *(Smoke 2, Part 3 — prod 2026-06-13)*.
 
 **Primary files:** `batch_metrics.py`, `BatchReportHeader.js`, `dashboardFocus.js`
 
@@ -571,7 +572,7 @@ flowchart LR
 
 - [x] Hidden when &lt; 5 analyzed games (`test_phase_heatmap.py`, `PhaseHeatmap.test.js`).
 - [x] Highlighted cells include example game href (`test_phase_heatmap.py`).
-- [ ] Click cell → free review in browser *(Smoke 2, Part 3)*.
+- [x] Click cell → free review in browser *(Smoke 2, Part 3 — prod 2026-06-13)*.
 
 **Primary files:** `dashboardFocus.js`, new `PhaseResultHeatmap.js`, batch per-game results
 
@@ -613,7 +614,7 @@ flowchart LR
 
 - [x] Hidden on first batch (`test_batch_moment_diff.py`, `BatchMomentDiff.test.js`).
 - [x] Top recurring patterns with swing trend (`test_batch_moment_diff.py`).
-- [ ] Compared section readable on 2nd+ batch report *(Smoke 2, Part 3)*.
+- [x] Compared section readable on 2nd+ batch report *(Smoke 2, Part 3 — prod 2026-06-13)*.
 
 **Primary files:** `BatchReportSections.js`, SRG-10 timeline service, `batch_context` compare API
 
@@ -633,7 +634,7 @@ flowchart LR
 
 - [x] Gaps with losses include review links (`test_opening_gaps_games.py`, `OpeningGapsGames.test.js`).
 - [x] Uses batch + game metadata only (no opening DB).
-- [ ] Loss links open from batch report openings section *(Smoke 2, Part 3)*.
+- [x] Loss links open from batch report openings section *(Smoke 2, Part 3 — prod 2026-06-13)*.
 
 **Primary files:** `openingInsights.js`, batch openings section, `singleGameDrillLinks.js`
 
@@ -766,7 +767,8 @@ flowchart LR
 
 - [x] Toggle persists on profile (`test_coach_persona.py`, `CoachPersonaSettings.test.js`).
 - [x] Prompt modifier only; schema unchanged (`test_coach_persona.py`).
-- [ ] Next batch/report tone differs in browser *(Smoke 2, Part 4)*.
+- [x] Toggle saves in prod browser *(Smoke 2, Part 4 — 2026-06-13)*.
+- [ ] Next batch/report **wording** differs after Direct vs Encouraging *(optional — run one batch after toggling)*.
 
 **Primary files:** `single_game_coach_generator.py`, `coaching_generator.py`, `Profile.coach_persona`, settings UI
 
@@ -1161,7 +1163,22 @@ Run only if these failed in prod or after deploy:
 | SRG-11 alignment | Pass | Single-game inbox proof only — **0% aligned** + “swings were in the endgame” is expected when batch priority is opening but depth-20 worst moments are endgame |
 | SRG-21 openings | Pass | Mieses A00 + Benoni A69 repertoire gaps with per-loss links |
 
-**Part 3:** complete for Account A. **Next:** Part 4 (Profile & credits).
+**Part 3:** complete for Account A. **Part 4:** complete for Account A. **Next:** Part 5 (Account B + mobile).
+
+---
+
+### 7.5 Prod smoke log — Part 4 complete
+
+**Environment:** `https://www.chess-mate.online` (Account A)
+
+| Area | Result | Notes |
+|------|--------|-------|
+| SRG-26 coach tone | Pass | Toggled Direct/Encouraging; Save preferences; reload persists |
+| SRG-15/13/27 email toggles | Pass | All visible on `/profile` → Coach preferences; user enabled all; save OK |
+| SRG-24 referral | Pass | `/credits` → Copy referral link → `register?ref=ubuntu-2e4a` |
+| Save UX (post-fix) | Shipped | Save disabled until dirty; segmented tone control; backend no-op + rate limit |
+
+**Optional later:** Run a new batch after setting **Direct** tone to confirm coaching copy feels blunter (SRG-26 wording check — not blocking).
 
 ---
 
@@ -1181,31 +1198,51 @@ If the indigo banner shows but **no** `% aligned` chip, note batch id + game id 
 
 ---
 
-#### Part 4 — Profile & credits (Account A)
+#### Part 4 — Profile & credits (Account A) — complete
 
-**Coach preferences** live on **Profile** (`/profile`) — scroll below achievements. **Referral link** is on **Credits** (`/credits`), not Profile (click credit count in navbar).
+**Coach preferences** on **Profile** (`/profile`). **Referral** on **Credits** (`/credits`) — navbar credit pill.
 
-1. **`/profile`** → scroll to **Coach preferences** section (below achievements / above Linked accounts).
-2. **SRG-26:** Change **Coach tone** Direct ↔ Encouraging → **Save preferences** → reload → value persists.
-3. **SRG-15/13/27:** Confirm toggles visible — **Weekly Coach Digest**, **Spaced Moment Reminders**, **Reactivation reminders** — all **off** by default.
-4. Navbar → click **credit pill** → **`/credits`**.
-5. **SRG-24:** **Invite a friend** card → **Copy referral link** (no need to complete referral).
+1. **`/profile`** → scroll to **Coach preferences** (below achievements).
+2. **SRG-26:** Change **Coach tone** → **Save preferences** → reload → persists.
+3. **SRG-15/13/27:** Toggles visible; defaults off for new users; opt-in saves.
+4. Navbar → **credit pill** → **`/credits`**.
+5. **SRG-24:** **Invite a friend** → **Copy referral link**.
 
 - [x] **SRG-24** `/credits` → copy referral link *(prod — `register?ref=ubuntu-2e4a`)*
-- [ ] **SRG-26** Coach tone saves on `/profile` → Coach preferences *(UI pass; verify save disabled until change after deploy)*
-- [ ] **SRG-15/13/27** Email toggles on `/profile` Coach preferences; defaults off *(UI pass)*
+- [x] **SRG-26** Coach tone saves on `/profile` → Coach preferences *(prod — toggle + save + reload)*
+- [x] **SRG-15/13/27** Email toggles on `/profile` Coach preferences *(prod — visible, save OK)*
 
 ---
 
 #### Part 5 — Fresh user + mobile + share (Account B + mobile)
 
-Separate path — does not require Account A.
+**Prep:** Account B = **new** signup (incognito or separate browser). Account A referral URL from Part 4. Phone or DevTools mobile emulation for PWA.
+
+**Path A — Account B (desktop)**
+
+1. Open Account A’s referral URL in incognito → **Register** Account B (`register?ref=…`).
+2. Verify email → welcome mail (SRG-22 if not already done on B).
+3. Connect Lichess/Chess.com on B → import **≥5 games** → run **first batch** (5–10 games).
+4. **SRG-23:** On batch report load, **first-batch celebration modal** appears **once** → dismiss → reload report → modal does **not** repeat.
+5. **SRG-24 (full referral):** After B’s first batch **completes**, check Account A credits **+5** and B **+5** (dashboard or credits page). Try registering with your **own** ref link on A → should block self-referral.
+
+**Path B — Mobile / PWA (Account A or B with ≥1 batch)**
+
+6. **Desktop check (SRG-28):** On `/dashboard` and a batch report — **no** PWA install banner.
+7. **Mobile check (SRG-28):** Phone or Chrome DevTools → device mode → same pages. After first batch, **install hint** may appear once → dismiss → no repeat for 30 days (localStorage).
+
+**Path C — Share preview (any account)**
+
+8. Open a **single-game report** or batch moment with **Share** / copy link.
+9. **SRG-29:** Paste URL preview in Discord or iMessage (or [opengraph.xyz](https://www.opengraph.xyz)) — **text** title + description; no broken image required.
+
+**Checklist**
 
 - [ ] **SRG-23** Account B: first batch complete → celebration modal **once**; dismissible.
-- [ ] **SRG-24** Account B referee via A’s link → first batch → A **+5**, B **+5**; self-referral blocked.
+- [ ] **SRG-24** Account B via A’s link → first batch → A **+5**, B **+5**; self-referral blocked.
 - [ ] **SRG-28** **Desktop:** no PWA banner on dashboard or batch report.
-- [ ] **SRG-28** **Mobile** (Account A or B with batch): install hint once; dismiss → no repeat 30 days.
-- [ ] **SRG-29** Share moment URL → Discord/iMessage shows **text** title + description (no broken image).
+- [ ] **SRG-28** **Mobile:** install hint once after batch; dismiss → no repeat 30 days.
+- [ ] **SRG-29** Share moment URL → text OG title + description (no broken image).
 
 ---
 
@@ -1236,7 +1273,7 @@ Time-dependent — verify in staging when SMTP or calendar manipulation availabl
 | SRG-16 inbox streak | Clarified | Requires **Mark reviewed** on consecutive **calendar** days; day 1 shows progress chip + hint |
 | Console noise | Ignore | Browser extensions (`inject.bundle.js`, `content-script.js`) — not app bugs |
 
-**Still to verify:** SRG-11 alignment chip on batch-linked **single-game** report; Smoke 2 Part 3–5.
+**Still to verify:** Smoke 2 Part 5–6 optional email/streak day-2.
 
 **Batch proof game UX (SRG-0 + SRG-9):** When `mode=review&batch=` and no saved depth-20 report exists, UI explains that this is normal for proof links, starts a **free** one-time depth-20 run, and notes that revisits are instant.
 
@@ -1359,7 +1396,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-09 | Prod smoke §7.1: Part 0/1 largely pass; fixes for loading bar, accuracy, inbox proof links, coach home; SRG-16 clarified |
 | 2026-06-11 | Prod smoke §7.2: Smoke 2 Part 2 pass; Smoke 1 core pass; SRG-11 banner vs cards clarified; phase snapshot fix shipped |
 | 2026-06-13 | Prod: SRG-16 day-1 chip pass; phase snapshot match pass; CI apt Microsoft mirror flake fix |
-| 2026-06-13 | Prod §7.4: Part 3 complete post-deploy — fix-rate + compare + SRG-11 (0% mismatch) + openings pass |
+| 2026-06-13 | Prod §7.5: Part 4 complete — coach preferences save, email toggles, referral link |
 
 ---
 
