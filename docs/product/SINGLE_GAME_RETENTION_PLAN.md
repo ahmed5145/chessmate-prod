@@ -1086,8 +1086,8 @@ Run only if these failed in prod or after deploy:
 
 - [x] **SRG-9/19** Inbox row shows **proof label** (`Your game vs Opponent · move N · Opening`). *(prod 2026-06-11)*
 - [x] **SRG-9** Open item → `/game/:id/analysis?mode=review&batch=&priority=&move=` when linked. *(prod — game 169)*
-- [ ] **SRG-11** Alignment % badge + tooltip in indigo **From your Batch Coach report** banner (above report cards). *(Re-check after report fully loads; not the “Your accuracy” insight cards.)*
-- [ ] **SRG-16** Streak chip on **Dashboard → Coach inbox** header: day 1 = progress label; day 2+ = 🔥 badge. *(Day 1 mark reviewed done 2026-06-11; chip easy to miss — see §7.2)*
+- [ ] **SRG-11** Alignment % badge + tooltip in indigo **From your Batch Coach report** banner (above report cards). *(See **How to check SRG-11** below — single-game from inbox, not batch report page.)*
+- [x] **SRG-16** Streak chip on **Dashboard → Coach inbox** header: day 1 = progress label; day 2+ = 🔥 badge. *(prod 2026-06-13 — Day 1 chip visible)*
 - [x] **SRG-9** **Mark reviewed** on batch banner → return **Dashboard** → inbox count decreased; persists on reload. *(prod 2026-06-11)*
 - [x] **SRG-0** Proof link with `batch=` starts **free** depth-20 drill-down when no cached report (no credit). *(games 169, 171 — prod 2026-06-11)*
 
@@ -1095,7 +1095,50 @@ Run only if these failed in prod or after deploy:
 
 #### Part 3 — Progress widgets → batch report (Account A)
 
-`Dashboard` → scroll progress → open **latest batch report** (navbar Batch Coach → report link, or hero “Open report”).
+**Prep:** Logged in as Account A with ≥1 completed batch. Fix-rate / compare / timeline need **≥2 batches** — note “skip” if you only have one.
+
+**Path:** `Dashboard` → scroll to **Your progress** → then open latest batch report.
+
+---
+
+**Step 1 — Dashboard progress section**
+
+1. Go to `https://www.chess-mate.online/dashboard`.
+2. Scroll past **Coach inbox** to **Your progress**.
+3. **SRG-17 (dashboard):** Look for green **Pattern fix rate** card (`FixRateCard`).  
+   - **Pass:** headline visible (e.g. “X patterns improved since last batch”).  
+   - **Skip note:** if only one batch ever, card may be hidden — write “skipped — 1 batch”.
+4. **SRG-18 (dashboard):** Find **Result × phase patterns** heatmap (3×3 grid: Wins/Losses/Draws × Opening/Middlegame/Endgame).  
+   - **Pass:** at least one **highlighted** cell (colored, not gray) when you have enough analyzed games.  
+   - Click a highlighted cell → URL should be `/game/:id/analysis?mode=review` (optional `batch=`).  
+   - **Pass:** opens single-game report at that moment; **no** credit dialog if already analyzed.
+
+---
+
+**Step 2 — Open latest batch report**
+
+5. Navbar **Batch Coach** → your latest report, **or** dashboard hero **Open report**, **or** `/batch-report/{batch_id}` from a prior inbox link.
+6. Confirm batch report loads (coaching sections, priorities, moments).
+
+---
+
+**Step 3 — Batch report widgets**
+
+7. **SRG-17 (batch report):** Near top, same **Pattern fix rate** headline as dashboard.  
+   - **Pass:** dashboard headline **matches** batch report headline (same counts/wording).
+8. **SRG-10:** In **Recurring patterns** or **Top critical moments**, look for “appeared in **N batches**” / sparkline under a pattern.  
+   - **Pass:** count ≥2 when you have ≥2 batches.  
+   - **Skip note:** hidden with only one batch.
+9. **SRG-20:** Section titled **Compared to last batch** (pattern swing vs previous batch).  
+   - **Pass:** visible on 2nd+ batch with resolved/unchanged/new counts.  
+   - **Skip note:** hidden on first batch only.
+10. **SRG-21:** Scroll to **Openings** / opening gaps.  
+    - **Pass:** copy like “You lost N games” (or `loss_copy`) plus per-loss **Review in ChessMate** links.  
+    - Click one link → single-game `mode=review` opens.
+
+---
+
+**Checklist (tick as you go)**
 
 - [ ] **SRG-17** Fix-rate on dashboard (needs ≥2 batches; skip note if only one).
 - [ ] **SRG-18** Phase heatmap → click highlighted cell → opens `mode=review`.
@@ -1103,6 +1146,22 @@ Run only if these failed in prod or after deploy:
 - [ ] **SRG-20** Compared-to-last-batch section (hidden on first batch).
 - [ ] **SRG-21** Opening gap → “You lost N games” + review links per loss.
 - [ ] **SRG-17** Fix-rate headline on batch report matches dashboard.
+
+---
+
+#### How to check SRG-11 (alignment chip)
+
+**Where:** **Single-game report** opened from a **coach inbox proof link** (or one-thing drill with `batch=` in URL) — **not** the batch report page.
+
+**Steps:**
+
+1. `Dashboard` → **Coach inbox** → click a pending row (or use a URL you already have, e.g. `/game/169/analysis?mode=review&batch=25&priority=1&move=19`).
+2. Wait until analysis **finishes** (report visible — not progress bar).
+3. Scroll to the **very top** of the report (above “Your accuracy”).
+4. Find the **indigo** box: **From your Batch Coach report**.
+5. **Pass:** inside that box, a chip like **`72% aligned`** + one-line headline; hover for tooltip; optional amber mismatch note if batch phase ≠ game swing.
+
+If the indigo banner shows but **no** `% aligned` chip, note batch id + game id — alignment only renders when `batch_context.coach_alignment` is present.
 
 ---
 
@@ -1155,7 +1214,7 @@ Time-dependent — verify in staging when SMTP or calendar manipulation availabl
 | SRG-16 inbox streak | Clarified | Requires **Mark reviewed** on consecutive **calendar** days; day 1 shows progress chip + hint |
 | Console noise | Ignore | Browser extensions (`inject.bundle.js`, `content-script.js`) — not app bugs |
 
-**Still to verify after deploy:** PhaseStrip single-game fix; SRG-11 alignment chip in batch banner; SRG-16 day-1 chip on dashboard inbox header; Part 3–5.
+**Still to verify:** SRG-11 alignment chip on batch-linked **single-game** report; Smoke 2 Part 3–5.
 
 **Batch proof game UX (SRG-0 + SRG-9):** When `mode=review&batch=` and no saved depth-20 report exists, UI explains that this is normal for proof links, starts a **free** one-time depth-20 run, and notes that revisits are instant.
 
@@ -1172,8 +1231,8 @@ Time-dependent — verify in staging when SMTP or calendar manipulation availabl
 | Mark reviewed | Pass | `POST /api/v1/batches/inbox/review/`; inbox pending −1 after dashboard return + reload |
 | One thing drill game 171 | Pass | Same free batch drill-down pattern |
 | SRG-11 alignment UI | Partial | User reviewed **insight cards** (Your accuracy / Turning point / Opening). **SRG-11 chip** lives in indigo **From your Batch Coach report** banner at top — re-check after report load |
-| Phase accuracy mismatch | Fixed (pending deploy) | Insight card “46.7% middlegame” vs phase snapshot “51%” — snapshot was showing **batch** averages; `PhaseStrip.js` now prefers single-game `phases` |
-| SRG-16 day 1 | Partial | First mark reviewed today; 🔥 badge correctly hidden until day 2. **Day 1 progress** chip should appear on **Dashboard → Coach inbox** title row (small gray chip), not on report page |
+| Phase accuracy mismatch | Pass (deployed) | Phase snapshot now matches insight card middlegame % |
+| SRG-16 day 1 | Pass | Dashboard Coach inbox: `Day 1 — mark a priority tomorrow…` |
 | Smoke 1 SRG-0/1/6/22 | Pass | View report no POST analyze; re-run credit; completion email; checklist; welcome mail |
 | Smoke 1 SRG-0 flash | OK | Sub-second progress bar on cached view report — acceptable |
 
@@ -1276,7 +1335,8 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-08 | Shipped SRG-22 welcome email after email verification |
 | 2026-06-09 | Acceptance criteria audit: [x]=tests, [ ]=smoke, [—]=OPS defer; Smoke 2 reordered as chronological journey (Parts 0–6) |
 | 2026-06-09 | Prod smoke §7.1: Part 0/1 largely pass; fixes for loading bar, accuracy, inbox proof links, coach home; SRG-16 clarified |
-| 2026-06-11 | Prod smoke §7.2: Smoke 2 Part 2 pass (proof drill-down, mark reviewed, inbox −1); Smoke 1 core pass; SRG-11 banner vs cards clarified; phase snapshot batch/single mismatch noted |
+| 2026-06-11 | Prod smoke §7.2: Smoke 2 Part 2 pass; Smoke 1 core pass; SRG-11 banner vs cards clarified; phase snapshot fix shipped |
+| 2026-06-13 | Prod: SRG-16 day-1 chip pass; phase snapshot match pass; CI apt Microsoft mirror flake fix |
 
 ---
 

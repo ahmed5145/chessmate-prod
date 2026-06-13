@@ -67,6 +67,13 @@ jobs:
     - name: Install System Dependencies
       timeout-minutes: 5
       run: |
+        # Azure-hosted runners ship Microsoft apt mirrors that intermittently 403;
+        # backend tests only need Ubuntu packages (libpq-dev, etc.).
+        for f in /etc/apt/sources.list.d/*; do
+          if [ -f "$f" ] && grep -q 'packages.microsoft.com' "$f" 2>/dev/null; then
+            sudo mv "$f" "${f}.disabled" || true
+          fi
+        done
         sudo apt-get update
         sudo apt-get install -y build-essential libpq-dev python3-dev
         # Skip stockfish installation in CI - tests can mock it or use fallback
