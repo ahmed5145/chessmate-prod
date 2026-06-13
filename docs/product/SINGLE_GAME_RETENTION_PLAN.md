@@ -1183,11 +1183,17 @@ If the indigo banner shows but **no** `% aligned` chip, note batch id + game id 
 
 #### Part 4 — Profile & credits (Account A)
 
-`Profile` → toggle settings → `Credits` → back to dashboard.
+**Coach preferences** live on **Profile** (`/profile`) — scroll below achievements. **Referral link** is on **Credits** (`/credits`), not Profile (click credit count in navbar).
 
-- [ ] **SRG-26** Coach tone **Direct** vs **Encouraging** saves; note for next batch wording.
-- [ ] **SRG-15/13/27** Email toggles visible (digest, spaced, reactivation); defaults off.
-- [ ] **SRG-24** Credits page → copy referral link (no need to complete referral here).
+1. **`/profile`** → scroll to **Coach preferences** section (below achievements / above Linked accounts).
+2. **SRG-26:** Change **Coach tone** Direct ↔ Encouraging → **Save preferences** → reload → value persists.
+3. **SRG-15/13/27:** Confirm toggles visible — **Weekly Coach Digest**, **Spaced Moment Reminders**, **Reactivation reminders** — all **off** by default.
+4. Navbar → click **credit pill** → **`/credits`**.
+5. **SRG-24:** **Invite a friend** card → **Copy referral link** (no need to complete referral).
+
+- [ ] **SRG-26** Coach tone **Direct** vs **Encouraging** saves on `/profile` → Coach preferences.
+- [ ] **SRG-15/13/27** Email toggles on `/profile` Coach preferences; defaults off.
+- [ ] **SRG-24** `/credits` → copy referral link.
 
 ---
 

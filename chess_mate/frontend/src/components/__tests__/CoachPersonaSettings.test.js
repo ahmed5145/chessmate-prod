@@ -1,8 +1,8 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
-import UserProfile from "../UserProfile";
-import { getUserProfile, updateUserProfile } from "../../services/apiRequests";
+import ProfileCoachSettings from '../profile/ProfileCoachSettings';
+import { getUserProfile, updateUserProfile } from '../../services/apiRequests';
 
 jest.mock("react-hot-toast");
 jest.mock("../../services/apiRequests");
@@ -32,7 +32,7 @@ describe("CoachPersonaSettings", () => {
 
     render(
       <BrowserRouter>
-        <UserProfile />
+        <ProfileCoachSettings isDarkMode={false} />
       </BrowserRouter>
     );
 
@@ -41,9 +41,9 @@ describe("CoachPersonaSettings", () => {
     });
 
     fireEvent.change(screen.getByLabelText(/coach tone/i), {
-      target: { value: "direct" },
+      target: { value: 'direct' },
     });
-    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save preferences/i }));
 
     await waitFor(() => {
       expect(updateUserProfile).toHaveBeenCalledWith({

@@ -18,6 +18,7 @@ import { useTheme } from '../context/ThemeContext';
 import { fetchProfileData } from '../services/apiRequests';
 import { default as LoadingSpinner } from '../components/LoadingSpinner';
 import ProfileLinkedAccounts from './profile/ProfileLinkedAccounts';
+import ProfileCoachSettings from './profile/ProfileCoachSettings';
 
 
 const StatCard = ({ title, value, icon: Icon, trend, color = 'indigo' }) => {
@@ -579,6 +580,8 @@ const Profile = () => {
               </div>
             </div>
           </div>
+
+        <ProfileCoachSettings isDarkMode={isDarkMode} />
 
         <ProfileLinkedAccounts
           chesscomUsername={profileData.chesscom_username}
