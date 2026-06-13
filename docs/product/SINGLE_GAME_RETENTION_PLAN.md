@@ -1087,7 +1087,7 @@ Run only if these failed in prod or after deploy:
 - [x] **SRG-9/19** Inbox row shows **proof label** (`Your game vs Opponent · move N · Opening`). *(prod 2026-06-11)*
 - [x] **SRG-9** Open item → `/game/:id/analysis?mode=review&batch=&priority=&move=` when linked. *(prod — game 169)*
 - [x] **SRG-16** Streak chip on **Dashboard → Coach inbox** header *(prod 2026-06-13)*
-- [ ] **SRG-11** Alignment % in indigo banner on **finished** batch-linked single-game *(re-test after deploy)*
+- [x] **SRG-11** Alignment % in indigo banner on **finished** batch-linked single-game *(prod post-deploy — 0% + mismatch note on Mieses move 14; valid)*
 - [x] **SRG-9** **Mark reviewed** on batch banner → return **Dashboard** → inbox count decreased; persists on reload. *(prod 2026-06-11)*
 - [x] **SRG-0** Proof link with `batch=` starts **free** depth-20 drill-down when no cached report (no credit). *(games 169, 171 — prod 2026-06-11)*
 
@@ -1145,24 +1145,23 @@ Run only if these failed in prod or after deploy:
 - [x] **SRG-17** Fix-rate on dashboard *(prod 2026-06-13 — “You fixed 3/4 patterns…”)*
 - [x] **SRG-18** Phase heatmap → click highlighted cell → opens `mode=review` *(prod 2026-06-13)*
 - [x] **SRG-10** Moment timeline on batch report *(prod 2026-06-13)*
-- [ ] **SRG-20** Compared-to-last-batch on batch report *(re-test after deploy — was dropped by frontend API client)*
-- [x] **SRG-21** Opening gap → “You lost N games” + review links *(prod 2026-06-13 — Mieses A00)*
-- [ ] **SRG-17** Fix-rate headline on batch report matches dashboard *(re-test after deploy)*
-- [ ] **SRG-11** Alignment chip on batch-linked single-game *(re-test after deploy — phase inference fix)*
+- [x] **SRG-20** Compared-to-last-batch on batch report *(prod post-deploy — vs batch #21, 1 resolved · 1 new)*
+- [x] **SRG-21** Opening gap → “You lost N games” + review links *(prod — Mieses A00, Benoni A69)*
+- [x] **SRG-17** Fix-rate headline on batch report matches dashboard *(prod post-deploy — same “3/4 patterns” card)*
+- [x] **SRG-11** Alignment chip on batch-linked single-game *(prod post-deploy — 0% aligned + endgame mismatch copy)*
 
 ---
 
-### 7.3 Prod smoke log (2026-06-13) — Part 3
+### 7.4 Prod smoke log (post-deploy) — Part 3 complete
 
 | Area | Result | Notes |
 |------|--------|-------|
-| SRG-17 dashboard | Pass | “You fixed 3/4 patterns from your June batch” |
-| SRG-18 heatmap | Pass | “Shaky endgame even in wins” link → single-game analysis |
-| SRG-10 timeline | Pass | “appeared in N batches” on batch report |
-| SRG-21 opening gaps | Pass | Mieses A00 · “You lost 1 game in this line” |
-| SRG-17 batch report | Fail → fixed | Same fix-rate card as dashboard but `getBatchReport` stripped `fix_rate` |
-| SRG-20 compare | Fail → fixed | `moment_diff` stripped by same client bug |
-| SRG-11 alignment | Fail → fixed | Banner rendered; no `% aligned` — moments lacked `phase` field |
+| SRG-17 batch report | Pass | “You fixed 3/4 patterns from your June batch” — **this is** fix-rate (not “Compared to last batch”) |
+| SRG-20 compare | Pass | vs batch #21 (June) · Missed Tactic resolved · Hanging Piece new |
+| SRG-11 alignment | Pass | Single-game inbox proof only — **0% aligned** + “swings were in the endgame” is expected when batch priority is opening but depth-20 worst moments are endgame |
+| SRG-21 openings | Pass | Mieses A00 + Benoni A69 repertoire gaps with per-loss links |
+
+**Part 3:** complete for Account A. **Next:** Part 4 (Profile & credits).
 
 ---
 
@@ -1176,7 +1175,7 @@ Run only if these failed in prod or after deploy:
 2. Wait until analysis **finishes** (report visible — not progress bar).
 3. Scroll to the **very top** of the report (above “Your accuracy”).
 4. Find the **indigo** box: **From your Batch Coach report**.
-5. **Pass:** inside that box, a chip like **`72% aligned`** + one-line headline; hover for tooltip; optional amber mismatch note if batch phase ≠ game swing.
+5. **Pass:** inside that box, a chip like **`72% aligned`** or **`0% aligned`** + one-line headline; hover for tooltip; optional amber mismatch note when batch phase ≠ where depth-20 swings landed (e.g. opening priority, endgame swings — **still a pass**).
 
 If the indigo banner shows but **no** `% aligned` chip, note batch id + game id — alignment only renders when `batch_context.coach_alignment` is present. **Bug fixed 2026-06-13:** depth-20 `critical_moments` omitted `phase`; alignment now infers phase from move number.
 
@@ -1354,7 +1353,7 @@ Every in-scope package **must** have automated coverage before its phase is mark
 | 2026-06-09 | Prod smoke §7.1: Part 0/1 largely pass; fixes for loading bar, accuracy, inbox proof links, coach home; SRG-16 clarified |
 | 2026-06-11 | Prod smoke §7.2: Smoke 2 Part 2 pass; Smoke 1 core pass; SRG-11 banner vs cards clarified; phase snapshot fix shipped |
 | 2026-06-13 | Prod: SRG-16 day-1 chip pass; phase snapshot match pass; CI apt Microsoft mirror flake fix |
-| 2026-06-13 | Prod §7.3 Part 3: SRG-17/18/10/21 pass; SRG-11/17/20 bugs fixed (`getBatchReport` + alignment phase inference) |
+| 2026-06-13 | Prod §7.4: Part 3 complete post-deploy — fix-rate + compare + SRG-11 (0% mismatch) + openings pass |
 
 ---
 
