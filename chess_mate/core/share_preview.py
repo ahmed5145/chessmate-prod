@@ -37,25 +37,13 @@ def build_share_moment_meta(payload: Optional[Dict[str, Any]]) -> Tuple[str, str
         )
 
     moment = payload.get("moment") if isinstance(payload.get("moment"), dict) else {}
-    context = (
-        payload.get("game_context")
-        if isinstance(payload.get("game_context"), dict)
-        else {}
-    )
-    coaching = (
-        payload.get("coaching") if isinstance(payload.get("coaching"), dict) else {}
-    )
+    context = payload.get("game_context") if isinstance(payload.get("game_context"), dict) else {}
+    coaching = payload.get("coaching") if isinstance(payload.get("coaching"), dict) else {}
 
-    takeaway = str(
-        coaching.get("takeaway") or "Critical moment from a ChessMate deep review"
-    ).strip()
+    takeaway = str(coaching.get("takeaway") or "Critical moment from a ChessMate deep review").strip()
     parts = [
         f"Move {moment.get('move_number')}" if moment.get("move_number") else None,
-        (
-            f"Eval swing {moment.get('eval_swing')}"
-            if moment.get("eval_swing") is not None
-            else None
-        ),
+        (f"Eval swing {moment.get('eval_swing')}" if moment.get("eval_swing") is not None else None),
         str(context.get("opening_name") or "").strip() or None,
         str(context.get("result") or "").strip() or None,
         f"Practice: {coaching.get('do_today')}" if coaching.get("do_today") else None,
@@ -118,11 +106,7 @@ def render_share_moment_html(
 
     index_path = _frontend_build_index_path()
     if not os.path.isfile(index_path):
-        return (
-            "<!DOCTYPE html><html><head>"
-            f"{meta_block}"
-            '</head><body><div id="root"></div></body></html>'
-        )
+        return "<!DOCTYPE html><html><head>" f"{meta_block}" '</head><body><div id="root"></div></body></html>'
 
     with open(index_path, encoding="utf-8") as handle:
         html_doc = handle.read()

@@ -44,11 +44,7 @@ def user_has_celebrated_first_batch(profile: Profile) -> bool:
 
 
 def _celebration_headline(coaching: Dict[str, Any]) -> str:
-    raw = str(
-        coaching.get("executive_summary")
-        or coaching.get("one_thing_to_do_today")
-        or ""
-    ).strip()
+    raw = str(coaching.get("executive_summary") or coaching.get("one_thing_to_do_today") or "").strip()
     if not raw:
         return "Your coach reviewed your games and picked proof games plus top priorities."
 

@@ -73,7 +73,7 @@ def test_share_game_moment_page_injects_og_tags(rf, test_user, test_game):
     index_html = (
         "<!DOCTYPE html><html><head><title>Chess Mate</title>"
         '<meta name="description" content="fallback" />'
-        "</head><body><div id=\"root\"></div></body></html>"
+        '</head><body><div id="root"></div></body></html>'
     )
     with tempfile.TemporaryDirectory() as tmpdir:
         build_dir = os.path.join(tmpdir, "frontend", "build")
