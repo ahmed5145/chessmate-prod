@@ -53,3 +53,30 @@ def test_public_moment_share_requires_completed_analysis(authenticated_client, t
     share_url = reverse("create_game_moment_share", kwargs={"game_id": test_game.id})
     response = authenticated_client.post(share_url, {}, format="json")
     assert response.status_code == 400
+
+
+def test_moment_share_migrates_legacy_game_analysis(authenticated_client, test_game):
+    """Games with only game.analysis (no GameAnalysis row) can still share moments."""
+    test_game.analysis = {
+        "coaching": {
+            "takeaway": "The swing on move 9 decided the game.",
+            "do_today": "Replay the tactic once.",
+        },
+        "critical_moments": [
+            {
+                "move_number": 9,
+                "type": "mistake",
+                "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+                "played_move": "Nf3",
+                "best_move": "d4",
+                "eval_swing": 1.2,
+            }
+        ],
+    }
+    test_game.save(update_fields=["analysis"])
+
+    share_url = reverse("create_game_moment_share", kwargs={"game_id": test_game.id})
+    response = authenticated_client.post(share_url, {"move": 9}, format="json")
+    assert response.status_code == 200
+    assert response.data["share_token"]
+    assert GameAnalysis.objects.filter(game_id=test_game.id).exists()

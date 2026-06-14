@@ -248,7 +248,7 @@ const SingleGameReport = ({
       <SingleGameHeader gameContext={gameContext} />
 
       <SingleGameReportActions
-        gameId={gameId || gameContext?.game_id}
+        gameId={gameId || gameContext?.id}
         batchId={batchId || batchContext?.batch_id}
         move={focusMoveNumber ?? initialMoveNumber}
         priority={priority}
@@ -270,7 +270,7 @@ const SingleGameReport = ({
       <SingleGameStreakCard streak={resolvedAnalysisData?.single_game_streak} />
 
       <DrillChecklistSection
-        gameId={gameId || gameContext?.game_id}
+        gameId={gameId || gameContext?.id}
         completedAt={resolvedAnalysisData.completed_at || resolvedAnalysisData.analysis_data?.completed_at}
         coaching={coaching}
         worstMoment={worstMoment}
@@ -422,7 +422,7 @@ const SingleGameReport = ({
 
       <SingleGameFooterCta
         batchContext={batchContext}
-        gameId={gameId || gameContext?.game_id}
+        gameId={gameId || gameContext?.id}
       />
     </div>
   );

@@ -86,6 +86,7 @@ from .single_game_moment_share import (
     build_public_moment_payload,
     find_analysis_by_share_token,
     get_or_create_moment_share,
+    resolve_analysis_for_share,
 )
 from .single_game_streak import get_single_game_streak
 from .stats_helpers import build_single_game_context
@@ -2610,8 +2611,15 @@ def create_game_moment_share(request, game_id):
         return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
 
     try:
-        analysis = GameAnalysis.objects.get(game_id=game_id)
-    except GameAnalysis.DoesNotExist:
+        analysis = resolve_analysis_for_share(game)
+    except Exception as exc:
+        logger.exception("Failed to resolve analysis for moment share game=%s: %s", game_id, exc)
+        return Response(
+            {"detail": "Could not save share link. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    if analysis is None:
         return Response(
             {"detail": "Complete analysis before sharing a moment."},
             status=status.HTTP_400_BAD_REQUEST,

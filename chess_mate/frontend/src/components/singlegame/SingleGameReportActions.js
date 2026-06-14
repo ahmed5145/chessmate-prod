@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { useTheme } from '../../context/ThemeContext';
 import { buildSingleGameAnalysisLink } from '../../utils/singleGameAnalysisLinks';
 import { trackSingleGameEvent } from '../../utils/marketingAnalytics';
 import { createGameMomentShare } from '../../services/gameAnalysisService';
+import { copyTextToClipboard } from '../../utils/clipboard';
+import { extractApiError } from '../../utils/apiErrors';
 
 const SingleGameReportActions = ({
   gameId,
@@ -24,15 +27,15 @@ const SingleGameReportActions = ({
       priority,
       mode: 'review',
     })}`;
-    try {
-      await navigator.clipboard.writeText(url);
+    const copied = await copyTextToClipboard(url);
+    if (copied) {
       setCopyLabel('Copied!');
       trackSingleGameEvent('single_game_share_copy', { game_id: gameId, batch_id: batchId });
-      setTimeout(() => setCopyLabel('Copy link'), 2000);
-    } catch {
+    } else {
       setCopyLabel('Copy failed');
-      setTimeout(() => setCopyLabel('Copy link'), 2000);
+      toast(url, { duration: 8000 });
     }
+    setTimeout(() => setCopyLabel('Copy link'), 2000);
   };
 
   const handleShareMoment = async () => {
@@ -43,17 +46,25 @@ const SingleGameReportActions = ({
     try {
       const data = await createGameMomentShare(gameId, { move });
       const url = data.share_url || `${window.location.origin}/share/game-moment/${data.share_token}`;
-      await navigator.clipboard.writeText(url);
-      setShareLabel('Moment link copied!');
+      const copied = await copyTextToClipboard(url);
+      if (copied) {
+        setShareLabel('Moment link copied!');
+        toast.success('Moment link copied — paste it in chat or social.', { duration: 4500 });
+      } else {
+        setShareLabel('Link ready');
+        toast.success(url, { duration: 8000 });
+      }
       trackSingleGameEvent('single_game_moment_share_copy', {
         game_id: gameId,
         batch_id: batchId,
         move,
       });
       setTimeout(() => setShareLabel('Share moment'), 2000);
-    } catch {
+    } catch (error) {
+      const message = extractApiError(error, 'Could not create share link.');
       setShareLabel('Share failed');
-      setTimeout(() => setShareLabel('Share moment'), 2000);
+      toast.error(message);
+      setTimeout(() => setShareLabel('Share moment'), 2500);
     } finally {
       setSharing(false);
     }

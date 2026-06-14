@@ -33,6 +33,37 @@ def get_moment_share_meta(analysis: GameAnalysis) -> Optional[Dict[str, Any]]:
     return share_meta if isinstance(share_meta, dict) else None
 
 
+def resolve_analysis_for_share(game: Game) -> Optional[GameAnalysis]:
+    """
+    Return GameAnalysis for share persistence.
+
+    Older games may only have analysis on ``game.analysis``; migrate once so share
+    tokens and public moment links work.
+    """
+    try:
+        return GameAnalysis.objects.get(game_id=game.pk)
+    except GameAnalysis.DoesNotExist:
+        pass
+
+    legacy = game.analysis if isinstance(game.analysis, dict) else {}
+    if not legacy:
+        return None
+
+    feedback = legacy.get("feedback")
+    if not isinstance(feedback, dict):
+        feedback = {}
+
+    analysis, _ = GameAnalysis.objects.update_or_create(
+        game=game,
+        defaults={
+            "analysis_data": legacy,
+            "feedback": feedback,
+            "depth": 20,
+        },
+    )
+    return analysis
+
+
 def get_or_create_moment_share(
     analysis: GameAnalysis,
     move_number: Optional[int] = None,
