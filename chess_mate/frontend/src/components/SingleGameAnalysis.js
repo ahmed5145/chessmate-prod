@@ -14,6 +14,7 @@ import {
 } from '../services/gameAnalysisService';
 import GameAnalysisResults from './GameAnalysisResults';
 import BatchContextBanner from './singlegame/BatchContextBanner';
+import { useMarkPriorityReviewed } from './singlegame/useMarkPriorityReviewed';
 import AnalyzeGameConfirmDialog from './AnalyzeGameConfirmDialog';
 import { parseSingleGameAnalysisSearch } from '../utils/singleGameAnalysisLinks';
 import { humanizeAnalysisStatusMessage } from '../utils/singleGameAnalysisStatus';
@@ -312,6 +313,10 @@ const SingleGameAnalysis = () => {
   const [statusMessage, setStatusMessage] = useState("Initializing analysis...");
   const [overdueMessage, setOverdueMessage] = useState(null);
   const [singleGameSendsEmail, setSingleGameSendsEmail] = useState(true);
+
+  const resolvedBatchId = analysisData?.batch_context?.batch_id || batchId || null;
+  const priorityRank = analysisData?.batch_context?.priority_rank || priority || null;
+  const markReview = useMarkPriorityReviewed(resolvedBatchId, priorityRank);
 
   useEffect(() => {
     let cancelled = false;
@@ -1086,6 +1091,7 @@ const SingleGameAnalysis = () => {
           batchContext={analysisData?.batch_context}
           move={move}
           priority={priority}
+          markReview={markReview}
         />
 
         {analysisData && (
@@ -1099,6 +1105,7 @@ const SingleGameAnalysis = () => {
             initialMoveNumber={move}
             gameId={gameId}
             priority={priority}
+            markReview={markReview}
             onReanalyze={handleRequestReanalyze}
           />
         ) : (

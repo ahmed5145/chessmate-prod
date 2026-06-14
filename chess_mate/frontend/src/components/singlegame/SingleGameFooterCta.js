@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { buildBatchPatternCta } from '../../utils/singleGameBatchCta';
 import { trackSingleGameEvent } from '../../utils/marketingAnalytics';
+import MarkReviewedButton from './MarkReviewedButton';
 
-const SingleGameFooterCta = ({ batchContext = null, gameId = null }) => {
+const SingleGameFooterCta = ({ batchContext = null, gameId = null, markReview = null }) => {
   const { isDarkMode } = useTheme();
   const cta = buildBatchPatternCta(batchContext);
 
@@ -57,6 +58,7 @@ const SingleGameFooterCta = ({ batchContext = null, gameId = null }) => {
         >
           All games
         </Link>
+        {markReview ? <MarkReviewedButton {...markReview} /> : null}
       </div>
     </div>
   );

@@ -82,6 +82,7 @@ const SingleGameReport = ({
   gameId = null,
   priority = null,
   onReanalyze = null,
+  markReview = null,
 }) => {
   const { isDarkMode } = useTheme();
   const [focusMoveNumber, setFocusMoveNumber] = useState(initialMoveNumber);
@@ -423,6 +424,7 @@ const SingleGameReport = ({
       <SingleGameFooterCta
         batchContext={batchContext}
         gameId={gameId || gameContext?.id}
+        markReview={markReview}
       />
     </div>
   );

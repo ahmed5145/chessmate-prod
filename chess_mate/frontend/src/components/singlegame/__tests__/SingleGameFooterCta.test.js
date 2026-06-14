@@ -59,4 +59,22 @@ describe('SingleGameFooterCta', () => {
       })
     );
   });
+
+  it('shows mark reviewed when markReview prop is passed', () => {
+    render(
+      <MemoryRouter>
+        <SingleGameFooterCta
+          batchContext={{ batch_id: 7, priority_rank: 1, pattern_count: 2, batch_game_count: 8 }}
+          markReview={{
+            showMarkReviewed: true,
+            reviewState: 'idle',
+            reviewError: '',
+            onMarkReviewed: jest.fn(),
+          }}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('button', { name: /Mark reviewed/i })).toBeInTheDocument();
+  });
 });
