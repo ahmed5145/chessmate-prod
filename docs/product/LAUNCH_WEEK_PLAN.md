@@ -320,6 +320,7 @@ You do **not** need viral growth on day one. You need **believable coaching** an
 | [DEPLOY_EB_ECR.md](../DEPLOY_EB_ECR.md) | Deploy + logs |
 | [PRICING_UNIT_ECONOMICS.md](../PRICING_UNIT_ECONOMICS.md) | Cost per batch |
 | [PLATFORM_GROWTH_AUDIT.md](PLATFORM_GROWTH_AUDIT.md) | Post-launch feature priorities |
+| [LANDING_SEO_MARKETING_AUDIT.md](LANDING_SEO_MARKETING_AUDIT.md) | Landing backlog, SEO, organic marketing |
 
 ---
 

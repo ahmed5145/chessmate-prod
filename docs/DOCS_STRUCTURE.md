@@ -22,6 +22,7 @@ This document provides an overview of the ChessMate documentation organization t
 - [PRE_COMMIT.md](PRE_COMMIT.md) - Pre-commit hooks and development workflow
 - [product/README.md](product/README.md) - Product requirements, MVP scope, roadmap, differentiation, and batch analysis flow
 - [product/LAUNCH_WEEK_PLAN.md](product/LAUNCH_WEEK_PLAN.md) - Post-smoke launch ops, EB logs, support, and user acquisition
+- [product/LANDING_SEO_MARKETING_AUDIT.md](product/LANDING_SEO_MARKETING_AUDIT.md) - Landing improvements backlog, SEO, explorability, organic marketing
 
 ## Documentation Conventions
 
