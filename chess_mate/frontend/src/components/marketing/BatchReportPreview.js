@@ -5,15 +5,19 @@ import { Box, Tab, Tabs } from '@mui/material';
 import { useTheme } from '../../context/ThemeContext';
 import { getDemoBatchReport } from '../../content/demoBatchReport';
 import BatchReportHero from '../batch/BatchReportHero';
+import BatchReportHeader from '../batch/BatchReportHeader';
 import PriorityCard from '../batch/PriorityCard';
 import PhaseBreakdown from '../batch/PhaseBreakdown';
+import CoachingInsightsSection from '../batch/CoachingInsightsSection';
+import TrainingPlan from '../batch/TrainingPlan';
 import { trackMarketingEvent } from '../../utils/marketingAnalytics';
 import { MARKETING_SOURCES } from '../../utils/marketingLinks';
 
 const PREVIEW_TABS = [
-  { id: 'summary', label: 'Summary' },
+  { id: 'overview', label: 'Overview' },
   { id: 'priority', label: 'Priority' },
-  { id: 'phases', label: 'Phases' },
+  { id: 'insights', label: 'Insights' },
+  { id: 'plan', label: 'Plan' },
 ];
 
 const BatchReportPreview = () => {
@@ -69,7 +73,7 @@ const BatchReportPreview = () => {
             Example report · anonymized games
           </span>
           <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Generated from real Batch Coach output. Yours will use your games from Chess.com or Lichess.
+            Same sections as a real report — engine stats, priorities, coaching insights, and a 4-week plan.
           </p>
         </div>
         <Link
@@ -90,7 +94,8 @@ const BatchReportPreview = () => {
         <Tabs
           value={activeTab}
           onChange={handleTabChange}
-          variant="fullWidth"
+          variant="scrollable"
+          scrollButtons="auto"
           aria-label="Example report sections"
           sx={{
             borderBottom: 1,
@@ -110,7 +115,7 @@ const BatchReportPreview = () => {
           aria-labelledby={`preview-tab-${PREVIEW_TABS[activeTab]?.id}`}
           sx={{
             position: 'relative',
-            maxHeight: { xs: 360, sm: 400 },
+            maxHeight: { xs: 400, sm: 440 },
             overflow: 'hidden',
             p: { xs: 1.5, sm: 2 },
             pointerEvents: 'none',
@@ -121,13 +126,20 @@ const BatchReportPreview = () => {
           }}
         >
           {activeTab === 0 && (
-            <BatchReportHero
-              batch_summary={report.batch_summary}
-              games_count={report.games_count}
-              coaching_report={report.coaching_report}
-              per_game_results={report.per_game_results}
-              status={report.status}
-            />
+            <>
+              <BatchReportHero
+                batch_summary={report.batch_summary}
+                games_count={report.games_count}
+                coaching_report={report.coaching_report}
+                per_game_results={report.per_game_results}
+                status={report.status}
+                marketingMode
+              />
+              <BatchReportHeader
+                batch_summary={report.batch_summary}
+                games_count={report.games_count}
+              />
+            </>
           )}
           {activeTab === 1 && priority && (
             <PriorityCard
@@ -138,7 +150,16 @@ const BatchReportPreview = () => {
             />
           )}
           {activeTab === 2 && (
-            <PhaseBreakdown batch_summary={report.batch_summary} />
+            <>
+              <PhaseBreakdown batch_summary={report.batch_summary} />
+              <CoachingInsightsSection
+                batch_summary={report.batch_summary}
+                coaching_report={report.coaching_report}
+              />
+            </>
+          )}
+          {activeTab === 3 && (
+            <TrainingPlan coaching_report={report.coaching_report} />
           )}
 
           <Box
@@ -160,14 +181,14 @@ const BatchReportPreview = () => {
       </div>
 
       <p className={`mt-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-        From batch citation → depth-20 drill-down on the cited move (board, eval, coaching).
+        Full report adds opening gaps, tactical patterns, critical moments, and per-game breakdown.
         {' '}
         <Link
           to="/example/batch-report"
           onClick={() => trackMarketingEvent('preview_deep_review_cta', { source: MARKETING_SOURCES.LANDING_EXAMPLE })}
           className={`font-semibold underline ${isDarkMode ? 'text-indigo-300' : 'text-indigo-600'}`}
         >
-          Open full example → move 18 drill-down
+          Open full example →
         </Link>
       </p>
     </section>

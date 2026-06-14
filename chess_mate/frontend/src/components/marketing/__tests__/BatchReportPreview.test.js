@@ -11,12 +11,24 @@ jest.mock('../../batch/BatchReportHero', () => function MockHero() {
   return <div data-testid="preview-hero">Hero panel</div>;
 });
 
+jest.mock('../../batch/BatchReportHeader', () => function MockHeader() {
+  return <div data-testid="preview-header">Header panel</div>;
+});
+
 jest.mock('../../batch/PriorityCard', () => function MockPriority() {
   return <div data-testid="preview-priority">Priority panel</div>;
 });
 
 jest.mock('../../batch/PhaseBreakdown', () => function MockPhases() {
   return <div data-testid="preview-phases">Phases panel</div>;
+});
+
+jest.mock('../../batch/CoachingInsightsSection', () => function MockInsights() {
+  return <div data-testid="preview-insights">Insights panel</div>;
+});
+
+jest.mock('../../batch/TrainingPlan', () => function MockPlan() {
+  return <div data-testid="preview-plan">Plan panel</div>;
 });
 
 const renderPreview = () =>
@@ -37,15 +49,20 @@ describe('BatchReportPreview', () => {
     );
   });
 
-  it('shows summary tab by default and switches panels', () => {
+  it('shows overview tab by default and switches panels', () => {
     renderPreview();
 
     expect(screen.getByTestId('preview-hero')).toBeInTheDocument();
+    expect(screen.getByTestId('preview-header')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: /Priority/i }));
     expect(screen.getByTestId('preview-priority')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: /Phases/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /Insights/i }));
     expect(screen.getByTestId('preview-phases')).toBeInTheDocument();
+    expect(screen.getByTestId('preview-insights')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Plan/i }));
+    expect(screen.getByTestId('preview-plan')).toBeInTheDocument();
   });
 });

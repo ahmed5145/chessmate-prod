@@ -63,9 +63,14 @@ export const DEMO_BATCH_REPORT = {
   games_count: 8,
   batch_summary: {
     games_analyzed: 8,
-    date_range: 'Apr 2025',
+    date_range: 'May 2026',
+    player_rating: 1324,
     overall_accuracy_pct: 71.4,
+    overall_eval_stability: 0.74,
+    overall_acpl: 42.6,
+    win_loss_draw: { wins: 3, losses: 4, draws: 1 },
     worst_phase: 'opening',
+    most_common_blunder_type: 'hanging_piece',
     top_critical_moments: [
       {
         move_number: 18,
@@ -119,6 +124,13 @@ export const DEMO_BATCH_REPORT = {
         record: '1W-1L-0D',
         status: 'mixed',
       },
+      {
+        opening_name: 'Sicilian Defense: Najdorf',
+        eco_code: 'B90',
+        games: 2,
+        record: '0W-2L-0D',
+        status: 'weak',
+      },
     ],
     rating_band_coaching: {
       label: '1200–1400',
@@ -141,17 +153,18 @@ export const DEMO_BATCH_REPORT = {
   },
   coaching_report: {
     executive_summary:
-      'Opening preparation is your biggest leak: Najdorf lines cost material twice. '
-      + 'Middlegame tactics are serviceable, and endgames are a relative strength. '
-      + 'Focus this week on anti-Sicilian development and hanging-piece scans.',
-    one_thing_to_do_today: 'Play 15 fork/pin puzzles, then review one Najdorf loss move-by-move.',
+      'Opening prep is your biggest leak — Najdorf lines cost material twice in this batch. '
+      + 'Middlegame tactics are serviceable when you reach a stable position. '
+      + 'Endgames are a relative strength you can lean on when simplifying.',
+    one_thing_to_do_today: 'Play 15 fork/pin puzzles, then review game_0 moves 1–15.',
     top_3_priorities: [
       {
         rank: 1,
         title: 'Fix Najdorf prep as White (game_0, game_4)',
         why_it_matters: 'You lost both Najdorf games before move 15 from slow development and hanging pieces.',
-        how_to_fix: 'Learn a single anti-Najdorf line: 3. Bb5+ or 6. Be3 with castling before chasing pawns.',
-        specific_drill: 'Practice: 10 puzzles on undefended pieces, then replay game_0 moves 1–15.',
+        how_to_fix: 'Learn one anti-Najdorf line: 3. Bb5+ or 6. Be3 with castling before chasing pawns.',
+        specific_drill: 'Practice: 10 hanging-piece puzzles. Review: game_0 moves 1–15.',
+        estimated_study_hours: 2.5,
       },
       {
         rank: 2,
@@ -159,13 +172,15 @@ export const DEMO_BATCH_REPORT = {
         why_it_matters: 'Three games in this batch included a one-move tactic you missed.',
         how_to_fix: 'Before each capture or check, ask: "What is undefended?"',
         specific_drill: 'Practice: 10 hanging-piece puzzles daily for one week.',
+        estimated_study_hours: 1.5,
       },
       {
         rank: 3,
         title: 'Convert Italian Game advantages',
         why_it_matters: 'You reached good middlegames but did not always press the initiative.',
         how_to_fix: 'When up material, trade into simpler endgames rather than opening the position.',
-        specific_drill: 'Review game_1 and note where you could trade queens earlier.',
+        specific_drill: 'Review: game_1 and note where you could trade queens earlier.',
+        estimated_study_hours: 1,
       },
     ],
     coaching_narrative: {

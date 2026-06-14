@@ -25,6 +25,7 @@ const BatchReportHero = ({
   coaching_report,
   per_game_results = [],
   status = 'completed',
+  marketingMode = false,
 }) => {
   const analyzed = batch_summary?.games_analyzed ?? games_count ?? 0;
   const dateRange = batch_summary?.date_range;
@@ -51,7 +52,7 @@ const BatchReportHero = ({
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, mb: 1 }}>
           <CheckCircleOutlineIcon color="primary" fontSize="small" />
           <Typography variant="overline" sx={{ fontWeight: 700, letterSpacing: '0.06em' }}>
-            Your Batch Coach report is ready
+            {marketingMode ? 'Example Batch Coach report' : 'Your Batch Coach report is ready'}
           </Typography>
           {isPartial ? (
             <Chip size="small" label="Partial batch" color="warning" variant="outlined" />
@@ -104,7 +105,7 @@ const BatchReportHero = ({
           </Typography>
         )}
 
-        {showPriorityCta ? (
+        {showPriorityCta && !marketingMode ? (
           <Button
             variant="contained"
             size="small"
@@ -114,7 +115,7 @@ const BatchReportHero = ({
           >
             Start with priority #1
           </Button>
-        ) : (
+        ) : !marketingMode ? (
           <Button
             variant="outlined"
             size="small"
@@ -124,7 +125,7 @@ const BatchReportHero = ({
           >
             View phase breakdown
           </Button>
-        )}
+        ) : null}
       </Paper>
     </Box>
   );

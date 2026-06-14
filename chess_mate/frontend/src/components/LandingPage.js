@@ -73,7 +73,7 @@ const LandingPage = () => {
     load();
   }, []);
 
-  const batchReports = Math.max(1, Math.floor(signupBonus / 10));
+  const importGames = signupBonus;
   const exampleHref = '/example/batch-report';
 
   return (
@@ -116,7 +116,7 @@ const LandingPage = () => {
 
           <p className={`text-sm mb-10 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             New accounts get <strong className={isDarkMode ? 'text-indigo-200' : 'text-indigo-700'}>{signupBonus} free credits</strong>
-            {' '}(~{batchReports} batch report{batchReports === 1 ? '' : 's'} at 10 games each).
+            {' '}(import up to {importGames} games at 1 credit each — Batch Coach included).
             {' '}Engine stats plus AI coaching across 5–30 games.
           </p>
 
@@ -176,7 +176,7 @@ const LandingPage = () => {
               See a real Batch Coach report
             </h2>
             <p className={`text-sm max-w-lg mx-auto ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Priorities, phase breakdown, opening gaps, and drills — preview below, full report one click away.
+              Engine stats, top priorities, phase breakdown, coaching insights, and a 4-week plan — preview below.
             </p>
           </div>
           <BatchReportPreview />
