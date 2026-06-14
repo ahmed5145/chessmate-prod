@@ -1,8 +1,22 @@
 /**
- * Lightweight marketing events — hook to analytics (GTM, gtag) via window listener.
+ * Lightweight marketing events — GA4 gtag + dataLayer (see docs/product/PRODUCT_ANALYTICS_AUDIT.md).
  */
 
+/** GA4 measurement ID — must match index.html gtag config. */
+export const GA_MEASUREMENT_ID = 'G-3NLTQ3XH2Y';
+
 let analyticsInitialized = false;
+
+/** SPA route changes: send page_path to GA4 (initial HTML load is covered by gtag config). */
+export const trackPageView = (pagePath, pageTitle) => {
+  if (typeof window === 'undefined' || typeof window.gtag !== 'function') {
+    return;
+  }
+  window.gtag('config', GA_MEASUREMENT_ID, {
+    page_path: pagePath,
+    page_title: pageTitle || document.title,
+  });
+};
 
 const pushToDataLayer = (event, detail = {}) => {
   if (typeof window === 'undefined') {

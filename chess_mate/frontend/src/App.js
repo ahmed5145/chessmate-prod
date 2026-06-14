@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { initMarketingAnalytics } from './utils/marketingAnalytics';
+import { initMarketingAnalytics, trackPageView } from './utils/marketingAnalytics';
 import { Toaster } from 'react-hot-toast';
 import { ThemeProvider as TailwindThemeProvider, useTheme } from './context/ThemeContext';
 import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
@@ -18,6 +18,10 @@ function AppContent() {
   useEffect(() => {
     initMarketingAnalytics();
   }, []);
+
+  useEffect(() => {
+    trackPageView(`${location.pathname}${location.search}`);
+  }, [location]);
 
   // Create MUI theme based on Tailwind dark mode state
   const muiTheme = createTheme({
