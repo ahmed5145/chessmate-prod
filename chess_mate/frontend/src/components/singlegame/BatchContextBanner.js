@@ -15,19 +15,7 @@ const BatchContextBanner = ({
   const { isDarkMode } = useTheme();
 
   const resolvedBatchId = batchContext?.batch_id || batchId;
-  if (!resolvedBatchId) {
-    return null;
-  }
-
-  const priorityData = batchContext?.priority;
-  const priorityTitle = priorityData?.title;
   const priorityRank = batchContext?.priority_rank || priority;
-  const patternLabel = batchContext?.pattern_label;
-  const openingName = batchContext?.opening_name;
-  const openingEco = batchContext?.opening_eco;
-  const gameResult = batchContext?.game_result;
-  const linkedMove = batchContext?.linked_moment?.move_number || move;
-  const alignment = batchContext?.coach_alignment;
 
   const internalMark = useMarkPriorityReviewed(
     markReviewProp ? null : resolvedBatchId,
@@ -35,6 +23,19 @@ const BatchContextBanner = ({
     onPriorityReviewed,
   );
   const markReview = markReviewProp || internalMark;
+
+  if (!resolvedBatchId) {
+    return null;
+  }
+
+  const priorityData = batchContext?.priority;
+  const priorityTitle = priorityData?.title;
+  const patternLabel = batchContext?.pattern_label;
+  const openingName = batchContext?.opening_name;
+  const openingEco = batchContext?.opening_eco;
+  const gameResult = batchContext?.game_result;
+  const linkedMove = batchContext?.linked_moment?.move_number || move;
+  const alignment = batchContext?.coach_alignment;
 
   const alignmentStyles = {
     high: isDarkMode
