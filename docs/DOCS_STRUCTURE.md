@@ -21,6 +21,7 @@ This document provides an overview of the ChessMate documentation organization t
 - [ci_cd.md](ci_cd.md) - Continuous Integration and Deployment setup
 - [PRE_COMMIT.md](PRE_COMMIT.md) - Pre-commit hooks and development workflow
 - [product/README.md](product/README.md) - Product requirements, MVP scope, roadmap, differentiation, and batch analysis flow
+- [product/LAUNCH_WEEK_PLAN.md](product/LAUNCH_WEEK_PLAN.md) - Post-smoke launch ops, EB logs, support, and user acquisition
 
 ## Documentation Conventions
 

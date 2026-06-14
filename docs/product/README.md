@@ -10,6 +10,7 @@ This folder contains the product definition for ChessMate's coaching-focused MVP
 - [Batch Report UX Plan](BATCH_REPORT_UX_PLAN.md)
 - [Single-Game Analysis Implementation Plan](SINGLE_GAME_ANALYSIS_IMPLEMENTATION_PLAN.md)
 - [Single-Game Retention & Batch Bridge Plan](SINGLE_GAME_RETENTION_PLAN.md) 🔒
+- [**Launch Week Plan**](LAUNCH_WEEK_PLAN.md) — ops, logs, support, growth (active)
 - [Platform Growth & Opportunity Audit](PLATFORM_GROWTH_AUDIT.md) — post-launch opportunities, financial impact, timing
 - [Dashboard UX Plan](DASHBOARD_UX_PLAN.md) — coach-home layout (implemented)
 - [Social & OAuth Auth Plan](SOCIAL_AUTH_PLAN.md) — Google, Lichess, Chess.com sign-in audit
