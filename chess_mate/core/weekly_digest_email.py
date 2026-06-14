@@ -19,7 +19,12 @@ from .email_send_log import (
     log_email_send,
     received_coaching_touchpoint_today,
 )
-from .email_utils import email_template_context, get_frontend_base_url, is_email_configured, send_coaching_email
+from .email_utils import (
+    email_template_context,
+    get_frontend_base_url,
+    is_email_configured,
+    send_coaching_email,
+)
 from .fix_rate import build_dashboard_fix_rate
 from .inbox_streak import get_inbox_streak_payload
 from .models import BatchAnalysisReport, EmailSendLog, Game, Profile, UserNotification

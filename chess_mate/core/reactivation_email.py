@@ -18,7 +18,11 @@ from .email_send_log import (
     log_email_send,
     spaced_sent_in_last_days,
 )
-from .email_utils import email_template_context, get_frontend_base_url, is_email_configured
+from .email_utils import (
+    email_template_context,
+    get_frontend_base_url,
+    is_email_configured,
+)
 from .models import BatchAnalysisReport, EmailSendLog, Game, Profile
 from .notification_preferences import user_wants_reactivation_email
 from .stats_helpers import parse_last_dashboard_visit

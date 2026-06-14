@@ -9,7 +9,11 @@ from django.utils.html import strip_tags
 
 from .batch_deep_links import build_worst_moment_deep_review_url, worst_moment_summary
 from .batch_labels import BATCH_COACH_EMAIL_SUBJECT
-from .email_utils import email_template_context, get_frontend_base_url, is_email_configured
+from .email_utils import (
+    email_template_context,
+    get_frontend_base_url,
+    is_email_configured,
+)
 from .notification_preferences import user_wants_analysis_completion_email
 
 logger = logging.getLogger(__name__)

@@ -10,7 +10,12 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
 from .email_send_log import coaching_email_budget_exceeded, log_email_send
-from .email_utils import email_template_context, get_frontend_base_url, is_email_configured, send_coaching_email
+from .email_utils import (
+    email_template_context,
+    get_frontend_base_url,
+    is_email_configured,
+    send_coaching_email,
+)
 from .models import EmailSendLog
 from .notification_preferences import user_wants_analysis_completion_email
 from .stats_helpers import build_single_game_context

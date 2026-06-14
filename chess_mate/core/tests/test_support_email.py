@@ -1,7 +1,8 @@
+from io import StringIO
+
 import pytest
 from core.email_utils import email_template_context, get_support_email
 from django.core.management import call_command
-from io import StringIO
 
 
 def test_get_support_email_prefers_support_env(settings):

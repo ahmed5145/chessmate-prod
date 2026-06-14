@@ -20,7 +20,12 @@ from .email_send_log import (
     spaced_sent_in_last_days,
     user_active_within_hours,
 )
-from .email_utils import email_template_context, get_frontend_base_url, is_email_configured, send_coaching_email
+from .email_utils import (
+    email_template_context,
+    get_frontend_base_url,
+    is_email_configured,
+    send_coaching_email,
+)
 from .models import EmailSendLog, Game, GameAnalysis, Profile, SpacedReminderLog
 from .notification_preferences import user_wants_spaced_repetition_email
 from .stats_helpers import ANALYZED_GAME_Q

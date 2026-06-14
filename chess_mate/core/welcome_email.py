@@ -11,7 +11,11 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.html import strip_tags
 
-from .email_utils import email_template_context, get_frontend_base_url, is_email_configured
+from .email_utils import (
+    email_template_context,
+    get_frontend_base_url,
+    is_email_configured,
+)
 from .models import Profile
 
 logger = logging.getLogger(__name__)

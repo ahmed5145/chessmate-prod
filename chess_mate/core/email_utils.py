@@ -51,10 +51,7 @@ def email_template_context(**extra) -> dict:
 def password_reset_unavailable_message() -> str:
     support = get_support_email()
     if support:
-        return (
-            "Password reset email is temporarily unavailable. "
-            f"Please try again later or contact us at {support}."
-        )
+        return "Password reset email is temporarily unavailable. " f"Please try again later or contact us at {support}."
     return "Password reset email is temporarily unavailable. " "Please try again later or contact support."
 
 
@@ -103,10 +100,7 @@ def build_verification_url(uidb64: str, token: str, request=None) -> str:
 def verification_email_unavailable_message() -> str:
     support = get_support_email()
     if support:
-        return (
-            "Verification email is temporarily unavailable. "
-            f"Please try again later or contact us at {support}."
-        )
+        return "Verification email is temporarily unavailable. " f"Please try again later or contact us at {support}."
     return "Verification email is temporarily unavailable. " "Please try again later or contact support."
 
 

@@ -155,7 +155,11 @@ def _verification_failed_response(request, message: str):
 
 def send_verification_email(user: User, profile: Profile, request) -> bool:
     """Send (or resend) the HTML verification email with a signed link."""
-    from .email_utils import build_verification_url, email_template_context, is_email_configured
+    from .email_utils import (
+        build_verification_url,
+        email_template_context,
+        is_email_configured,
+    )
 
     if not profile.email_verification_token:
         profile.email_verification_token = EmailVerificationToken.generate_token()
@@ -653,7 +657,11 @@ def request_password_reset(request):
     token = default_token_generator.make_token(user)
     uid = urlsafe_base64_encode(force_bytes(user.pk))
 
-    from .email_utils import build_password_reset_url, email_template_context, password_reset_expiry_hours
+    from .email_utils import (
+        build_password_reset_url,
+        email_template_context,
+        password_reset_expiry_hours,
+    )
 
     reset_url = build_password_reset_url(uid, token, request)
     expiry_hours = password_reset_expiry_hours()

@@ -54,9 +54,7 @@ class Command(BaseCommand):
         )
 
         first_batch_by_user = (
-            batches.values("user_id")
-            .annotate(first_at=Min("created_at"), batch_count=Count("id"))
-            .order_by()
+            batches.values("user_id").annotate(first_at=Min("created_at"), batch_count=Count("id")).order_by()
         )
 
         users_with_first_batch = first_batch_by_user.count()
@@ -88,9 +86,7 @@ class Command(BaseCommand):
         self.stdout.write(f"  Signups: {total_users}")
         self.stdout.write(f"  Email verified: {verified_users}")
         self.stdout.write(f"  First batch completed (≥{MIN_GAMES} games): {users_with_first_batch}")
-        self.stdout.write(
-            f"  Second batch within {window_days} days of first: {second_within_window}"
-        )
+        self.stdout.write(f"  Second batch within {window_days} days of first: {second_within_window}")
         if users_with_first_batch:
             rate = round(100 * second_within_window / users_with_first_batch, 1)
             self.stdout.write(f"  Second-batch rate: {rate}%")
