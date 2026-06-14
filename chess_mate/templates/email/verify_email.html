@@ -120,6 +120,7 @@
 
         <div class="footer">
             <p>This is an automated email. Please do not reply to this message.</p>
+            {% if support_email %}<p>Need help? <a href="mailto:{{ support_email }}">{{ support_email }}</a></p>{% endif %}
             <p>&copy; {{ current_year }} ChessMate. All rights reserved.</p>
         </div>
         <div class="chess-pattern"></div>

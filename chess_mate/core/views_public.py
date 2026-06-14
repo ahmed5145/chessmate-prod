@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from .email_utils import get_support_email
 from .google_oauth import is_google_oauth_configured
 
 
@@ -12,11 +13,7 @@ from .google_oauth import is_google_oauth_configured
 @permission_classes([AllowAny])
 def public_site_config_view(request):
     """GET /api/v1/public/site-config/ — support contact and beta framing."""
-    support = (
-        getattr(settings, "SUPPORT_EMAIL", "")
-        or getattr(settings, "DEFAULT_FROM_EMAIL", "")
-        or "support@chess-mate.online"
-    ).strip()
+    support = get_support_email()
     legal_entity = getattr(settings, "LEGAL_ENTITY_NAME", "").strip()
     demo_share_token = (getattr(settings, "DEMO_BATCH_SHARE_TOKEN", "") or "").strip()
     return Response(

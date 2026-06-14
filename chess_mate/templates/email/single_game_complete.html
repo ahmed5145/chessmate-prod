@@ -54,6 +54,7 @@
         </div>
         <div class="footer">
             <p>ChessMate — Single-game depth-20 review</p>
+            {% if support_email %}<p>Support: <a href="mailto:{{ support_email }}">{{ support_email }}</a></p>{% endif %}
         </div>
     </div>
 </body>

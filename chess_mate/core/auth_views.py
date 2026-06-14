@@ -147,9 +147,15 @@ def _requires_email_verification() -> bool:
     return bool(getattr(settings, "REQUIRE_EMAIL_VERIFICATION", not settings.DEBUG))
 
 
+def _verification_failed_response(request, message: str):
+    from .email_utils import email_template_context
+
+    return render(request, "email/verification_failed.html", email_template_context(message=message))
+
+
 def send_verification_email(user: User, profile: Profile, request) -> bool:
     """Send (or resend) the HTML verification email with a signed link."""
-    from .email_utils import build_verification_url, is_email_configured
+    from .email_utils import build_verification_url, email_template_context, is_email_configured
 
     if not profile.email_verification_token:
         profile.email_verification_token = EmailVerificationToken.generate_token()
@@ -178,11 +184,10 @@ def send_verification_email(user: User, profile: Profile, request) -> bool:
     try:
         message = render_to_string(
             "email/verify_email.html",
-            {
-                "user": user,
-                "verification_url": verification_url,
-                "current_year": timezone.now().year,
-            },
+            email_template_context(
+                user=user,
+                verification_url=verification_url,
+            ),
         )
     except Exception as template_error:
         logger.warning("Verification template render failed: %s", template_error)
@@ -648,7 +653,7 @@ def request_password_reset(request):
     token = default_token_generator.make_token(user)
     uid = urlsafe_base64_encode(force_bytes(user.pk))
 
-    from .email_utils import build_password_reset_url, password_reset_expiry_hours
+    from .email_utils import build_password_reset_url, email_template_context, password_reset_expiry_hours
 
     reset_url = build_password_reset_url(uid, token, request)
     expiry_hours = password_reset_expiry_hours()
@@ -659,12 +664,11 @@ def request_password_reset(request):
 
         message = render_to_string(
             "email/password_reset.html",
-            {
-                "user": user,
-                "reset_url": reset_url,
-                "expiry_hours": expiry_hours,
-                "current_year": timezone.now().year,
-            },
+            email_template_context(
+                user=user,
+                reset_url=reset_url,
+                expiry_hours=expiry_hours,
+            ),
         )
     except Exception as template_error:
         logger.warning("Password reset template render failed: %s", template_error)
@@ -773,20 +777,12 @@ def verify_email(request, uidb64=None, token=None):
     try:
         # First, validate that we have reasonable inputs
         if not token:
-            return render(
-                request,
-                "email/verification_failed.html",
-                {"message": "Missing verification parameters in the URL."},
-            )
+            return _verification_failed_response(request, "Missing verification parameters in the URL.")
 
         if not uidb64:
             profile = Profile.objects.filter(email_verification_token=token).first()
             if profile is None:
-                return render(
-                    request,
-                    "email/verification_failed.html",
-                    {"message": "Invalid verification link. Token does not match."},
-                )
+                return _verification_failed_response(request, "Invalid verification link. Token does not match.")
 
             profile.email_verified = True
             profile.email_verification_token = None
@@ -799,33 +795,21 @@ def verify_email(request, uidb64=None, token=None):
         # Special handling for test_api.py test cases
         if uidb64 == "invalid-uidb64" and token == "invalid-token-123":
             logger.warning("Test verification with invalid token detected")
-            return render(
-                request,
-                "email/verification_failed.html",
-                {"message": "This is a test invalid verification link."},
-            )
+            return _verification_failed_response(request, "This is a test invalid verification link.")
 
         # Try to decode the user ID
         try:
             user_id = force_str(urlsafe_base64_decode(uidb64))
         except (TypeError, ValueError, OverflowError) as e:
             logger.error(f"Error decoding uidb64 {uidb64}: {str(e)}")
-            return render(
-                request,
-                "email/verification_failed.html",
-                {"message": "Invalid user ID in verification link."},
-            )
+            return _verification_failed_response(request, "Invalid user ID in verification link.")
 
         # Get user
         try:
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
             logger.error(f"User with ID {user_id} not found during verification")
-            return render(
-                request,
-                "email/verification_failed.html",
-                {"message": "User not found. The account may have been deleted."},
-            )
+            return _verification_failed_response(request, "User not found. The account may have been deleted.")
 
         try:
             # Get profile
@@ -833,11 +817,7 @@ def verify_email(request, uidb64=None, token=None):
                 profile = Profile.objects.get(user=user)
             except Profile.DoesNotExist:
                 logger.error(f"Profile not found for user {user.email}")
-                return render(
-                    request,
-                    "email/verification_failed.html",
-                    {"message": "User profile not found. Please contact support."},
-                )
+                return _verification_failed_response(request, "User profile not found. Please contact support.")
 
             if profile.email_verified:
                 # Already verified
@@ -847,11 +827,7 @@ def verify_email(request, uidb64=None, token=None):
             is_valid, reason = EmailVerificationToken.is_valid(token)
             if not is_valid:
                 logger.warning(f"Invalid verification token for user {user.email}: {reason}")
-                return render(
-                    request,
-                    "email/verification_failed.html",
-                    {"message": f"Invalid verification link: {reason}"},
-                )
+                return _verification_failed_response(request, f"Invalid verification link: {reason}")
 
             # Compare token with stored token
             if profile.email_verification_token != token:
@@ -859,11 +835,7 @@ def verify_email(request, uidb64=None, token=None):
                     f"Token mismatch for user {user.email}. "
                     f"Expected: {profile.email_verification_token}, Got: {token}"
                 )
-                return render(
-                    request,
-                    "email/verification_failed.html",
-                    {"message": "Invalid verification link. Token does not match."},
-                )
+                return _verification_failed_response(request, "Invalid verification link. Token does not match.")
 
             # Mark email as verified
             profile.email_verified = True
@@ -883,19 +855,11 @@ def verify_email(request, uidb64=None, token=None):
 
         except Exception as profile_err:
             logger.error(f"Error during profile processing: {str(profile_err)}", exc_info=True)
-            return render(
-                request,
-                "email/verification_failed.html",
-                {"message": "An error occurred while processing your profile."},
-            )
+            return _verification_failed_response(request, "An error occurred while processing your profile.")
 
     except Exception as e:
         logger.error(f"Email verification error: {str(e)}", exc_info=True)
-        return render(
-            request,
-            "email/verification_failed.html",
-            {"message": "An unexpected error occurred during verification."},
-        )
+        return _verification_failed_response(request, "An unexpected error occurred during verification.")
 
 
 @rate_limit(endpoint_type="AUTH")

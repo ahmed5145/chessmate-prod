@@ -116,7 +116,9 @@
 
         <div class="footer">
             <p>ChessMate - Your AI-powered chess analysis assistant</p>
-            <p>If you need assistance, please contact support at support@chessmate.com</p>
+            {% if support_email %}
+            <p>If you need assistance, please contact support at <a href="mailto:{{ support_email }}">{{ support_email }}</a></p>
+            {% endif %}
         </div>
     </div>
 </body>

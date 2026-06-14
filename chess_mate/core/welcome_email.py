@@ -11,7 +11,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.html import strip_tags
 
-from .email_utils import get_frontend_base_url, is_email_configured
+from .email_utils import email_template_context, get_frontend_base_url, is_email_configured
 from .models import Profile
 
 logger = logging.getLogger(__name__)
@@ -44,14 +44,13 @@ def send_welcome_email_once(user, profile: Profile, request=None) -> bool:
     batch_url = f"{get_frontend_base_url(request)}/batch-analysis"
     credit_label = "credit" if signup_bonus_credits == 1 else "credits"
 
-    context = {
-        "user": user,
-        "signup_bonus_credits": signup_bonus_credits,
-        "credit_label": credit_label,
-        "import_url": import_url,
-        "batch_url": batch_url,
-        "current_year": timezone.now().year,
-    }
+    context = email_template_context(
+        user=user,
+        signup_bonus_credits=signup_bonus_credits,
+        credit_label=credit_label,
+        import_url=import_url,
+        batch_url=batch_url,
+    )
 
     try:
         html_body = render_to_string("email/welcome.html", context)

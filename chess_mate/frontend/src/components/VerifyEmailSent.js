@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Mail, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
+import { useSiteConfig } from '../hooks/useSiteConfig';
 import { resendVerificationEmail } from '../services/apiRequests';
 import { extractApiError } from '../utils/apiErrors';
 
@@ -10,6 +11,7 @@ const VerifyEmailSent = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
+  const { support_email } = useSiteConfig();
   const [resending, setResending] = useState(false);
 
   const email = location.state?.email || '';
@@ -75,7 +77,18 @@ const VerifyEmailSent = () => {
 
           {!emailSent && (
             <p className={`mt-4 text-center text-sm ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
-              We could not send the email right now. Use the button below to try again, or contact support if the problem continues.
+              We could not send the email right now. Use the button below to try again
+              {support_email ? (
+                <>
+                  , or email{' '}
+                  <a href={`mailto:${support_email}`} className="underline">
+                    {support_email}
+                  </a>
+                </>
+              ) : (
+                ' or contact support if the problem continues'
+              )}
+              .
             </p>
           )}
 

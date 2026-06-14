@@ -46,6 +46,7 @@
         </div>
         <div class="footer">
             <p>ChessMate — Batch Coach</p>
+            {% if support_email %}<p>Support: <a href="mailto:{{ support_email }}">{{ support_email }}</a></p>{% endif %}
         </div>
     </div>
 </body>

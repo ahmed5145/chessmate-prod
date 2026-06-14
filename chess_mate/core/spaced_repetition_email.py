@@ -20,7 +20,7 @@ from .email_send_log import (
     spaced_sent_in_last_days,
     user_active_within_hours,
 )
-from .email_utils import get_frontend_base_url, is_email_configured, send_coaching_email
+from .email_utils import email_template_context, get_frontend_base_url, is_email_configured, send_coaching_email
 from .models import EmailSendLog, Game, GameAnalysis, Profile, SpacedReminderLog
 from .notification_preferences import user_wants_spaced_repetition_email
 from .stats_helpers import ANALYZED_GAME_Q
@@ -160,15 +160,14 @@ def send_spaced_repetition_for_user(user: User, *, force: bool = False) -> bool:
     subject = build_spaced_email_subject(moment)
     swing = _moment_swing(moment)
 
-    context = {
-        "user": user,
-        "game_id": game.id,
-        "move_number": move_number,
-        "review_url": review_url,
-        "swing": swing,
-        "preferences_url": f"{base}/profile",
-        "current_year": timezone.now().year,
-    }
+    context = email_template_context(
+        user=user,
+        game_id=game.id,
+        move_number=move_number,
+        review_url=review_url,
+        swing=swing,
+        preferences_url=f"{base}/profile",
+    )
 
     try:
         html_body = render_to_string("email/spaced_moment.html", context)

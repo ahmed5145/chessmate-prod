@@ -1,27 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
-import api from '../services/api';
-
-const DEFAULT_SUPPORT = 'support@chess-mate.online';
+import { useSiteConfig } from '../hooks/useSiteConfig';
 
 const SiteFooter = () => {
   const { isDarkMode } = useTheme();
-  const [supportEmail, setSupportEmail] = useState(DEFAULT_SUPPORT);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const response = await api.get('/api/v1/public/site-config/');
-        if (response.data?.support_email) {
-          setSupportEmail(response.data.support_email);
-        }
-      } catch (error) {
-        console.warn('Using default support email:', error);
-      }
-    };
-    load();
-  }, []);
+  const { support_email, loading } = useSiteConfig();
 
   return (
     <footer
@@ -37,9 +21,13 @@ const SiteFooter = () => {
           </span>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-4">
-          <a href={`mailto:${supportEmail}`} className="hover:underline">
-            Support
-          </a>
+          {support_email ? (
+            <a href={`mailto:${support_email}`} className="hover:underline">
+              Support
+            </a>
+          ) : !loading ? (
+            <span className="opacity-70">Support</span>
+          ) : null}
           <Link to="/terms" className="hover:underline">
             Terms
           </Link>

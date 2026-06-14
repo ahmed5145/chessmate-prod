@@ -9,7 +9,7 @@ from django.utils.html import strip_tags
 
 from .batch_deep_links import build_worst_moment_deep_review_url, worst_moment_summary
 from .batch_labels import BATCH_COACH_EMAIL_SUBJECT
-from .email_utils import get_frontend_base_url, is_email_configured
+from .email_utils import email_template_context, get_frontend_base_url, is_email_configured
 from .notification_preferences import user_wants_analysis_completion_email
 
 logger = logging.getLogger(__name__)
@@ -47,19 +47,19 @@ def send_batch_complete_email(user, batch_report) -> bool:
     try:
         html_body = render_to_string(
             "email/batch_complete.html",
-            {
-                "user": user,
-                "batch_id": batch_id,
-                "games_count": batch_report.games_count,
-                "status": status,
-                "report_url": report_url,
-                "coach_snippet": coach_snippet,
-                "overall_accuracy_pct": accuracy_pct,
-                "stability_pct": stability_pct,
-                "deep_review_url": deep_review_url,
-                "worst_moment_move": worst_moment.get("move_number"),
-                "worst_moment_played": worst_moment.get("played_move"),
-            },
+            email_template_context(
+                user=user,
+                batch_id=batch_id,
+                games_count=batch_report.games_count,
+                status=status,
+                report_url=report_url,
+                coach_snippet=coach_snippet,
+                overall_accuracy_pct=accuracy_pct,
+                stability_pct=stability_pct,
+                deep_review_url=deep_review_url,
+                worst_moment_move=worst_moment.get("move_number"),
+                worst_moment_played=worst_moment.get("played_move"),
+            ),
         )
     except Exception as exc:
         logger.warning("Batch complete template render failed: %s", exc)

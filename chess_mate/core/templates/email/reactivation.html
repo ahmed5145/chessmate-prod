@@ -11,6 +11,7 @@
     <p style="font-size:12px;color:#6b7280;">
       <a href="{{ preferences_url }}">Manage email preferences</a> · max one reactivation email per 30 days.
     </p>
+    {% if support_email %}<p style="font-size:12px;color:#6b7280;">Support: <a href="mailto:{{ support_email }}">{{ support_email }}</a></p>{% endif %}
     <p style="font-size:12px;color:#9ca3af;">&copy; {{ current_year }} ChessMate</p>
   </body>
 </html>

@@ -116,11 +116,12 @@ class TestStripeWebhook:
 
 
 @pytest.mark.django_db
-def test_public_site_config():
+def test_public_site_config(settings):
+    settings.SUPPORT_EMAIL = "ops@example.com"
     client = APIClient()
     response = client.get("/api/v1/public/site-config/")
     assert response.status_code == 200
-    assert "support_email" in response.data
+    assert response.data["support_email"] == "ops@example.com"
     assert response.data["signup_bonus_credits"] >= 10
     assert "demo_batch_share_token" in response.data
     assert response.data["demo_batch_share_token"] is None

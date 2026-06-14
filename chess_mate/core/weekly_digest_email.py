@@ -19,7 +19,7 @@ from .email_send_log import (
     log_email_send,
     received_coaching_touchpoint_today,
 )
-from .email_utils import get_frontend_base_url, is_email_configured, send_coaching_email
+from .email_utils import email_template_context, get_frontend_base_url, is_email_configured, send_coaching_email
 from .fix_rate import build_dashboard_fix_rate
 from .inbox_streak import get_inbox_streak_payload
 from .models import BatchAnalysisReport, EmailSendLog, Game, Profile, UserNotification
@@ -197,15 +197,14 @@ def send_weekly_digest_for_user(user: User, *, force: bool = False) -> bool:
         else:
             cta_url = cta_href
 
-        context = {
-            "user": user,
-            "payload": payload,
-            "dashboard_url": f"{base_url}/dashboard",
-            "cta_url": cta_url,
-            "cta_label": payload.get("cta_label") or "Open dashboard",
-            "preferences_url": f"{base_url}/profile",
-            "current_year": timezone.now().year,
-        }
+        context = email_template_context(
+            user=user,
+            payload=payload,
+            dashboard_url=f"{base_url}/dashboard",
+            cta_url=cta_url,
+            cta_label=payload.get("cta_label") or "Open dashboard",
+            preferences_url=f"{base_url}/profile",
+        )
 
         try:
             html_body = render_to_string("email/weekly_digest.html", context)

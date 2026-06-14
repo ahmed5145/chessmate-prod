@@ -10,7 +10,7 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
 from .email_send_log import coaching_email_budget_exceeded, log_email_send
-from .email_utils import get_frontend_base_url, is_email_configured, send_coaching_email
+from .email_utils import email_template_context, get_frontend_base_url, is_email_configured, send_coaching_email
 from .models import EmailSendLog
 from .notification_preferences import user_wants_analysis_completion_email
 from .stats_helpers import build_single_game_context
@@ -175,21 +175,21 @@ def send_single_game_complete_email(user, game, analysis_model) -> bool:
     try:
         html_body = render_to_string(
             "email/single_game_complete.html",
-            {
-                "user": user,
-                "game_id": game.id,
-                "game_context": game_context,
-                "report_url": report_url,
-                "deep_review_url": deep_review_url,
-                "coach_snippet": coach_snippet,
-                "headline": headline or email_subject,
-                "accuracy_pct": accuracy_pct,
-                "worst_moment_move": worst_moment.get("move_number"),
-                "worst_moment_played": worst_moment.get("played_move"),
-                "worst_moment_best": worst_moment.get("best_move"),
-                "worst_moment_swing": worst_moment.get("eval_swing"),
-                "worst_moment_type": worst_moment.get("type"),
-            },
+            email_template_context(
+                user=user,
+                game_id=game.id,
+                game_context=game_context,
+                report_url=report_url,
+                deep_review_url=deep_review_url,
+                coach_snippet=coach_snippet,
+                headline=headline or email_subject,
+                accuracy_pct=accuracy_pct,
+                worst_moment_move=worst_moment.get("move_number"),
+                worst_moment_played=worst_moment.get("played_move"),
+                worst_moment_best=worst_moment.get("best_move"),
+                worst_moment_swing=worst_moment.get("eval_swing"),
+                worst_moment_type=worst_moment.get("type"),
+            ),
         )
     except Exception as exc:
         logger.warning("Single-game complete template render failed: %s", exc)

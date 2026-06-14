@@ -1,31 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import LegalPage, { LegalLink } from './LegalPage';
-import api from '../services/api';
+import { useSiteConfig } from '../hooks/useSiteConfig';
 
 const PrivacyPage = () => {
-  const [legal, setLegal] = useState({
-    legal_entity_name: '',
-    legal_entity_incorporated: false,
-    legal_governing_law: 'the State of Delaware, United States',
-    legal_entity_address: '',
-    support_email: 'support@chess-mate.online',
-  });
-
-  useEffect(() => {
-    api.get('/api/v1/public/site-config/')
-      .then((response) => {
-        const data = response.data || {};
-        setLegal((prev) => ({
-          ...prev,
-          legal_entity_name: data.legal_entity_name || '',
-          legal_entity_incorporated: Boolean(data.legal_entity_incorporated),
-          legal_governing_law: data.legal_governing_law || prev.legal_governing_law,
-          legal_entity_address: data.legal_entity_address || '',
-          support_email: data.support_email || prev.support_email,
-        }));
-      })
-      .catch(() => {});
-  }, []);
+  const legal = useSiteConfig();
 
   const controllerLabel = legal.legal_entity_incorporated
     ? legal.legal_entity_name
@@ -107,7 +85,12 @@ const PrivacyPage = () => {
 
       <h2 className="text-xl font-semibold mt-6 mb-2">Contact</h2>
       <p>
-        Privacy questions: <LegalLink href={`mailto:${legal.support_email}`}>{legal.support_email}</LegalLink>
+        Privacy questions:{' '}
+        {legal.support_email ? (
+          <LegalLink href={`mailto:${legal.support_email}`}>{legal.support_email}</LegalLink>
+        ) : (
+          'contact support via the email shown in the site footer once loaded.'
+        )}
       </p>
       <p className="text-sm opacity-75 mt-8">Last updated: June 2026</p>
     </LegalPage>

@@ -18,7 +18,7 @@ from .email_send_log import (
     log_email_send,
     spaced_sent_in_last_days,
 )
-from .email_utils import get_frontend_base_url, is_email_configured
+from .email_utils import email_template_context, get_frontend_base_url, is_email_configured
 from .models import BatchAnalysisReport, EmailSendLog, Game, Profile
 from .notification_preferences import user_wants_reactivation_email
 from .stats_helpers import parse_last_dashboard_visit
@@ -88,12 +88,11 @@ def send_reactivation_for_user(user: User, *, force: bool = False) -> bool:
 
     base = get_frontend_base_url()
     cta_url = f"{base}/batch-analysis"
-    context = {
-        "user": user,
-        "cta_url": cta_url,
-        "preferences_url": f"{base}/profile",
-        "current_year": timezone.now().year,
-    }
+    context = email_template_context(
+        user=user,
+        cta_url=cta_url,
+        preferences_url=f"{base}/profile",
+    )
 
     try:
         html_body = render_to_string("email/reactivation.html", context)

@@ -28,7 +28,33 @@ def is_email_configured() -> bool:
     return True
 
 
+def get_support_email() -> str:
+    """Public support inbox from EB SUPPORT_EMAIL, else DEFAULT_FROM_EMAIL."""
+    support = (getattr(settings, "SUPPORT_EMAIL", None) or "").strip()
+    if support:
+        return support
+    return (getattr(settings, "DEFAULT_FROM_EMAIL", None) or "").strip()
+
+
+def email_template_context(**extra) -> dict:
+    """Shared template context for outbound mail (support contact from settings)."""
+    from django.utils import timezone
+
+    context = {
+        "support_email": get_support_email(),
+        "current_year": timezone.now().year,
+    }
+    context.update(extra)
+    return context
+
+
 def password_reset_unavailable_message() -> str:
+    support = get_support_email()
+    if support:
+        return (
+            "Password reset email is temporarily unavailable. "
+            f"Please try again later or contact us at {support}."
+        )
     return "Password reset email is temporarily unavailable. " "Please try again later or contact support."
 
 
@@ -75,6 +101,12 @@ def build_verification_url(uidb64: str, token: str, request=None) -> str:
 
 
 def verification_email_unavailable_message() -> str:
+    support = get_support_email()
+    if support:
+        return (
+            "Verification email is temporarily unavailable. "
+            f"Please try again later or contact us at {support}."
+        )
     return "Verification email is temporarily unavailable. " "Please try again later or contact support."
 
 

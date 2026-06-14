@@ -44,6 +44,7 @@
         </div>
         <div class="footer">
             <p>ChessMate — AI batch coaching + depth-20 game reviews</p>
+            {% if support_email %}<p>Support: <a href="mailto:{{ support_email }}">{{ support_email }}</a></p>{% endif %}
             <p>© {{ current_year }} ChessMate</p>
         </div>
     </div>
