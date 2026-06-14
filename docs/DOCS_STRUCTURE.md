@@ -23,6 +23,7 @@ This document provides an overview of the ChessMate documentation organization t
 - [product/README.md](product/README.md) - Product requirements, MVP scope, roadmap, differentiation, and batch analysis flow
 - [product/LAUNCH_WEEK_PLAN.md](product/LAUNCH_WEEK_PLAN.md) - Post-smoke launch ops, EB logs, support, and user acquisition
 - [product/LANDING_SEO_MARKETING_AUDIT.md](product/LANDING_SEO_MARKETING_AUDIT.md) - Landing improvements backlog, SEO, explorability, organic marketing
+- [product/PRODUCT_ANALYTICS_AUDIT.md](product/PRODUCT_ANALYTICS_AUDIT.md) - Product analytics audit, GA4 setup, funnel gaps, launch metrics
 
 ## Documentation Conventions
 

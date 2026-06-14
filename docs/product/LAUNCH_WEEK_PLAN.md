@@ -218,9 +218,11 @@ Rule of thumb: full use of **15 signup credits** ≈ **$0.02–0.03** OpenAI per
 
 ---
 
-## 7. Metrics (simple spreadsheet + `launch_metrics`)
+## 7. Metrics (spreadsheet + `launch_metrics` + GA4)
 
-Track weekly — no analytics tooling required at first.
+**Full audit:** [PRODUCT_ANALYTICS_AUDIT.md](PRODUCT_ANALYTICS_AUDIT.md) — GA4 stream `G-3NLTQ3XH2Y`, funnel gaps, weekly process.
+
+Track weekly — DB via CLI; marketing via GA4 after deploy.
 
 | Metric | Week 1 | Week 2 | Week 3 | Week 4 |
 |--------|--------|--------|--------|--------|

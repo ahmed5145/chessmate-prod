@@ -229,8 +229,8 @@ flowchart LR
 | Capability | Status | Gap |
 |------------|--------|-----|
 | Cloudflare Web Analytics | **On** | `index.html` — page views, no funnel |
-| GTM / gtag marketing events | **Partial** | `marketingAnalytics.js` — `landing_view`, `cta_click`, `preview_tab_change`, etc. |
-| Product funnel dashboard | **Missing** | No signup → verify → import → batch → batch#2 dashboard |
+| GTM / gtag marketing events | **Shipped** | GA4 `G-3NLTQ3XH2Y` in `index.html` + `marketingAnalytics.js` — see [PRODUCT_ANALYTICS_AUDIT.md](PRODUCT_ANALYTICS_AUDIT.md) |
+| Product funnel dashboard | **Partial** | GA4 Realtime + Explorations; DB via `launch_metrics` |
 | `launch_metrics` CLI | **Shipped** | EB-only; manual weekly ([LAUNCH_WEEK_PLAN.md §7](LAUNCH_WEEK_PLAN.md)) |
 | UTM discipline | **Partial** | `marketingLinks.js` sources on CTAs; community posts manual |
 | SEO rank tracking | **Missing** | No Search Console verification documented |

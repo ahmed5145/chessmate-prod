@@ -11,6 +11,7 @@ This folder contains the product definition for ChessMate's coaching-focused MVP
 - [Single-Game Analysis Implementation Plan](SINGLE_GAME_ANALYSIS_IMPLEMENTATION_PLAN.md)
 - [Single-Game Retention & Batch Bridge Plan](SINGLE_GAME_RETENTION_PLAN.md) 🔒
 - [**Launch Week Plan**](LAUNCH_WEEK_PLAN.md) — ops, logs, support, growth (active)
+- [**Product Analytics Audit**](PRODUCT_ANALYTICS_AUDIT.md) — GA4 setup, funnel gaps, event plan, founder dashboards (active)
 - [**Landing, SEO & Organic Marketing Audit**](LANDING_SEO_MARKETING_AUDIT.md) — landing backlog, SEO, explorability, organic channels
 - [Platform Growth & Opportunity Audit](PLATFORM_GROWTH_AUDIT.md) — post-launch opportunities, financial impact, timing
 - [Dashboard UX Plan](DASHBOARD_UX_PLAN.md) — coach-home layout (implemented)
